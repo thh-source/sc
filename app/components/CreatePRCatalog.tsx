@@ -137,9 +137,9 @@ export function CreatePRCatalog({
           // Thêm cơ chế tự động thử lại (auto-retry) tối đa 3 lần nếu máy chủ báo bận (503)
           let aiRes;
           let aiJson;
-          let retries = 3;
+          let retries = 2; // Giảm xuống 2 để đỡ tốn Quota 20 lần/phút
           
-          while (retries > 0) {
+          while (retries >= 0) {
             aiRes = await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=" + apiKey, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
@@ -153,24 +153,24 @@ export function CreatePRCatalog({
             
             aiJson = await aiRes.json();
             
-            if (aiRes.ok) break; // Thành công thì thoát vòng lặp
+            if (aiRes.ok) break;
             
             const errorMsg = aiJson.error?.message || "";
-            if (errorMsg.includes("503") || errorMsg.includes("high demand") || errorMsg.includes("UNAVAILABLE")) {
+            if ((errorMsg.includes("503") || errorMsg.includes("high demand") || errorMsg.includes("UNAVAILABLE")) && retries > 0) {
+              setAiLoading(`AI đang bận, thử lại... (Còn ${retries} lần)`);
               retries--;
-              if (retries > 0) {
-                setAiLoading(`AI đang bận, thử lại... (Còn ${retries} lần)`);
-                await new Promise(r => setTimeout(r, 2000));
-                continue;
-              }
+              await new Promise(r => setTimeout(r, 3000)); // Chờ 3 giây thay vì 2
+              continue;
             }
-            break; // Lỗi khác hoặc hết lượt thử thì thoát để báo lỗi
+            break;
           }
 
           if (!aiRes || !aiRes.ok) {
             let errorMsg = aiJson?.error?.message || "Lỗi từ Google AI";
             if (errorMsg.includes("503") || errorMsg.includes("high demand") || errorMsg.includes("UNAVAILABLE")) {
-              errorMsg = "Máy chủ AI của Google hiện đang quá tải do có quá nhiều người sử dụng. Xin bạn vui lòng thử lại sau vài giây nhé!";
+              errorMsg = "Máy chủ AI của Google hiện đang quá tải. Xin bạn vui lòng thử lại sau vài giây nhé!";
+            } else if (errorMsg.includes("Quota exceeded") || errorMsg.includes("429")) {
+              errorMsg = "Bạn đã dùng quá giới hạn 20 lần quét miễn phí trong 1 phút của Google. Vui lòng đợi khoảng 1 phút rồi thử lại nhé!";
             }
             throw new Error(errorMsg);
           }
