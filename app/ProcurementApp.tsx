@@ -1301,7 +1301,17 @@ export default function ProcurementApp({
             fileRef={fileRef}
             importExcel={importExcel}
             message={importMessage}
-            onCancel={() => setView("prs")}
+            onCancel={() => {
+              setDraft({
+                number: `PR-${new Date().getFullYear()}-${String(prs.length + 1).padStart(4, "0")}`,
+                date: new Date().toISOString().slice(0, 10),
+                department: "",
+                purpose: "",
+                note: "",
+                items: [emptyItem(0)],
+              });
+              setView("prs");
+            }}
             onSave={savePR}
           />
         )}
