@@ -1,0 +1,24 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "quan-ly-mua-hang",
+  "main": "worker/index.ts",
+  "compatibility_date": "2026-05-22",
+  "compatibility_flags": ["nodejs_compat"],
+  "vars": {
+    "MASTER_ADMIN_ID": "bosmile"
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "mua-hang-db",
+      "database_id": "b9758dfb-ea50-4534-8372-7798ec7fb9e6",
+      "migrations_dir": "drizzle"
+    }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "BUCKET",
+      "bucket_name": "mua-hang-files"
+    }
+  ]
+}
