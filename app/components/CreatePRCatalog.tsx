@@ -79,6 +79,7 @@ export function CreatePRCatalog({
       reader.onload = async () => {
         try {
           const base64Data = (reader.result as string).split(',')[1];
+          // 1. Get payload and API key from backend
           const res = await fetch("/api/ai/extract-pr", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -89,9 +90,25 @@ export function CreatePRCatalog({
             }),
           });
           const json = await res.json();
-          if (!res.ok) throw new Error(json.error || "Lỗi khi quét AI");
+          if (!res.ok) throw new Error(json.error || "Lỗi khi tiền xử lý file");
           
-          const data = json.data;
+          const { apiKey, contents } = json;
+          
+          // 2. Call Gemini API directly from Frontend to bypass Cloudflare location restrictions
+          const aiRes = await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=" + apiKey, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ contents })
+          });
+          
+          const aiJson = await aiRes.json();
+          if (!aiRes.ok) throw new Error(aiJson.error?.message || "Lỗi từ Google AI");
+          
+          // 3. Parse result
+          const responseText = aiJson.candidates?.[0]?.content?.parts?.[0]?.text || "";
+          const jsonStr = responseText.replace(/```json\n?|\n?```/g, "").trim();
+          const data = JSON.parse(jsonStr);
+          
           if (data) {
             setDraft((d) => ({
               ...d,
