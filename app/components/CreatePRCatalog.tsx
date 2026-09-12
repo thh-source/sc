@@ -95,14 +95,20 @@ export function CreatePRCatalog({
           const { apiKey, contents } = json;
           
           // 2. Call Gemini API directly from Frontend to bypass Cloudflare location restrictions
-          const aiRes = await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=" + apiKey, {
+          const aiRes = await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=" + apiKey, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ contents })
           });
           
           const aiJson = await aiRes.json();
-          if (!aiRes.ok) throw new Error(aiJson.error?.message || "Lỗi từ Google AI");
+          if (!aiRes.ok) {
+            let errorMsg = aiJson.error?.message || "Lỗi từ Google AI";
+            if (errorMsg.includes("503") || errorMsg.includes("high demand") || errorMsg.includes("UNAVAILABLE")) {
+              errorMsg = "Máy chủ AI của Google hiện đang quá tải do có quá nhiều người sử dụng. Xin bạn vui lòng thử lại sau vài giây nhé!";
+            }
+            throw new Error(errorMsg);
+          }
           
           // 3. Parse result
           const responseText = aiJson.candidates?.[0]?.content?.parts?.[0]?.text || "";
