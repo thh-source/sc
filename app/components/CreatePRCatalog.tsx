@@ -67,7 +67,7 @@ export function CreatePRCatalog({
     setSelectedProduct("");
   };
 
-  const [aiLoading, setAiLoading] = useState(false);
+  const [aiLoading, setAiLoading] = useState<string | false>(false);
   const [aiPendingData, setAiPendingData] = useState<any>(null);
   const [aiMapping, setAiMapping] = useState<Record<string, string>>({
     code: 'code',
@@ -108,27 +108,31 @@ export function CreatePRCatalog({
   const handleAiScan = async (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    setAiLoading(true);
+    setAiLoading("Đang đọc file...");
     try {
       const reader = new FileReader();
       reader.onload = async () => {
         try {
-          const base64Data = (reader.result as string).split(',')[1];
-          // 1. Get payload and API key from backend
+          setAiLoading("Đang xử lý dữ liệu...");
+          const base64 = (reader.result as string).split(",")[1];
           const res = await fetch("/api/ai/extract-pr", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
+              base64,
               mimeType: file.type,
-              fileName: file.name,
-              base64: base64Data
-            }),
+              fileName: file.name
+            })
           });
+          
+          if (!res.ok) throw new Error("Lỗi khi kết nối AI (Backend)");
+          
           const json = await res.json();
-          if (!res.ok) throw new Error(json.error || "Lỗi khi tiền xử lý file");
+          if (json.error) throw new Error(json.error);
           
           const { apiKey, contents } = json;
           
+          setAiLoading("Đang trích xuất thông minh...");
           // 2. Call Gemini API directly from Frontend to bypass Cloudflare location restrictions
           // Thêm cơ chế tự động thử lại (auto-retry) tối đa 3 lần nếu máy chủ báo bận (503)
           let aiRes;
@@ -139,7 +143,12 @@ export function CreatePRCatalog({
             aiRes = await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=" + apiKey, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ contents })
+              body: JSON.stringify({ 
+                contents,
+                generationConfig: {
+                  responseMimeType: "application/json"
+                }
+              })
             });
             
             aiJson = await aiRes.json();
@@ -150,7 +159,7 @@ export function CreatePRCatalog({
             if (errorMsg.includes("503") || errorMsg.includes("high demand") || errorMsg.includes("UNAVAILABLE")) {
               retries--;
               if (retries > 0) {
-                console.log(`AI đang bận, thử lại sau 2 giây... (Còn ${retries} lần)`);
+                setAiLoading(`AI đang bận, thử lại... (Còn ${retries} lần)`);
                 await new Promise(r => setTimeout(r, 2000));
                 continue;
               }
@@ -216,7 +225,7 @@ export function CreatePRCatalog({
             disabled={aiLoading}
             style={{ backgroundColor: '#e8f0fe', color: '#1a73e8', borderColor: '#1a73e8' }}
           >
-            {aiLoading ? "⏳ Đang quét AI..." : "✨ Scan File AI"}
+            {aiLoading ? (typeof aiLoading === 'string' ? "⏳ " + aiLoading : "⏳ Đang quét AI...") : "✨ Scan File AI"}
           </button>
           <button className="ghost" onClick={onCancel}>
             Hủy
