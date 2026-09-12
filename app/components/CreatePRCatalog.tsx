@@ -95,15 +95,36 @@ export function CreatePRCatalog({
           const { apiKey, contents } = json;
           
           // 2. Call Gemini API directly from Frontend to bypass Cloudflare location restrictions
-          const aiRes = await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=" + apiKey, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ contents })
-          });
+          // Thêm cơ chế tự động thử lại (auto-retry) tối đa 3 lần nếu máy chủ báo bận (503)
+          let aiRes;
+          let aiJson;
+          let retries = 3;
           
-          const aiJson = await aiRes.json();
-          if (!aiRes.ok) {
-            let errorMsg = aiJson.error?.message || "Lỗi từ Google AI";
+          while (retries > 0) {
+            aiRes = await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=" + apiKey, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ contents })
+            });
+            
+            aiJson = await aiRes.json();
+            
+            if (aiRes.ok) break; // Thành công thì thoát vòng lặp
+            
+            const errorMsg = aiJson.error?.message || "";
+            if (errorMsg.includes("503") || errorMsg.includes("high demand") || errorMsg.includes("UNAVAILABLE")) {
+              retries--;
+              if (retries > 0) {
+                console.log(`AI đang bận, thử lại sau 2 giây... (Còn ${retries} lần)`);
+                await new Promise(r => setTimeout(r, 2000));
+                continue;
+              }
+            }
+            break; // Lỗi khác hoặc hết lượt thử thì thoát để báo lỗi
+          }
+
+          if (!aiRes || !aiRes.ok) {
+            let errorMsg = aiJson?.error?.message || "Lỗi từ Google AI";
             if (errorMsg.includes("503") || errorMsg.includes("high demand") || errorMsg.includes("UNAVAILABLE")) {
               errorMsg = "Máy chủ AI của Google hiện đang quá tải do có quá nhiều người sử dụng. Xin bạn vui lòng thử lại sau vài giây nhé!";
             }
