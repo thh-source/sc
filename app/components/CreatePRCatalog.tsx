@@ -69,6 +69,21 @@ export function CreatePRCatalog({
 
   const [aiLoading, setAiLoading] = useState<string | false>(false);
   const [aiPendingData, setAiPendingData] = useState<any>(null);
+  
+  // AI Settings State
+  const [aiProvider, setAiProvider] = useState<"gemini" | "deepseek" | "openrouter">(() => {
+    return (typeof localStorage !== "undefined" ? localStorage.getItem("sc_ai_provider") : "gemini") as any || "gemini";
+  });
+  const [aiKeys, setAiKeys] = useState<{ deepseek: string, openrouter: string }>(() => {
+    if (typeof localStorage !== "undefined") {
+      try {
+        return JSON.parse(localStorage.getItem("sc_ai_keys") || "{}");
+      } catch (e) {}
+    }
+    return { deepseek: "", openrouter: "" };
+  });
+  const [aiSettingsOpen, setAiSettingsOpen] = useState(false);
+
   const [aiMapping, setAiMapping] = useState<Record<string, string>>({
     code: 'code',
     name: 'name',
@@ -108,6 +123,13 @@ export function CreatePRCatalog({
   const handleAiScan = async (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    if (aiProvider !== "gemini" && !file.name.match(/\.(xlsx|csv|xls)$/i)) {
+      alert("❌ Chế độ DeepSeek/OpenRouter hiện tại chỉ hỗ trợ trích xuất siêu tốc cho file Excel/CSV. Để quét file Ảnh hoặc PDF, bạn vui lòng chuyển lại sang Google Gemini nhé!");
+      if (aiFileRef.current) aiFileRef.current.value = "";
+      return;
+    }
+
     setAiLoading("Đang đọc file...");
     try {
       const reader = new FileReader();
@@ -133,23 +155,52 @@ export function CreatePRCatalog({
           const { apiKey, contents } = json;
           
           setAiLoading("Đang trích xuất thông minh...");
-          // 2. Call Gemini API directly from Frontend to bypass Cloudflare location restrictions
-          // Thêm cơ chế tự động thử lại (auto-retry) tối đa 3 lần nếu máy chủ báo bận (503)
+          
           let aiRes;
           let aiJson;
           let retries = 2; // Giảm xuống 2 để đỡ tốn Quota 20 lần/phút
           
           while (retries >= 0) {
-            aiRes = await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=" + apiKey, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ 
-                contents,
-                generationConfig: {
-                  responseMimeType: "application/json"
-                }
-              })
-            });
+            if (aiProvider === "gemini") {
+              aiRes = await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=" + apiKey, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ 
+                  contents,
+                  generationConfig: { responseMimeType: "application/json" }
+                })
+              });
+            } else {
+              // OpenRouter or DeepSeek
+              const isDeepSeek = aiProvider === "deepseek";
+              const key = isDeepSeek ? aiKeys.deepseek : aiKeys.openrouter;
+              const url = isDeepSeek ? "https://api.deepseek.com/v1/chat/completions" : "https://openrouter.ai/api/v1/chat/completions";
+              const model = isDeepSeek ? "deepseek-chat" : "google/gemini-flash-1.5-8b";
+              
+              if (!key) {
+                throw new Error(`Vui lòng nhập API Key cho ${isDeepSeek ? "DeepSeek" : "OpenRouter"} trong cài đặt (Nút ⚙️).`);
+              }
+
+              // Chuyển đổi payload Gemini sang OpenAI format
+              // Vì contents[0].parts[0].text chứa cả file csv text
+              const promptText = contents[0]?.parts?.[0]?.text || "";
+              
+              aiRes = await fetch(url, {
+                method: "POST",
+                headers: { 
+                  "Content-Type": "application/json",
+                  "Authorization": `Bearer ${key}`
+                },
+                body: JSON.stringify({ 
+                  model: model,
+                  messages: [
+                    { role: "system", content: "Bạn là một AI trích xuất dữ liệu mua hàng. Luôn luôn trả về định dạng JSON thuần túy, đúng cấu trúc yêu cầu, KHÔNG BỌC TRONG markdown ```json." },
+                    { role: "user", content: promptText }
+                  ],
+                  response_format: { type: "json_object" }
+                })
+              });
+            }
             
             aiJson = await aiRes.json();
             
@@ -159,7 +210,7 @@ export function CreatePRCatalog({
             if ((errorMsg.includes("503") || errorMsg.includes("high demand") || errorMsg.includes("UNAVAILABLE")) && retries > 0) {
               setAiLoading(`AI đang bận, thử lại... (Còn ${retries} lần)`);
               retries--;
-              await new Promise(r => setTimeout(r, 3000)); // Chờ 3 giây thay vì 2
+              await new Promise(r => setTimeout(r, 3000));
               continue;
             }
             break;
@@ -168,15 +219,24 @@ export function CreatePRCatalog({
           if (!aiRes || !aiRes.ok) {
             let errorMsg = aiJson?.error?.message || "Lỗi từ Google AI";
             if (errorMsg.includes("503") || errorMsg.includes("high demand") || errorMsg.includes("UNAVAILABLE")) {
-              errorMsg = "Máy chủ AI của Google hiện đang quá tải. Xin bạn vui lòng thử lại sau vài giây nhé!";
+              errorMsg = "Máy chủ AI hiện đang quá tải. Xin bạn vui lòng thử lại sau vài giây nhé!";
             } else if (errorMsg.includes("Quota exceeded") || errorMsg.includes("429")) {
-              errorMsg = "Bạn đã dùng quá giới hạn 20 lần quét miễn phí trong 1 phút của Google. Vui lòng đợi khoảng 1 phút rồi thử lại nhé!";
+              errorMsg = "Bạn đã dùng quá giới hạn quét miễn phí trong 1 phút. Vui lòng đợi khoảng 1 phút rồi thử lại, hoặc chuyển sang dùng DeepSeek/OpenRouter nhé!";
+            } else if (errorMsg.includes("insufficient_quota")) {
+              errorMsg = "API Key của bạn đã hết tiền hoặc bị khóa. Vui lòng nạp thêm tiền hoặc dùng key khác.";
+            } else if (errorMsg.includes("AuthenticationError") || errorMsg.includes("API key not valid")) {
+              errorMsg = "API Key không hợp lệ. Vui lòng kiểm tra lại trong phần Cài đặt (⚙️).";
             }
             throw new Error(errorMsg);
           }
           
           // 3. Parse result
-          const responseText = aiJson.candidates?.[0]?.content?.parts?.[0]?.text || "";
+          let responseText = "";
+          if (aiProvider === "gemini") {
+            responseText = aiJson.candidates?.[0]?.content?.parts?.[0]?.text || "";
+          } else {
+            responseText = aiJson.choices?.[0]?.message?.content || "";
+          }
           const jsonStr = responseText.replace(/```json\n?|\n?```/g, "").trim();
           const data = JSON.parse(jsonStr);
           
@@ -219,14 +279,38 @@ export function CreatePRCatalog({
             accept=".pdf,.png,.jpg,.jpeg,.xlsx,.csv"
             onChange={handleAiScan}
           />
-          <button 
-            className="secondary" 
-            onClick={() => aiFileRef.current?.click()}
-            disabled={aiLoading}
-            style={{ backgroundColor: '#e8f0fe', color: '#1a73e8', borderColor: '#1a73e8' }}
-          >
-            {aiLoading ? (typeof aiLoading === 'string' ? "⏳ " + aiLoading : "⏳ Đang quét AI...") : "✨ Scan File AI"}
-          </button>
+          <div className="flex items-center gap-2">
+            <select 
+              className="border p-2 rounded" 
+              value={aiProvider} 
+              onChange={e => {
+                const val = e.target.value as any;
+                setAiProvider(val);
+                if (typeof localStorage !== 'undefined') localStorage.setItem("sc_ai_provider", val);
+              }}
+              title="Chọn mô hình AI"
+            >
+              <option value="gemini">Google (Mặc định)</option>
+              <option value="deepseek">DeepSeek V3</option>
+              <option value="openrouter">OpenRouter</option>
+            </select>
+            <button 
+              className="ghost" 
+              onClick={() => setAiSettingsOpen(true)}
+              title="Cài đặt API Key"
+              style={{ padding: '0.5rem', minWidth: 'auto' }}
+            >
+              ⚙️
+            </button>
+            <button 
+              className="secondary" 
+              onClick={() => aiFileRef.current?.click()}
+              disabled={aiLoading !== false}
+              style={{ backgroundColor: '#e8f0fe', color: '#1a73e8', borderColor: '#1a73e8' }}
+            >
+              {aiLoading ? (typeof aiLoading === 'string' ? "⏳ " + aiLoading : "⏳ Đang quét AI...") : "✨ Scan File AI"}
+            </button>
+          </div>
           <button className="ghost" onClick={onCancel}>
             Hủy
           </button>
@@ -428,6 +512,56 @@ export function CreatePRCatalog({
           </button>
         </div>
       </div>
+
+      {aiSettingsOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-lg flex flex-col">
+            <div className="p-4 border-b flex justify-between items-center bg-gray-50">
+              <h3 className="text-lg font-bold text-gray-800">⚙️ Cài đặt Đa Mô Hình AI</h3>
+              <button onClick={() => setAiSettingsOpen(false)} className="text-gray-500 hover:text-red-500 font-bold text-xl">&times;</button>
+            </div>
+            
+            <div className="p-4 overflow-auto">
+              <p className="mb-4 text-sm text-gray-600">Bạn có thể sử dụng các nhà cung cấp AI miễn phí khác nếu Google bị hết hạn mức. Mật khẩu API Key được lưu an toàn trên trình duyệt của bạn.</p>
+              
+              <div className="mb-4">
+                <label className="block text-sm font-bold text-gray-700 mb-1">🔑 DeepSeek API Key</label>
+                <input 
+                  type="password" 
+                  className="w-full border p-2 rounded" 
+                  placeholder="sk-..." 
+                  value={aiKeys.deepseek}
+                  onChange={e => setAiKeys({...aiKeys, deepseek: e.target.value})}
+                />
+                <p className="text-xs text-gray-500 mt-1">Lấy key miễn phí tại <a href="https://platform.deepseek.com" target="_blank" className="text-blue-500 hover:underline">platform.deepseek.com</a></p>
+              </div>
+
+              <div className="mb-4">
+                <label className="block text-sm font-bold text-gray-700 mb-1">🔑 OpenRouter API Key</label>
+                <input 
+                  type="password" 
+                  className="w-full border p-2 rounded" 
+                  placeholder="sk-or-v1-..." 
+                  value={aiKeys.openrouter}
+                  onChange={e => setAiKeys({...aiKeys, openrouter: e.target.value})}
+                />
+                <p className="text-xs text-gray-500 mt-1">Lấy key tại <a href="https://openrouter.ai" target="_blank" className="text-blue-500 hover:underline">openrouter.ai</a> (Sử dụng model Llama 3 8B miễn phí)</p>
+              </div>
+            </div>
+            
+            <div className="p-4 border-t flex justify-end gap-3 bg-gray-50">
+              <button onClick={() => setAiSettingsOpen(false)} className="px-5 py-2 text-gray-700 bg-white border border-gray-300 rounded hover:bg-gray-100 font-medium">Hủy</button>
+              <button onClick={() => {
+                if (typeof localStorage !== 'undefined') localStorage.setItem("sc_ai_keys", JSON.stringify(aiKeys));
+                setAiSettingsOpen(false);
+                alert("Đã lưu cấu hình AI thành công!");
+              }} className="px-5 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 font-medium">
+                Lưu cài đặt
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {aiPendingData && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
