@@ -25,7 +25,7 @@ export async function POST(request: Request) {
     if (!base64) return Response.json({ error: "Không tìm thấy dữ liệu ảnh" }, { status: 400 });
 
     const arrayBuffer = Buffer.from(base64, "base64");
-    let promptText = "Trích xuất thông tin Mua Hàng (PR) từ tài liệu sau. Trả về đúng 1 JSON hợp lệ, không kèm văn bản nào khác. Cấu trúc JSON: { department: string, purpose: string, note: string, items: [{ name: string, desc: string, spec: string, qty: number, unit: string, estimate: number }] }. Ghi chú: 'desc' là mô tả chung, 'spec' là yêu cầu kỹ thuật/quy cách chi tiết.";
+    let promptText = "Trích xuất thông tin Mua Hàng (PR) từ tài liệu sau. Trả về đúng 1 JSON hợp lệ, không kèm văn bản nào khác. Cấu trúc JSON: { department: string, purpose: string, note: string, items: [{ code: string, name: string, desc: string, spec: string, qty: number, unit: string, estimate: number }] }. Ghi chú: 'code' là mã hàng, 'desc' là mô tả chung, 'spec' là yêu cầu kỹ thuật/quy cách chi tiết.";
     
     let contents: any;
     

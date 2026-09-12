@@ -68,7 +68,42 @@ export function CreatePRCatalog({
   };
 
   const [aiLoading, setAiLoading] = useState(false);
+  const [aiPendingData, setAiPendingData] = useState<any>(null);
+  const [aiMapping, setAiMapping] = useState<Record<string, string>>({
+    code: 'code',
+    name: 'name',
+    desc: 'desc',
+    spec: 'spec',
+    qty: 'qty',
+    unit: 'unit',
+    estimate: 'estimate'
+  });
   const aiFileRef = React.useRef<HTMLInputElement>(null);
+
+  const applyAiData = () => {
+    if (!aiPendingData) return;
+    setDraft((d) => ({
+      ...d,
+      department: aiPendingData.department || d.department,
+      purpose: aiPendingData.purpose || d.purpose,
+      note: aiPendingData.note || d.note,
+      items: [
+        ...d.items,
+        ...(aiPendingData.items || []).map((item: any) => ({
+          id: makeId(),
+          code: item[aiMapping.code] || "",
+          category: "",
+          name: item[aiMapping.name] || "",
+          desc: item[aiMapping.desc] || "",
+          spec: item[aiMapping.spec] || "",
+          unit: item[aiMapping.unit] || "",
+          qty: item[aiMapping.qty] || 1,
+          estimate: item[aiMapping.estimate] || 0
+        }))
+      ]
+    }));
+    setAiPendingData(null);
+  };
 
   const handleAiScan = async (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -136,28 +171,10 @@ export function CreatePRCatalog({
           const jsonStr = responseText.replace(/```json\n?|\n?```/g, "").trim();
           const data = JSON.parse(jsonStr);
           
-          if (data) {
-            setDraft((d) => ({
-              ...d,
-              department: data.department || d.department,
-              purpose: data.purpose || d.purpose,
-              note: data.note || d.note,
-              items: [
-                ...d.items,
-                ...(data.items || []).map((item: any) => ({
-                  id: makeId(),
-                  code: "",
-                  category: "",
-                  name: item.name || "",
-                  desc: item.desc || "",
-                  spec: item.spec || "",
-                  unit: item.unit || "",
-                  qty: item.qty || 1,
-                  estimate: item.estimate || 0
-                }))
-              ]
-            }));
-            alert("🎉 Đã điền tự động thành công bằng AI!");
+          if (data && data.items && data.items.length > 0) {
+            setAiPendingData(data);
+          } else if (data) {
+             setAiPendingData(data);
           }
         } catch (err: any) {
           alert("❌ Lỗi quét file: " + err.message);
@@ -402,6 +419,93 @@ export function CreatePRCatalog({
           </button>
         </div>
       </div>
+
+      {aiPendingData && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-5xl max-h-[90vh] flex flex-col">
+            <div className="p-4 border-b flex justify-between items-center bg-blue-50">
+              <h3 className="text-lg font-bold text-blue-800">✨ Kiểm tra & Khớp Dữ Liệu AI</h3>
+              <button onClick={() => setAiPendingData(null)} className="text-gray-500 hover:text-red-500 font-bold text-xl">&times;</button>
+            </div>
+            
+            <div className="p-4 overflow-auto flex-1">
+              <p className="mb-4 text-sm text-gray-600">AI đã quét xong! Nếu AI nhận diện nhầm cột, bạn có thể <strong>chọn lại tên cột</strong> ở tiêu đề bảng bên dưới để tráo đổi cho đúng.</p>
+              
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse border text-sm min-w-max">
+                  <thead>
+                    <tr className="bg-gray-100">
+                      <th className="border p-2 min-w-[200px]">
+                        Tên vật tư
+                        <select className="block w-full mt-1 font-normal border p-1 rounded" value={aiMapping.name} onChange={e => setAiMapping({...aiMapping, name: e.target.value})}>
+                          <option value="">-- Bỏ qua --</option>
+                          {Object.keys(aiPendingData.items[0] || {}).map(k => <option key={k} value={k}>Lấy từ AI: {k}</option>)}
+                        </select>
+                      </th>
+                      <th className="border p-2 min-w-[150px]">
+                        Mã hàng
+                        <select className="block w-full mt-1 font-normal border p-1 rounded" value={aiMapping.code} onChange={e => setAiMapping({...aiMapping, code: e.target.value})}>
+                          <option value="">-- Bỏ qua --</option>
+                          {Object.keys(aiPendingData.items[0] || {}).map(k => <option key={k} value={k}>Lấy từ AI: {k}</option>)}
+                        </select>
+                      </th>
+                      <th className="border p-2 min-w-[200px]">
+                        Mô tả kỹ thuật
+                        <select className="block w-full mt-1 font-normal border p-1 rounded" value={aiMapping.desc} onChange={e => setAiMapping({...aiMapping, desc: e.target.value})}>
+                          <option value="">-- Bỏ qua --</option>
+                          {Object.keys(aiPendingData.items[0] || {}).map(k => <option key={k} value={k}>Lấy từ AI: {k}</option>)}
+                        </select>
+                      </th>
+                      <th className="border p-2 min-w-[200px]">
+                        Quy cách
+                        <select className="block w-full mt-1 font-normal border p-1 rounded" value={aiMapping.spec} onChange={e => setAiMapping({...aiMapping, spec: e.target.value})}>
+                          <option value="">-- Bỏ qua --</option>
+                          {Object.keys(aiPendingData.items[0] || {}).map(k => <option key={k} value={k}>Lấy từ AI: {k}</option>)}
+                        </select>
+                      </th>
+                      <th className="border p-2 min-w-[120px]">
+                        Số lượng
+                        <select className="block w-full mt-1 font-normal border p-1 rounded" value={aiMapping.qty} onChange={e => setAiMapping({...aiMapping, qty: e.target.value})}>
+                          <option value="">-- Bỏ qua --</option>
+                          {Object.keys(aiPendingData.items[0] || {}).map(k => <option key={k} value={k}>Lấy từ AI: {k}</option>)}
+                        </select>
+                      </th>
+                      <th className="border p-2 min-w-[100px]">
+                        ĐVT
+                        <select className="block w-full mt-1 font-normal border p-1 rounded" value={aiMapping.unit} onChange={e => setAiMapping({...aiMapping, unit: e.target.value})}>
+                          <option value="">-- Bỏ qua --</option>
+                          {Object.keys(aiPendingData.items[0] || {}).map(k => <option key={k} value={k}>Lấy từ AI: {k}</option>)}
+                        </select>
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(aiPendingData.items || []).slice(0, 5).map((item: any, i: number) => (
+                      <tr key={i} className="hover:bg-gray-50">
+                        <td className="border p-2">{aiMapping.name ? item[aiMapping.name] : ""}</td>
+                        <td className="border p-2 text-blue-600">{aiMapping.code ? item[aiMapping.code] : ""}</td>
+                        <td className="border p-2 text-gray-600">{aiMapping.desc ? item[aiMapping.desc] : ""}</td>
+                        <td className="border p-2 text-gray-600">{aiMapping.spec ? item[aiMapping.spec] : ""}</td>
+                        <td className="border p-2 font-bold text-center">{aiMapping.qty ? item[aiMapping.qty] : ""}</td>
+                        <td className="border p-2 text-center">{aiMapping.unit ? item[aiMapping.unit] : ""}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              {aiPendingData.items?.length > 5 && <div className="text-center text-gray-500 mt-3 font-medium">... và {aiPendingData.items.length - 5} dòng khác bị ẩn</div>}
+            </div>
+            
+            <div className="p-4 border-t flex justify-end gap-3 bg-gray-50">
+              <button onClick={() => setAiPendingData(null)} className="px-5 py-2 text-gray-700 bg-white border border-gray-300 rounded hover:bg-gray-100 font-medium">Hủy bỏ</button>
+              <button onClick={() => { applyAiData(); alert("🎉 Đã nhập dữ liệu thành công!"); }} className="px-5 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 font-medium flex items-center gap-2">
+                <span>Nhập vào Danh sách PR</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </section>
   );
 }
