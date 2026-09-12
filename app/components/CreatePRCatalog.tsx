@@ -95,7 +95,7 @@ export function CreatePRCatalog({
           const { apiKey, contents } = json;
           
           // 2. Call Gemini API directly from Frontend to bypass Cloudflare location restrictions
-          const aiRes = await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=" + apiKey, {
+          const aiRes = await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=" + apiKey, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ contents })
