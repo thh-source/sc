@@ -1,4 +1,4 @@
-CREATE TABLE `po_allocations` (
+CREATE TABLE IF NOT EXISTS `po_allocations` (
 	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
 	`po_item_id` integer NOT NULL,
 	`pr_id` integer,
@@ -8,7 +8,7 @@ CREATE TABLE `po_allocations` (
 	FOREIGN KEY (`po_item_id`) REFERENCES `po_items`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
-CREATE TABLE `po_docs` (
+CREATE TABLE IF NOT EXISTS `po_docs` (
 	`id` integer PRIMARY KEY NOT NULL,
 	`po_id` integer NOT NULL,
 	`name` text,
@@ -17,7 +17,7 @@ CREATE TABLE `po_docs` (
 	FOREIGN KEY (`po_id`) REFERENCES `pos`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
-CREATE TABLE `po_items` (
+CREATE TABLE IF NOT EXISTS `po_items` (
 	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
 	`po_id` integer NOT NULL,
 	`original_id` integer,
@@ -36,7 +36,7 @@ CREATE TABLE `po_items` (
 	FOREIGN KEY (`po_id`) REFERENCES `pos`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
-CREATE TABLE `po_payments` (
+CREATE TABLE IF NOT EXISTS `po_payments` (
 	`id` integer PRIMARY KEY NOT NULL,
 	`po_id` integer NOT NULL,
 	`phase` text,
@@ -47,7 +47,7 @@ CREATE TABLE `po_payments` (
 	FOREIGN KEY (`po_id`) REFERENCES `pos`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
-CREATE TABLE `pos` (
+CREATE TABLE IF NOT EXISTS `pos` (
 	`id` integer PRIMARY KEY NOT NULL,
 	`workspace_id` text NOT NULL,
 	`number` text NOT NULL,
@@ -60,7 +60,7 @@ CREATE TABLE `pos` (
 	`contract_note` text
 );
 --> statement-breakpoint
-CREATE TABLE `pr_items` (
+CREATE TABLE IF NOT EXISTS `pr_items` (
 	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
 	`pr_id` integer NOT NULL,
 	`original_id` integer,
@@ -75,7 +75,7 @@ CREATE TABLE `pr_items` (
 	FOREIGN KEY (`pr_id`) REFERENCES `prs`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
-CREATE TABLE `products` (
+CREATE TABLE IF NOT EXISTS `products` (
 	`id` integer PRIMARY KEY NOT NULL,
 	`workspace_id` text NOT NULL,
 	`code` text NOT NULL,
@@ -87,7 +87,7 @@ CREATE TABLE `products` (
 	`estimate` real
 );
 --> statement-breakpoint
-CREATE TABLE `prs` (
+CREATE TABLE IF NOT EXISTS `prs` (
 	`id` integer PRIMARY KEY NOT NULL,
 	`workspace_id` text NOT NULL,
 	`number` text NOT NULL,
@@ -98,7 +98,7 @@ CREATE TABLE `prs` (
 	`note` text
 );
 --> statement-breakpoint
-CREATE TABLE `purchase_history` (
+CREATE TABLE IF NOT EXISTS `purchase_history` (
 	`id` text PRIMARY KEY NOT NULL,
 	`workspace_id` text NOT NULL,
 	`warehouse_code` text,
@@ -121,7 +121,7 @@ CREATE TABLE `purchase_history` (
 	`department` text
 );
 --> statement-breakpoint
-CREATE TABLE `quotes` (
+CREATE TABLE IF NOT EXISTS `quotes` (
 	`pr_id` integer NOT NULL,
 	`supplier_id` integer NOT NULL,
 	`price` text,
@@ -130,7 +130,7 @@ CREATE TABLE `quotes` (
 	`vat_rate` text
 );
 --> statement-breakpoint
-CREATE TABLE `sessions` (
+CREATE TABLE IF NOT EXISTS `sessions` (
 	`token_hash` text PRIMARY KEY NOT NULL,
 	`user_id` text NOT NULL,
 	`created_at` text NOT NULL,
@@ -138,7 +138,7 @@ CREATE TABLE `sessions` (
 	FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
-CREATE TABLE `suppliers` (
+CREATE TABLE IF NOT EXISTS `suppliers` (
 	`id` integer PRIMARY KEY NOT NULL,
 	`workspace_id` text NOT NULL,
 	`code` text NOT NULL,
@@ -150,7 +150,7 @@ CREATE TABLE `suppliers` (
 	`phone` text
 );
 --> statement-breakpoint
-CREATE TABLE `trash_items` (
+CREATE TABLE IF NOT EXISTS `trash_items` (
 	`id` text PRIMARY KEY NOT NULL,
 	`workspace_id` text NOT NULL,
 	`type` text,
@@ -160,7 +160,7 @@ CREATE TABLE `trash_items` (
 	`data` text
 );
 --> statement-breakpoint
-CREATE TABLE `users` (
+CREATE TABLE IF NOT EXISTS `users` (
 	`id` text PRIMARY KEY NOT NULL,
 	`username` text NOT NULL,
 	`display_name` text NOT NULL,

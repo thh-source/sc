@@ -1,11 +1,11 @@
-CREATE TABLE `app_state` (
+CREATE TABLE IF NOT EXISTS `app_state` (
 	`id` text PRIMARY KEY NOT NULL,
 	`payload` text NOT NULL,
 	`updated_at` text NOT NULL,
 	`version` integer DEFAULT 1 NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE `audit_logs` (
+CREATE TABLE IF NOT EXISTS `audit_logs` (
 	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
 	`action` text NOT NULL,
 	`entity_type` text NOT NULL,
@@ -13,7 +13,7 @@ CREATE TABLE `audit_logs` (
 	`created_at` text NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE `files` (
+CREATE TABLE IF NOT EXISTS `files` (
 	`id` text PRIMARY KEY NOT NULL,
 	`entity_type` text NOT NULL,
 	`entity_id` text NOT NULL,

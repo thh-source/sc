@@ -1,4 +1,4 @@
-CREATE TABLE `share_links` (
+CREATE TABLE IF NOT EXISTS `share_links` (
 	`token` text PRIMARY KEY NOT NULL,
 	`label` text NOT NULL,
 	`created_at` text NOT NULL,
