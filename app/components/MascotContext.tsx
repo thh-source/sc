@@ -124,11 +124,11 @@ const Mascot = ({ state, message, say, setMascotState }: any) => {
 
   const getEmojiAndAnimation = () => {
     switch (state) {
-      case "loading": return { emoji: "🕵️‍♂️🐱", animation: "mascot-bounce" };
-      case "success": return { emoji: "😻🎉", animation: "scale-125 mascot-wiggle" };
-      case "error": return { emoji: "😿💦", animation: "mascot-wiggle" };
-      case "working": return { emoji: "✍️🐱", animation: "mascot-float" };
-      case "sleeping": return { emoji: "😴💤", animation: "mascot-float opacity-80" };
+      case "loading": return { emoji: "⏳", animation: "mascot-bounce" };
+      case "success": return { emoji: "🎉", animation: "scale-125 mascot-wiggle" };
+      case "error": return { emoji: "😿", animation: "mascot-wiggle" };
+      case "working": return { emoji: "📝", animation: "mascot-float" };
+      case "sleeping": return { emoji: "💤", animation: "mascot-float opacity-80" };
       case "idle": 
       default: return { emoji: "🐱", animation: "mascot-float hover:-translate-y-2 transition-transform" };
     }

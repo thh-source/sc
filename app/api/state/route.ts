@@ -94,115 +94,133 @@ export async function GET(request: Request) {
 }
 
 export async function PUT(request: Request) {
-  const user = await getChatGPTUser();
-  if (!user) return Response.json({ error: "Yêu cầu đăng nhập" }, { status: 401 });
-
-  const env = await bindings();
-  const rawDb = env.DB;
-  const drizzleDb = getDb();
-  const workspaceId = await resolveWorkspace(user, new URL(request.url).searchParams.get("workspace"));
-  const data = await request.json();
-  const now = new Date().toISOString();
-
-  const payloadStr = JSON.stringify(data);
-  if (payloadStr.length > 20_000_000) {
-    return Response.json({ error: "Dữ liệu vượt giới hạn hệ thống (20MB)" }, { status: 413 });
-  }
-
-  const stmts: any[] = [];
-  
-  // Backward compatibility: Merge and save to app_state
+  let workspaceIdStr = "unknown";
   try {
-    const existingRow = await drizzleDb.select().from(appState).where(eq(appState.id, stateId(workspaceId))).get();
-    let mergedStr = payloadStr;
-    if (existingRow) {
-      const existingData = JSON.parse(existingRow.payload);
-      mergedStr = JSON.stringify({ ...existingData, ...data });
-    }
-    if (mergedStr.length <= 1_800_000) {
-      stmts.push(rawDb.prepare("INSERT INTO app_state (id,payload,updated_at,version) VALUES (?,?,?,1) ON CONFLICT(id) DO UPDATE SET payload=excluded.payload,updated_at=excluded.updated_at,version=app_state.version+1").bind(stateId(workspaceId), mergedStr, now));
-    }
-  } catch (e) {
-    console.error("Lỗi khi gộp app_state cũ", e);
-  }
+    const user = await getChatGPTUser();
+    if (!user) return Response.json({ error: "Yêu cầu đăng nhập" }, { status: 401 });
 
-  if (data.suppliers !== undefined) {
-    stmts.push(rawDb.prepare("DELETE FROM suppliers WHERE workspace_id = ?").bind(workspaceId));
-    for (const s of data.suppliers) {
-      stmts.push(rawDb.prepare(`INSERT INTO suppliers (id, workspace_id, code, name, bank_account, bank, address, contact, phone) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`).bind(s.id, workspaceId, s.code || "", s.name || "", s.bankAccount || null, s.bank || null, s.address || null, s.contact || null, s.phone || null));
-    }
-  }
+    const env = await bindings();
+    const rawDb = env.DB;
+    const drizzleDb = getDb();
+    const workspaceId = await resolveWorkspace(user, new URL(request.url).searchParams.get("workspace"));
+    workspaceIdStr = workspaceId;
+    const data = await request.json();
+    const now = new Date().toISOString();
 
-  if (data.products !== undefined) {
-    stmts.push(rawDb.prepare("DELETE FROM products WHERE workspace_id = ?").bind(workspaceId));
-    for (const p of data.products) {
-      stmts.push(rawDb.prepare(`INSERT INTO products (id, workspace_id, code, category, name, "desc", spec, unit, estimate) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`).bind(p.id, workspaceId, p.code || "", p.category || null, p.name || "", p.desc || null, p.spec || null, p.unit || null, p.estimate || 0));
+    const payloadStr = JSON.stringify(data);
+    if (payloadStr.length > 20_000_000) {
+      return Response.json({ error: "Dữ liệu vượt giới hạn hệ thống (20MB)" }, { status: 413 });
     }
-  }
 
-  if (data.prs !== undefined) {
-    stmts.push(rawDb.prepare("DELETE FROM quotes WHERE pr_id IN (SELECT id FROM prs WHERE workspace_id = ?)").bind(workspaceId));
-    stmts.push(rawDb.prepare("DELETE FROM prs WHERE workspace_id = ?").bind(workspaceId));
-    for (const pr of data.prs) {
-      stmts.push(rawDb.prepare(`INSERT INTO prs (id, workspace_id, number, date, department, purpose, status, note) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`).bind(pr.id, workspaceId, pr.number || "", pr.date || null, pr.department || null, pr.purpose || null, pr.status || "", pr.note || null));
-      if (pr.items) {
-        for (const item of pr.items) {
-          stmts.push(rawDb.prepare(`INSERT INTO pr_items (pr_id, original_id, code, category, name, "desc", spec, unit, qty, estimate) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).bind(pr.id, item.id, item.code || null, item.category || null, item.name || null, item.desc || null, item.spec || null, item.unit || null, item.qty || 0, item.estimate || 0));
-        }
+    const stmts: any[] = [];
+    
+    try {
+      const existingRow = await drizzleDb.select().from(appState).where(eq(appState.id, stateId(workspaceId))).get();
+      let mergedStr = payloadStr;
+      if (existingRow) {
+        const existingData = JSON.parse(existingRow.payload);
+        mergedStr = JSON.stringify({ ...existingData, ...data });
       }
-      if (data.quotes && data.quotes[pr.id]) {
-        for (const supplierId of Object.keys(data.quotes[pr.id])) {
-          const q = data.quotes[pr.id][supplierId];
-          stmts.push(rawDb.prepare(`INSERT INTO quotes (pr_id, supplier_id, price, note, price_mode, vat_rate) VALUES (?, ?, ?, ?, ?, ?)`).bind(pr.id, Number(supplierId), q.price || "", q.note || "", q.priceMode || null, q.vatRate || null));
-        }
+      if (mergedStr.length <= 1_800_000) {
+        stmts.push(rawDb.prepare("INSERT INTO app_state (id,payload,updated_at,version) VALUES (?,?,?,1) ON CONFLICT(id) DO UPDATE SET payload=excluded.payload,updated_at=excluded.updated_at,version=app_state.version+1").bind(stateId(workspaceId), mergedStr, now));
+      }
+    } catch (e) {
+      console.error("Lỗi khi gộp app_state cũ", e);
+    }
+
+    if (data.suppliers !== undefined) {
+      stmts.push(rawDb.prepare("DELETE FROM suppliers WHERE workspace_id = ?").bind(workspaceId));
+      for (const s of data.suppliers) {
+        stmts.push(rawDb.prepare(`INSERT INTO suppliers (id, workspace_id, code, name, bank_account, bank, address, contact, phone) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`).bind(s.id, workspaceId, s.code || "", s.name || "", s.bankAccount || null, s.bank || null, s.address || null, s.contact || null, s.phone || null));
       }
     }
-  }
 
-  if (data.pos !== undefined) {
-    stmts.push(rawDb.prepare("DELETE FROM pos WHERE workspace_id = ?").bind(workspaceId));
-    for (const po of data.pos) {
-      stmts.push(rawDb.prepare(`INSERT INTO pos (id, workspace_id, number, pr_number, supplier_id, created_date, expected_date, status, note, contract_note) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).bind(po.id, workspaceId, po.number || "", po.prNumber || null, po.supplierId || null, po.createdDate || null, po.expectedDate || null, po.status || "", po.note || null, po.contractNote || null));
-      if (po.docs) {
-        for (const doc of po.docs) {
-          stmts.push(rawDb.prepare(`INSERT INTO po_docs (id, po_id, name, status, note) VALUES (?, ?, ?, ?, ?)`).bind(doc.id, po.id, doc.name || null, doc.status || null, doc.note || null));
-        }
-      }
-      if (po.payments) {
-        for (const p of po.payments) {
-          stmts.push(rawDb.prepare(`INSERT INTO po_payments (id, po_id, phase, percent, amount, status, date) VALUES (?, ?, ?, ?, ?, ?, ?)`).bind(p.id, po.id, p.phase || null, p.percent || 0, p.amount || 0, p.status || null, p.date || null));
-        }
-      }
-      if (po.items) {
-        for (const item of po.items) {
-          stmts.push(rawDb.prepare(`INSERT INTO po_items (po_id, original_id, code, category, name, "desc", spec, unit, qty, estimate, price, delivery_status, delivered_qty, delivery_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).bind(po.id, item.id, item.code || null, item.category || null, item.name || null, item.desc || null, item.spec || null, item.unit || null, item.qty || 0, item.estimate || 0, item.price || 0, item.deliveryStatus || null, item.deliveredQty || 0, item.deliveryDate || null));
-        }
+    if (data.products !== undefined) {
+      stmts.push(rawDb.prepare("DELETE FROM products WHERE workspace_id = ?").bind(workspaceId));
+      for (const p of data.products) {
+        stmts.push(rawDb.prepare(`INSERT INTO products (id, workspace_id, code, category, name, "desc", spec, unit, estimate) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`).bind(p.id, workspaceId, p.code || "", p.category || null, p.name || "", p.desc || null, p.spec || null, p.unit || null, p.estimate || 0));
       }
     }
-  }
 
-  if (data.purchaseHistory !== undefined) {
-    stmts.push(rawDb.prepare("DELETE FROM purchase_history WHERE workspace_id = ?").bind(workspaceId));
-    for (const h of data.purchaseHistory) {
-      stmts.push(rawDb.prepare(`INSERT INTO purchase_history (id, workspace_id, warehouse_code, warehouse_name, item_code, item_name, accounting_date, document_date, document_no, invoice_date, invoice_no, description, unit, unit_price, quantity, value, supplier_code, supplier_name, supplier_id, department) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).bind(h.id, workspaceId, h.warehouseCode || null, h.warehouseName || null, h.itemCode || null, h.itemName || null, h.accountingDate || null, h.documentDate || null, h.documentNo || null, h.invoiceDate || null, h.invoiceNo || null, h.description || null, h.unit || null, h.unitPrice || 0, h.quantity || 0, h.value || 0, h.supplierCode || null, h.supplierName || null, h.supplierId || null, h.department || null));
+    if (data.prs !== undefined) {
+      stmts.push(rawDb.prepare("DELETE FROM quotes WHERE pr_id IN (SELECT id FROM prs WHERE workspace_id = ?)").bind(workspaceId));
+      stmts.push(rawDb.prepare("DELETE FROM prs WHERE workspace_id = ?").bind(workspaceId));
+      for (const pr of data.prs) {
+        stmts.push(rawDb.prepare(`INSERT INTO prs (id, workspace_id, number, date, department, purpose, status, note) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`).bind(pr.id, workspaceId, pr.number || "", pr.date || null, pr.department || null, pr.purpose || null, pr.status || "", pr.note || null));
+        if (pr.items) {
+          for (const item of pr.items) {
+            stmts.push(rawDb.prepare(`INSERT INTO pr_items (pr_id, original_id, code, category, name, "desc", spec, unit, qty, estimate) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).bind(pr.id, item.id, item.code || null, item.category || null, item.name || null, item.desc || null, item.spec || null, item.unit || null, item.qty || 0, item.estimate || 0));
+          }
+        }
+        if (data.quotes && data.quotes[pr.id]) {
+          for (const supplierId of Object.keys(data.quotes[pr.id])) {
+            const q = data.quotes[pr.id][supplierId];
+            stmts.push(rawDb.prepare(`INSERT INTO quotes (pr_id, supplier_id, price, note, price_mode, vat_rate) VALUES (?, ?, ?, ?, ?, ?)`).bind(pr.id, Number(supplierId), q.price || "", q.note || "", q.priceMode || null, q.vatRate || null));
+          }
+        }
+      }
     }
-  }
-  
-  if (data.trash !== undefined) {
-    stmts.push(rawDb.prepare("DELETE FROM trash_items WHERE workspace_id = ?").bind(workspaceId));
-    for (const t of data.trash) {
-      stmts.push(rawDb.prepare(`INSERT INTO trash_items (id, workspace_id, type, label, deleted_at, expires_at, data) VALUES (?, ?, ?, ?, ?, ?, ?)`).bind(t.id, workspaceId, t.type || null, t.label || null, t.deletedAt || null, t.expiresAt || null, t.data ? JSON.stringify(t.data) : null));
+
+    if (data.pos !== undefined) {
+      stmts.push(rawDb.prepare("DELETE FROM pos WHERE workspace_id = ?").bind(workspaceId));
+      for (const po of data.pos) {
+        stmts.push(rawDb.prepare(`INSERT INTO pos (id, workspace_id, number, pr_number, supplier_id, created_date, expected_date, status, note, contract_note) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).bind(po.id, workspaceId, po.number || "", po.prNumber || null, po.supplierId || null, po.createdDate || null, po.expectedDate || null, po.status || "", po.note || null, po.contractNote || null));
+        if (po.docs) {
+          for (const doc of po.docs) {
+            stmts.push(rawDb.prepare(`INSERT INTO po_docs (id, po_id, name, status, note) VALUES (?, ?, ?, ?, ?)`).bind(doc.id, po.id, doc.name || null, doc.status || null, doc.note || null));
+          }
+        }
+        if (po.payments) {
+          for (const p of po.payments) {
+            stmts.push(rawDb.prepare(`INSERT INTO po_payments (id, po_id, phase, percent, amount, status, date) VALUES (?, ?, ?, ?, ?, ?, ?)`).bind(p.id, po.id, p.phase || null, p.percent || 0, p.amount || 0, p.status || null, p.date || null));
+          }
+        }
+        if (po.items) {
+          for (const item of po.items) {
+            stmts.push(rawDb.prepare(`INSERT INTO po_items (po_id, original_id, code, category, name, "desc", spec, unit, qty, estimate, price, delivery_status, delivered_qty, delivery_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).bind(po.id, item.id, item.code || null, item.category || null, item.name || null, item.desc || null, item.spec || null, item.unit || null, item.qty || 0, item.estimate || 0, item.price || 0, item.deliveryStatus || null, item.deliveredQty || 0, item.deliveryDate || null));
+          }
+        }
+      }
     }
-  }
 
-  stmts.push(rawDb.prepare("INSERT INTO audit_logs (action,entity_type,entity_id,created_at) VALUES (?,?,?,?)").bind("SAVE","application", workspaceId, now));
-
-  for (let i = 0; i < stmts.length; i += 50) {
-    const batch = stmts.slice(i, i + 50);
-    if (batch.length > 0) {
-      await rawDb.batch(batch);
+    if (data.purchaseHistory !== undefined) {
+      stmts.push(rawDb.prepare("DELETE FROM purchase_history WHERE workspace_id = ?").bind(workspaceId));
+      for (const h of data.purchaseHistory) {
+        stmts.push(rawDb.prepare(`INSERT INTO purchase_history (id, workspace_id, warehouse_code, warehouse_name, item_code, item_name, accounting_date, document_date, document_no, invoice_date, invoice_no, description, unit, unit_price, quantity, value, supplier_code, supplier_name, supplier_id, department) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).bind(h.id, workspaceId, h.warehouseCode || null, h.warehouseName || null, h.itemCode || null, h.itemName || null, h.accountingDate || null, h.documentDate || null, h.documentNo || null, h.invoiceDate || null, h.invoiceNo || null, h.description || null, h.unit || null, h.unitPrice || 0, h.quantity || 0, h.value || 0, h.supplierCode || null, h.supplierName || null, h.supplierId || null, h.department || null));
+      }
     }
-  }
+    
+    if (data.trash !== undefined) {
+      stmts.push(rawDb.prepare("DELETE FROM trash_items WHERE workspace_id = ?").bind(workspaceId));
+      for (const t of data.trash) {
+        stmts.push(rawDb.prepare(`INSERT INTO trash_items (id, workspace_id, type, label, deleted_at, expires_at, data) VALUES (?, ?, ?, ?, ?, ?, ?)`).bind(t.id, workspaceId, t.type || null, t.label || null, t.deletedAt || null, t.expiresAt || null, t.data ? JSON.stringify(t.data) : null));
+      }
+    }
 
-  return Response.json({ ok: true, updatedAt: now });
+    stmts.push(rawDb.prepare("INSERT INTO audit_logs (action,entity_type,entity_id,created_at) VALUES (?,?,?,?)").bind("SAVE","application", workspaceId, now));
+
+    for (let i = 0; i < stmts.length; i += 50) {
+      const batch = stmts.slice(i, i + 50);
+      if (batch.length > 0) {
+        try {
+          await rawDb.batch(batch);
+        } catch (e: any) {
+          const errorMsg = e?.message ? String(e.message).substring(0, 150) : "Unknown Error";
+          await rawDb.prepare("INSERT INTO audit_logs (action,entity_type,entity_id,created_at) VALUES (?,?,?,?)").bind("ERROR", errorMsg, workspaceId, now).run();
+          return Response.json({ error: errorMsg }, { status: 500 });
+        }
+      }
+    }
+
+    return Response.json({ ok: true, updatedAt: now });
+  } catch (err: any) {
+    const errorMsg = err?.message ? String(err.message).substring(0, 150) : "Fatal Unknown";
+    try {
+      const env = await bindings();
+      await env.DB.prepare("INSERT INTO audit_logs (action,entity_type,entity_id,created_at) VALUES (?,?,?,?)").bind("FATAL_ERROR", errorMsg, workspaceIdStr, new Date().toISOString()).run();
+    } catch (dbErr) {
+      // ignore
+    }
+    return Response.json({ error: errorMsg }, { status: 500 });
+  }
 }
