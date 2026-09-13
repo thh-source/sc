@@ -29,6 +29,7 @@ import { CreatePRCatalog } from "./components/CreatePRCatalog";
 import { ContractManagement } from "./components/ContractManagement";
 import { EditableCell } from "./components/EditableCell";
 import { ApprovalSheet } from "./components/ApprovalSheet";
+import { MascotProvider } from "./components/MascotContext";
 import { Dashboard } from "./components/Dashboard";
 import { AdminSettings } from "./components/AdminSettings";
 import { AdminUsage } from "./components/AdminUsage";
@@ -1056,7 +1057,9 @@ export default function ProcurementApp({
         ].includes(n.name),
       )
     : nav;
+
   return (
+    <MascotProvider>
     <div
       className={`app ${collapsed ? "collapsed" : ""} ${reportMode ? "report-mode" : ""}`}
     >
@@ -1737,6 +1740,7 @@ export default function ProcurementApp({
         </nav>
       )}
     </div>
+    </MascotProvider>
   );
 }
 
