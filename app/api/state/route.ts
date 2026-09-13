@@ -142,6 +142,7 @@ export async function PUT(request: Request) {
 
   if (data.prs !== undefined) {
     stmts.push(rawDb.prepare("DELETE FROM prs WHERE workspace_id = ?").bind(workspaceId));
+    stmts.push(rawDb.prepare("DELETE FROM quotes WHERE pr_id IN (SELECT id FROM prs WHERE workspace_id = ?)").bind(workspaceId));
     for (const pr of data.prs) {
       stmts.push(rawDb.prepare(`INSERT INTO prs (id, workspace_id, number, date, department, purpose, status, note) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`).bind(pr.id, workspaceId, pr.number || "", pr.date || null, pr.department || null, pr.purpose || null, pr.status || "", pr.note || null));
       if (pr.items) {

@@ -63,13 +63,7 @@ export const MascotProvider = ({ children }: { children: React.ReactNode }) => {
 
 const Mascot = ({ state, message, say, setMascotState }: any) => {
   // Logic kéo thả (Drag & Drop)
-  const [position, setPosition] = useState({ x: 0, y: 0 });
-  const [isClient, setIsClient] = useState(false);
-  
-  useEffect(() => {
-    setIsClient(true);
-    setPosition({ x: window.innerWidth - 120, y: window.innerHeight - 150 });
-  }, []);
+  const [position, setPosition] = useState<{x: number, y: number} | null>(null);
 
   const [isDragging, setIsDragging] = useState(false);
   const dragRef = useRef({ startX: 0, startY: 0, initialX: 0, initialY: 0 });
@@ -78,11 +72,22 @@ const Mascot = ({ state, message, say, setMascotState }: any) => {
     setIsDragging(true);
     const clientX = 'touches' in e ? e.touches[0].clientX : (e as React.MouseEvent).clientX;
     const clientY = 'touches' in e ? e.touches[0].clientY : (e as React.MouseEvent).clientY;
+    
+    // Nếu chưa từng kéo, tính toán tọa độ ban đầu từ offsetLeft/offsetTop của DOM element
+    let currentX = position?.x;
+    let currentY = position?.y;
+    if (currentX === undefined || currentY === undefined) {
+      const el = e.currentTarget as HTMLElement;
+      currentX = el.getBoundingClientRect().left;
+      currentY = el.getBoundingClientRect().top;
+      setPosition({ x: currentX, y: currentY });
+    }
+
     dragRef.current = {
       startX: clientX,
       startY: clientY,
-      initialX: position.x,
-      initialY: position.y
+      initialX: currentX,
+      initialY: currentY
     };
   };
 
@@ -116,7 +121,6 @@ const Mascot = ({ state, message, say, setMascotState }: any) => {
     };
   }, [isDragging, position]);
 
-  if (!isClient) return null;
 
   const getEmojiAndAnimation = () => {
     switch (state) {
@@ -144,7 +148,7 @@ const Mascot = ({ state, message, say, setMascotState }: any) => {
   return (
     <div 
       className={`fixed z-[9999] cursor-grab active:cursor-grabbing flex flex-col items-center select-none ${isDragging ? "transition-none" : "transition-all duration-300"}`}
-      style={{ left: position.x, top: position.y, touchAction: "none" }}
+      style={position ? { left: position.x, top: position.y, touchAction: "none" } : { bottom: "40px", right: "40px", touchAction: "none" }}
       onMouseDown={handleMouseDown}
       onTouchStart={handleMouseDown}
       onClick={() => {
