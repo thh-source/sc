@@ -136,18 +136,18 @@ export async function PUT(request: Request) {
   if (data.products !== undefined) {
     stmts.push(rawDb.prepare("DELETE FROM products WHERE workspace_id = ?").bind(workspaceId));
     for (const p of data.products) {
-      stmts.push(rawDb.prepare(`INSERT INTO products (id, workspace_id, code, category, name, desc, spec, unit, estimate) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`).bind(p.id, workspaceId, p.code || "", p.category || null, p.name || "", p.desc || null, p.spec || null, p.unit || null, p.estimate || 0));
+      stmts.push(rawDb.prepare(`INSERT INTO products (id, workspace_id, code, category, name, "desc", spec, unit, estimate) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`).bind(p.id, workspaceId, p.code || "", p.category || null, p.name || "", p.desc || null, p.spec || null, p.unit || null, p.estimate || 0));
     }
   }
 
   if (data.prs !== undefined) {
-    stmts.push(rawDb.prepare("DELETE FROM prs WHERE workspace_id = ?").bind(workspaceId));
     stmts.push(rawDb.prepare("DELETE FROM quotes WHERE pr_id IN (SELECT id FROM prs WHERE workspace_id = ?)").bind(workspaceId));
+    stmts.push(rawDb.prepare("DELETE FROM prs WHERE workspace_id = ?").bind(workspaceId));
     for (const pr of data.prs) {
       stmts.push(rawDb.prepare(`INSERT INTO prs (id, workspace_id, number, date, department, purpose, status, note) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`).bind(pr.id, workspaceId, pr.number || "", pr.date || null, pr.department || null, pr.purpose || null, pr.status || "", pr.note || null));
       if (pr.items) {
         for (const item of pr.items) {
-          stmts.push(rawDb.prepare(`INSERT INTO pr_items (pr_id, original_id, code, category, name, desc, spec, unit, qty, estimate) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).bind(pr.id, item.id, item.code || null, item.category || null, item.name || null, item.desc || null, item.spec || null, item.unit || null, item.qty || 0, item.estimate || 0));
+          stmts.push(rawDb.prepare(`INSERT INTO pr_items (pr_id, original_id, code, category, name, "desc", spec, unit, qty, estimate) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).bind(pr.id, item.id, item.code || null, item.category || null, item.name || null, item.desc || null, item.spec || null, item.unit || null, item.qty || 0, item.estimate || 0));
         }
       }
       if (data.quotes && data.quotes[pr.id]) {
@@ -175,7 +175,7 @@ export async function PUT(request: Request) {
       }
       if (po.items) {
         for (const item of po.items) {
-          stmts.push(rawDb.prepare(`INSERT INTO po_items (po_id, original_id, code, category, name, desc, spec, unit, qty, estimate, price, delivery_status, delivered_qty, delivery_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).bind(po.id, item.id, item.code || null, item.category || null, item.name || null, item.desc || null, item.spec || null, item.unit || null, item.qty || 0, item.estimate || 0, item.price || 0, item.deliveryStatus || null, item.deliveredQty || 0, item.deliveryDate || null));
+          stmts.push(rawDb.prepare(`INSERT INTO po_items (po_id, original_id, code, category, name, "desc", spec, unit, qty, estimate, price, delivery_status, delivered_qty, delivery_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).bind(po.id, item.id, item.code || null, item.category || null, item.name || null, item.desc || null, item.spec || null, item.unit || null, item.qty || 0, item.estimate || 0, item.price || 0, item.deliveryStatus || null, item.deliveredQty || 0, item.deliveryDate || null));
         }
       }
     }
