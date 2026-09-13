@@ -5,5 +5,5 @@ import { getCurrentUser } from "./auth";
 export const dynamic = "force-dynamic";
 export default async function Page() {
   const user = await getCurrentUser();
-  return user ? <ProcurementApp currentUser={user} /> : <LoginForm />;
+  return user ? <ProcurementApp key={user.id} currentUser={user} /> : <LoginForm />;
 }
