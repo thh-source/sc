@@ -227,7 +227,7 @@ export function AdvancedItemsTable({
               );
             })}
             {suppliers.map((s) => (
-              <th colSpan={2 + (customColumns?.length || 0)} className="suphead" key={s.id}>
+              <th colSpan={1 + (customColumns?.length || 0)} className="suphead" key={s.id}>
                 {s.shortName || s.name}
                 <button
                   onClick={() => onRemoveSupplier(s.id)}
@@ -256,7 +256,23 @@ export function AdvancedItemsTable({
               ...(customColumns || []).map((col, idx) => (
                  <th key={s.id + "cc" + idx}>
                    <div style={{display: 'flex', justifyContent: 'space-between'}}>
-                     <span>{col}</span>
+                     <div style={{display: 'flex', gap: '4px', alignItems: 'center'}}>
+                       {s.id === suppliers[0]?.id && setCustomColumns && idx > 0 && (
+                         <button onClick={() => {
+                           const next = [...(customColumns||[])];
+                           [next[idx-1], next[idx]] = [next[idx], next[idx-1]];
+                           setCustomColumns(next);
+                         }} style={{cursor: 'pointer', background: 'transparent', border: 'none', padding: '0 4px', fontSize: '12px'}} title="Di chuyển sang trái">◀</button>
+                       )}
+                       <span>{col}</span>
+                       {s.id === suppliers[0]?.id && setCustomColumns && idx < (customColumns||[]).length - 1 && (
+                         <button onClick={() => {
+                           const next = [...(customColumns||[])];
+                           [next[idx], next[idx+1]] = [next[idx+1], next[idx]];
+                           setCustomColumns(next);
+                         }} style={{cursor: 'pointer', background: 'transparent', border: 'none', padding: '0 4px', fontSize: '12px'}} title="Di chuyển sang phải">▶</button>
+                       )}
+                     </div>
                      {s.id === suppliers[0]?.id && setCustomColumns && (
                         <button onClick={() => {
                           if (confirm(`Xóa cột "${col}"?`)) setCustomColumns((customColumns||[]).filter(c => c !== col));
@@ -265,7 +281,6 @@ export function AdvancedItemsTable({
                    </div>
                  </th>
               )),
-              <th key={s.id + "n"}>Ghi chú</th>,
             ])}
             <th>Giá tốt nhất</th>
             <th>Nhà cung cấp</th>
@@ -319,15 +334,6 @@ export function AdvancedItemsTable({
                         />
                       </td>
                     )),
-                    <td key={s.id + "n"}>
-                      <AutoGrowTextarea
-                        placeholder="Ghi chú"
-                        value={q.note}
-                        onChange={(value) =>
-                          quoteChange(i.id, s.id, "note", value)
-                        }
-                      />
-                    </td>,
                   ];
                 })}
                 <td className="best">
