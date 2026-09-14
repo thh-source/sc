@@ -124,6 +124,7 @@ export function SupplierManagement({
             <tr>
               <th>Mã NCC</th>
               <th>Tên nhà cung cấp</th>
+              <th>Tên viết tắt</th>
               <th>Người liên hệ</th>
               <th>Điện thoại</th>
               <th>Giá trị T1-T7</th>
@@ -165,6 +166,7 @@ export function SupplierManagement({
                     </button>
                     <small>{supplier.bank || supplier.address || "Chưa có thông tin phụ"}</small>
                   </td>
+                  <td>{supplier.shortName || "—"}</td>
                   <td>{supplier.contact || "—"}</td>
                   <td>{supplier.phone || "—"}</td>
                   <td className="money">{fmt(stats.totalValue)} ₫</td>
@@ -231,6 +233,15 @@ export function SupplierManagement({
                 value={selectedSupplier.name}
                 onChange={(e) =>
                   update(selectedSupplier.id, "name", e.target.value)
+                }
+              />
+            </label>
+            <label>
+              Tên viết tắt (Tùy chọn)
+              <input
+                value={selectedSupplier.shortName || ""}
+                onChange={(e) =>
+                  update(selectedSupplier.id, "shortName", e.target.value)
                 }
               />
             </label>

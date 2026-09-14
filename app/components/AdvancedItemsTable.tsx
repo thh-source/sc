@@ -47,7 +47,7 @@ export function AdvancedItemsTable({
     iid: number,
     sid: number,
     k: keyof QuoteEntry,
-    v: string,
+    v: any,
   ) => void;
   best: (id: number) => { supplier: Supplier; price: number } | null;
   quoteCompareMode: QuoteMode;
@@ -55,6 +55,8 @@ export function AdvancedItemsTable({
   poSelections: number[];
   togglePOItem: (id: number) => void;
   purchaseHistory: PurchaseHistory[];
+  customColumns?: string[];
+  setCustomColumns?: (cols: string[]) => void;
 }) {
   const [dragged, setDragged] = useState<ColumnKey | null>(null);
   const filterValues = useMemo(
@@ -223,26 +225,44 @@ export function AdvancedItemsTable({
               );
             })}
             {suppliers.map((s) => (
-              <th colSpan={4} className="suphead" key={s.id}>
-                {s.name}
+              <th colSpan={2 + (customColumns?.length || 0)} className="suphead" key={s.id}>
+                {s.shortName || s.name}
                 <button
-                  onClick={() =>
-                    setSuppliers((x) => x.filter((v) => v.id !== s.id))
-                  }
+                  onClick={() => onRemoveSupplier(s.id)}
                 >
                   ×
                 </button>
               </th>
             ))}
             <th colSpan={2} className="choice">
-              Lựa chọn tự động
+              <div style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px'}}>
+                <span>Lựa chọn tự động</span>
+                {setCustomColumns && (
+                   <button onClick={() => {
+                     const name = prompt("Nhập tên cột mới (VD: Tên hàng NCC, Xuất xứ, Bảo hành...):");
+                     if (name && name.trim()) setCustomColumns([...(customColumns||[]), name.trim()]);
+                   }} style={{fontSize: '11px', padding: '2px 6px'}} className="ghost">
+                     + Cột NCC
+                   </button>
+                )}
+              </div>
             </th>
           </tr>
           <tr>
             {suppliers.flatMap((s) => [
               <th key={s.id + "p"}>Giá NCC</th>,
-              <th key={s.id + "v"}>Loại/VAT</th>,
-              <th key={s.id + "c"}>Quy đổi</th>,
+              ...(customColumns || []).map((col, idx) => (
+                 <th key={s.id + "cc" + idx}>
+                   <div style={{display: 'flex', justifyContent: 'space-between'}}>
+                     <span>{col}</span>
+                     {s.id === suppliers[0]?.id && setCustomColumns && (
+                        <button onClick={() => {
+                          if (confirm(`Xóa cột "${col}"?`)) setCustomColumns((customColumns||[]).filter(c => c !== col));
+                        }} style={{color: 'red', border: 'none', background: 'transparent', cursor: 'pointer', fontSize: '14px', lineHeight: '14px'}}>×</button>
+                     )}
+                   </div>
+                 </th>
+              )),
               <th key={s.id + "n"}>Ghi chú</th>,
             ])}
             <th>Giá tốt nhất</th>
@@ -270,9 +290,7 @@ export function AdvancedItemsTable({
                 {order.map((key) => cell(i, key, r))}
                 {suppliers.flatMap((s) => {
                   const q = quoteDefaults(quotes[i.id]?.[s.id]),
-                    low = win?.supplier.id === s.id,
-                    beforeVat = quoteBeforeVat(q),
-                    afterVat = quoteAfterVat(q);
+                    low = win?.supplier.id === s.id;
                   return [
                     <td className={low ? "low" : ""} key={s.id + "p"}>
                       <div className="qprice">
@@ -288,34 +306,17 @@ export function AdvancedItemsTable({
                         />
                       </div>
                     </td>,
-                    <td className="vat-mode-cell" key={s.id + "v"}>
-                      <select
-                        value={q.priceMode}
-                        onChange={(e) =>
-                          quoteChange(i.id, s.id, "priceMode", e.target.value)
-                        }
-                      >
-                        <option value="before-vat">Chưa VAT</option>
-                        <option value="after-vat">Đã VAT</option>
-                      </select>
-                      <label>
-                        VAT
-                        <input
-                          type="number"
-                          min="0"
-                          step="0.5"
-                          value={q.vatRate}
-                          onChange={(e) =>
-                            quoteChange(i.id, s.id, "vatRate", e.target.value)
+                    ...(customColumns || []).map((col, idx) => (
+                      <td key={s.id + "cc" + idx}>
+                        <AutoGrowTextarea
+                          placeholder={col}
+                          value={q.customColumns?.[col] || ""}
+                          onChange={(value) =>
+                            quoteChange(i.id, s.id, "customColumns", { ...q.customColumns, [col]: value })
                           }
                         />
-                        %
-                      </label>
-                    </td>,
-                    <td className="vat-converted-cell" key={s.id + "c"}>
-                      <span>Chưa VAT: <b>{beforeVat ? fmt(beforeVat) : "—"}</b></span>
-                      <span>Có VAT: <b>{afterVat ? fmt(afterVat) : "—"}</b></span>
-                    </td>,
+                      </td>
+                    )),
                     <td key={s.id + "n"}>
                       <AutoGrowTextarea
                         placeholder="Ghi chú"

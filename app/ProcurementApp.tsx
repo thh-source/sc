@@ -19,7 +19,7 @@ import VisualTimeline from "./VisualTimeline";
 import "./vat-quote.css";
 
 import { Item, Supplier, PurchaseHistory, QuoteMode, QuoteEntry, Quote, PR, POAllocation, POItem, POCartLine, ApprovalRow, ApprovalDraft, PODoc, Payment, PO, TrashItem, View, ColumnKey, SortState, StoredState } from "./types";
-import { BASE_COLUMNS, valueOf, reorder, applyTools, makeId, emptyItem, fmt, dateVN, DEFAULT_VAT_RATE, quoteDefaults, quoteAmount, quoteVatRate, quoteBeforeVat, quoteAfterVat, quoteComparePrice, priceStats, mergeHistorySeed, excelNumber, emptyPR, emptyPO } from "./utils";
+import { BASE_COLUMNS, valueOf, reorder, applyTools, makeId, emptyItem, fmt, dateVN, DEFAULT_VAT_RATE, quoteDefaults, quoteAmount, quoteVatRate, quoteBeforeVat, quoteAfterVat, quoteComparePrice, priceStats, mergeHistorySeed, excelNumber, emptyPR, emptyPO, generateShortName } from "./utils";
 import { items0, suppliers0, purchaseHistory0, quotes0, prs0, pos0, HISTORY_SEED_ID } from "./seed";
 import { AutoGrowTextarea } from "./components/AutoGrowTextarea";
 import { AdvancedItemsTable } from "./components/AdvancedItemsTable";
@@ -76,6 +76,7 @@ export default function ProcurementApp({
       Record<number, number[]>
     >({}),
     [supplierPicker, setSupplierPicker] = useState(false),
+    [supplierSearch, setSupplierSearch] = useState(""),
     [selectedSupplierId, setSelectedSupplierId] = useState("");
   const [supplierModal, setSupplierModal] = useState(false),
     [newSupplier, setNewSupplier] = useState<Omit<Supplier, "id">>({
@@ -288,7 +289,13 @@ export default function ProcurementApp({
                 : {});
           setPrs(data.prs || prs0);
           setProducts(data.products || items0);
-          setSuppliers(data.suppliers || suppliers0);
+          
+          const loadedSuppliers = data.suppliers || suppliers0;
+          setSuppliers(loadedSuppliers.map(s => ({
+            ...s,
+            shortName: s.shortName || generateShortName(s.name)
+          })));
+
           setQuotesByPr(migratedQuotes);
           setQuoteSupplierIdsByPr(migratedSupplierIds);
           setQuotes(firstPR ? migratedQuotes[firstPR.id] || {} : {});
@@ -383,7 +390,10 @@ export default function ProcurementApp({
           purchaseHistory,
           seed,
         );
-        setSuppliers(merged.suppliers);
+        setSuppliers(merged.suppliers.map(s => ({
+          ...s,
+          shortName: s.shortName || generateShortName(s.name)
+        })));
         setProducts(merged.products);
         setPurchaseHistory(merged.history);
         setPurchaseHistoryImportIds((ids) => [...ids, HISTORY_SEED_ID]);
@@ -590,7 +600,7 @@ export default function ProcurementApp({
     iid: number,
     sid: number,
     k: keyof QuoteEntry,
-    v: string,
+    v: string | Record<string, string>,
   ) => {
     const updatedEntry = {
       ...quoteDefaults(quotes[iid]?.[sid]),
@@ -743,19 +753,21 @@ export default function ProcurementApp({
     setNewSupplier((s) => ({ ...s, [key]: value }));
   const addSupplier = () => {
     if (!newSupplier.name.trim() || !newSupplier.code.trim()) return;
+    const nameTrimmed = newSupplier.name.trim();
     setSuppliers((s) => [
       ...s,
       {
         id: makeId(),
         ...newSupplier,
         code: newSupplier.code.trim(),
-        name: newSupplier.name.trim(),
+        name: nameTrimmed,
+        shortName: newSupplier.shortName || generateShortName(nameTrimmed)
       },
     ]);
     setSupplierModal(false);
   };
-  const addQuoteSupplier = () => {
-    const id = Number(selectedSupplierId);
+  const addQuoteSupplier = (overrideId?: number) => {
+    const id = overrideId || Number(selectedSupplierId);
     if (!id || quoteSupplierIds.includes(id)) return;
     const next = [...quoteSupplierIds, id];
     setQuoteSupplierIds(next);
@@ -1373,6 +1385,7 @@ export default function ProcurementApp({
                   className="primary"
                   onClick={() => {
                     setSelectedSupplierId("");
+                    setSupplierSearch("");
                     setSupplierPicker(true);
                   }}
                 >
@@ -1478,6 +1491,12 @@ export default function ProcurementApp({
               poSelections={poSelections}
               togglePOItem={togglePOItem}
               purchaseHistory={purchaseHistory}
+              customColumns={selectedPR.quoteCustomColumns || []}
+              setCustomColumns={(cols) => {
+                 const updated = { ...selectedPR, quoteCustomColumns: cols };
+                 setSelectedPR(updated);
+                 setPrs(all => all.map(pr => pr.id === updated.id ? updated : pr));
+              }}
             />
             <small className="hint">
               Tích chọn một hoặc nhiều mặt hàng cùng nhà cung cấp để tạo PO. Nếu
@@ -1690,40 +1709,41 @@ export default function ProcurementApp({
               Chọn nhà cung cấp từ danh mục dùng chung để thêm cột Giá và Ghi
               chú.
             </p>
-            {availableSuppliers.length ? (
-              <label>
-                Nhà cung cấp
-                <select
-                  autoFocus
-                  value={selectedSupplierId}
-                  onChange={(e) => setSelectedSupplierId(e.target.value)}
-                >
-                  <option value="">— Chọn nhà cung cấp —</option>
-                  {availableSuppliers.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.code} · {s.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            ) : (
-              <div className="empty-suppliers">
-                Tất cả nhà cung cấp trong danh mục đã được thêm vào bảng.
-              </div>
-            )}
+            {(() => {
+              const q = supplierSearch.toLowerCase();
+              const filtered = availableSuppliers.filter(s => s.name.toLowerCase().includes(q) || s.code.toLowerCase().includes(q) || (s.shortName && s.shortName.toLowerCase().includes(q)));
+              const exactMatch = availableSuppliers.find(s => s.name.toLowerCase() === q || (s.shortName && s.shortName.toLowerCase() === q));
+              return (
+                <div style={{display: "flex", flexDirection: "column", gap: "8px", maxHeight: "400px"}}>
+                  <input autoFocus placeholder="Gõ tên nhà cung cấp để tìm hoặc tạo mới..." value={supplierSearch} onChange={e => setSupplierSearch(e.target.value)} style={{padding: "10px", fontSize: "15px"}} />
+                  <div style={{flex: 1, overflowY: "auto", border: "1px solid #ddd", borderRadius: "4px", background: "#fff", minHeight: "150px"}}>
+                    {filtered.map(s => (
+                       <div key={s.id} onClick={() => addQuoteSupplier(s.id)} style={{padding: "12px 10px", cursor: "pointer", borderBottom: "1px solid #eee"}} onMouseEnter={e => (e.currentTarget.style.background = "#e6f2ff")} onMouseLeave={e => (e.currentTarget.style.background = "transparent")}>
+                         <b>{s.shortName || s.name}</b> <small style={{color:"#666"}}>({s.code}) - {s.name}</small>
+                       </div>
+                    ))}
+                    {!exactMatch && supplierSearch.trim() && (
+                       <div onClick={() => {
+                          const newName = supplierSearch.trim();
+                          const newCode = `NCC-${String(suppliers.length + 1).padStart(3, "0")}`;
+                          const newId = makeId();
+                          setSuppliers(all => [...all, { id: newId, code: newCode, name: newName, shortName: generateShortName(newName), bank: "", bankAccount: "", address: "", contact: "", phone: "" }]);
+                          addQuoteSupplier(newId);
+                       }} style={{padding: "12px 10px", cursor: "pointer", background: "#f0fdf4", color: "#166534"}} onMouseEnter={e => (e.currentTarget.style.background = "#dcfce7")} onMouseLeave={e => (e.currentTarget.style.background = "#f0fdf4")}>
+                         + Tạo mới NCC: <b>{supplierSearch}</b>
+                       </div>
+                    )}
+                    {filtered.length === 0 && !supplierSearch.trim() && <div style={{padding: "10px", color: "#999"}}>Tất cả NCC đã có trong bảng.</div>}
+                  </div>
+                </div>
+              );
+            })()}
             <div>
               <button
                 className="ghost"
                 onClick={() => setSupplierPicker(false)}
               >
-                Hủy
-              </button>
-              <button
-                className="primary"
-                disabled={!selectedSupplierId}
-                onClick={addQuoteSupplier}
-              >
-                Thêm vào bảng
+                Đóng
               </button>
             </div>
           </div>

@@ -210,3 +210,13 @@ export const emptyPO: PO = {
   payments: [],
   note: "",
 };
+
+export function generateShortName(name: string): string {
+  if (!name) return "";
+  let s = name.replace(/^(C\u00f4ng ty|Cty|Chi nh\u00e1nh|T\u1ed5ng c\u00f4ng ty|T\u1eadp \u0111o\u00e0n)\s+/i, "");
+  s = s.replace(/\b(TNHH|CP|MTV|TM|DV|Th\u01b0\u01a1ng m\u1ea1i|D\u1ecbch v\u1ee5|C\u1ed5 ph\u1ea7n|\u0110\u1ea7u t\u01b0|Ph\u00e1t tri\u1ec3n|S\u1ea3n xu\u1ea5t|D\u01b0\u1ee3c ph\u1ea9m|H\u00f3a ch\u1ea5t|Thi\u1ebft b\u1ecb|V\u1eadt t\u01b0|Y t\u1ebf)\b/gi, "");
+  s = s.replace(/[\(\)\[\],-]/g, " ");
+  s = s.replace(/\s+/g, " ").trim();
+  return s || name;
+}
+

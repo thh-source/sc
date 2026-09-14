@@ -14,6 +14,7 @@ export type Supplier = {
   id: number;
   code: string;
   name: string;
+  shortName?: string;
   bankAccount: string;
   bank: string;
   address: string;
@@ -50,6 +51,7 @@ export type QuoteEntry = {
   note: string;
   priceMode?: QuoteMode;
   vatRate?: string;
+  customColumns?: Record<string, string>;
 };
 
 export type Quote = Record<number, Record<number, QuoteEntry>>;
@@ -63,6 +65,7 @@ export type PR = {
   items: Item[];
   status: string;
   note?: string;
+  quoteCustomColumns?: string[];
 };
 
 export type POAllocation = {
