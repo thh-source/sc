@@ -10,7 +10,7 @@ async function bindings() {
 
 export async function GET(request: Request) {
   const user = await getChatGPTUser();
-  if (!user) return Response.json({ error: "Không có quy?n truy c?p" }, { status: 401 });
+  if (!user) return Response.json({ error: "Khï¿½ng cï¿½ quy?n truy c?p" }, { status: 401 });
 
   const workspaceId = await resolveWorkspace(user, new URL(request.url).searchParams.get("workspace"));
   const drizzleDb = getDb();
@@ -29,13 +29,13 @@ export async function GET(request: Request) {
 
 export async function PUT(request: Request) {
   const user = await getChatGPTUser();
-  if (!user) return Response.json({ error: "Không có quy?n truy c?p" }, { status: 401 });
+  if (!user) return Response.json({ error: "Khï¿½ng cï¿½ quy?n truy c?p" }, { status: 401 });
 
   let data;
   try {
     data = await request.json();
   } catch (e) {
-    return Response.json({ error: "JSON không h?p l?" }, { status: 400 });
+    return Response.json({ error: "JSON khï¿½ng h?p l?" }, { status: 400 });
   }
 
   const workspaceId = await resolveWorkspace(user, new URL(request.url).searchParams.get("workspace"));
@@ -56,4 +56,3 @@ export async function PUT(request: Request) {
     return Response.json({ error: err.message }, { status: 500 });
   }
 }
-
