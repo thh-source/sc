@@ -273,30 +273,7 @@ export function CreatePRCatalog({
           <p>Chọn hàng từ danh mục hoặc tạo mới nếu chưa có.</p>
         </div>
         <div className="actions">
-          <div className="flex items-center gap-2">
-            <select 
-              className="border p-2 rounded" 
-              value={aiProvider} 
-              onChange={e => {
-                const val = e.target.value as any;
-                setAiProvider(val);
-                if (typeof localStorage !== 'undefined') localStorage.setItem("sc_ai_provider", val);
-              }}
-              title="Chọn mô hình AI"
-            >
-              <option value="gemini">Google (Mặc định)</option>
-              <option value="deepseek">DeepSeek V3</option>
-              <option value="openrouter">OpenRouter</option>
-            </select>
-            <button 
-              className="ghost" 
-              onClick={() => setAiSettingsOpen(true)}
-              title="Cài đặt API Key"
-              style={{ padding: '0.5rem', minWidth: 'auto' }}
-            >
-              ⚙️
-            </button>
-          </div>
+
           <button className="ghost" onClick={onCancel}>
             Hủy
           </button>
