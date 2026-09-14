@@ -3,7 +3,6 @@ import { Item, Supplier, PurchaseHistory, Quote, PR, PO, ColumnKey, SortState, T
 import { fmt, dateVN, makeId, quoteAmount, quoteVatRate, quoteBeforeVat, quoteAfterVat, quoteComparePrice, priceStats, emptyItem, applyTools, reorder, BASE_COLUMNS } from "../utils";
 import { AutoGrowTextarea } from "./AutoGrowTextarea";
 import { DraftItemsTable } from "./DraftItemsTable";
-import { useMascot } from "./MascotContext";
 
 export function CreatePRCatalog({
   draft,
@@ -67,8 +66,7 @@ export function CreatePRCatalog({
     setSelectedProduct("");
   };
 
-  const { setMascotState, say } = useMascot();
-  const [aiLoading, setAiLoading] = useState<string | false>(false);
+    const [aiLoading, setAiLoading] = useState<string | false>(false);
   const [aiPendingData, setAiPendingData] = useState<any>(null);
   
   // AI Settings State
@@ -119,9 +117,7 @@ export function CreatePRCatalog({
       ]
     }));
     setAiPendingData(null);
-    setMascotState("success");
-    say("Tuyệt vời! Đã ném hết dữ liệu vào bảng PR cho sếp rồi nhé! 😽");
-    setTimeout(() => setMascotState("idle"), 4000);
+            setTimeout(() => setMascotState("idle"), 4000);
   };
 
   const handleAiScan = async (e: ChangeEvent<HTMLInputElement>) => {
@@ -135,9 +131,7 @@ export function CreatePRCatalog({
     }
 
     setAiLoading("Đang đọc file...");
-    setMascotState("loading");
-    say("Để em soi file này xem có gì hot nha sếp! 🕵️‍♂️");
-    try {
+            try {
       const reader = new FileReader();
       reader.onload = async () => {
         try {
@@ -252,13 +246,9 @@ export function CreatePRCatalog({
              setAiPendingData(data);
           }
           setAiLoading(false);
-          setMascotState("success");
-          say("Xong rồi sếp ơi! Dữ liệu mượt mà, duyệt lẹ cho em nghỉ nha! 🎉");
-        } catch (err: any) {
+                            } catch (err: any) {
           alert("❌ Lỗi quét file: " + err.message);
-          setMascotState("error");
-          say("Toang rồi sếp ơi! Hệ thống báo lỗi, cứu em với! 😿");
-        } finally {
+                            } finally {
           setAiLoading(false);
           if (aiFileRef.current) aiFileRef.current.value = "";
         }
@@ -283,13 +273,6 @@ export function CreatePRCatalog({
           <p>Chọn hàng từ danh mục hoặc tạo mới nếu chưa có.</p>
         </div>
         <div className="actions">
-          <input
-            type="file"
-            ref={aiFileRef}
-            style={{ display: "none" }}
-            accept=".pdf,.png,.jpg,.jpeg,.xlsx,.csv"
-            onChange={handleAiScan}
-          />
           <div className="flex items-center gap-2">
             <select 
               className="border p-2 rounded" 
@@ -312,14 +295,6 @@ export function CreatePRCatalog({
               style={{ padding: '0.5rem', minWidth: 'auto' }}
             >
               ⚙️
-            </button>
-            <button 
-              className="secondary" 
-              onClick={() => aiFileRef.current?.click()}
-              disabled={aiLoading !== false}
-              style={{ backgroundColor: '#e8f0fe', color: '#1a73e8', borderColor: '#1a73e8' }}
-            >
-              {aiLoading ? (typeof aiLoading === 'string' ? "⏳ " + aiLoading : "⏳ Đang quét AI...") : "✨ Scan File AI"}
             </button>
           </div>
           <button className="ghost" onClick={onCancel}>
