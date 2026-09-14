@@ -26,6 +26,8 @@ export function AdvancedItemsTable({
   poSelections,
   togglePOItem,
   purchaseHistory,
+  customColumns,
+  setCustomColumns,
 }: {
   items: Item[];
   visibleItems: Item[];
