@@ -13,12 +13,22 @@
       "database_name": "mua-hang-db",
       "database_id": "b9758dfb-ea50-4534-8372-7798ec7fb9e6",
       "migrations_dir": "drizzle"
+    },
+    {
+      "binding": "PCM_DB",
+      "database_name": "project-contract-manager",
+      "database_id": "5372b39f-5700-42a7-a309-987898786078",
+      "migrations_dir": "migrations_pcm"
     }
   ],
   "r2_buckets": [
     {
       "binding": "BUCKET",
       "bucket_name": "mua-hang-files"
+    },
+    {
+      "binding": "PCM_FILES",
+      "bucket_name": "project-contract-manager-files"
     }
   ]
 }
