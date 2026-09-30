@@ -113,9 +113,9 @@ export default function SmartTableTools({ scopeKey }: { scopeKey: string }) {
     [...group.children].forEach((node, index) => {
       const col = node as HTMLTableColElement,
         hidden = prefs.hidden.includes(labels[index]);
-      col.style.display = hidden ? "none" : "table-column";
-      col.style.width = `${widths[index]}px`;
-      col.style.minWidth = `${widths[index]}px`;
+      col.style.visibility = hidden ? "collapse" : "visible";
+      col.style.width = hidden ? "0" : `${widths[index]}px`;
+      col.style.minWidth = hidden ? "0" : `${widths[index]}px`;
     });
     table.classList.add("smart-table-enabled");
     table.style.width = `${widths.reduce((sum, width, index) => sum + (prefs.hidden.includes(labels[index]) ? 0 : width), 0)}px`;
