@@ -1378,29 +1378,7 @@ export default function ProcurementApp({
                     <button className="ghost" onClick={() => setView("prs")}>
                       ← Danh sách PR
                     </button>
-                    <button
-                      className="ghost"
-                      onClick={() => setItems((x) => [...x, emptyItem(x.length)])}
-                    >
-                      ＋ Thêm mặt hàng
-                    </button>
-                    <button
-                      className="primary"
-                      onClick={() => {
-                        setSelectedSupplierId("");
-                        setSupplierSearch("");
-                        setSupplierPicker(true);
-                      }}
-                    >
-                      ＋ Chọn nhà cung cấp
-                    </button>
-                    <button
-                      className="po-create-btn"
-                      disabled={!poCart.length}
-                      onClick={() => setPoCartOpen(true)}
-                    >
-                      Giỏ PO ({poCart.length})
-                    </button>
+
                   </div>
                 </div>
                 <div className="cards">
@@ -1467,26 +1445,53 @@ export default function ProcurementApp({
                 <span>↔ Kéo tiêu đề để đổi cột</span>
                 <span>▾ Bấm để lọc nhiều giá trị</span>
               </p>
-              <button
-                onClick={() => setCompactCompare(!compactCompare)}
-                style={{
-                  marginLeft: "auto",
-                  padding: "6px 12px",
-                  cursor: "pointer",
-                  borderRadius: "6px",
-                  border: "1px solid #d4d4d8",
-                  background: "#fff",
-                  fontSize: "0.85rem",
-                  fontWeight: 500,
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "6px",
-                  color: "#3f3f46",
-                  boxShadow: "0 1px 2px rgba(0,0,0,0.05)"
-                }}
-              >
-                {compactCompare ? "Mở rộng giao diện" : "Thu gọn giao diện"}
-              </button>
+              <div style={{ display: "flex", gap: "8px", marginLeft: "auto" }}>
+                <button
+                  className="ghost"
+                  style={{ border: "1px solid var(--line)", background: "#fff", padding: "6px 12px", borderRadius: "6px", fontSize: "0.85rem", fontWeight: 500, color: "#3f3f46", boxShadow: "0 1px 2px rgba(0,0,0,0.05)", cursor: "pointer" }}
+                  onClick={() => setItems((x) => [...x, emptyItem(x.length)])}
+                >
+                  ＋ Thêm mặt hàng
+                </button>
+                <button
+                  className="primary"
+                  style={{ padding: "6px 12px", borderRadius: "6px", fontSize: "0.85rem", fontWeight: 500, boxShadow: "0 1px 2px rgba(0,0,0,0.05)", cursor: "pointer" }}
+                  onClick={() => {
+                    setSelectedSupplierId("");
+                    setSupplierSearch("");
+                    setSupplierPicker(true);
+                  }}
+                >
+                  ＋ Chọn nhà cung cấp
+                </button>
+                <button
+                  className="po-create-btn"
+                  disabled={!poCart.length}
+                  onClick={() => setPoCartOpen(true)}
+                  style={{ padding: "6px 12px", borderRadius: "6px", fontSize: "0.85rem", fontWeight: 500, boxShadow: "0 1px 2px rgba(0,0,0,0.05)", cursor: "pointer" }}
+                >
+                  Giỏ PO ({poCart.length})
+                </button>
+                <button
+                  onClick={() => setCompactCompare(!compactCompare)}
+                  style={{
+                    padding: "6px 12px",
+                    cursor: "pointer",
+                    borderRadius: "6px",
+                    border: "1px solid #d4d4d8",
+                    background: "#fff",
+                    fontSize: "0.85rem",
+                    fontWeight: 500,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "6px",
+                    color: "#3f3f46",
+                    boxShadow: "0 1px 2px rgba(0,0,0,0.05)"
+                  }}
+                >
+                  {compactCompare ? "Mở rộng giao diện" : "Thu gọn giao diện"}
+                </button>
+              </div>
             </div>
             {poCart.length > 0 && (
               <div className="po-selection-bar">
