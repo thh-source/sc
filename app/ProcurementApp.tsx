@@ -1446,32 +1446,51 @@ export default function ProcurementApp({
                 <span>▾ Bấm để lọc nhiều giá trị</span>
               </p>
               <div style={{ display: "flex", gap: "8px", marginLeft: "auto" }}>
-                <button
-                  className="ghost"
-                  style={{ border: "1px solid var(--line)", background: "#fff", padding: "6px 12px", borderRadius: "6px", fontSize: "0.85rem", fontWeight: 500, color: "#3f3f46", boxShadow: "0 1px 2px rgba(0,0,0,0.05)", cursor: "pointer" }}
-                  onClick={() => setItems((x) => [...x, emptyItem(x.length)])}
-                >
-                  ＋ Thêm mặt hàng
-                </button>
-                <button
-                  className="primary"
-                  style={{ padding: "6px 12px", borderRadius: "6px", fontSize: "0.85rem", fontWeight: 500, boxShadow: "0 1px 2px rgba(0,0,0,0.05)", cursor: "pointer" }}
-                  onClick={() => {
-                    setSelectedSupplierId("");
-                    setSupplierSearch("");
-                    setSupplierPicker(true);
-                  }}
-                >
-                  ＋ Chọn nhà cung cấp
-                </button>
-                <button
-                  className="po-create-btn"
-                  disabled={!poCart.length}
-                  onClick={() => setPoCartOpen(true)}
-                  style={{ padding: "6px 12px", borderRadius: "6px", fontSize: "0.85rem", fontWeight: 500, boxShadow: "0 1px 2px rgba(0,0,0,0.05)", cursor: "pointer" }}
-                >
-                  Giỏ PO ({poCart.length})
-                </button>
+                {!reportMode && (
+                  <>
+                    <button
+                      className="ghost"
+                      style={{ border: "1px solid var(--line)", background: "#fff", padding: "6px 12px", borderRadius: "6px", fontSize: "0.85rem", fontWeight: 500, color: "#3f3f46", boxShadow: "0 1px 2px rgba(0,0,0,0.05)", cursor: "pointer" }}
+                      onClick={() => setItems((x) => [...x, emptyItem(x.length)])}
+                    >
+                      ＋ Thêm mặt hàng
+                    </button>
+                    <button
+                      className="ghost"
+                      style={{ border: "1px solid var(--line)", background: "#fff", padding: "6px 12px", borderRadius: "6px", fontSize: "0.85rem", fontWeight: 500, color: "#3f3f46", boxShadow: "0 1px 2px rgba(0,0,0,0.05)", cursor: "pointer" }}
+                      onClick={() => {
+                        const name = prompt("Nhập tên cột mới (VD: Tên hàng NCC, Xuất xứ, Bảo hành...):");
+                        if (name && name.trim()) {
+                           const cols = selectedPR.quoteCustomColumns || [];
+                           const updated = { ...selectedPR, quoteCustomColumns: [...cols, name.trim()] };
+                           setSelectedPR(updated);
+                           setPrs(all => all.map(pr => pr.id === updated.id ? updated : pr));
+                        }
+                      }}
+                    >
+                      ＋ Cột NCC
+                    </button>
+                    <button
+                      className="primary"
+                      style={{ padding: "6px 12px", borderRadius: "6px", fontSize: "0.85rem", fontWeight: 500, boxShadow: "0 1px 2px rgba(0,0,0,0.05)", cursor: "pointer" }}
+                      onClick={() => {
+                        setSelectedSupplierId("");
+                        setSupplierSearch("");
+                        setSupplierPicker(true);
+                      }}
+                    >
+                      ＋ Chọn nhà cung cấp
+                    </button>
+                    <button
+                      className="po-create-btn"
+                      disabled={!poCart.length}
+                      onClick={() => setPoCartOpen(true)}
+                      style={{ padding: "6px 12px", borderRadius: "6px", fontSize: "0.85rem", fontWeight: 500, boxShadow: "0 1px 2px rgba(0,0,0,0.05)", cursor: "pointer" }}
+                    >
+                      Giỏ PO ({poCart.length})
+                    </button>
+                  </>
+                )}
                 <button
                   onClick={() => setCompactCompare(!compactCompare)}
                   style={{

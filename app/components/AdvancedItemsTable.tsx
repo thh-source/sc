@@ -129,21 +129,7 @@ export function AdvancedItemsTable({
   };
   return (
     <>
-      <div className="vat-compare-toolbar">
-        <span>So sánh giá theo:</span>
-        <button
-          className={quoteCompareMode === "before-vat" ? "active" : ""}
-          onClick={() => setQuoteCompareMode("before-vat")}
-        >
-          Giá chưa VAT
-        </button>
-        <button
-          className={quoteCompareMode === "after-vat" ? "active" : ""}
-          onClick={() => setQuoteCompareMode("after-vat")}
-        >
-          Giá có VAT
-        </button>
-      </div>
+
       <div className="tablewrap advanced-table vat-quote-table">
       <table>
         <thead>
@@ -239,14 +225,6 @@ export function AdvancedItemsTable({
             <th colSpan={2} className="choice">
               <div style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px'}}>
                 <span>Lựa chọn tự động</span>
-                {setCustomColumns && (
-                   <button onClick={() => {
-                     const name = prompt("Nhập tên cột mới (VD: Tên hàng NCC, Xuất xứ, Bảo hành...):");
-                     if (name && name.trim()) setCustomColumns([...(customColumns||[]), name.trim()]);
-                   }} style={{fontSize: '11px', padding: '2px 6px'}} className="ghost">
-                     + Cột NCC
-                   </button>
-                )}
               </div>
             </th>
           </tr>
@@ -381,7 +359,7 @@ export function AdvancedItemsTable({
                 )}{" "}
                 ₫
               </td>,
-              <td key={s.id + "tc"}>Chưa VAT / Có VAT</td>,
+              <td key={s.id + "tc"}></td>,
               <td key={s.id + "x"}></td>,
             ])}
             <td colSpan={2}></td>
