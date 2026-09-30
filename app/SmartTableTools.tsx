@@ -110,13 +110,37 @@ export default function SmartTableTools({ scopeKey }: { scopeKey: string }) {
             ),
           ),
       );
+    let style = table.querySelector<HTMLStyleElement>("style.smart-table-css");
+    if (!style) {
+      style = document.createElement("style");
+      style.className = "smart-table-css";
+      table.appendChild(style);
+    }
+    const cssRules: string[] = [];
     [...group.children].forEach((node, index) => {
       const col = node as HTMLTableColElement,
         hidden = prefs.hidden.includes(labels[index]);
       col.style.visibility = hidden ? "collapse" : "visible";
       col.style.width = hidden ? "0" : `${widths[index]}px`;
       col.style.minWidth = hidden ? "0" : `${widths[index]}px`;
+      if (hidden) {
+        cssRules.push(`
+          table.smart-table-enabled tbody tr td:nth-child(${index + 1}) {
+            padding: 0 !important;
+            border: 0 !important;
+          }
+          table.smart-table-enabled tbody tr td:nth-child(${index + 1}) * {
+            white-space: nowrap !important;
+            height: 32px !important;
+            min-height: 0 !important;
+            max-height: 32px !important;
+            overflow: hidden !important;
+            field-sizing: fixed !important;
+          }
+        `);
+      }
     });
+    style.textContent = cssRules.join("\n");
     table.classList.add("smart-table-enabled");
     table.style.width = `${widths.reduce((sum, width, index) => sum + (prefs.hidden.includes(labels[index]) ? 0 : width), 0)}px`;
     if (syncPanel && activeRef.current === table) {
