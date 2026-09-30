@@ -2,8 +2,8 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  margin: 12px 0;
-  padding: 10px 12px;
+  margin: 4px 0 8px;
+  padding: 6px 12px;
   border: 1px solid #dbe3ef;
   border-radius: 8px;
   background: #f8fafc;
@@ -16,7 +16,7 @@
   background: #fff;
   color: #334155;
   border-radius: 999px;
-  padding: 6px 12px;
+  padding: 4px 10px;
   cursor: pointer;
 }
 

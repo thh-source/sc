@@ -61,6 +61,7 @@ export default function ProcurementApp({
     [quotes, setQuotes] = useState(quotes0),
     [quotesByPr, setQuotesByPr] = useState<Record<number, Quote>>({}),
     [search, setSearch] = useState("");
+  const [compactCompare, setCompactCompare] = useState(false);
   const [products, setProducts] = useState<Item[]>(items0);
   const [purchaseHistory, setPurchaseHistory] =
     useState<PurchaseHistory[]>(purchaseHistory0);
@@ -1036,11 +1037,6 @@ export default function ProcurementApp({
     { icon: "⚖", name: "So sánh báo giá", action: () => setView("compare") },
     { icon: "▰", name: "Quản lý PO", action: () => setView("po-list") },
     { icon: "▧", name: "Hợp đồng", action: () => setView("contracts") },
-    {
-      icon: "▨",
-      name: "HĐ dự án",
-      action: () => setView("project-contracts"),
-    },
     { icon: "▱", name: "Nhà cung cấp", action: () => setView("suppliers") },
     { icon: "◇", name: "Hàng hóa", action: () => setView("products") },
     {
@@ -1365,76 +1361,80 @@ export default function ProcurementApp({
         )}
         {view === "compare" && (
           <section className="content">
-            <div className="heading">
-              <div>
-                <em>YÊU CẦU MUA HÀNG · {selectedPR.number}</em>
-                <h1>Bảng tổng hợp mua hàng</h1>
-                <p>{selectedPR.purpose}</p>
-              </div>
-              <div className="actions">
-                <button className="ghost" onClick={() => setView("prs")}>
-                  ← Danh sách PR
-                </button>
-                <button
-                  className="ghost"
-                  onClick={() => setItems((x) => [...x, emptyItem(x.length)])}
-                >
-                  ＋ Thêm mặt hàng
-                </button>
-                <button
-                  className="primary"
-                  onClick={() => {
-                    setSelectedSupplierId("");
-                    setSupplierSearch("");
-                    setSupplierPicker(true);
-                  }}
-                >
-                  ＋ Chọn nhà cung cấp
-                </button>
-                <button
-                  className="po-create-btn"
-                  disabled={!poCart.length}
-                  onClick={() => setPoCartOpen(true)}
-                >
-                  Giỏ PO ({poCart.length})
-                </button>
-              </div>
-            </div>
-            <div className="cards">
-              <article>
-                <i>◇</i>
-                <strong>{items.length}</strong>
-                <span>Mặt hàng</span>
-              </article>
-              <article>
-                <i>♙</i>
-                <strong>{suppliers.length}</strong>
-                <span>Nhà cung cấp</span>
-              </article>
-              <article className="good">
-                <i>✓</i>
-                <div>
-                  <strong>Giá tốt nhất</strong>
-                  <span>Tự động xác định theo giá thấp nhất</span>
+            {!compactCompare && (
+              <>
+                <div className="heading">
+                  <div>
+                    <em>YÊU CẦU MUA HÀNG · {selectedPR.number}</em>
+                    <h1>Bảng tổng hợp mua hàng</h1>
+                    <p>{selectedPR.purpose}</p>
+                  </div>
+                  <div className="actions">
+                    <button className="ghost" onClick={() => setView("prs")}>
+                      ← Danh sách PR
+                    </button>
+                    <button
+                      className="ghost"
+                      onClick={() => setItems((x) => [...x, emptyItem(x.length)])}
+                    >
+                      ＋ Thêm mặt hàng
+                    </button>
+                    <button
+                      className="primary"
+                      onClick={() => {
+                        setSelectedSupplierId("");
+                        setSupplierSearch("");
+                        setSupplierPicker(true);
+                      }}
+                    >
+                      ＋ Chọn nhà cung cấp
+                    </button>
+                    <button
+                      className="po-create-btn"
+                      disabled={!poCart.length}
+                      onClick={() => setPoCartOpen(true)}
+                    >
+                      Giỏ PO ({poCart.length})
+                    </button>
+                  </div>
                 </div>
-              </article>
-              <article className="total">
-                <span>Giá trị dự kiến</span>
-                <strong>{fmt(estimated)} ₫</strong>
-              </article>
-            </div>
-            <section className="common-note-card">
-              <label>
-                <span>✎ Ghi chú chung PR</span>
-                <textarea
-                  rows={3}
-                  value={selectedPR.note || ""}
-                  placeholder="Diễn giải tự do cho toàn bộ PR..."
-                  onChange={(e) => updatePRNote(e.target.value)}
-                />
-              </label>
-            </section>
-            <div className="toolbar">
+                <div className="cards">
+                  <article>
+                    <i>◇</i>
+                    <strong>{items.length}</strong>
+                    <span>Mặt hàng</span>
+                  </article>
+                  <article>
+                    <i>♙</i>
+                    <strong>{suppliers.length}</strong>
+                    <span>Nhà cung cấp</span>
+                  </article>
+                  <article className="good">
+                    <i>✓</i>
+                    <div>
+                      <strong>Giá tốt nhất</strong>
+                      <span>Tự động xác định theo giá thấp nhất</span>
+                    </div>
+                  </article>
+                  <article className="total">
+                    <span>Giá trị dự kiến</span>
+                    <strong>{fmt(estimated)} ₫</strong>
+                  </article>
+                </div>
+                <section className="common-note-card">
+                  <label>
+                    <span>✎ Ghi chú chung PR</span>
+                    <textarea
+                      rows={3}
+                      value={selectedPR.note || ""}
+                      placeholder="Diễn giải tự do cho toàn bộ PR..."
+                      onChange={(e) => updatePRNote(e.target.value)}
+                    />
+                  </label>
+                </section>
+              </>
+            )}
+            <div className="toolbar" style={compactCompare ? { marginTop: "1rem" } : {}}>
               <label>
                 ⌕
                 <input
@@ -1447,6 +1447,26 @@ export default function ProcurementApp({
                 <span>↔ Kéo tiêu đề để đổi cột</span>
                 <span>▾ Bấm để lọc nhiều giá trị</span>
               </p>
+              <button
+                onClick={() => setCompactCompare(!compactCompare)}
+                style={{
+                  marginLeft: "auto",
+                  padding: "6px 12px",
+                  cursor: "pointer",
+                  borderRadius: "6px",
+                  border: "1px solid #d4d4d8",
+                  background: "#fff",
+                  fontSize: "0.85rem",
+                  fontWeight: 500,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "6px",
+                  color: "#3f3f46",
+                  boxShadow: "0 1px 2px rgba(0,0,0,0.05)"
+                }}
+              >
+                {compactCompare ? "Mở rộng giao diện" : "Thu gọn giao diện"}
+              </button>
             </div>
             {poCart.length > 0 && (
               <div className="po-selection-bar">
@@ -1502,7 +1522,7 @@ export default function ProcurementApp({
               Tích chọn một hoặc nhiều mặt hàng cùng nhà cung cấp để tạo PO. Nếu
               chọn mặt hàng thuộc NCC khác, hệ thống sẽ bắt đầu nhóm mới.
             </small>
-            {!reportMode && selectedPR.id !== 0 && (
+            {!reportMode && selectedPR.id !== 0 && !compactCompare && (
               <DocumentManager
                 title={`Hồ sơ PR ${selectedPR.number}`}
                 entityType="pr"
