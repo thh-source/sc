@@ -1031,6 +1031,53 @@ export default function ProcurementApp({
     setPos((list) => list.map((x) => (x.id === po.id ? po : x)));
   };
   const activeContracts = pos.filter((po) => !hiddenContractIds.includes(po.id));
+  useEffect(() => {
+    if (!storageReady) return;
+    const hash = window.location.hash.slice(1);
+    if (hash) {
+      const params = new URLSearchParams(hash);
+      const prParam = params.get("pr");
+      const poParam = params.get("po");
+      const viewParam = params.get("view") as View;
+      
+      let didSetPR = false;
+      if (prParam) {
+        const found = prs.find((p) => String(p.id) === prParam);
+        if (found) {
+          openCompare(found);
+          didSetPR = true;
+        }
+      }
+      
+      if (poParam) {
+        const found = pos.find((p) => String(p.id) === poParam);
+        if (found) setCurrentPO(found);
+      }
+      
+      if (viewParam && !didSetPR) {
+        setView(viewParam);
+      }
+    }
+  }, [storageReady]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (!storageReady) return;
+    const params = new URLSearchParams();
+    if (view !== "dashboard") params.set("view", view);
+    if (selectedPR?.id && (view === "compare" || view === "approval")) {
+      params.set("pr", String(selectedPR.id));
+    }
+    if (currentPO?.id && view === "po-detail") {
+      params.set("po", String(currentPO.id));
+    }
+    
+    const newHash = params.toString();
+    const currentHash = window.location.hash.slice(1);
+    if (newHash !== currentHash) {
+      window.history.replaceState(null, "", newHash ? `#${newHash}` : window.location.pathname);
+    }
+  }, [view, selectedPR?.id, currentPO?.id, storageReady]);
+
   const nav = [
     { icon: "▦", name: "Tổng quan", action: () => setView("dashboard") },
     { icon: "▣", name: "Danh sách PR", action: () => setView("prs") },
@@ -1108,6 +1155,56 @@ export default function ProcurementApp({
             </button>
           ))}
         </nav>
+        <div className="sidebar-bottom-actions">
+          {!reportMode && workspaceUsers.length > 0 && (
+            <label className="workspace-picker">
+              <span>Môi trường</span>
+              <select
+                value={workspaceId}
+                onChange={(event) => {
+                  setStorageReady(false);
+                  setStorageStatus("Đang mở môi trường làm việc...");
+                  setWorkspaceId(event.target.value);
+                }}
+              >
+                {workspaceUsers.map((workspaceUser) => (
+                  <option key={workspaceUser.id} value={workspaceUser.id}>
+                    {workspaceUser.displayName} ({workspaceUser.username})
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+          {!reportMode && (
+            <button className="header-share-report" onClick={openShareReport}>
+              ↗ Tạo link theo dõi
+            </button>
+          )}
+          <div className="user">
+            <i>{currentUser?.displayName?.slice(0, 2).toUpperCase() || "BC"}</i>
+            <div>
+              <b>{currentUser?.displayName || "Báo cáo"}</b>
+              <small>
+                {currentUser
+                  ? currentUser.role === "master"
+                    ? "Master Admin"
+                  : currentUser.role === "admin"
+                    ? "Admin"
+                    : "Người dùng"
+                  : "Chỉ xem"}
+              </small>
+            </div>
+          </div>
+          {!reportMode && currentUser && (
+            <button
+              className="header-logout"
+              onClick={logout}
+              title="Đăng xuất tài khoản"
+            >
+              <span>↪</span> Đăng xuất
+            </button>
+          )}
+        </div>
         <button className="collapse" onClick={() => setCollapsed(!collapsed)}>
           « <b>Thu gọn</b>
         </button>
@@ -1120,104 +1217,12 @@ export default function ProcurementApp({
         />
       )}
       <main>
-        <header>
+        <div className="mobile-header">
           <button className="hamb" onClick={() => setCollapsed(!collapsed)}>
             ☰
           </button>
-          <div className="crumb">
-            <span>Trang chủ</span>
-            {view !== "dashboard" && (
-              <>
-                {" "}
-                ›{" "}
-                <span>
-                  {view === "compare"
-                    ? "So sánh báo giá"
-                    : view.startsWith("po")
-                      ? "Quản lý PO"
-                    : view === "contracts"
-                      ? "Hợp đồng"
-                      : view === "project-contracts"
-                        ? "HĐ dự án"
-                        : view === "products"
-                          ? "Hàng hóa"
-                          : view === "trash"
-                            ? "Thùng rác"
-                          : view === "settings"
-                            ? "Cài đặt"
-                            : view === "suppliers"
-                              ? "Nhà cung cấp"
-                              : "Đề nghị mua hàng"}
-                </span>
-              </>
-            )}
-            {(view === "create" ||
-              view === "compare" ||
-              view === "po-detail") && (
-              <>
-                {" "}
-                ›{" "}
-                <b>
-                  {view === "create"
-                    ? "Tạo PR mới"
-                    : view === "po-detail"
-                      ? currentPO.number
-                      : selectedPR.number}
-                </b>
-              </>
-            )}
-          </div>
-          <div className="header-actions">
-            {!reportMode && workspaceUsers.length > 0 && (
-              <label className="workspace-picker">
-                <span>Môi trường</span>
-                <select
-                  value={workspaceId}
-                  onChange={(event) => {
-                    setStorageReady(false);
-                    setStorageStatus("Đang mở môi trường làm việc...");
-                    setWorkspaceId(event.target.value);
-                  }}
-                >
-                  {workspaceUsers.map((workspaceUser) => (
-                    <option key={workspaceUser.id} value={workspaceUser.id}>
-                      {workspaceUser.displayName} ({workspaceUser.username})
-                    </option>
-                  ))}
-                </select>
-              </label>
-            )}
-            {!reportMode && (
-              <button className="header-share-report" onClick={openShareReport}>
-                ↗ Tạo link theo dõi
-              </button>
-            )}
-            <div className="user">
-              <i>{currentUser?.displayName?.slice(0, 2).toUpperCase() || "BC"}</i>
-              <div>
-                <b>{currentUser?.displayName || "Báo cáo"}</b>
-                <small>
-                  {currentUser
-                    ? currentUser.role === "master"
-                      ? "Master Admin"
-                      : currentUser.role === "admin"
-                        ? "Admin"
-                        : "Người dùng"
-                    : "Chỉ xem"}
-                </small>
-              </div>
-            </div>
-            {!reportMode && currentUser && (
-              <button
-                className="header-logout"
-                onClick={logout}
-                title="Đăng xuất tài khoản"
-              >
-                <span>↪</span> Đăng xuất
-              </button>
-            )}
-          </div>
-        </header>
+          <b>{reportMode ? "Báo cáo chỉ xem" : "Procurement"}</b>
+        </div>
         {reportMode ? (
           <div className="report-banner">
             <div>
@@ -1435,7 +1440,7 @@ export default function ProcurementApp({
               </>
             )}
             <div className="toolbar" style={compactCompare ? { marginTop: "1rem" } : {}}>
-              <label>
+              <label style={{ width: "260px" }}>
                 ⌕
                 <input
                   value={search}
@@ -1443,6 +1448,21 @@ export default function ProcurementApp({
                   placeholder="Tìm mã hàng, phân loại, tên vật tư..."
                 />
               </label>
+              <div className="vat-compare-toolbar" style={{ margin: 0, padding: 0, border: "none", background: "none" }}>
+                <span>So sánh giá theo:</span>
+                <button
+                  className={quoteCompareMode === "before-vat" ? "active" : ""}
+                  onClick={() => setQuoteCompareMode("before-vat")}
+                >
+                  Giá chưa VAT
+                </button>
+                <button
+                  className={quoteCompareMode === "after-vat" ? "active" : ""}
+                  onClick={() => setQuoteCompareMode("after-vat")}
+                >
+                  Giá có VAT
+                </button>
+              </div>
               <p>
                 <span>↔ Kéo tiêu đề để đổi cột</span>
                 <span>▾ Bấm để lọc nhiều giá trị</span>
@@ -1518,10 +1538,7 @@ export default function ProcurementApp({
                  setPrs(all => all.map(pr => pr.id === updated.id ? updated : pr));
               }}
             />
-            <small className="hint">
-              Tích chọn một hoặc nhiều mặt hàng cùng nhà cung cấp để tạo PO. Nếu
-              chọn mặt hàng thuộc NCC khác, hệ thống sẽ bắt đầu nhóm mới.
-            </small>
+
             {!reportMode && selectedPR.id !== 0 && !compactCompare && (
               <DocumentManager
                 title={`Hồ sơ PR ${selectedPR.number}`}
