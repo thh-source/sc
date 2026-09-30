@@ -7,8 +7,9 @@ type ColumnInfo = {
   label: string;
   width: number;
   hidden: boolean;
+  pinned: boolean;
 };
-type Preferences = { widths: Record<string, number>; hidden: string[] };
+type Preferences = { widths: Record<string, number>; hidden: string[]; pinned: string | null };
 
 function headerGrid(table: HTMLTableElement) {
   const rows = [...(table.tHead?.rows || [])],
@@ -63,9 +64,10 @@ function readPreferences(key: string): Preferences {
       hidden: Array.isArray(value.hidden)
         ? value.hidden.filter((item): item is string => typeof item === "string")
         : [],
+      pinned: typeof value.pinned === "string" ? value.pinned : null,
     };
   } catch {
-    return { widths: {}, hidden: [] };
+    return { widths: {}, hidden: [], pinned: null };
   }
 }
 function savePreferences(key: string, value: Preferences) {
@@ -117,12 +119,50 @@ export default function SmartTableTools({ scopeKey }: { scopeKey: string }) {
       table.appendChild(style);
     }
     const cssRules: string[] = [];
+    let currentLeft = 0;
+    const pinnedIndex = prefs.pinned ? labels.indexOf(prefs.pinned) : -1;
+    let lastVisiblePinnedIndex = -1;
+    [...group.children].forEach((node, index) => {
+      if (index <= pinnedIndex && !prefs.hidden.includes(labels[index])) {
+        lastVisiblePinnedIndex = index;
+      }
+    });
+
     [...group.children].forEach((node, index) => {
       const col = node as HTMLTableColElement,
         hidden = prefs.hidden.includes(labels[index]);
       col.style.visibility = hidden ? "collapse" : "visible";
       col.style.width = hidden ? "0" : `${widths[index]}px`;
       col.style.minWidth = hidden ? "0" : `${widths[index]}px`;
+      
+      const isPinned = index <= pinnedIndex;
+      if (isPinned && !hidden) {
+        cssRules.push(`
+          table.smart-table-enabled thead tr:first-child th:nth-child(${index + 1}),
+          table.smart-table-enabled tbody tr td:nth-child(${index + 1}),
+          table.smart-table-enabled tfoot tr td:nth-child(${index + 1}) {
+            position: sticky !important;
+            left: ${currentLeft}px !important;
+            z-index: 10 !important;
+            background-color: var(--bg, #fff) !important;
+          }
+          table.smart-table-enabled thead tr:first-child th:nth-child(${index + 1}) {
+            z-index: 11 !important;
+            background-color: #f8fafc !important;
+          }
+        `);
+        if (index === lastVisiblePinnedIndex) {
+          cssRules.push(`
+            table.smart-table-enabled thead tr:first-child th:nth-child(${index + 1}),
+            table.smart-table-enabled tbody tr td:nth-child(${index + 1}),
+            table.smart-table-enabled tfoot tr td:nth-child(${index + 1}) {
+              border-right: 2px solid var(--blue-500, #3b82f6) !important;
+            }
+          `);
+        }
+        currentLeft += widths[index];
+      }
+
       if (hidden) {
         cssRules.push(`
           table.smart-table-enabled tbody tr td:nth-child(${index + 1}) {
@@ -145,14 +185,16 @@ export default function SmartTableTools({ scopeKey }: { scopeKey: string }) {
     table.style.width = `${widths.reduce((sum, width, index) => sum + (prefs.hidden.includes(labels[index]) ? 0 : width), 0)}px`;
     if (syncPanel && activeRef.current === table) {
       keyRef.current = key;
+      const pinnedIndex = prefs.pinned ? labels.indexOf(prefs.pinned) : -1;
       setColumns(
-        labels.map((label, index) => ({
-          index,
-          label,
-          width: widths[index],
-          hidden: prefs.hidden.includes(label),
-        })),
-      );
+          labels.map((label, index) => ({
+            index,
+            label,
+            width: widths[index],
+            hidden: prefs.hidden.includes(label),
+            pinned: index <= pinnedIndex,
+          })),
+        );
     }
   }, [scopeKey]);
 
@@ -173,13 +215,23 @@ export default function SmartTableTools({ scopeKey }: { scopeKey: string }) {
   const update = (next: ColumnInfo[]) => {
     const table = activeRef.current;
     if (!table) return;
+    const lastPinned = next.slice().reverse().find(i => i.pinned);
     const prefs = {
       widths: Object.fromEntries(next.map((item) => [item.label, item.width])),
       hidden: next.filter((item) => item.hidden).map((item) => item.label),
+      pinned: lastPinned ? lastPinned.label : null,
     };
     savePreferences(keyRef.current, prefs);
     setColumns(next);
     apply(table);
+  };
+  const togglePin = (index: number) => {
+    const lastPinnedIndex = columns.findLastIndex(c => c.pinned);
+    if (lastPinnedIndex === index) {
+      update(columns.map(item => ({ ...item, pinned: false })));
+    } else {
+      update(columns.map(item => ({ ...item, pinned: item.index <= index })));
+    }
   };
   const toggle = (index: number) => {
     if (
@@ -339,7 +391,19 @@ export default function SmartTableTools({ scopeKey }: { scopeKey: string }) {
                   />
                   <span title={column.label}>{column.label}</span>
                 </label>
-                <div>
+                <div style={{ display: 'flex', gap: '2px', alignItems: 'center' }}>
+                  <button
+                    title="Ghim từ cột đầu tiên đến cột này"
+                    onClick={() => togglePin(column.index)}
+                    style={{
+                      marginRight: '6px',
+                      background: column.pinned ? '#e0f2fe' : 'transparent',
+                      color: column.pinned ? '#0284c7' : 'inherit',
+                      border: column.pinned ? '1px solid #bae6fd' : '1px solid transparent',
+                    }}
+                  >
+                    📌
+                  </button>
                   <button onClick={() => resize(column.index, -20)}>−</button>
                   <output>{column.width}</output>
                   <button onClick={() => resize(column.index, 20)}>＋</button>
