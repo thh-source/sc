@@ -36,7 +36,7 @@ function labelsFor(table: HTMLTableElement) {
   return Array.from({ length: count }, (_, index) => {
     const parts = grid
       .map((row) =>
-        row[index]?.innerText
+        row[index]?.textContent
           .replace(/[×▾↑↓]/g, " ")
           .replace(/\s+/g, " ")
           .trim(),
