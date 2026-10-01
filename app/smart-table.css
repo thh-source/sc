@@ -13,7 +13,7 @@
   z-index: auto;
 }
 .smart-table-enabled th,
-.smart-table-enabled td {
+.smart-table-enabled tbody td:not(.money):not(.num):not(.code):not(.stt) {
   height: auto !important;
   min-height: 43px;
   white-space: normal !important;
@@ -260,4 +260,14 @@
   .smart-table-panel {
     max-height: 70vh;
   }
+}
+
+.smart-table-enabled tfoot td {
+  white-space: nowrap !important;
+  word-break: normal !important;
+}
+
+.smart-table-enabled tfoot td {
+  white-space: nowrap !important;
+  word-break: normal !important;
 }
