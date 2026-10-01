@@ -24,6 +24,7 @@ import { items0, suppliers0, purchaseHistory0, quotes0, prs0, pos0, HISTORY_SEED
 import { AutoGrowTextarea } from "./components/AutoGrowTextarea";
 import { AdvancedItemsTable } from "./components/AdvancedItemsTable";
 import { ExcelItemsTable } from "./components/ExcelItemsTable";
+import { FortuneItemsTable } from "./components/FortuneItemsTable";
 import { DraftItemsTable } from "./components/DraftItemsTable";
 import { ProductCatalog } from "./components/ProductCatalog";
 import { CreatePRCatalog } from "./components/CreatePRCatalog";
@@ -1585,7 +1586,7 @@ export default function ProcurementApp({
                 }}
               />
             ) : (
-              <ExcelItemsTable
+              <FortuneItemsTable
                 items={items}
                 visibleItems={filtered}
                 order={compareOrder}
