@@ -333,7 +333,7 @@ export function AdvancedItemsTable({
             );
           })}
         </tbody>
-        <tfoot>
+        <tfoot style={{ whiteSpace: "nowrap", overflow: "hidden" }}>
           <tr>
             <td></td>
             <td colSpan={order.length}>

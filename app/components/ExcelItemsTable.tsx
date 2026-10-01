@@ -81,7 +81,7 @@ export function ExcelItemsTable({
       const row: any = { ...item };
       row.po = poSelections?.some((s: any) => s.itemId === item.id) || false;
       suppliers.forEach((s: Supplier) => {
-        const q = quotes[s.id]?.[item.id];
+        const q = quotes[item.id]?.[s.id];
         row[`price_${s.id}`] = q?.price || '';
         row[`note_${s.id}`] = q?.note || '';
         (customColumns || []).forEach((cc: string) => {
@@ -102,7 +102,7 @@ export function ExcelItemsTable({
         const parts = column.key.split('_');
         const supplierId = Number(parts[1]);
         
-        const q = quotes[supplierId]?.[originalItem.id] || { price: 0, vatRate: 0, note: '', custom: {} };
+        const q = quotes[originalItem.id]?.[supplierId] || { price: 0, vatRate: 0, note: '', custom: {} };
         const newQ = { ...q };
         
         if (parts[0] === 'price') newQ.price = Number(row[column.key]) || 0;
