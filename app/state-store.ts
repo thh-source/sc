@@ -110,7 +110,7 @@ export async function readAllWorkspaces() {
       "SELECT a.payload,a.updated_at,a.version FROM app_state a WHERE a.id LIKE 'procurement:%' ORDER BY a.id",
     )
     .all<{ payload: string; updated_at: string; version: number }>();
-  const parts = result.results.map((row, index) =>
+  const parts = result.results.map((row: any, index: number) =>
     remap(JSON.parse(row.payload), index),
   );
   const combined: Record<string, any> = {

@@ -26,6 +26,6 @@ if (typeof document !== "undefined") {
   });
 }
 
-export default function ProjectContractManagement() {
+export default function ProjectContractManagement(props: any) {
   return null;
 }

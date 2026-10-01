@@ -19,7 +19,7 @@ import VisualTimeline from "./VisualTimeline";
 import "./vat-quote.css";
 
 import { Item, Supplier, PurchaseHistory, QuoteMode, QuoteEntry, Quote, PR, POAllocation, POItem, POCartLine, ApprovalRow, ApprovalDraft, PODoc, Payment, PO, TrashItem, View, ColumnKey, SortState, StoredState } from "./types";
-import { BASE_COLUMNS, valueOf, reorder, applyTools, makeId, emptyItem, fmt, dateVN, DEFAULT_VAT_RATE, quoteDefaults, quoteAmount, quoteVatRate, quoteBeforeVat, quoteAfterVat, quoteComparePrice, priceStats, mergeHistorySeed, excelNumber, emptyPR, emptyPO, generateShortName } from "./utils";
+import { BASE_COLUMNS, valueOf, reorder, applyTools, makeId, emptyItem, fmt, dateVN, DEFAULT_VAT_RATE, quoteDefaults, quoteAmount, quoteVatRate, quoteBeforeVat, quoteAfterVat, quoteComparePrice, priceStats, mergeHistorySeed, PurchaseHistorySeed, excelNumber, emptyPR, emptyPO, generateShortName } from "./utils";
 import { items0, suppliers0, purchaseHistory0, quotes0, prs0, pos0, HISTORY_SEED_ID } from "./seed";
 import { AutoGrowTextarea } from "./components/AutoGrowTextarea";
 import { AdvancedItemsTable } from "./components/AdvancedItemsTable";
@@ -384,7 +384,7 @@ export default function ProcurementApp({
     fetch("/purchase-history-t1-t7-2026.json")
       .then((response) => {
         if (!response.ok) throw new Error();
-        return response.json();
+        return response.json() as Promise<PurchaseHistorySeed>;
       })
       .then((seed: PurchaseHistorySeed) => {
         const merged = mergeHistorySeed(

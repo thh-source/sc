@@ -42,6 +42,7 @@ export function DraftItemsTable({
       date: string;
       department: string;
       purpose: string;
+      note: string;
       items: Item[];
     }>
   >;

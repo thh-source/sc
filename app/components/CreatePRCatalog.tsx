@@ -117,7 +117,6 @@ export function CreatePRCatalog({
       ]
     }));
     setAiPendingData(null);
-            setTimeout(() => setMascotState("idle"), 4000);
   };
 
   const handleAiScan = async (e: ChangeEvent<HTMLInputElement>) => {

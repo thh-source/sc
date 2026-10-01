@@ -300,7 +300,7 @@ export default function SmartTableTools({ scopeKey }: { scopeKey: string }) {
         return;
       const table = th.closest("table")!,
         grid = headerGrid(table),
-        rowIndex = th.parentElement?.rowIndex || 0,
+        rowIndex = (th.parentElement as HTMLTableRowElement)?.rowIndex || 0,
         indices = (grid[rowIndex] || [])
           .map((cell, index) => (cell === th ? index : -1))
           .filter((index) => index >= 0),
