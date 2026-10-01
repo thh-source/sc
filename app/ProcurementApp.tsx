@@ -700,32 +700,79 @@ export default function ProcurementApp({
           header: 1,
           defval: "",
         });
-        const header = rows.findIndex((r) =>
-          r.some((c) => String(c).trim().toLowerCase() === "mã hàng"),
+        const headerIdx = rows.findIndex((r) =>
+          r.some((c) => {
+            const val = String(c).trim().toLowerCase();
+            return val.includes("mã") || val.includes("tên") || val.includes("stt");
+          })
         );
-        if (header < 0) throw new Error("Không tìm thấy cột Mã hàng");
-        const imported = rows
-          .slice(header + 1)
-          .map((r, i) => ({ row: r, rowNumber: header + i + 2 }))
-          .filter(({ row }) => String(row[1] || row[0] || "").trim())
-          .map(({ row, rowNumber }) => {
-            const qty = excelNumber(row[7], "Số lượng", rowNumber, true),
-              estimate = excelNumber(row[8], "Đơn giá dự kiến", rowNumber);
-            if (!String(row[1] ?? "").trim() && !String(row[3] ?? "").trim())
-              throw new Error(`Dòng ${rowNumber}: thiếu mã hàng hoặc tên hàng`);
-            if (qty <= 0) throw new Error(`Dòng ${rowNumber}: số lượng phải lớn hơn 0`);
-            return {
-              id: makeId(),
-              code: String(row[1] ?? "").trim(),
-              category: String(row[2] ?? "").trim(),
-              name: String(row[3] ?? "").trim(),
-              desc: String(row[4] ?? "").trim(),
-              spec: String(row[5] ?? "").trim(),
-              unit: String(row[6] ?? "").trim() || "Cái",
-              qty,
-              estimate,
-            };
-          });
+        
+        let imported: Item[] = [];
+        if (headerIdx >= 0) {
+           const headers = rows[headerIdx].map(c => String(c).trim().toLowerCase());
+           const col = (matchers: string[]) => headers.findIndex(h => matchers.some(m => h.includes(m)));
+           
+           const colMap = {
+              code: col(["mã"]),
+              name: col(["tên", "quy cách"]),
+              category: col(["nhóm"]),
+              desc: col(["ghi chú", "note"]),
+              spec: col(["đặc tính", "kỹ thuật", "spec"]),
+              unit: col(["đvt", "đơn vị", "unit"]),
+              qty: col(["số lượng", "sl", "qty"]),
+              estimate: col(["đơn giá", "giá", "price", "dự kiến"])
+           };
+           
+           imported = rows
+            .slice(headerIdx + 1)
+            .filter(r => r.some(c => String(c).trim())) // Has any data
+            .map((row, i) => {
+              const rowNumber = headerIdx + i + 2;
+              const v = (idx: number) => idx >= 0 ? String(row[idx] ?? "").trim() : "";
+              
+              const qtyRaw = v(colMap.qty);
+              const qty = qtyRaw ? excelNumber(qtyRaw, "Số lượng", rowNumber, false) : 1;
+              const estimate = excelNumber(v(colMap.estimate), "Đơn giá dự kiến", rowNumber, false);
+              
+              const name = v(colMap.name);
+              const code = v(colMap.code);
+              
+              return {
+                id: makeId(),
+                code,
+                category: v(colMap.category),
+                name: name || "Chưa có tên",
+                desc: v(colMap.desc),
+                spec: v(colMap.spec),
+                unit: v(colMap.unit) || "Cái",
+                qty: qty || 1,
+                estimate: estimate || 0,
+              };
+            });
+        } else {
+           // Fallback if no headers found
+           imported = rows
+            .filter(r => r.some(c => String(c).trim()))
+            .map((row, i) => {
+              const rowNumber = i + 1;
+              const qtyRaw = row[7];
+              const qty = qtyRaw ? excelNumber(qtyRaw as any, "Số lượng", rowNumber, false) : 1;
+              const estimate = excelNumber(row[8] as any, "Đơn giá dự kiến", rowNumber, false);
+              
+              return {
+                id: makeId(),
+                code: String(row[1] ?? "").trim(),
+                category: String(row[2] ?? "").trim(),
+                name: String(row[3] ?? "").trim() || "Chưa có tên",
+                desc: String(row[4] ?? "").trim(),
+                spec: String(row[5] ?? "").trim(),
+                unit: String(row[6] ?? "").trim() || "Cái",
+                qty: qty || 1,
+                estimate: estimate || 0,
+              };
+            });
+        }
+        
         if (!imported.length) throw new Error("File chưa có dữ liệu");
         setDraft((d) => ({ ...d, items: imported }));
         setImportMessage(`Đã nhập ${imported.length} mặt hàng từ ${file.name}`);
