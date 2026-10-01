@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { DataGrid, Column } from 'react-data-grid';
+import { DataGrid, Column, renderTextEditor } from 'react-data-grid';
 import 'react-data-grid/lib/styles.css';
 import { Item, Supplier, Quote } from '../types';
 import { BASE_COLUMNS, valueOf } from '../utils';
@@ -45,7 +45,7 @@ export function ExcelItemsTable({
           key: def.key,
           name: def.label,
           width: def.key === 'name' ? 200 : 120,
-          editable: true,
+          renderEditCell: renderTextEditor,
         });
       }
     });
@@ -55,20 +55,20 @@ export function ExcelItemsTable({
         key: `price_${s.id}`,
         name: `Giá (${s.shortName})`,
         width: 120,
-        editable: true,
+        renderEditCell: renderTextEditor,
       });
       cols.push({
         key: `note_${s.id}`,
         name: `Ghi chú (${s.shortName})`,
         width: 150,
-        editable: true,
+        renderEditCell: renderTextEditor,
       });
       (customColumns || []).forEach((cc: string) => {
         cols.push({
           key: `cc_${s.id}_${cc}`,
           name: `${cc} (${s.shortName})`,
           width: 120,
-          editable: true,
+          renderEditCell: renderTextEditor,
         });
       });
     });
