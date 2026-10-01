@@ -1559,7 +1559,7 @@ export default function ProcurementApp({
                 filterOpen={compareFilterOpen}
                 setFilterOpen={setCompareFilterOpen}
                 suppliers={comparisonSuppliers}
-                onRemoveSupplier={(id) => {
+                onRemoveSupplier={(id: number) => {
                   const next = quoteSupplierIds.filter((x) => x !== id);
                   setQuoteSupplierIds(next);
                   if (selectedPR.id)
@@ -1578,7 +1578,7 @@ export default function ProcurementApp({
                 togglePOItem={togglePOItem}
                 purchaseHistory={purchaseHistory}
                 customColumns={selectedPR.quoteCustomColumns || []}
-                setCustomColumns={(cols) => {
+                setCustomColumns={(cols: string[]) => {
                    const updated = { ...selectedPR, quoteCustomColumns: cols };
                    setSelectedPR(updated);
                    setPrs(all => all.map(pr => pr.id === updated.id ? updated : pr));
@@ -1597,7 +1597,7 @@ export default function ProcurementApp({
                 filterOpen={compareFilterOpen}
                 setFilterOpen={setCompareFilterOpen}
                 suppliers={comparisonSuppliers}
-                onRemoveSupplier={(id) => {
+                onRemoveSupplier={(id: number) => {
                   const next = quoteSupplierIds.filter((x) => x !== id);
                   setQuoteSupplierIds(next);
                   if (selectedPR.id)
@@ -1616,7 +1616,7 @@ export default function ProcurementApp({
                 togglePOItem={togglePOItem}
                 purchaseHistory={purchaseHistory}
                 customColumns={selectedPR.quoteCustomColumns || []}
-                setCustomColumns={(cols) => {
+                setCustomColumns={(cols: string[]) => {
                    const updated = { ...selectedPR, quoteCustomColumns: cols };
                    setSelectedPR(updated);
                    setPrs(all => all.map(pr => pr.id === updated.id ? updated : pr));

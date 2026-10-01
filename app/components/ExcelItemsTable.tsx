@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { DataGrid, Column } from 'react-data-grid';
 import 'react-data-grid/lib/styles.css';
-import { Item, Supplier, Quote, POSelection } from '../types';
+import { Item, Supplier, Quote } from '../types';
 import { BASE_COLUMNS, valueOf } from '../utils';
 
 export function ExcelItemsTable({
@@ -14,11 +14,27 @@ export function ExcelItemsTable({
   quoteChange,
   best,
   customColumns,
+  togglePOItem,
+  poSelections,
 }: any) {
   
   const columns = useMemo(() => {
     const cols: Column<any>[] = [
-      { key: 'po', name: 'Lên PO', width: 60, frozen: true },
+      { 
+        key: 'po', 
+        name: 'Lên PO', 
+        width: 60, 
+        frozen: true,
+        renderCell: (props: any) => (
+          <input 
+            type="checkbox" 
+            checked={!!props.row.po} 
+            onChange={(e) => {
+              if (togglePOItem) togglePOItem(props.row.id);
+            }}
+          />
+        )
+      },
       { key: 'id', name: 'STT', width: 60, frozen: true },
     ];
 
@@ -63,6 +79,7 @@ export function ExcelItemsTable({
   const rows = useMemo(() => {
     return visibleItems.map((item: Item) => {
       const row: any = { ...item };
+      row.po = poSelections?.some((s: any) => s.itemId === item.id) || false;
       suppliers.forEach((s: Supplier) => {
         const q = quotes[s.id]?.[item.id];
         row[`price_${s.id}`] = q?.price || '';
@@ -73,7 +90,7 @@ export function ExcelItemsTable({
       });
       return row;
     });
-  }, [visibleItems, suppliers, quotes, customColumns]);
+  }, [visibleItems, suppliers, quotes, customColumns, poSelections]);
 
   const handleRowsChange = (newRows: any[], { indexes, column }: any) => {
      const index = indexes[0];
@@ -83,7 +100,7 @@ export function ExcelItemsTable({
 
      if (column.key.startsWith('price_') || column.key.startsWith('note_') || column.key.startsWith('cc_')) {
         const parts = column.key.split('_');
-        const supplierId = parts[1];
+        const supplierId = Number(parts[1]);
         
         const q = quotes[supplierId]?.[originalItem.id] || { price: 0, vatRate: 0, note: '', custom: {} };
         const newQ = { ...q };
