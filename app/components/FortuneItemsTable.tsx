@@ -18,6 +18,17 @@ export function FortuneItemsTable({
 }: any) {
   const workbookRef = useRef<WorkbookInstance>(null);
 
+  // Keep refs to latest state to use inside onChange without causing re-renders
+  const latestQuotes = useRef(quotes);
+  const latestVisibleItems = useRef(visibleItems);
+  const latestCustomColumns = useRef(customColumns);
+  
+  useEffect(() => {
+    latestQuotes.current = quotes;
+    latestVisibleItems.current = visibleItems;
+    latestCustomColumns.current = customColumns;
+  }, [quotes, visibleItems, customColumns]);
+
   const sheetData = useMemo(() => {
     // 1. Build Header Row
     const headerRow: any[] = [];
@@ -44,12 +55,12 @@ export function FortuneItemsTable({
       const row: any[] = [];
       
       const isPO = poSelections?.some((sel: any) => sel.itemId === item.id) || false;
-      row.push({ v: isPO ? '☑' : '☐', m: isPO ? '☑' : '☐' }); // Fake checkbox for now
+      row.push({ v: isPO ? '☑' : '☐', m: isPO ? '☑' : '☐' });
       row.push({ v: index + 1, m: String(index + 1) });
       
       BASE_COLUMNS.forEach(def => {
         if (def.key !== 'stt') {
-          const val = valueOf(item, def.key, index);
+          const val = valueOf(item, def.key, index) ?? '';
           row.push({ v: val, m: String(val) });
         }
       });
@@ -68,11 +79,17 @@ export function FortuneItemsTable({
     });
 
     return [{
+      id: "sheet_1",
       name: "Báo giá",
       data: data,
-      celldata: [], // Or generate celldata if required
+      config: {
+        columnlen: { 0: 60, 1: 40, 2: 120 }
+      }
     }];
-  }, [visibleItems, suppliers, quotes, customColumns, poSelections]);
+  // Only recreate the sheet if the structure changes (number of items, suppliers, custom columns)
+  // We omit `quotes` so that typing inside the sheet doesn't reset the sheet!
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visibleItems.map((i: any) => i.id).join(','), suppliers.length, customColumns?.length, poSelections]);
 
   const onChange = (data: any[]) => {
     const sheet = data[0];
@@ -80,10 +97,10 @@ export function FortuneItemsTable({
     
     for (let r = 1; r < sheet.data.length; r++) {
       const row = sheet.data[r];
-      const item = visibleItems[r - 1];
+      const item = latestVisibleItems.current[r - 1];
       if (!row || !item) continue;
       
-      // PO checkbox handling (optional)
+      // PO checkbox handling
       const poCell = row[0];
       const isPO = poSelections?.some((sel: any) => sel.itemId === item.id) || false;
       const poVal = poCell ? poCell.v : '';
@@ -110,7 +127,7 @@ export function FortuneItemsTable({
       });
       
       suppliers.forEach((s: Supplier) => {
-        const q = quotes[item.id]?.[s.id] || { price: 0, vatRate: 0, note: '', custom: {} };
+        const q = latestQuotes.current[item.id]?.[s.id] || { price: 0, vatRate: 0, note: '', custom: {} };
         let qChanged = false;
         const newQ = { ...q, custom: { ...(q.custom || {}) } };
         
@@ -137,7 +154,7 @@ export function FortuneItemsTable({
         }
         
         // Custom
-        (customColumns || []).forEach((cc: string) => {
+        (latestCustomColumns.current || []).forEach((cc: string) => {
           cell = row[colIdx++];
           val = cell ? cell.v : '';
           if (val !== undefined) {
