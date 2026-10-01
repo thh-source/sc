@@ -24,8 +24,9 @@ import { items0, suppliers0, purchaseHistory0, quotes0, prs0, pos0, HISTORY_SEED
 import { AutoGrowTextarea } from "./components/AutoGrowTextarea";
 import { AdvancedItemsTable } from "./components/AdvancedItemsTable";
 import { ExcelItemsTable } from "./components/ExcelItemsTable";
-import { FortuneItemsTable } from "./components/FortuneItemsTable";
 import { DraftItemsTable } from "./components/DraftItemsTable";
+import { lazy, Suspense } from "react";
+const FortuneItemsTable = lazy(() => import("./components/FortuneItemsTable").then(m => ({ default: m.FortuneItemsTable })));
 import { ProductCatalog } from "./components/ProductCatalog";
 import { CreatePRCatalog } from "./components/CreatePRCatalog";
 import { ContractManagement } from "./components/ContractManagement";
@@ -1585,45 +1586,47 @@ export default function ProcurementApp({
                    setPrs(all => all.map(pr => pr.id === updated.id ? updated : pr));
                 }}
               />
-            ) : (
-              <FortuneItemsTable
-                items={items}
-                visibleItems={filtered}
-                order={compareOrder}
-                setOrder={setCompareOrder}
-                filters={compareFilters}
-                setFilters={setCompareFilters}
-                sort={compareSort}
-                setSort={setCompareSort}
-                filterOpen={compareFilterOpen}
-                setFilterOpen={setCompareFilterOpen}
-                suppliers={comparisonSuppliers}
-                onRemoveSupplier={(id: number) => {
-                  const next = quoteSupplierIds.filter((x) => x !== id);
-                  setQuoteSupplierIds(next);
-                  if (selectedPR.id)
-                    setQuoteSupplierIdsByPr((all) => ({
-                      ...all,
-                      [selectedPR.id]: next,
-                    }));
-                }}
-                quotes={quotes}
-                itemChange={itemChange}
-                quoteChange={quoteChange}
-                best={best}
-                quoteCompareMode={quoteCompareMode}
-                setQuoteCompareMode={setQuoteCompareMode}
-                poSelections={poSelections}
-                togglePOItem={togglePOItem}
-                purchaseHistory={purchaseHistory}
-                customColumns={selectedPR.quoteCustomColumns || []}
-                setCustomColumns={(cols: string[]) => {
-                   const updated = { ...selectedPR, quoteCustomColumns: cols };
-                   setSelectedPR(updated);
-                   setPrs(all => all.map(pr => pr.id === updated.id ? updated : pr));
-                }}
-              />
-            )}
+            ) : typeof window !== 'undefined' ? (
+              <Suspense fallback={<div style={{ padding: 20 }}>Đang tải giao diện Excel...</div>}>
+                <FortuneItemsTable
+                  items={items}
+                  visibleItems={filtered}
+                  order={compareOrder}
+                  setOrder={setCompareOrder}
+                  filters={compareFilters}
+                  setFilters={setCompareFilters}
+                  sort={compareSort}
+                  setSort={setCompareSort}
+                  filterOpen={compareFilterOpen}
+                  setFilterOpen={setCompareFilterOpen}
+                  suppliers={comparisonSuppliers}
+                  onRemoveSupplier={(id: number) => {
+                    const next = quoteSupplierIds.filter((x) => x !== id);
+                    setQuoteSupplierIds(next);
+                    if (selectedPR.id)
+                      setQuoteSupplierIdsByPr((all) => ({
+                        ...all,
+                        [selectedPR.id]: next,
+                      }));
+                  }}
+                  quotes={quotes}
+                  itemChange={itemChange}
+                  quoteChange={quoteChange}
+                  best={best}
+                  quoteCompareMode={quoteCompareMode}
+                  setQuoteCompareMode={setQuoteCompareMode}
+                  poSelections={poSelections}
+                  togglePOItem={togglePOItem}
+                  purchaseHistory={purchaseHistory}
+                  customColumns={selectedPR.quoteCustomColumns || []}
+                  setCustomColumns={(cols: string[]) => {
+                     const updated = { ...selectedPR, quoteCustomColumns: cols };
+                     setSelectedPR(updated);
+                     setPrs(all => all.map(pr => pr.id === updated.id ? updated : pr));
+                  }}
+                />
+              </Suspense>
+            ) : null}
 
             {!reportMode && selectedPR.id !== 0 && !compactCompare && (
               <DocumentManager

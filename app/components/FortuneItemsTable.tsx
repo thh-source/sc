@@ -98,8 +98,12 @@ export function FortuneItemsTable({
           const cell = row[colIdx];
           const val = cell ? cell.v : '';
           const oldVal = valueOf(item, def.key, r - 1);
-          if (val !== undefined && String(val) !== String(oldVal) && def.key !== 'amount') {
-             itemChange(item.id, def.key, String(val));
+          if (val !== undefined) {
+             const strVal = String(val || '');
+             const strOldVal = String(oldVal || '');
+             if (strVal !== strOldVal && def.key !== 'amount') {
+                itemChange(item.id, def.key, strVal);
+             }
           }
           colIdx++;
         }
@@ -108,31 +112,40 @@ export function FortuneItemsTable({
       suppliers.forEach((s: Supplier) => {
         const q = quotes[item.id]?.[s.id] || { price: 0, vatRate: 0, note: '', custom: {} };
         let qChanged = false;
-        const newQ = { ...q, custom: { ...q.custom } };
+        const newQ = { ...q, custom: { ...(q.custom || {}) } };
         
         // Price
         let cell = row[colIdx++];
         let val = cell ? cell.v : '';
-        if (val !== undefined && Number(val) !== Number(q.price)) {
-          newQ.price = Number(val) || 0;
-          qChanged = true;
+        if (val !== undefined) {
+          const numVal = val === '' ? 0 : Number(val);
+          if (numVal !== (Number(q.price) || 0)) {
+            newQ.price = numVal;
+            qChanged = true;
+          }
         }
         
         // Note
         cell = row[colIdx++];
         val = cell ? cell.v : '';
-        if (val !== undefined && String(val) !== String(q.note)) {
-          newQ.note = String(val);
-          qChanged = true;
+        if (val !== undefined) {
+          const strVal = String(val || '');
+          if (strVal !== String(q.note || '')) {
+            newQ.note = strVal;
+            qChanged = true;
+          }
         }
         
         // Custom
         (customColumns || []).forEach((cc: string) => {
           cell = row[colIdx++];
           val = cell ? cell.v : '';
-          if (val !== undefined && String(val) !== String(q.custom?.[cc] || '')) {
-            newQ.custom[cc] = String(val);
-            qChanged = true;
+          if (val !== undefined) {
+            const strVal = String(val || '');
+            if (strVal !== String(q.custom?.[cc] || '')) {
+              newQ.custom[cc] = strVal;
+              qChanged = true;
+            }
           }
         });
         
