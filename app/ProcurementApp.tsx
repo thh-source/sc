@@ -23,10 +23,7 @@ import { BASE_COLUMNS, valueOf, reorder, applyTools, makeId, emptyItem, fmt, dat
 import { items0, suppliers0, purchaseHistory0, quotes0, prs0, pos0, HISTORY_SEED_ID } from "./seed";
 import { AutoGrowTextarea } from "./components/AutoGrowTextarea";
 import { AdvancedItemsTable } from "./components/AdvancedItemsTable";
-import { ExcelItemsTable } from "./components/ExcelItemsTable";
 import { DraftItemsTable } from "./components/DraftItemsTable";
-import { lazy, Suspense } from "react";
-const FortuneItemsTable = lazy(() => import("./components/FortuneItemsTable").then(m => ({ default: m.FortuneItemsTable })));
 import { ProductCatalog } from "./components/ProductCatalog";
 import { CreatePRCatalog } from "./components/CreatePRCatalog";
 import { ContractManagement } from "./components/ContractManagement";
@@ -65,7 +62,6 @@ export default function ProcurementApp({
     [quotesByPr, setQuotesByPr] = useState<Record<number, Quote>>({}),
     [search, setSearch] = useState("");
   const [compactCompare, setCompactCompare] = useState(false);
-  const [tableMode, setTableMode] = useState<'standard'|'excel'>('standard');
   const [products, setProducts] = useState<Item[]>(items0);
   const [purchaseHistory, setPurchaseHistory] =
     useState<PurchaseHistory[]>(purchaseHistory0);
@@ -1496,25 +1492,6 @@ export default function ProcurementApp({
                   </>
                 )}
                 <button
-                  onClick={() => setTableMode(m => m === 'standard' ? 'excel' : 'standard')}
-                  style={{
-                    padding: "6px 12px",
-                    cursor: "pointer",
-                    borderRadius: "6px",
-                    border: "1px solid #d4d4d8",
-                    background: tableMode === 'excel' ? '#e0f2fe' : '#fff',
-                    color: tableMode === 'excel' ? '#0284c7' : '#3f3f46',
-                    fontSize: "0.85rem",
-                    fontWeight: 500,
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "6px",
-                    boxShadow: "0 1px 2px rgba(0,0,0,0.05)"
-                  }}
-                >
-                  {tableMode === 'excel' ? "Chế độ Tiêu chuẩn" : "Chế độ Excel"}
-                </button>
-                <button
                   onClick={() => setCompactCompare(!compactCompare)}
                   style={{
                     padding: "6px 12px",
@@ -1548,8 +1525,7 @@ export default function ProcurementApp({
                 </div>
               </div>
             )}
-            {tableMode === 'standard' ? (
-              <AdvancedItemsTable
+            <AdvancedItemsTable
                 items={items}
                 visibleItems={filtered}
                 order={compareOrder}
@@ -1586,48 +1562,6 @@ export default function ProcurementApp({
                    setPrs(all => all.map(pr => pr.id === updated.id ? updated : pr));
                 }}
               />
-            ) : typeof window !== 'undefined' ? (
-              <Suspense fallback={<div style={{ padding: 20 }}>Đang tải giao diện Excel...</div>}>
-                <FortuneItemsTable
-                  items={items}
-                  visibleItems={filtered}
-                  order={compareOrder}
-                  setOrder={setCompareOrder}
-                  filters={compareFilters}
-                  setFilters={setCompareFilters}
-                  sort={compareSort}
-                  setSort={setCompareSort}
-                  filterOpen={compareFilterOpen}
-                  setFilterOpen={setCompareFilterOpen}
-                  suppliers={comparisonSuppliers}
-                  onRemoveSupplier={(id: number) => {
-                    const next = quoteSupplierIds.filter((x) => x !== id);
-                    setQuoteSupplierIds(next);
-                    if (selectedPR.id)
-                      setQuoteSupplierIdsByPr((all) => ({
-                        ...all,
-                        [selectedPR.id]: next,
-                      }));
-                  }}
-                  quotes={quotes}
-                  itemChange={itemChange}
-                  quoteChange={quoteChange}
-                  best={best}
-                  quoteCompareMode={quoteCompareMode}
-                  setQuoteCompareMode={setQuoteCompareMode}
-                  poSelections={poSelections}
-                  togglePOItem={togglePOItem}
-                  purchaseHistory={purchaseHistory}
-                  customColumns={selectedPR.quoteCustomColumns || []}
-                  setCustomColumns={(cols: string[]) => {
-                     const updated = { ...selectedPR, quoteCustomColumns: cols };
-                     setSelectedPR(updated);
-                     setPrs(all => all.map(pr => pr.id === updated.id ? updated : pr));
-                  }}
-                />
-              </Suspense>
-            ) : null}
-
             {!reportMode && selectedPR.id !== 0 && !compactCompare && (
               <DocumentManager
                 title={`Hồ sơ PR ${selectedPR.number}`}
