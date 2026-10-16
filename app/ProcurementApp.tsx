@@ -19,6 +19,8 @@ import VisualTimeline from "./VisualTimeline";
 import "./vat-quote.css";
 
 import { PaymentManagement } from "./components/PaymentManagement";
+import { HandoverManagement } from "./components/HandoverManagement";
+import { PrintTemplatesManagement } from "./components/PrintTemplatesManagement";
 import { DEFAULT_PAYMENT_TEMPLATE } from "./payment-utils";
 import { Item, Supplier, PurchaseHistory, QuoteMode, QuoteEntry, Quote, PR, POAllocation, POItem, POCartLine, ApprovalRow, ApprovalDraft, PODoc, Payment, PO, TrashItem, View, ColumnKey, SortState, StoredState, PaymentRequestEntry, PaymentGroup, PaymentBeneficiary, PaymentHandoverItem, PaymentPrintTemplate } from "./types";
 import { BASE_COLUMNS, valueOf, reorder, applyTools, makeId, emptyItem, fmt, dateVN, DEFAULT_VAT_RATE, quoteDefaults, quoteAmount, quoteVatRate, quoteBeforeVat, quoteAfterVat, quoteComparePrice, priceStats, mergeHistorySeed, PurchaseHistorySeed, excelNumber, emptyPR, emptyPO, generateShortName } from "./utils";
@@ -1159,6 +1161,8 @@ export default function ProcurementApp({
     { icon: "▰", name: "Quản lý PO", action: () => setView("po-list") },
     { icon: "▧", name: "Hợp đồng", action: () => setView("contracts") },
     { icon: "💳", name: "Thanh toán", action: () => setView("payment") },
+    { icon: "📦", name: "Bàn giao nội bộ", action: () => setView("handover") },
+    { icon: "📄", name: "Mẫu phiếu in", action: () => setView("print-templates") },
     { icon: "▱", name: "Nhà cung cấp", action: () => setView("suppliers") },
     { icon: "◇", name: "Hàng hóa", action: () => setView("products") },
     {
@@ -1185,6 +1189,8 @@ export default function ProcurementApp({
           "Quản lý PO",
           "Hợp đồng",
           "Thanh toán",
+          "Bàn giao nội bộ",
+          "Mẫu phiếu in",
         ].includes(n.name),
       )
     : nav;
@@ -1217,6 +1223,8 @@ export default function ProcurementApp({
                   n.name === "Quản lý PO") ||
                 (view === "contracts" && n.name === "Hợp đồng") ||
                 (view === "payment" && n.name === "Thanh toán") ||
+                (view === "handover" && n.name === "Bàn giao nội bộ") ||
+                (view === "print-templates" && n.name === "Mẫu phiếu in") ||
                 (view === "project-contracts" && n.name === "HĐ dự án") ||
                 (view === "products" && n.name === "Hàng hóa") ||
                 (view === "suppliers" && n.name === "Nhà cung cấp") ||
@@ -1344,22 +1352,44 @@ export default function ProcurementApp({
             workspaceId={workspaceId}
             readOnly={reportMode}
             onStatus={setStorageStatus}
+            paymentGroups={paymentGroups}
+            paymentRequests={paymentRequests}
+            onUpdateState={(patch) => {
+              if (patch.paymentGroups !== undefined) setPaymentGroups(patch.paymentGroups);
+            }}
+            onNavigateToPayment={(_filterGroupId) => {
+              setView("payment");
+            }}
           />
         )}
         {view === "payment" && (
           <PaymentManagement
             paymentRequests={paymentRequests}
             paymentGroups={paymentGroups}
-            paymentBeneficiaries={paymentBeneficiaries}
-            paymentHandovers={paymentHandovers}
             paymentTemplate={paymentTemplate}
             pos={pos}
             suppliers={suppliers}
             onUpdateState={(patch) => {
               if (patch.paymentRequests !== undefined) setPaymentRequests(patch.paymentRequests);
               if (patch.paymentGroups !== undefined) setPaymentGroups(patch.paymentGroups);
-              if (patch.paymentBeneficiaries !== undefined) setPaymentBeneficiaries(patch.paymentBeneficiaries);
+              if (patch.paymentTemplate !== undefined) setPaymentTemplate(patch.paymentTemplate);
+            }}
+            readOnly={reportMode}
+          />
+        )}
+        {view === "handover" && (
+          <HandoverManagement
+            paymentHandovers={paymentHandovers}
+            onUpdateState={(patch) => {
               if (patch.paymentHandovers !== undefined) setPaymentHandovers(patch.paymentHandovers);
+            }}
+            readOnly={reportMode}
+          />
+        )}
+        {view === "print-templates" && (
+          <PrintTemplatesManagement
+            paymentTemplate={paymentTemplate}
+            onUpdateState={(patch) => {
               if (patch.paymentTemplate !== undefined) setPaymentTemplate(patch.paymentTemplate);
             }}
             readOnly={reportMode}

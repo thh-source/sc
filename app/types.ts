@@ -166,6 +166,8 @@ export type View =
   | "contracts"
   | "project-contracts"
   | "payment"
+  | "handover"
+  | "print-templates"
   | "approval"
   | "products"
   | "trash"

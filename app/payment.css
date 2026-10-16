@@ -785,46 +785,63 @@ table.payment-grid th.pcol-frozen {
   min-height: 55px;
 }
 
-/* @media print setup */
+/* @media print setup - hoàn toàn cô lập bản in, ẩn 100% giao diện webapp */
 @media print {
+  html,
   body {
+    width: 210mm !important;
+    min-width: 210mm !important;
+    margin: 0 !important;
+    padding: 0 !important;
     background: #ffffff !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
-  aside,
-  header,
-  nav,
-  .payment-toolbar,
-  .payment-tabs,
-  .payment-summary-cards,
-  .payment-table-container,
-  .payment-detail-box,
+
+  /* Ẩn toàn bộ giao diện màn hình của webapp */
+  .app,
+  .backdrop,
   .modal-overlay,
-  .payment-modal-overlay {
+  .payment-modal-overlay,
+  .cloud-status,
+  .report-banner {
     display: none !important;
   }
-  #paymentPrintArea {
+
+  /* Chỉ hiển thị duy nhất khu vực in được portal ra body */
+  #paymentPrintPortal {
     display: block !important;
+    position: static !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
   }
-  #paymentPrintArea .paper {
+
+  #paymentPrintPortal .paper {
     box-shadow: none !important;
     width: 190mm !important;
     min-height: 270mm !important;
     padding: 6mm 4mm !important;
+    margin: 0 auto !important;
     break-after: page;
     page-break-after: always;
   }
-  #paymentPrintArea .paper:last-child {
+
+  #paymentPrintPortal .paper:last-child {
     break-after: auto;
     page-break-after: auto;
   }
+
   @page {
     size: A4 portrait;
     margin: 8mm 10mm;
   }
 }
 
-#paymentPrintArea {
-  display: none;
+@media screen {
+  #paymentPrintPortal {
+    display: none !important;
+  }
 }
 
 /* Cell Date & Calendar button */
