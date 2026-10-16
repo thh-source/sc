@@ -32,15 +32,21 @@ const UNIT_SUGGESTIONS = [
 
 export interface HandoverManagementProps {
   paymentHandovers: PaymentHandoverItem[];
-  onUpdateHandovers: (handovers: PaymentHandoverItem[]) => void;
+  onUpdateHandovers?: (handovers: PaymentHandoverItem[]) => void;
+  onUpdateState?: (patch: { paymentHandovers?: PaymentHandoverItem[] }) => void;
   readOnly?: boolean;
 }
 
 export function HandoverManagement({
   paymentHandovers = [],
   onUpdateHandovers,
+  onUpdateState,
   readOnly = false,
 }: HandoverManagementProps) {
+  const triggerUpdateHandovers = (next: PaymentHandoverItem[]) => {
+    if (onUpdateHandovers) onUpdateHandovers(next);
+    if (onUpdateState) onUpdateState({ paymentHandovers: next });
+  };
   // Selection states
   const [checkedHandovers, setCheckedHandovers] = useState<Set<number>>(new Set());
   const [handoverDeptFilter, setHandoverDeptFilter] = useState("");
@@ -150,7 +156,7 @@ export function HandoverManagement({
         return;
       }
 
-      onUpdateHandovers(items);
+      triggerUpdateHandovers(items);
       alert(`Đã nạp thành công ${items.length} vật tư bàn giao!`);
     } catch (e: any) {
       alert("Lỗi nạp dữ liệu: " + e.message);
@@ -174,20 +180,20 @@ export function HandoverManagement({
       sender_dept: "Phòng Cung ứng",
       receiver_name: "",
     };
-    onUpdateHandovers([newItem, ...paymentHandovers]);
+    triggerUpdateHandovers([newItem, ...paymentHandovers]);
   };
 
   const handleEditHandover = (id: number, key: keyof PaymentHandoverItem, val: any) => {
     if (readOnly) return;
     const next = paymentHandovers.map((h) => (h.id === id ? { ...h, [key]: val } : h));
-    onUpdateHandovers(next);
+    triggerUpdateHandovers(next);
   };
 
   const handleDeleteHandover = (id: number) => {
     if (readOnly) return;
     if (!confirm("Bạn có chắc muốn xóa vật tư này?")) return;
     const next = paymentHandovers.filter((h) => h.id !== id);
-    onUpdateHandovers(next);
+    triggerUpdateHandovers(next);
   };
 
   const handleDeleteSelectedHandovers = () => {
@@ -198,7 +204,7 @@ export function HandoverManagement({
     }
     if (!confirm(`Bạn có chắc muốn xóa ${checkedHandovers.size} vật tư đã chọn?`)) return;
     const next = paymentHandovers.filter((h) => !checkedHandovers.has(h.id));
-    onUpdateHandovers(next);
+    triggerUpdateHandovers(next);
     setCheckedHandovers(new Set());
   };
 
@@ -214,7 +220,7 @@ export function HandoverManagement({
           maxId++;
           return { ...r, id: maxId };
         });
-        onUpdateHandovers([...newItems, ...paymentHandovers]);
+        triggerUpdateHandovers([...newItems, ...paymentHandovers]);
         alert(`Đã dán trực tiếp ${rows.length} vật tư từ Excel vào bảng!`);
       }
     }
@@ -238,7 +244,7 @@ export function HandoverManagement({
       maxId++;
       return { ...r, id: maxId };
     });
-    onUpdateHandovers([...newItems, ...paymentHandovers]);
+    triggerUpdateHandovers([...newItems, ...paymentHandovers]);
     setShowPasteModal(false);
     setPasteText("");
     setPasteParsedRows([]);

@@ -1429,6 +1429,7 @@ export default function ProcurementApp({
         {view === "handover" && (
           <HandoverManagement
             paymentHandovers={paymentHandovers}
+            onUpdateHandovers={(items) => setPaymentHandovers(items)}
             onUpdateState={(patch) => {
               if (patch.paymentHandovers !== undefined) setPaymentHandovers(patch.paymentHandovers);
             }}
