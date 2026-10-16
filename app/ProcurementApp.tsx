@@ -26,7 +26,8 @@ import {
   defaultPaymentGroups,
   defaultPaymentRequests,
   defaultPaymentHandovers,
-  defaultPartnerSuppliers,
+  defaultPaymentBeneficiaries,
+  defaultPaymentTemplate,
 } from "./defaultPaymentData";
 import { Item, Supplier, PurchaseHistory, QuoteMode, QuoteEntry, Quote, PR, POAllocation, POItem, POCartLine, ApprovalRow, ApprovalDraft, PODoc, Payment, PO, TrashItem, View, ColumnKey, SortState, StoredState, PaymentRequestEntry, PaymentGroup, PaymentBeneficiary, PaymentHandoverItem, PaymentPrintTemplate } from "./types";
 import { BASE_COLUMNS, valueOf, reorder, applyTools, makeId, emptyItem, fmt, dateVN, DEFAULT_VAT_RATE, quoteDefaults, quoteAmount, quoteVatRate, quoteBeforeVat, quoteAfterVat, quoteComparePrice, priceStats, mergeHistorySeed, PurchaseHistorySeed, excelNumber, emptyPR, emptyPO, generateShortName } from "./utils";
@@ -119,9 +120,9 @@ export default function ProcurementApp({
     [deleteBusy, setDeleteBusy] = useState(false);
   const [paymentRequests, setPaymentRequests] = useState<PaymentRequestEntry[]>(defaultPaymentRequests),
     [paymentGroups, setPaymentGroups] = useState<PaymentGroup[]>(defaultPaymentGroups),
-    [paymentBeneficiaries, setPaymentBeneficiaries] = useState<PaymentBeneficiary[]>([]),
+    [paymentBeneficiaries, setPaymentBeneficiaries] = useState<PaymentBeneficiary[]>(defaultPaymentBeneficiaries),
     [paymentHandovers, setPaymentHandovers] = useState<PaymentHandoverItem[]>(defaultPaymentHandovers),
-    [paymentTemplate, setPaymentTemplate] = useState<PaymentPrintTemplate>(DEFAULT_PAYMENT_TEMPLATE);
+    [paymentTemplate, setPaymentTemplate] = useState<PaymentPrintTemplate>(defaultPaymentTemplate);
   const [storageReady, setStorageReady] = useState(false),
     [storageStatus, setStorageStatus] = useState("Đang kết nối dữ liệu...");
   const [workspaceId, setWorkspaceId] = useState(currentUser?.id || ""),
@@ -313,28 +314,28 @@ export default function ProcurementApp({
           
           const loadedSuppliers: Supplier[] = data.suppliers || suppliers0;
           const mergedSuppliers = [...loadedSuppliers];
-          for (const p of defaultPartnerSuppliers) {
+          for (const b of defaultPaymentBeneficiaries) {
             const match = mergedSuppliers.find(
               (s) =>
-                s.name.toLowerCase() === (p.name || "").toLowerCase() ||
-                (s.shortName && p.shortName && s.shortName.toLowerCase() === p.shortName.toLowerCase())
+                s.name.toLowerCase() === b.name.toLowerCase() ||
+                (b.short_name && s.shortName && s.shortName.toLowerCase() === b.short_name.toLowerCase())
             );
             if (match) {
-              if (!match.address && p.address) match.address = p.address;
-              if (!match.bankAccount && p.bankAccount) match.bankAccount = p.bankAccount;
-              if (!match.bank && p.bank) match.bank = p.bank;
-              if (!match.shortName && p.shortName) match.shortName = p.shortName;
-            } else if (p.name) {
+              if (!match.address && b.address) match.address = b.address;
+              if (!match.bankAccount && b.account_no) match.bankAccount = b.account_no;
+              if (!match.bank && b.bank) match.bank = b.bank;
+              if (!match.shortName && b.short_name) match.shortName = b.short_name;
+            } else if (b.name) {
               mergedSuppliers.push({
-                id: Date.now() + Math.floor(Math.random() * 10000),
-                code: p.code || "NCC-PKA",
-                name: p.name,
-                shortName: p.shortName || generateShortName(p.name),
-                address: p.address || "",
-                bankAccount: p.bankAccount || "",
-                bank: p.bank || "",
-                contact: p.contact || "",
-                phone: p.phone || "",
+                id: Date.now() + Math.floor(Math.random() * 10000) + b.id,
+                code: `NCC-${String(b.id).padStart(3, "0")}`,
+                name: b.name,
+                shortName: b.short_name || generateShortName(b.name),
+                address: b.address || "",
+                bankAccount: b.account_no || "",
+                bank: b.bank || "",
+                contact: "",
+                phone: "",
               });
             }
           }
@@ -373,13 +374,17 @@ export default function ProcurementApp({
               ? data.paymentGroups
               : defaultPaymentGroups
           );
-          setPaymentBeneficiaries(data.paymentBeneficiaries || []);
+          setPaymentBeneficiaries(
+            data.paymentBeneficiaries && data.paymentBeneficiaries.length > 0
+              ? data.paymentBeneficiaries
+              : defaultPaymentBeneficiaries
+          );
           setPaymentHandovers(
             data.paymentHandovers && data.paymentHandovers.length > 0
               ? data.paymentHandovers
               : defaultPaymentHandovers
           );
-          setPaymentTemplate(data.paymentTemplate || DEFAULT_PAYMENT_TEMPLATE);
+          setPaymentTemplate(data.paymentTemplate || defaultPaymentTemplate);
           if (data.prs?.length) setSelectedPR(data.prs[0]);
           if (data.pos?.length) setCurrentPO(data.pos[0]);
         } else {
@@ -401,9 +406,9 @@ export default function ProcurementApp({
           setPurchaseHistoryImportIds([]);
           setPaymentRequests(defaultPaymentRequests);
           setPaymentGroups(defaultPaymentGroups);
-          setPaymentBeneficiaries([]);
+          setPaymentBeneficiaries(defaultPaymentBeneficiaries);
           setPaymentHandovers(defaultPaymentHandovers);
-          setPaymentTemplate(DEFAULT_PAYMENT_TEMPLATE);
+          setPaymentTemplate(defaultPaymentTemplate);
           setSelectedPR(emptyPR);
           setCurrentPO(emptyPO);
         }
