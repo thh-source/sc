@@ -213,3 +213,222 @@ export function printEntries(x: PaymentRequestEntry) {
     },
   ];
 }
+
+export function parseFlexibleDate(val: string): string {
+  let s = String(val || "").trim().replace(/[\/.\-\s]+$/, "");
+  if (!s) return "";
+  const currentYear = new Date().getFullYear();
+
+  // 1. ISO format YYYY-MM-DD
+  let iso = s.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})$/);
+  if (iso) {
+    let y = parseInt(iso[1], 10);
+    let m = parseInt(iso[2], 10);
+    let d = parseInt(iso[3], 10);
+    if (m >= 1 && m <= 12 && d >= 1 && d <= 31) {
+      let maxDays = new Date(y, m, 0).getDate();
+      if (d > maxDays) d = maxDays;
+      return `${String(d).padStart(2, "0")}/${String(m).padStart(2, "0")}/${y}`;
+    }
+  }
+
+  // 2. DD/MM or DD/MM/YYYY or DD/MM/YY with / . - or space
+  let dmy = s.match(/^(\d{1,2})\s*[\/.\-]\s*(\d{1,2})(?:\s*[\/.\-]\s*(\d{2,4}))?$/);
+  if (!dmy) dmy = s.match(/^(\d{1,2})\s+(\d{1,2})(?:\s+(\d{2,4}))?$/);
+  if (dmy) {
+    let d = parseInt(dmy[1], 10);
+    let m = parseInt(dmy[2], 10);
+    let yStr = dmy[3];
+    let y = currentYear;
+    if (yStr) {
+      y = yStr.length === 2 ? parseInt("20" + yStr, 10) : parseInt(yStr, 10);
+    }
+    if (m >= 1 && m <= 12 && d >= 1 && d <= 31) {
+      let maxDays = new Date(y, m, 0).getDate();
+      if (d > maxDays) d = maxDays;
+      return `${String(d).padStart(2, "0")}/${String(m).padStart(2, "0")}/${y}`;
+    }
+  }
+
+  // 3. Continuous digits: 4 digits (DDMM), 6 digits (DDMMYY), 8 digits (DDMMYYYY)
+  let digits = s.replace(/\D/g, "");
+  if (digits.length === 4) {
+    let d = parseInt(digits.slice(0, 2), 10);
+    let m = parseInt(digits.slice(2, 4), 10);
+    if (m >= 1 && m <= 12 && d >= 1 && d <= 31) {
+      let maxDays = new Date(currentYear, m, 0).getDate();
+      if (d > maxDays) d = maxDays;
+      return `${String(d).padStart(2, "0")}/${String(m).padStart(2, "0")}/${currentYear}`;
+    }
+  } else if (digits.length === 6) {
+    let d = parseInt(digits.slice(0, 2), 10);
+    let m = parseInt(digits.slice(2, 4), 10);
+    let y = parseInt("20" + digits.slice(4, 6), 10);
+    if (m >= 1 && m <= 12 && d >= 1 && d <= 31) {
+      let maxDays = new Date(y, m, 0).getDate();
+      if (d > maxDays) d = maxDays;
+      return `${String(d).padStart(2, "0")}/${String(m).padStart(2, "0")}/${y}`;
+    }
+  } else if (digits.length === 8) {
+    let d = parseInt(digits.slice(0, 2), 10);
+    let m = parseInt(digits.slice(2, 4), 10);
+    let y = parseInt(digits.slice(4, 8), 10);
+    if (m >= 1 && m <= 12 && d >= 1 && d <= 31) {
+      let maxDays = new Date(y, m, 0).getDate();
+      if (d > maxDays) d = maxDays;
+      return `${String(d).padStart(2, "0")}/${String(m).padStart(2, "0")}/${y}`;
+    }
+  }
+
+  let p = parsePrintDate(s);
+  if (p) {
+    return `${String(p.d).padStart(2, "0")}/${String(p.m).padStart(2, "0")}/${p.y}`;
+  }
+
+  return s;
+}
+
+export function splitCsvOrTsvLine(line: string): string[] {
+  if (line.includes("\t")) {
+    return line.split("\t").map((c) => c.trim().replace(/^"|"$/g, ""));
+  }
+  const parts: string[] = [];
+  let cur = "";
+  let inQuotes = false;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (c === '"' && (i === 0 || line[i - 1] !== "\\")) {
+      inQuotes = !inQuotes;
+    } else if (c === "," && !inQuotes) {
+      parts.push(cur.trim().replace(/^"|"$/g, ""));
+      cur = "";
+    } else {
+      cur += c;
+    }
+  }
+  parts.push(cur.trim().replace(/^"|"$/g, ""));
+  return parts;
+}
+
+export function parseExcelText(
+  rawText: string,
+  defaultDept: string,
+  defaultDate: string
+): any[] {
+  if (!rawText || !rawText.trim()) return [];
+  const lines = rawText.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+  const rows: any[] = [];
+  const today = defaultDate || new Date().toISOString().slice(0, 10);
+  let activeDept = defaultDept || "";
+
+  for (const line of lines) {
+    const deptMatch = line.match(/bộ phận:\s*([^\t,\r\n]+)/i);
+    if (
+      deptMatch &&
+      deptMatch[1].trim() &&
+      !deptMatch[1].includes("…") &&
+      !deptMatch[1].toLowerCase().includes("cung ứng") &&
+      !deptMatch[1].toLowerCase().includes("khcu")
+    ) {
+      activeDept = deptMatch[1].trim();
+      continue;
+    }
+    if (line.toLowerCase().includes("người nhận hàng")) {
+      const addrMatch = line.match(/địa chỉ:\s*([^\t,\r\n]+)/i);
+      if (
+        addrMatch &&
+        addrMatch[1].trim() &&
+        !addrMatch[1].includes("…") &&
+        !addrMatch[1].toLowerCase().includes("khcu")
+      ) {
+        activeDept = addrMatch[1].trim();
+      }
+      continue;
+    }
+
+    const parts = splitCsvOrTsvLine(line);
+    if (!parts.length) continue;
+
+    const firstLower = parts[0].toLowerCase();
+    if (
+      firstLower === "stt" ||
+      firstLower === "tt" ||
+      firstLower.startsWith("bộ phận:") ||
+      firstLower.includes("tên hàng hóa") ||
+      firstLower.includes("biên bản bàn giao") ||
+      firstLower.includes("chúng tôi gồm") ||
+      firstLower.includes("hôm nay") ||
+      firstLower.includes("kết luận") ||
+      firstLower.includes("tại công ty") ||
+      firstLower.includes("người giao hàng")
+    )
+      continue;
+    if (parts.every((p) => !p)) continue;
+
+    let item_name = "",
+      unit = "Cái",
+      qty_doc = "1",
+      qty_pass = "",
+      qty_fail = "",
+      note = "";
+
+    let startIndex = 0;
+    if (/^\d+$/.test(parts[0]) && parts.length > 1) {
+      startIndex = 1;
+    }
+
+    const cols = parts.slice(startIndex);
+    if (cols.length === 1) {
+      item_name = cols[0];
+    } else if (cols.length === 2) {
+      item_name = cols[0];
+      if (/^[0-9.,]+$/.test(cols[1])) qty_doc = cols[1];
+      else unit = cols[1];
+    } else if (cols.length === 3) {
+      item_name = cols[0];
+      unit = cols[1] || "Cái";
+      qty_doc = cols[2] || "1";
+    } else if (cols.length === 4) {
+      item_name = cols[0];
+      unit = cols[1] || "Cái";
+      qty_doc = cols[2] || "1";
+      note = cols[3] || "";
+    } else if (cols.length === 5) {
+      item_name = cols[0];
+      unit = cols[1] || "Cái";
+      qty_doc = cols[2] || "1";
+      qty_pass = cols[3] || "";
+      note = cols[4] || "";
+    } else if (cols.length >= 6) {
+      item_name = cols[0];
+      unit = cols[1] || "Cái";
+      qty_doc = cols[2] || "1";
+      qty_pass = cols[3] || "";
+      qty_fail = cols[4] || "";
+      note = cols[5] || "";
+    }
+
+    if (
+      !item_name ||
+      item_name.startsWith("Biên bản") ||
+      item_name.startsWith("Tại Công ty")
+    )
+      continue;
+
+    rows.push({
+      department: activeDept,
+      item_name,
+      unit,
+      quantity_doc: qty_doc,
+      quantity_pass: qty_pass,
+      quantity_fail: qty_fail,
+      note,
+      handover_date: today,
+      sender_name: "Trần Hải Hà",
+      sender_dept: "Phòng KHCU",
+      receiver_name: "",
+    });
+  }
+  return rows;
+}
+
