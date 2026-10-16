@@ -1240,3 +1240,90 @@ table.payment-grid th.pcol-frozen {
   padding: 5px 10px;
   font-size: 12px;
 }
+
+/* ==========================================================================
+   WORKSPACE EXPANDED MODE (Giống So sánh báo giá - Tối đa hóa không gian)
+   ========================================================================== */
+.payment-management.workspace-expanded .payment-summary-cards,
+.handover-management.workspace-expanded .payment-summary-cards,
+.handover-management.workspace-expanded .handover-metrics-cards,
+.payment-management.workspace-expanded .payment-heading-desc,
+.handover-management.workspace-expanded .payment-heading-desc,
+.handover-management.workspace-expanded .handover-heading-desc,
+.payment-management.workspace-expanded .payment-detail-box {
+  display: none !important;
+}
+
+.payment-management.workspace-expanded,
+.handover-management.workspace-expanded {
+  gap: 8px !important;
+}
+
+.payment-management.workspace-expanded .payment-toolbar,
+.handover-management.workspace-expanded .payment-toolbar {
+  padding: 6px 12px !important;
+  margin-top: 0 !important;
+  background: #ffffff !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05) !important;
+}
+
+.payment-management.workspace-expanded .payment-table-container,
+.handover-management.workspace-expanded .payment-table-container {
+  height: calc(100vh - 145px) !important;
+  max-height: calc(100vh - 145px) !important;
+  overflow: auto !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06) !important;
+  border-radius: 8px !important;
+}
+
+.payment-management.workspace-expanded .payment-table-scroll {
+  height: calc(100vh - 180px) !important;
+  max-height: calc(100vh - 180px) !important;
+}
+
+.payment-management.workspace-expanded .payment-grid td,
+.payment-management.workspace-expanded .payment-grid th,
+.handover-management.workspace-expanded .payment-table td,
+.handover-management.workspace-expanded .payment-table th {
+  padding: 4px 6px !important;
+  font-size: 11.5px !important;
+  height: 34px !important;
+}
+
+.payment-management.workspace-expanded .cell-editor,
+.handover-management.workspace-expanded .payment-table input,
+.handover-management.workspace-expanded .payment-table select {
+  font-size: 11.5px !important;
+  padding: 3px 5px !important;
+  height: 28px !important;
+}
+
+.btn-workspace-toggle {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  background: #ffffff !important;
+  color: #1e293b !important;
+  border: 1px solid #cbd5e1 !important;
+  border-radius: 6px !important;
+  padding: 6px 12px !important;
+  font-size: 12.5px !important;
+  font-weight: 600 !important;
+  cursor: pointer !important;
+  transition: all 0.15s ease !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04) !important;
+}
+
+.btn-workspace-toggle:hover {
+  background: #f8fafc !important;
+  border-color: #94a3b8 !important;
+  color: #0284c7 !important;
+}
+
+.btn-workspace-toggle.active {
+  background: #0284c7 !important;
+  color: #ffffff !important;
+  border-color: #0284c7 !important;
+  box-shadow: 0 1px 3px rgba(2, 132, 199, 0.3) !important;
+}
+

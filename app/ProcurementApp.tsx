@@ -22,6 +22,12 @@ import { PaymentManagement } from "./components/PaymentManagement";
 import { HandoverManagement } from "./components/HandoverManagement";
 import { PrintTemplatesManagement } from "./components/PrintTemplatesManagement";
 import { DEFAULT_PAYMENT_TEMPLATE } from "./payment-utils";
+import {
+  defaultPaymentGroups,
+  defaultPaymentRequests,
+  defaultPaymentHandovers,
+  defaultPartnerSuppliers,
+} from "./defaultPaymentData";
 import { Item, Supplier, PurchaseHistory, QuoteMode, QuoteEntry, Quote, PR, POAllocation, POItem, POCartLine, ApprovalRow, ApprovalDraft, PODoc, Payment, PO, TrashItem, View, ColumnKey, SortState, StoredState, PaymentRequestEntry, PaymentGroup, PaymentBeneficiary, PaymentHandoverItem, PaymentPrintTemplate } from "./types";
 import { BASE_COLUMNS, valueOf, reorder, applyTools, makeId, emptyItem, fmt, dateVN, DEFAULT_VAT_RATE, quoteDefaults, quoteAmount, quoteVatRate, quoteBeforeVat, quoteAfterVat, quoteComparePrice, priceStats, mergeHistorySeed, PurchaseHistorySeed, excelNumber, emptyPR, emptyPO, generateShortName } from "./utils";
 import { items0, suppliers0, purchaseHistory0, quotes0, prs0, pos0, HISTORY_SEED_ID } from "./seed";
@@ -111,10 +117,10 @@ export default function ProcurementApp({
     [deletePassword, setDeletePassword] = useState(""),
     [deleteError, setDeleteError] = useState(""),
     [deleteBusy, setDeleteBusy] = useState(false);
-  const [paymentRequests, setPaymentRequests] = useState<PaymentRequestEntry[]>([]),
-    [paymentGroups, setPaymentGroups] = useState<PaymentGroup[]>([]),
+  const [paymentRequests, setPaymentRequests] = useState<PaymentRequestEntry[]>(defaultPaymentRequests),
+    [paymentGroups, setPaymentGroups] = useState<PaymentGroup[]>(defaultPaymentGroups),
     [paymentBeneficiaries, setPaymentBeneficiaries] = useState<PaymentBeneficiary[]>([]),
-    [paymentHandovers, setPaymentHandovers] = useState<PaymentHandoverItem[]>([]),
+    [paymentHandovers, setPaymentHandovers] = useState<PaymentHandoverItem[]>(defaultPaymentHandovers),
     [paymentTemplate, setPaymentTemplate] = useState<PaymentPrintTemplate>(DEFAULT_PAYMENT_TEMPLATE);
   const [storageReady, setStorageReady] = useState(false),
     [storageStatus, setStorageStatus] = useState("Đang kết nối dữ liệu...");
@@ -305,8 +311,34 @@ export default function ProcurementApp({
           setPrs(data.prs || prs0);
           setProducts(data.products || items0);
           
-          const loadedSuppliers = data.suppliers || suppliers0;
-          setSuppliers(loadedSuppliers.map(s => ({
+          const loadedSuppliers: Supplier[] = data.suppliers || suppliers0;
+          const mergedSuppliers = [...loadedSuppliers];
+          for (const p of defaultPartnerSuppliers) {
+            const match = mergedSuppliers.find(
+              (s) =>
+                s.name.toLowerCase() === (p.name || "").toLowerCase() ||
+                (s.shortName && p.shortName && s.shortName.toLowerCase() === p.shortName.toLowerCase())
+            );
+            if (match) {
+              if (!match.address && p.address) match.address = p.address;
+              if (!match.bankAccount && p.bankAccount) match.bankAccount = p.bankAccount;
+              if (!match.bank && p.bank) match.bank = p.bank;
+              if (!match.shortName && p.shortName) match.shortName = p.shortName;
+            } else if (p.name) {
+              mergedSuppliers.push({
+                id: Date.now() + Math.floor(Math.random() * 10000),
+                code: p.code || "NCC-PKA",
+                name: p.name,
+                shortName: p.shortName || generateShortName(p.name),
+                address: p.address || "",
+                bankAccount: p.bankAccount || "",
+                bank: p.bank || "",
+                contact: p.contact || "",
+                phone: p.phone || "",
+              });
+            }
+          }
+          setSuppliers(mergedSuppliers.map(s => ({
             ...s,
             shortName: s.shortName || generateShortName(s.name)
           })));
@@ -331,10 +363,22 @@ export default function ProcurementApp({
           setQuoteCompareMode(data.quoteCompareMode || "before-vat");
           setPurchaseHistory(data.purchaseHistory || purchaseHistory0);
           setPurchaseHistoryImportIds(data.purchaseHistoryImportIds || []);
-          setPaymentRequests(data.paymentRequests || []);
-          setPaymentGroups(data.paymentGroups || []);
+          setPaymentRequests(
+            data.paymentRequests && data.paymentRequests.length > 0
+              ? data.paymentRequests
+              : defaultPaymentRequests
+          );
+          setPaymentGroups(
+            data.paymentGroups && data.paymentGroups.length > 0
+              ? data.paymentGroups
+              : defaultPaymentGroups
+          );
           setPaymentBeneficiaries(data.paymentBeneficiaries || []);
-          setPaymentHandovers(data.paymentHandovers || []);
+          setPaymentHandovers(
+            data.paymentHandovers && data.paymentHandovers.length > 0
+              ? data.paymentHandovers
+              : defaultPaymentHandovers
+          );
           setPaymentTemplate(data.paymentTemplate || DEFAULT_PAYMENT_TEMPLATE);
           if (data.prs?.length) setSelectedPR(data.prs[0]);
           if (data.pos?.length) setCurrentPO(data.pos[0]);
@@ -355,10 +399,10 @@ export default function ProcurementApp({
           setQuoteCompareMode("before-vat");
           setPurchaseHistory(purchaseHistory0);
           setPurchaseHistoryImportIds([]);
-          setPaymentRequests([]);
-          setPaymentGroups([]);
+          setPaymentRequests(defaultPaymentRequests);
+          setPaymentGroups(defaultPaymentGroups);
           setPaymentBeneficiaries([]);
-          setPaymentHandovers([]);
+          setPaymentHandovers(defaultPaymentHandovers);
           setPaymentTemplate(DEFAULT_PAYMENT_TEMPLATE);
           setSelectedPR(emptyPR);
           setCurrentPO(emptyPO);

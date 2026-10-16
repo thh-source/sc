@@ -83,6 +83,7 @@ export function PaymentManagement({
   const [statusFilter, setStatusFilter] = useState("");
   const [groupFilter, setGroupFilter] = useState("");
   const [freezeCol, setFreezeCol] = useState(2); // 2: STT, 3: NCC, 4: Group, 7: InvoiceNo, 8: InvoiceDate, 0: None
+  const [isWorkspaceExpanded, setIsWorkspaceExpanded] = useState(false);
 
   // Modals state
   const [docModalReqId, setDocModalReqId] = useState<number | null>(null);
@@ -142,10 +143,10 @@ export function PaymentManagement({
     };
   }, [paymentRequests]);
 
-  // Filtered requests for DATA table
+  // Filtered requests for DATA table (sắp xếp số thứ tự từ dưới lên trên, số to ở trên)
   const filteredRequests = useMemo(() => {
     const q = normName(searchQuery);
-    return paymentRequests.filter((r) => {
+    const list = paymentRequests.filter((r) => {
       if (statusFilter && r.status !== statusFilter) return false;
       if (groupFilter && String(r.group_id || "") !== String(groupFilter)) return false;
       if (q) {
@@ -166,6 +167,13 @@ export function PaymentManagement({
         if (!normName(text).includes(q)) return false;
       }
       return true;
+    });
+
+    return list.sort((a, b) => {
+      const na = Number(a.legacy_stt || a.id) || 0;
+      const nb = Number(b.legacy_stt || b.id) || 0;
+      if (nb !== na) return nb - na;
+      return (Number(b.id) || 0) - (Number(a.id) || 0);
     });
   }, [paymentRequests, searchQuery, statusFilter, groupFilter]);
 
@@ -275,6 +283,124 @@ export function PaymentManagement({
       if (target.matches("input:not([type=checkbox])")) {
         target.blur();
       }
+    }
+  };
+
+  // Handle direct Excel paste on Payment table (sắp xếp thêm dòng mới lên trên cùng)
+  const handlePaymentTablePaste = (e: React.ClipboardEvent<HTMLTableSectionElement>) => {
+    if (readOnly) return;
+    const text = e.clipboardData.getData("text");
+    if (!text || (!text.includes("\t") && !text.includes("\n"))) return;
+
+    const lines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+    const parsedRows: PaymentRequestEntry[] = [];
+    let maxStt = Math.max(0, ...paymentRequests.map((r) => Number(r.legacy_stt || r.id) || 0));
+
+    for (const line of lines) {
+      const parts = line.split("\t").map((p) => p.trim());
+      if (parts.length === 0 || parts.every((p) => !p)) continue;
+      const firstLower = parts[0].toLowerCase();
+      if (
+        firstLower === "stt" ||
+        firstLower === "tt" ||
+        firstLower.includes("nhà cung cấp") ||
+        firstLower.includes("thụ hưởng") ||
+        firstLower.includes("đề nghị thanh toán")
+      ) {
+        continue;
+      }
+
+      let startIdx = 0;
+      if (/^\d+$/.test(parts[0]) && parts.length > 1) {
+        startIdx = 1;
+      }
+      const cols = parts.slice(startIdx);
+
+      let payee_name = cols[0] || "";
+      let group_code = "";
+      let group_id: number | null = null;
+      let description = "";
+      let item_name = "";
+      let invoice_no = "";
+      let invoice_date = "";
+      let amount = "";
+
+      if (cols.length >= 2) {
+        const matchedGroup = paymentGroups.find(
+          (g) => g.code.toLowerCase() === cols[1].toLowerCase() || g.name.toLowerCase() === cols[1].toLowerCase()
+        );
+        if (matchedGroup) {
+          group_code = matchedGroup.code;
+          group_id = matchedGroup.id;
+        } else {
+          description = cols[1];
+        }
+      }
+      if (cols.length >= 3) {
+        if (description) item_name = cols[2];
+        else description = cols[2];
+      }
+      if (cols.length >= 4) {
+        if (!item_name) item_name = cols[3];
+        else invoice_no = cols[3];
+      }
+      if (cols.length >= 5) {
+        if (!invoice_no) invoice_no = cols[4];
+        else invoice_date = cols[4];
+      }
+      if (cols.length >= 6) {
+        for (let i = 4; i < cols.length; i++) {
+          const cleaned = cols[i].replace(/[.,\sđVND]/gi, "");
+          if (/^\d+$/.test(cleaned) && Number(cleaned) > 0) {
+            amount = cleaned;
+            break;
+          }
+        }
+      }
+
+      // Lookup supplier details
+      let address = "";
+      let account_no = "";
+      let bank = "";
+      const sup = suppliers.find(
+        (s) => s.name.toLowerCase() === payee_name.toLowerCase() || (s.shortName && s.shortName.toLowerCase() === payee_name.toLowerCase())
+      );
+      if (sup) {
+        address = sup.address || "";
+        account_no = sup.bankAccount || "";
+        bank = sup.bank || "";
+      }
+
+      maxStt++;
+      parsedRows.push({
+        id: Date.now() + parsedRows.length + Math.floor(Math.random() * 1000),
+        legacy_stt: String(maxStt).padStart(2, "0"),
+        payee_name,
+        group_id,
+        group_code,
+        description: description || `Thanh toán cho ${payee_name || "nhà cung cấp"}`,
+        item_name: item_name || description,
+        invoice_no: invoice_no || "Chưa có HĐ",
+        invoice_date: invoice_date || localToday(),
+        amount: amount || "0",
+        currency: "VND",
+        documents: ["ĐNTT", "Hóa đơn"],
+        request_date: localToday(),
+        payment_type: "TT sau 100%",
+        status: "Đã giao KT, chờ đi tiền",
+        missing_doc: "",
+        address,
+        account_no,
+        bank,
+        created_by_name: "Trần Hải Hà",
+        lines: [],
+      });
+    }
+
+    if (parsedRows.length > 0) {
+      e.preventDefault();
+      onUpdateRequests([...parsedRows, ...paymentRequests]);
+      alert(`Đã dán trực tiếp ${parsedRows.length} đề nghị thanh toán từ Excel vào đầu bảng!`);
     }
   };
 
@@ -441,7 +567,7 @@ export function PaymentManagement({
   };
 
   return (
-    <section className="content payment-management">
+    <section className={`content payment-management ${isWorkspaceExpanded ? "workspace-expanded" : ""}`}>
       {/* Hidden date picker */}
       <input
         type="date"
@@ -464,7 +590,7 @@ export function PaymentManagement({
       />
 
       {/* Top Heading */}
-      <div className="heading">
+      <div className={`heading ${isWorkspaceExpanded ? "payment-heading-desc" : ""}`}>
         <div>
           <em>QUẢN LÝ TÀI CHÍNH · THANH TOÁN</em>
           <h1>Đề nghị thanh toán (Mẫu 01 – TT)</h1>
@@ -521,6 +647,16 @@ export function PaymentManagement({
       <div className="payment-toolbar">
         <button className="payment-btn btn-primary" onClick={handleAddRequestRow}>
           ＋ Thêm đề nghị (thêm dòng)
+        </button>
+
+        <button
+          type="button"
+          className={`btn-workspace-toggle ${isWorkspaceExpanded ? "active" : ""}`}
+          onClick={() => setIsWorkspaceExpanded(!isWorkspaceExpanded)}
+          title={isWorkspaceExpanded ? "Thu gọn về giao diện chuẩn" : "Mở rộng không gian làm việc (giống So sánh báo giá)"}
+        >
+          <span>{isWorkspaceExpanded ? "🗗" : "⛶"}</span>
+          {isWorkspaceExpanded ? "Thu gọn giao diện" : "Mở rộng không gian"}
         </button>
         <input
           placeholder="Tìm NCC, STT, nội dung, hóa đơn..."
@@ -812,7 +948,7 @@ export function PaymentManagement({
                   <th style={{ width: "80px", textAlign: "center" }}>In/Xóa</th>
                 </tr>
               </thead>
-              <tbody onKeyDown={handleTableKeyDown}>
+              <tbody onKeyDown={handleTableKeyDown} onPaste={handlePaymentTablePaste}>
                 {filteredRequests.map((r) => {
                   const isChosen = activeRequestId === r.id;
                   const isDone = PAID_STATUSES.includes(r.status);

@@ -45,6 +45,7 @@ export function HandoverManagement({
   const [checkedHandovers, setCheckedHandovers] = useState<Set<number>>(new Set());
   const [handoverDeptFilter, setHandoverDeptFilter] = useState("");
   const [handoverSearch, setHandoverSearch] = useState("");
+  const [isWorkspaceExpanded, setIsWorkspaceExpanded] = useState(false);
 
   // Modals
   const [showPasteModal, setShowPasteModal] = useState(false);
@@ -73,10 +74,10 @@ export function HandoverManagement({
     return Array.from(set).sort();
   }, [paymentHandovers]);
 
-  // Filtered list
+  // Filtered list (sắp xếp số thứ tự từ dưới lên trên, số to ở trên)
   const filteredHandovers = useMemo(() => {
     const q = normName(handoverSearch);
-    return paymentHandovers.filter((h) => {
+    const list = paymentHandovers.filter((h) => {
       if (handoverDeptFilter && String(h.department || "").trim() !== handoverDeptFilter) {
         return false;
       }
@@ -86,6 +87,7 @@ export function HandoverManagement({
       }
       return true;
     });
+    return list.sort((a, b) => (Number(b.id) || 0) - (Number(a.id) || 0));
   }, [paymentHandovers, handoverDeptFilter, handoverSearch]);
 
   // Metric summaries
@@ -289,7 +291,7 @@ export function HandoverManagement({
   };
 
   return (
-    <section className="content payment-management">
+    <section className={`content payment-management handover-management ${isWorkspaceExpanded ? "workspace-expanded" : ""}`}>
       {/* Hidden date picker */}
       <input
         type="date"
@@ -303,7 +305,7 @@ export function HandoverManagement({
       />
 
       {/* Top Heading */}
-      <div className="heading">
+      <div className={`heading ${isWorkspaceExpanded ? "payment-heading-desc" : ""}`}>
         <div>
           <em>QUẢN LÝ VẬT TƯ · BÀN GIAO NỘI BỘ</em>
           <h1>Biên bản bàn giao, nghiệm thu vật tư (Không qua kho)</h1>
@@ -346,7 +348,7 @@ export function HandoverManagement({
       </div>
 
       {/* Metric Summary Cards */}
-      <div className="payment-summary-cards">
+      <div className="payment-summary-cards handover-metrics-cards">
         <div className="payment-card card-primary">
           <div className="payment-card-label">Tổng danh mục vật tư</div>
           <div className="payment-card-value">{metrics.totalItems}</div>
@@ -376,6 +378,16 @@ export function HandoverManagement({
         </button>
         <button className="payment-btn btn-danger" onClick={handleDeleteSelectedHandovers}>
           🗑️ Xóa dòng đã chọn
+        </button>
+
+        <button
+          type="button"
+          className={`btn-workspace-toggle ${isWorkspaceExpanded ? "active" : ""}`}
+          onClick={() => setIsWorkspaceExpanded(!isWorkspaceExpanded)}
+          title={isWorkspaceExpanded ? "Thu gọn về giao diện chuẩn" : "Mở rộng không gian làm việc (giống So sánh báo giá)"}
+        >
+          <span>{isWorkspaceExpanded ? "🗗" : "⛶"}</span>
+          {isWorkspaceExpanded ? "Thu gọn giao diện" : "Mở rộng không gian"}
         </button>
 
         <select
@@ -473,7 +485,7 @@ export function HandoverManagement({
                         }}
                       />
                     </td>
-                    <td style={{ textAlign: "center", color: "#64748b" }}>{idx + 1}</td>
+                    <td style={{ textAlign: "center", color: "#64748b", fontWeight: 600 }}>{h.id}</td>
                     <td>
                       <input
                         list="deptSuggestions"
