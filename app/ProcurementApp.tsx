@@ -18,7 +18,9 @@ import SmartTableTools from "./SmartTableTools";
 import VisualTimeline from "./VisualTimeline";
 import "./vat-quote.css";
 
-import { Item, Supplier, PurchaseHistory, QuoteMode, QuoteEntry, Quote, PR, POAllocation, POItem, POCartLine, ApprovalRow, ApprovalDraft, PODoc, Payment, PO, TrashItem, View, ColumnKey, SortState, StoredState } from "./types";
+import { PaymentManagement } from "./components/PaymentManagement";
+import { DEFAULT_PAYMENT_TEMPLATE } from "./payment-utils";
+import { Item, Supplier, PurchaseHistory, QuoteMode, QuoteEntry, Quote, PR, POAllocation, POItem, POCartLine, ApprovalRow, ApprovalDraft, PODoc, Payment, PO, TrashItem, View, ColumnKey, SortState, StoredState, PaymentRequestEntry, PaymentGroup, PaymentBeneficiary, PaymentHandoverItem, PaymentPrintTemplate } from "./types";
 import { BASE_COLUMNS, valueOf, reorder, applyTools, makeId, emptyItem, fmt, dateVN, DEFAULT_VAT_RATE, quoteDefaults, quoteAmount, quoteVatRate, quoteBeforeVat, quoteAfterVat, quoteComparePrice, priceStats, mergeHistorySeed, PurchaseHistorySeed, excelNumber, emptyPR, emptyPO, generateShortName } from "./utils";
 import { items0, suppliers0, purchaseHistory0, quotes0, prs0, pos0, HISTORY_SEED_ID } from "./seed";
 import { AutoGrowTextarea } from "./components/AutoGrowTextarea";
@@ -107,6 +109,11 @@ export default function ProcurementApp({
     [deletePassword, setDeletePassword] = useState(""),
     [deleteError, setDeleteError] = useState(""),
     [deleteBusy, setDeleteBusy] = useState(false);
+  const [paymentRequests, setPaymentRequests] = useState<PaymentRequestEntry[]>([]),
+    [paymentGroups, setPaymentGroups] = useState<PaymentGroup[]>([]),
+    [paymentBeneficiaries, setPaymentBeneficiaries] = useState<PaymentBeneficiary[]>([]),
+    [paymentHandovers, setPaymentHandovers] = useState<PaymentHandoverItem[]>([]),
+    [paymentTemplate, setPaymentTemplate] = useState<PaymentPrintTemplate>(DEFAULT_PAYMENT_TEMPLATE);
   const [storageReady, setStorageReady] = useState(false),
     [storageStatus, setStorageStatus] = useState("Đang kết nối dữ liệu...");
   const [workspaceId, setWorkspaceId] = useState(currentUser?.id || ""),
@@ -240,9 +247,14 @@ export default function ProcurementApp({
         quoteCompareMode,
         purchaseHistory,
         purchaseHistoryImportIds,
+        paymentRequests,
+        paymentGroups,
+        paymentBeneficiaries,
+        paymentHandovers,
+        paymentTemplate,
       },
     };
-  }, [hiddenContractIds, items, poCart, pos, products, projectContracts, prs, purchaseHistory, purchaseHistoryImportIds, quoteCompareMode, quoteSupplierIds, quoteSupplierIdsByPr, quotes, quotesByPr, suppliers, trash, workspaceId]);
+  }, [hiddenContractIds, items, paymentBeneficiaries, paymentGroups, paymentHandovers, paymentRequests, paymentTemplate, poCart, pos, products, projectContracts, prs, purchaseHistory, purchaseHistoryImportIds, quoteCompareMode, quoteSupplierIds, quoteSupplierIdsByPr, quotes, quotesByPr, suppliers, trash, workspaceId]);
   useEffect(() => {
     if (
       reportMode ||
@@ -317,6 +329,11 @@ export default function ProcurementApp({
           setQuoteCompareMode(data.quoteCompareMode || "before-vat");
           setPurchaseHistory(data.purchaseHistory || purchaseHistory0);
           setPurchaseHistoryImportIds(data.purchaseHistoryImportIds || []);
+          setPaymentRequests(data.paymentRequests || []);
+          setPaymentGroups(data.paymentGroups || []);
+          setPaymentBeneficiaries(data.paymentBeneficiaries || []);
+          setPaymentHandovers(data.paymentHandovers || []);
+          setPaymentTemplate(data.paymentTemplate || DEFAULT_PAYMENT_TEMPLATE);
           if (data.prs?.length) setSelectedPR(data.prs[0]);
           if (data.pos?.length) setCurrentPO(data.pos[0]);
         } else {
@@ -336,6 +353,11 @@ export default function ProcurementApp({
           setQuoteCompareMode("before-vat");
           setPurchaseHistory(purchaseHistory0);
           setPurchaseHistoryImportIds([]);
+          setPaymentRequests([]);
+          setPaymentGroups([]);
+          setPaymentBeneficiaries([]);
+          setPaymentHandovers([]);
+          setPaymentTemplate(DEFAULT_PAYMENT_TEMPLATE);
           setSelectedPR(emptyPR);
           setCurrentPO(emptyPO);
         }
@@ -456,6 +478,11 @@ export default function ProcurementApp({
           projectContracts,
           purchaseHistory,
           purchaseHistoryImportIds,
+          paymentRequests,
+          paymentGroups,
+          paymentBeneficiaries,
+          paymentHandovers,
+          paymentTemplate,
         }),
       });
     } catch {}
@@ -1131,6 +1158,7 @@ export default function ProcurementApp({
     { icon: "⚖", name: "So sánh báo giá", action: () => setView("compare") },
     { icon: "▰", name: "Quản lý PO", action: () => setView("po-list") },
     { icon: "▧", name: "Hợp đồng", action: () => setView("contracts") },
+    { icon: "💳", name: "Thanh toán", action: () => setView("payment") },
     { icon: "▱", name: "Nhà cung cấp", action: () => setView("suppliers") },
     { icon: "◇", name: "Hàng hóa", action: () => setView("products") },
     {
@@ -1156,6 +1184,7 @@ export default function ProcurementApp({
           "So sánh báo giá",
           "Quản lý PO",
           "Hợp đồng",
+          "Thanh toán",
         ].includes(n.name),
       )
     : nav;
@@ -1187,6 +1216,7 @@ export default function ProcurementApp({
                 ((view === "po-list" || view === "po-detail") &&
                   n.name === "Quản lý PO") ||
                 (view === "contracts" && n.name === "Hợp đồng") ||
+                (view === "payment" && n.name === "Thanh toán") ||
                 (view === "project-contracts" && n.name === "HĐ dự án") ||
                 (view === "products" && n.name === "Hàng hóa") ||
                 (view === "suppliers" && n.name === "Nhà cung cấp") ||
@@ -1314,6 +1344,25 @@ export default function ProcurementApp({
             workspaceId={workspaceId}
             readOnly={reportMode}
             onStatus={setStorageStatus}
+          />
+        )}
+        {view === "payment" && (
+          <PaymentManagement
+            paymentRequests={paymentRequests}
+            paymentGroups={paymentGroups}
+            paymentBeneficiaries={paymentBeneficiaries}
+            paymentHandovers={paymentHandovers}
+            paymentTemplate={paymentTemplate}
+            pos={pos}
+            suppliers={suppliers}
+            onUpdateState={(patch) => {
+              if (patch.paymentRequests !== undefined) setPaymentRequests(patch.paymentRequests);
+              if (patch.paymentGroups !== undefined) setPaymentGroups(patch.paymentGroups);
+              if (patch.paymentBeneficiaries !== undefined) setPaymentBeneficiaries(patch.paymentBeneficiaries);
+              if (patch.paymentHandovers !== undefined) setPaymentHandovers(patch.paymentHandovers);
+              if (patch.paymentTemplate !== undefined) setPaymentTemplate(patch.paymentTemplate);
+            }}
+            readOnly={reportMode}
           />
         )}
         {view === "project-contracts" && !reportMode && (

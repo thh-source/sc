@@ -165,6 +165,7 @@ export type View =
   | "po-detail"
   | "contracts"
   | "project-contracts"
+  | "payment"
   | "approval"
   | "products"
   | "trash"
@@ -184,6 +185,113 @@ export type ColumnKey =
 
 export type SortState = { key: ColumnKey; direction: "asc" | "desc" } | null;
 
+export type PaymentDetailLine = {
+  id?: string | number;
+  description: string;
+  invoice_no: string;
+  invoice_date?: string;
+  amount: number | string;
+  note?: string;
+};
+
+export type PaymentRequestEntry = {
+  id: number;
+  legacy_stt?: string | number;
+  beneficiary_id?: number;
+  payee_name: string;
+  group_id?: number | string;
+  group_code?: string;
+  description: string;
+  item_name?: string;
+  invoice_no?: string;
+  invoice_date?: string;
+  amount: number | string;
+  currency: "VND" | "USD" | "EUR" | string;
+  documents: string[];
+  request_date: string;
+  payment_type: string;
+  status: string;
+  doc_supplement?: string;
+  address?: string;
+  account_no?: string;
+  bank?: string;
+  created_by_name?: string;
+  lines?: PaymentDetailLine[];
+};
+
+export type PaymentGroup = {
+  id: number;
+  code: string;
+  name: string;
+  payee_name?: string;
+  total_amount: number | string;
+  currency: string;
+  note?: string;
+};
+
+export type PaymentBeneficiary = {
+  id: number;
+  name: string;
+  short_name?: string;
+  address?: string;
+  account_no?: string;
+  bank?: string;
+};
+
+export type PaymentHandoverItem = {
+  id: number;
+  department: string;
+  item_name: string;
+  unit: string;
+  quantity_doc: string | number;
+  quantity_pass: string | number;
+  quantity_fail: string | number;
+  note: string;
+  handover_date: string;
+  sender_name?: string;
+  sender_dept?: string;
+  receiver_name?: string;
+};
+
+export type PaymentPrintTemplate = {
+  company_name: string;
+  form_code: string;
+  form_title: string;
+  recipient_label: string;
+  recipients: string;
+  label_requester: string;
+  default_requester_name: string;
+  label_department: string;
+  department_name: string;
+  intro_text: string;
+  label_payee: string;
+  label_address: string;
+  label_account: string;
+  label_bank: string;
+  label_description: string;
+  deadline_label: string;
+  deadline_val: string;
+  table_title: string;
+  col_stt: string;
+  col_invoice: string;
+  col_item: string;
+  col_amount: string;
+  col_note: string;
+  col_total: string;
+  label_money_words: string;
+  label_docs: string;
+  date_location: string;
+  sign1_title: string;
+  sign1_name: string;
+  sign2_title: string;
+  sign2_name: string;
+  sign3_title: string;
+  sign3_name: string;
+  sign4_title: string;
+  sign4_name: string;
+  draft_warning: string;
+};
+
 export type StoredState = {
   prs: PR[];
   products: Item[];
@@ -201,4 +309,9 @@ export type StoredState = {
   quoteCompareMode?: QuoteMode;
   purchaseHistory?: PurchaseHistory[];
   purchaseHistoryImportIds?: string[];
+  paymentRequests?: PaymentRequestEntry[];
+  paymentGroups?: PaymentGroup[];
+  paymentBeneficiaries?: PaymentBeneficiary[];
+  paymentHandovers?: PaymentHandoverItem[];
+  paymentTemplate?: PaymentPrintTemplate;
 };
