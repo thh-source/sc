@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo, useRef } from "react";
+import React, { useState, useMemo, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { PaymentHandoverItem } from "../types";
 import {
@@ -9,10 +9,11 @@ import {
   parsePrintDate,
   parseFlexibleDate,
   parseExcelText,
+  PHENIKAA_PHARMA_LOGO_BASE64,
 } from "../payment-utils";
 import "../payment.css";
 
-const PHENIKAA_LOGO_SRC = "/phenikaa-pharma-logo.png";
+const PHENIKAA_LOGO_SRC = PHENIKAA_PHARMA_LOGO_BASE64;
 
 const UNIT_SUGGESTIONS = [
   "Cái",
@@ -259,11 +260,14 @@ export function HandoverManagement({
     setTimeout(() => {
       window.print();
       setIsPrinting(false);
-    }, 150);
+    }, 250);
   };
 
   return (
     <section className={`content payment-management handover-management ${isWorkspaceExpanded ? "workspace-expanded" : ""}`}>
+      {/* Preload logo in DOM */}
+      <img src={PHENIKAA_LOGO_SRC} alt="" style={{ display: "none" }} aria-hidden="true" />
+
       {/* Hidden date picker */}
       <input
         type="date"
@@ -718,8 +722,8 @@ export function HandoverManagement({
                                 src={PHENIKAA_LOGO_SRC}
                                 alt="PHENIKAA PHARMA"
                                 style={{
-                                  height: "36px",
-                                  width: "160px",
+                                  height: "40px",
+                                  width: "170px",
                                   objectFit: "contain",
                                   display: "block",
                                   margin: "0 auto",

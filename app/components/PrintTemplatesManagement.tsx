@@ -9,10 +9,11 @@ import {
   moneyWords,
   localToday,
   parsePrintDate,
+  PHENIKAA_PHARMA_LOGO_BASE64,
 } from "../payment-utils";
 import "../payment.css";
 
-const PHENIKAA_LOGO_SRC = "/phenikaa-pharma-logo.png";
+const PHENIKAA_LOGO_SRC = PHENIKAA_PHARMA_LOGO_BASE64;
 
 export interface PrintTemplatesManagementProps {
   paymentTemplate?: PaymentPrintTemplate;
@@ -559,8 +560,8 @@ export function PrintTemplatesManagement({
                                 src={PHENIKAA_LOGO_SRC}
                                 alt="PHENIKAA PHARMA"
                                 style={{
-                                  height: "36px",
-                                  width: "160px",
+                                  height: "40px",
+                                  width: "170px",
                                   objectFit: "contain",
                                   display: "block",
                                   margin: "0 auto",
@@ -757,8 +758,8 @@ export function PrintTemplatesManagement({
                               src={PHENIKAA_LOGO_SRC}
                               alt="PHENIKAA PHARMA"
                               style={{
-                                height: "36px",
-                                width: "160px",
+                                height: "40px",
+                                width: "170px",
                                 objectFit: "contain",
                                 display: "block",
                                 margin: "0 auto",
