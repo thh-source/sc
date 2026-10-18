@@ -95,6 +95,7 @@ export function DraftItemsTable({
           <input
             className={`${key === "unit" || key === "qty" ? "short" : ""} ${numeric ? "num" : ""}`}
             type={numeric ? "number" : "text"}
+            list={key === "unit" ? "commonUnitDatalist" : undefined}
             value={String(item[inputKey])}
             onChange={(e) =>
               itemChange(item.id, inputKey, e.target.value, true)
@@ -106,6 +107,11 @@ export function DraftItemsTable({
   };
   return (
     <div className="draft-table advanced-draft">
+      <datalist id="commonUnitDatalist">
+        {["Cái", "Bộ", "Chiếc", "Hộp", "Kg", "Mét", "Lít", "Thùng", "Gói", "Cuộn", "Bình", "Lọ", "Ống", "Lô", "Bao", "Can", "Gam"].map((u) => (
+          <option key={u} value={u} />
+        ))}
+      </datalist>
       <table>
         <thead>
           <tr>

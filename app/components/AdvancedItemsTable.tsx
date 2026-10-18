@@ -120,6 +120,7 @@ export function AdvancedItemsTable({
           <input
             className={`${key === "unit" || key === "qty" ? "short" : ""} ${numeric ? "num" : ""}`}
             type={numeric ? "number" : "text"}
+            list={key === "unit" ? "commonAdvancedUnitDatalist" : undefined}
             value={String(item[inputKey])}
             onChange={(e) => itemChange(item.id, inputKey, e.target.value)}
           />
@@ -129,6 +130,11 @@ export function AdvancedItemsTable({
   };
   return (
     <>
+      <datalist id="commonAdvancedUnitDatalist">
+        {["Cái", "Bộ", "Chiếc", "Hộp", "Kg", "Mét", "Lít", "Thùng", "Gói", "Cuộn", "Bình", "Lọ", "Ống", "Lô", "Bao", "Can", "Gam"].map((u) => (
+          <option key={u} value={u} />
+        ))}
+      </datalist>
 
       <div className="tablewrap advanced-table vat-quote-table">
       <table>

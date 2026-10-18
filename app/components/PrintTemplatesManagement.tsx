@@ -2,7 +2,7 @@
 
 import React, { useState, useMemo } from "react";
 import { createPortal } from "react-dom";
-import { PaymentPrintTemplate, PaymentRequestEntry, PaymentHandoverItem } from "../types";
+import { PaymentPrintTemplate, PaymentRequestEntry, PaymentHandoverItem, Supplier } from "../types";
 import {
   DEFAULT_PAYMENT_TEMPLATE,
   fmtMoney,
@@ -16,15 +16,19 @@ const PHENIKAA_LOGO_SRC = "/phenikaa-pharma-logo.png";
 
 export interface PrintTemplatesManagementProps {
   paymentTemplate?: PaymentPrintTemplate;
-  onUpdateTemplate: (template: PaymentPrintTemplate) => void;
+  onUpdateTemplate?: (template: PaymentPrintTemplate) => void;
+  onUpdateState?: (patch: { paymentTemplate?: PaymentPrintTemplate }) => void;
   sampleRequest?: PaymentRequestEntry | null;
+  suppliers?: Supplier[];
   readOnly?: boolean;
 }
 
 export function PrintTemplatesManagement({
   paymentTemplate = DEFAULT_PAYMENT_TEMPLATE,
   onUpdateTemplate,
+  onUpdateState,
   sampleRequest,
+  suppliers = [],
   readOnly = false,
 }: PrintTemplatesManagementProps) {
   const [selectedTpl, setSelectedTpl] = useState<"01-TT" | "handover">("01-TT");
@@ -62,9 +66,22 @@ export function PrintTemplatesManagement({
     { id: 3, department: "Phòng Cơ điện", item_name: "Cảm biến áp suất 0-10 bar", unit: "Chiếc", quantity_doc: 2, quantity_pass: 2, quantity_fail: 0, note: "Đạt kiểm định", handover_date: localToday() },
   ], []);
 
+  const fullPayeeName = useMemo(() => {
+    const raw = sampleReq.payee_name || "";
+    const pNameNorm = raw.trim().toLowerCase();
+    const matchedSupplier = suppliers?.find(
+      (s) =>
+        (s.shortName && s.shortName.trim().toLowerCase() === pNameNorm) ||
+        (s.name && s.name.trim().toLowerCase() === pNameNorm) ||
+        (s.code && s.code.trim().toLowerCase() === pNameNorm)
+    );
+    return matchedSupplier?.name || raw;
+  }, [sampleReq.payee_name, suppliers]);
+
   const handleSave = () => {
     if (readOnly) return;
-    onUpdateTemplate(tplForm);
+    if (onUpdateTemplate) onUpdateTemplate(tplForm);
+    if (onUpdateState) onUpdateState({ paymentTemplate: tplForm });
     alert("Đã lưu cấu hình mẫu phiếu thành công!");
   };
 
@@ -72,7 +89,8 @@ export function PrintTemplatesManagement({
     if (readOnly) return;
     if (confirm("Khôi phục toàn bộ trường về mẫu mặc định chuẩn của Phenikaa?")) {
       setTplForm(DEFAULT_PAYMENT_TEMPLATE);
-      onUpdateTemplate(DEFAULT_PAYMENT_TEMPLATE);
+      if (onUpdateTemplate) onUpdateTemplate(DEFAULT_PAYMENT_TEMPLATE);
+      if (onUpdateState) onUpdateState({ paymentTemplate: DEFAULT_PAYMENT_TEMPLATE });
     }
   };
 
@@ -399,7 +417,7 @@ export function PrintTemplatesManagement({
 
                   <div className="details">
                     <div>+ {tplForm.label_payee}</div>
-                    <div className="val"><b>{sampleReq.payee_name || ""}</b></div>
+                    <div className="val"><b>{fullPayeeName}</b></div>
                     <div>+ {tplForm.label_address}</div>
                     <div className="val">{sampleReq.address || ""}</div>
                     <div>+ {tplForm.label_account}</div>
@@ -645,7 +663,7 @@ export function PrintTemplatesManagement({
 
               <div className="details">
                 <div>+ {tplForm.label_payee}</div>
-                <div className="val"><b>{sampleReq.payee_name || ""}</b></div>
+                <div className="val"><b>{fullPayeeName}</b></div>
                 <div>+ {tplForm.label_address}</div>
                 <div className="val">{sampleReq.address || ""}</div>
                 <div>+ {tplForm.label_account}</div>

@@ -22,29 +22,9 @@ import {
   localToday,
   parsePrintDate,
   parseFlexibleDate,
+  BANK_SUGGESTIONS,
 } from "../payment-utils";
 import "../payment.css";
-
-const BANK_SUGGESTIONS = [
-  "Vietcombank",
-  "Techcombank",
-  "BIDV",
-  "Vietinbank",
-  "MB Bank",
-  "VPBank",
-  "ACB",
-  "Sacombank",
-  "HDBank",
-  "TPBank",
-  "Agribank",
-  "VIB",
-  "SHB",
-  "Eximbank",
-  "MSB",
-  "SeABank",
-  "OCB",
-  "Bac A Bank",
-];
 
 export interface PaymentManagementProps {
   paymentRequests?: PaymentRequestEntry[];
@@ -148,6 +128,109 @@ export function PaymentManagement({
       return (Number(b.id) || 0) - (Number(a.id) || 0);
     });
   }, [paymentRequests, searchQuery, statusFilter, groupFilter]);
+
+  // Suggestion lists for autocomplete datalists
+  const bankSuggestions = useMemo(() => {
+    const set = new Set<string>(BANK_SUGGESTIONS);
+    suppliers.forEach((s) => {
+      if (s.bank?.trim()) set.add(s.bank.trim());
+    });
+    paymentRequests.forEach((r) => {
+      if (r.bank?.trim()) set.add(r.bank.trim());
+    });
+    return Array.from(set).filter(Boolean);
+  }, [suppliers, paymentRequests]);
+
+  const itemSuggestions = useMemo(() => {
+    const set = new Set<string>();
+    paymentRequests.forEach((r) => {
+      if (r.item_name?.trim()) set.add(r.item_name.trim());
+      (r.lines || []).forEach((l) => {
+        if (l.description?.trim()) set.add(l.description.trim());
+      });
+    });
+    (pos || []).forEach((p) => {
+      (p.items || []).forEach((it) => {
+        if (it.item?.name?.trim()) set.add(it.item.name.trim());
+      });
+    });
+    return Array.from(set).filter(Boolean);
+  }, [paymentRequests, pos]);
+
+  const descSuggestions = useMemo(() => {
+    const defaults = [
+      "Thanh toán 100% tiền hàng",
+      "Thanh toán tạm ứng hợp đồng",
+      "Thanh toán đợt 1",
+      "Thanh toán đợt 2",
+      "Thanh toán đợt 3",
+      "Thanh toán quyết toán hợp đồng",
+      "Thanh toán theo hợp đồng",
+      "Thanh toán phí dịch vụ",
+      "Thanh toán bảo trì / sửa chữa",
+      "Thanh toán mua sắm thiết bị",
+      "Thanh toán mua hóa chất / dung môi",
+      "Thanh toán mua bao bì / tá dược",
+    ];
+    const set = new Set<string>(defaults);
+    paymentRequests.forEach((r) => {
+      if (r.description?.trim()) set.add(r.description.trim());
+    });
+    return Array.from(set).filter(Boolean);
+  }, [paymentRequests]);
+
+  const invoiceSuggestions = useMemo(() => {
+    const set = new Set<string>();
+    paymentRequests.forEach((r) => {
+      if (r.invoice_no?.trim()) set.add(r.invoice_no.trim());
+      (r.lines || []).forEach((l) => {
+        if (l.invoice_no?.trim()) set.add(l.invoice_no.trim());
+      });
+    });
+    return Array.from(set).filter(Boolean);
+  }, [paymentRequests]);
+
+  const docSupplementSuggestions = useMemo(() => {
+    const defaults = [
+      "Đầy đủ hồ sơ",
+      "Chờ hóa đơn gốc",
+      "Chờ biên bản bàn giao",
+      "Chờ biên bản nghiệm thu",
+      "Chờ chứng từ CO/CQ",
+      "Chờ bảo lãnh ngân hàng",
+      "Đã nộp KT bản cứng",
+      "Bổ sung phiếu xuất kho",
+    ];
+    const set = new Set<string>(defaults);
+    paymentRequests.forEach((r) => {
+      if (r.doc_supplement?.trim()) set.add(r.doc_supplement.trim());
+    });
+    return Array.from(set).filter(Boolean);
+  }, [paymentRequests]);
+
+  const requesterSuggestions = useMemo(() => {
+    const set = new Set<string>();
+    if (paymentTemplate.default_requester_name) set.add(paymentTemplate.default_requester_name);
+    set.add("Trần Hải Hà");
+    paymentRequests.forEach((r) => {
+      if (r.created_by_name?.trim()) set.add(r.created_by_name.trim());
+    });
+    return Array.from(set).filter(Boolean);
+  }, [paymentRequests, paymentTemplate]);
+
+  const groupSuggestions = useMemo(() => {
+    const set = new Set<string>();
+    paymentGroups.forEach((g) => {
+      if (g.code?.trim()) set.add(g.code.trim());
+    });
+    (pos || []).forEach((p) => {
+      if (p.number?.trim()) set.add(p.number.trim());
+    });
+    paymentRequests.forEach((r) => {
+      if (r.group_code?.trim()) set.add(r.group_code.trim());
+    });
+    return Array.from(set).filter(Boolean);
+  }, [paymentGroups, pos, paymentRequests]);
 
   // Request edits
   const handleEditRequest = (id: number, key: keyof PaymentRequestEntry, val: any) => {
@@ -696,26 +779,61 @@ export function PaymentManagement({
         </span>
       </div>
 
-      {/* Datalists for autocompletion from central suppliers */}
+      {/* Datalists for autocompletion from central suppliers and tables */}
       <datalist id="nccDataList">
         {suppliers.map((s) => (
-          <option key={s.id} value={s.shortName || s.name}>
-            {s.name}
+          <option key={`sup-short-${s.id}`} value={s.shortName || s.name}>
+            {s.name} {s.code ? `(${s.code})` : ""}
           </option>
         ))}
+        {suppliers
+          .filter((s) => s.shortName && s.name !== s.shortName)
+          .map((s) => (
+            <option key={`sup-full-${s.id}`} value={s.name}>
+              {s.shortName}
+            </option>
+          ))}
       </datalist>
 
       <datalist id="bankDataList">
-        {BANK_SUGGESTIONS.map((bn) => (
+        {bankSuggestions.map((bn) => (
           <option key={bn} value={bn} />
         ))}
       </datalist>
 
       <datalist id="groupDataList">
-        {paymentGroups.map((g) => (
-          <option key={g.id} value={g.code}>
-            {g.name}
-          </option>
+        {groupSuggestions.map((g) => (
+          <option key={g} value={g} />
+        ))}
+      </datalist>
+
+      <datalist id="itemDataList">
+        {itemSuggestions.map((item) => (
+          <option key={item} value={item} />
+        ))}
+      </datalist>
+
+      <datalist id="descDataList">
+        {descSuggestions.map((d) => (
+          <option key={d} value={d} />
+        ))}
+      </datalist>
+
+      <datalist id="invoiceDataList">
+        {invoiceSuggestions.map((inv) => (
+          <option key={inv} value={inv} />
+        ))}
+      </datalist>
+
+      <datalist id="docSupplementDataList">
+        {docSupplementSuggestions.map((ds) => (
+          <option key={ds} value={ds} />
+        ))}
+      </datalist>
+
+      <datalist id="requesterDataList">
+        {requesterSuggestions.map((rq) => (
+          <option key={rq} value={rq} />
         ))}
       </datalist>
 
@@ -983,6 +1101,7 @@ export function PaymentManagement({
                       <td>
                         <input
                           className="cell-editor"
+                          list="descDataList"
                           value={r.description || ""}
                           onChange={(e) =>
                             handleEditRequest(r.id, "description", e.target.value)
@@ -995,6 +1114,7 @@ export function PaymentManagement({
                       <td>
                         <input
                           className="cell-editor"
+                          list="itemDataList"
                           value={r.item_name || ""}
                           onChange={(e) =>
                             handleEditRequest(r.id, "item_name", e.target.value)
@@ -1013,6 +1133,7 @@ export function PaymentManagement({
                       >
                         <input
                           className="cell-editor"
+                          list="invoiceDataList"
                           value={r.invoice_no || ""}
                           onChange={(e) =>
                             handleEditRequest(r.id, "invoice_no", e.target.value)
@@ -1169,6 +1290,7 @@ export function PaymentManagement({
                       <td>
                         <input
                           className="cell-editor"
+                          list="docSupplementDataList"
                           value={r.doc_supplement || ""}
                           onChange={(e) =>
                             handleEditRequest(r.id, "doc_supplement", e.target.value)
@@ -1218,6 +1340,7 @@ export function PaymentManagement({
                       <td>
                         <input
                           className="cell-editor"
+                          list="requesterDataList"
                           value={r.created_by_name || ""}
                           onChange={(e) =>
                             handleEditRequest(r.id, "created_by_name", e.target.value)
@@ -1312,6 +1435,7 @@ export function PaymentManagement({
                 }}
               >
                 <input
+                  list="itemDataList"
                   style={{ padding: "6px 8px", border: "1px solid #cbd5e1", borderRadius: "5px", fontSize: "12px" }}
                   value={line.description || ""}
                   placeholder="Tên hàng hóa..."
@@ -1323,6 +1447,7 @@ export function PaymentManagement({
                   }}
                 />
                 <input
+                  list="invoiceDataList"
                   style={{ padding: "6px 8px", border: "1px solid #cbd5e1", borderRadius: "5px", fontSize: "12px" }}
                   value={line.invoice_no || ""}
                   placeholder="Số HĐ..."
@@ -1644,6 +1769,19 @@ export function PaymentManagement({
               { description: req.description || req.item_name || "", invoice_no: req.invoice_no || "", invoice_date: req.invoice_date || "", amount: req.amount },
             ];
 
+            const pNameNorm = (req.payee_name || "").trim().toLowerCase();
+            const matchedSupplier = suppliers?.find(
+              (s) =>
+                (s.shortName && s.shortName.trim().toLowerCase() === pNameNorm) ||
+                (s.name && s.name.trim().toLowerCase() === pNameNorm) ||
+                (s.code && s.code.trim().toLowerCase() === pNameNorm) ||
+                (req.beneficiary_id && s.id === req.beneficiary_id)
+            );
+            const fullPayeeName = matchedSupplier?.name || req.payee_name || "";
+            const payeeAddress = req.address || matchedSupplier?.address || "";
+            const payeeAccount = req.account_no || matchedSupplier?.bankAccount || "";
+            const payeeBank = req.bank || matchedSupplier?.bank || "";
+
             return (
               <div key={req.id} className="paper" style={{ breakAfter: "page", pageBreakAfter: "always" }}>
                 <div className="upper">{tpl.company_name}</div>
@@ -1665,13 +1803,13 @@ export function PaymentManagement({
 
                 <div className="details">
                   <div>+ {tpl.label_payee}</div>
-                  <div className="val"><b>{req.payee_name || ""}</b></div>
+                  <div className="val"><b>{fullPayeeName}</b></div>
                   <div>+ {tpl.label_address}</div>
-                  <div className="val">{req.address || ""}</div>
+                  <div className="val">{payeeAddress}</div>
                   <div>+ {tpl.label_account}</div>
-                  <div className="val"><b>{req.account_no || ""}</b></div>
+                  <div className="val"><b>{payeeAccount}</b></div>
                   <div>+ {tpl.label_bank}</div>
-                  <div className="val"><b>{req.bank || ""}</b></div>
+                  <div className="val"><b>{payeeBank}</b></div>
                   <div>+ {tpl.label_description}</div>
                   <div className="val">{req.description || ""}</div>
                 </div>

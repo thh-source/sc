@@ -21,7 +21,7 @@ import "./vat-quote.css";
 import { PaymentManagement } from "./components/PaymentManagement";
 import { HandoverManagement } from "./components/HandoverManagement";
 import { PrintTemplatesManagement } from "./components/PrintTemplatesManagement";
-import { DEFAULT_PAYMENT_TEMPLATE } from "./payment-utils";
+import { DEFAULT_PAYMENT_TEMPLATE, BANK_SUGGESTIONS } from "./payment-utils";
 import {
   defaultPaymentGroups,
   defaultPaymentRequests,
@@ -863,10 +863,19 @@ export default function ProcurementApp({
     };
     reader.readAsArrayBuffer(file);
   };
+  const supplierBankOptions = useMemo(() => {
+    const set = new Set<string>(BANK_SUGGESTIONS);
+    suppliers.forEach((s) => {
+      if (s.bank?.trim()) set.add(s.bank.trim());
+    });
+    return Array.from(set).filter(Boolean);
+  }, [suppliers]);
+
   const openSupplierModal = () => {
     setNewSupplier({
       code: `NCC-${String(suppliers.length + 1).padStart(3, "0")}`,
       name: "",
+      shortName: "",
       bankAccount: "",
       bank: "",
       address: "",
@@ -878,16 +887,21 @@ export default function ProcurementApp({
   const supplierField = (key: keyof Omit<Supplier, "id">, value: string) =>
     setNewSupplier((s) => ({ ...s, [key]: value }));
   const addSupplier = () => {
-    if (!newSupplier.name.trim() || !newSupplier.code.trim()) return;
+    if (!newSupplier.name.trim()) return;
     const nameTrimmed = newSupplier.name.trim();
+    const code =
+      newSupplier.code?.trim() ||
+      `NCC-${String(suppliers.length + 1).padStart(3, "0")}`;
+    const shortName =
+      (newSupplier.shortName || "").trim() || generateShortName(nameTrimmed);
     setSuppliers((s) => [
       ...s,
       {
         id: makeId(),
         ...newSupplier,
-        code: newSupplier.code.trim(),
+        code,
         name: nameTrimmed,
-        shortName: newSupplier.shortName || generateShortName(nameTrimmed)
+        shortName,
       },
     ]);
     setSupplierModal(false);
@@ -1439,6 +1453,8 @@ export default function ProcurementApp({
         {view === "print-templates" && (
           <PrintTemplatesManagement
             paymentTemplate={paymentTemplate}
+            suppliers={suppliers}
+            sampleRequest={paymentRequests[0] || null}
             onUpdateState={(patch) => {
               if (patch.paymentTemplate !== undefined) setPaymentTemplate(patch.paymentTemplate);
             }}
@@ -1864,20 +1880,33 @@ export default function ProcurementApp({
             <p>Nhập thông tin nhà cung cấp để dùng chung cho báo giá và PO.</p>
             <div className="supplier-modal-grid">
               <label>
-                Mã nhà cung cấp <b>*</b>
+                Tên nhà cung cấp <b>*</b>
                 <input
                   autoFocus
-                  value={newSupplier.code}
-                  onChange={(e) => supplierField("code", e.target.value)}
-                  placeholder="NCC-001"
+                  value={newSupplier.name}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setNewSupplier((prev) => {
+                      const autoShort =
+                        prev.shortName && prev.shortName !== generateShortName(prev.name)
+                          ? prev.shortName
+                          : generateShortName(val);
+                      return {
+                        ...prev,
+                        name: val,
+                        shortName: autoShort,
+                      };
+                    });
+                  }}
+                  placeholder="Ví dụ: Công ty Cổ phần Bao bì An Phát"
                 />
               </label>
               <label>
-                Tên nhà cung cấp <b>*</b>
+                Tên viết tắt của NCC
                 <input
-                  value={newSupplier.name}
-                  onChange={(e) => supplierField("name", e.target.value)}
-                  placeholder="Ví dụ: Công ty An Phát"
+                  value={newSupplier.shortName || ""}
+                  onChange={(e) => supplierField("shortName", e.target.value)}
+                  placeholder="Ví dụ: An Phát"
                 />
               </label>
               <label>
@@ -1891,10 +1920,16 @@ export default function ProcurementApp({
               <label>
                 Ngân hàng
                 <input
+                  list="supplierModalBankList"
                   value={newSupplier.bank}
                   onChange={(e) => supplierField("bank", e.target.value)}
-                  placeholder="Tên ngân hàng, chi nhánh"
+                  placeholder="Chọn hoặc gõ tên ngân hàng..."
                 />
+                <datalist id="supplierModalBankList">
+                  {supplierBankOptions.map((bn) => (
+                    <option key={bn} value={bn} />
+                  ))}
+                </datalist>
               </label>
               <label>
                 Người liên hệ
@@ -1927,7 +1962,7 @@ export default function ProcurementApp({
               </button>
               <button
                 className="primary"
-                disabled={!newSupplier.name.trim() || !newSupplier.code.trim()}
+                disabled={!newSupplier.name.trim()}
                 onClick={addSupplier}
               >
                 Lưu nhà cung cấp

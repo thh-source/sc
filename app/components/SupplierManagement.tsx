@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect, Fragment } from "react";
 import { Item, Supplier, PurchaseHistory, Quote, PR, PO, ColumnKey, SortState, TrashItem, View } from "../types";
 import { fmt, dateVN, makeId, quoteAmount, quoteVatRate, quoteBeforeVat, quoteAfterVat, quoteComparePrice, priceStats, emptyItem, applyTools, reorder, BASE_COLUMNS } from "../utils";
 import { AutoGrowTextarea } from "./AutoGrowTextarea";
-// Add other imports as necessary
+import { BANK_SUGGESTIONS } from "../payment-utils";
 
 export function SupplierManagement({
   suppliers,
@@ -19,6 +19,14 @@ export function SupplierManagement({
   const [selectedSupplierId, setSelectedSupplierId] = useState<number | null>(
     null,
   );
+  const bankOptions = useMemo(() => {
+    const set = new Set<string>(BANK_SUGGESTIONS);
+    suppliers.forEach((s) => {
+      if (s.bank?.trim()) set.add(s.bank.trim());
+    });
+    return Array.from(set).filter(Boolean);
+  }, [suppliers]);
+
   const update = (id: number, key: keyof Supplier, value: string) =>
     setSuppliers((list) =>
       list.map((s) => (s.id === id ? { ...s, [key]: value } : s)),
@@ -255,11 +263,18 @@ export function SupplierManagement({
       <label>
         Ngân hàng
         <input
+          list="supplierMgmtBankList"
           value={supplier.bank}
           onChange={(e) =>
             update(supplier.id, "bank", e.target.value)
           }
+          placeholder="Chọn hoặc nhập ngân hàng..."
         />
+        <datalist id="supplierMgmtBankList">
+          {bankOptions.map((bn) => (
+            <option key={bn} value={bn} />
+          ))}
+        </datalist>
       </label>
       <label className="full">
         Địa chỉ

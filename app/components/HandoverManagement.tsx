@@ -79,6 +79,39 @@ export function HandoverManagement({
     return Array.from(set).sort();
   }, [paymentHandovers]);
 
+  const handoverItemSuggestions = useMemo(() => {
+    const set = new Set<string>();
+    paymentHandovers.forEach((h) => {
+      if (h.item_name?.trim()) set.add(h.item_name.trim());
+    });
+    return Array.from(set).filter(Boolean);
+  }, [paymentHandovers]);
+
+  const handoverSenderSuggestions = useMemo(() => {
+    const set = new Set<string>(["Trần Hải Hà"]);
+    paymentHandovers.forEach((h) => {
+      if (h.sender_name?.trim()) set.add(h.sender_name.trim());
+    });
+    return Array.from(set).filter(Boolean);
+  }, [paymentHandovers]);
+
+  const handoverReceiverSuggestions = useMemo(() => {
+    const set = new Set<string>();
+    paymentHandovers.forEach((h) => {
+      if (h.receiver_name?.trim()) set.add(h.receiver_name.trim());
+    });
+    return Array.from(set).filter(Boolean);
+  }, [paymentHandovers]);
+
+  const handoverNoteSuggestions = useMemo(() => {
+    const defaults = ["Mới 100%", "Kèm CO/CQ", "Đầy đủ phụ kiện", "Đạt kiểm định", "Đạt nghiệm thu"];
+    const set = new Set<string>(defaults);
+    paymentHandovers.forEach((h) => {
+      if (h.note?.trim()) set.add(h.note.trim());
+    });
+    return Array.from(set).filter(Boolean);
+  }, [paymentHandovers]);
+
   // Filtered list (sắp xếp số thứ tự từ dưới lên trên, số to ở trên)
   const filteredHandovers = useMemo(() => {
     const q = normName(handoverSearch);
@@ -392,6 +425,30 @@ export function HandoverManagement({
         ))}
       </datalist>
 
+      <datalist id="handoverItemSuggestions">
+        {handoverItemSuggestions.map((it) => (
+          <option key={it} value={it} />
+        ))}
+      </datalist>
+
+      <datalist id="handoverSenderSuggestions">
+        {handoverSenderSuggestions.map((s) => (
+          <option key={s} value={s} />
+        ))}
+      </datalist>
+
+      <datalist id="handoverReceiverSuggestions">
+        {handoverReceiverSuggestions.map((r) => (
+          <option key={r} value={r} />
+        ))}
+      </datalist>
+
+      <datalist id="handoverNoteSuggestions">
+        {handoverNoteSuggestions.map((n) => (
+          <option key={n} value={n} />
+        ))}
+      </datalist>
+
       {/* Handover Data Table with direct paste support */}
       <div className="payment-table-container" onPaste={handleHandoverTablePaste}>
         <div className="payment-table-header">
@@ -460,6 +517,7 @@ export function HandoverManagement({
                     </td>
                     <td>
                       <input
+                        list="handoverItemSuggestions"
                         value={h.item_name || ""}
                         onChange={(e) => handleEditHandover(h.id, "item_name", e.target.value)}
                         placeholder="Tên hàng hóa - quy cách..."
@@ -505,6 +563,7 @@ export function HandoverManagement({
                     </td>
                     <td>
                       <input
+                        list="handoverNoteSuggestions"
                         value={h.note || ""}
                         onChange={(e) => handleEditHandover(h.id, "note", e.target.value)}
                         placeholder="Ghi chú..."
@@ -541,6 +600,7 @@ export function HandoverManagement({
                     </td>
                     <td>
                       <input
+                        list="handoverSenderSuggestions"
                         value={h.sender_name || "Trần Hải Hà"}
                         onChange={(e) =>
                           handleEditHandover(h.id, "sender_name", e.target.value)
@@ -550,6 +610,7 @@ export function HandoverManagement({
                     </td>
                     <td>
                       <input
+                        list="handoverReceiverSuggestions"
                         value={h.receiver_name || ""}
                         onChange={(e) =>
                           handleEditHandover(h.id, "receiver_name", e.target.value)
