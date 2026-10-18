@@ -769,25 +769,25 @@ export function HandoverManagement({
                     <table className="hb-table">
                       <thead>
                         <tr>
-                          <th style={{ width: "35px" }}>STT</th>
+                          <th style={{ width: "40px" }}>STT</th>
                           <th>Tên hàng hóa - Quy cách</th>
-                          <th style={{ width: "50px" }}>ĐVT</th>
-                          <th style={{ width: "80px" }}>
+                          <th style={{ width: "55px" }}>ĐVT</th>
+                          <th style={{ width: "85px" }}>
                             SL theo
                             <br />
                             chứng từ
                           </th>
-                          <th style={{ width: "75px" }}>
+                          <th style={{ width: "80px" }}>
                             SL kiểm tra
                             <br />
                             Đạt
                           </th>
-                          <th style={{ width: "75px" }}>
+                          <th style={{ width: "80px" }}>
                             SL kiểm tra
                             <br />
                             K.Đạt
                           </th>
-                          <th style={{ width: "75px" }}>Ghi chú</th>
+                          <th style={{ width: "80px" }}>Ghi chú</th>
                         </tr>
                       </thead>
                       <tbody>
