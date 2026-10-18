@@ -6,6 +6,8 @@ import {
   useMemo,
   useRef,
   useState,
+  lazy,
+  Suspense,
 } from "react";
 import type React from "react";
 import DocumentManager from "./DocumentManager";
@@ -13,25 +15,26 @@ import SmartTableTools from "./SmartTableTools";
 import "./vat-quote.css";
 
 import { PaymentManagement } from "./components/PaymentManagement";
-import { HandoverManagement } from "./components/HandoverManagement";
-import { PrintTemplatesManagement } from "./components/PrintTemplatesManagement";
 import { BANK_SUGGESTIONS, DEFAULT_PAYMENT_TEMPLATE } from "./payment-utils";
 import { Item, Supplier, PurchaseHistory, QuoteMode, QuoteEntry, Quote, PR, POItem, POCartLine, ApprovalRow, ApprovalDraft, PODoc, PO, TrashItem, View, ColumnKey, SortState, PaymentRequestEntry, PaymentGroup, PaymentBeneficiary, PaymentHandoverItem, PaymentPrintTemplate } from "./types";
 import { BASE_COLUMNS, reorder, applyTools, makeId, emptyItem, fmt, dateVN, DEFAULT_VAT_RATE, quoteDefaults, quoteBeforeVat, quoteAfterVat, quoteComparePrice, mergeHistorySeed, PurchaseHistorySeed, excelNumber, emptyPR, emptyPO, generateShortName } from "./utils";
 import { items0, suppliers0, purchaseHistory0, quotes0, prs0, pos0, HISTORY_SEED_ID } from "./seed";
 import { AdvancedItemsTable } from "./components/AdvancedItemsTable";
-import { ProductCatalog } from "./components/ProductCatalog";
 import { CreatePRCatalog } from "./components/CreatePRCatalog";
-import { ContractManagement } from "./components/ContractManagement";
 import { ApprovalSheet } from "./components/ApprovalSheet";
 
 import { Dashboard } from "./components/Dashboard";
-import { AdminSettings } from "./components/AdminSettings";
-import { SupplierManagement } from "./components/SupplierManagement";
 import { POList } from "./components/POList";
 import { PODetail } from "./components/PODetail";
-import { TrashPage } from "./components/TrashPage";
 import { PRList } from "./components/PRList";
+
+const AdminSettings = lazy(() => import("./components/AdminSettings").then(m => ({ default: m.AdminSettings })));
+const TrashPage = lazy(() => import("./components/TrashPage").then(m => ({ default: m.TrashPage })));
+const ContractManagement = lazy(() => import("./components/ContractManagement").then(m => ({ default: m.ContractManagement })));
+const PrintTemplatesManagement = lazy(() => import("./components/PrintTemplatesManagement").then(m => ({ default: m.PrintTemplatesManagement })));
+const HandoverManagement = lazy(() => import("./components/HandoverManagement").then(m => ({ default: m.HandoverManagement })));
+const ProductCatalog = lazy(() => import("./components/ProductCatalog").then(m => ({ default: m.ProductCatalog })));
+const SupplierManagement = lazy(() => import("./components/SupplierManagement").then(m => ({ default: m.SupplierManagement })));
 
 export default function ProcurementApp({
   reportToken,
@@ -1413,6 +1416,7 @@ export default function ProcurementApp({
             </div>
           </>
         )}
+        <Suspense fallback={<div style={{ padding: "40px", textAlign: "center", color: "var(--muted)", fontSize: "14px" }}>Đang tải giao diện...</div>}>
         {view === "dashboard" && (
           <Dashboard
             prs={prs}
@@ -1781,6 +1785,7 @@ export default function ProcurementApp({
             )}
           </section>
         )}
+        </Suspense>
       </main>
       {poCartOpen && (
         <div className="backdrop" onMouseDown={() => setPoCartOpen(false)}>

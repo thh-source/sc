@@ -27,6 +27,15 @@ export function AdminSettings({
     entityId: string;
     createdAt: string;
   };
+  type SnapshotItem = {
+    key: string;
+    size: number;
+    uploadedAt: string;
+    label: string;
+    createdBy: string;
+    recordCount: number;
+    originalBytes: number;
+  };
   type UsageInfo = {
     generatedAt: string;
     freeTier: {
@@ -76,6 +85,15 @@ export function AdminSettings({
   const [resetMsg, setResetMsg] = useState("");
   const [resetLoading, setResetLoading] = useState(false);
 
+  // R2 Snapshots state
+  const [snapshots, setSnapshots] = useState<SnapshotItem[]>([]);
+  const [snapshotLoading, setSnapshotLoading] = useState(false);
+  const [creatingSnapshot, setCreatingSnapshot] = useState(false);
+  const [restoringSnapshotKey, setRestoringSnapshotKey] = useState<string | null>(null);
+  const [snapshotModalOpen, setSnapshotModalOpen] = useState(false);
+  const [snapshotLabel, setSnapshotLabel] = useState("");
+  const [snapshotMsg, setSnapshotMsg] = useState("");
+
   const load = () =>
     fetch("/api/users")
       .then((r) => r.json())
@@ -98,10 +116,22 @@ export function AdminSettings({
       .finally(() => setAuditLoading(false));
   };
 
+  const loadSnapshots = () => {
+    setSnapshotLoading(true);
+    fetch("/api/admin/snapshots")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((b) => {
+        if (b?.snapshots) setSnapshots(b.snapshots);
+      })
+      .catch(() => {})
+      .finally(() => setSnapshotLoading(false));
+  };
+
   useEffect(() => {
     load();
     loadUsage();
     loadAuditLogs();
+    loadSnapshots();
   }, []);
 
   const create = async () => {
@@ -200,6 +230,73 @@ export function AdminSettings({
     }
   };
 
+  // Snapshot handlers
+  const handleCreateSnapshot = async () => {
+    setCreatingSnapshot(true);
+    setSnapshotMsg("");
+    try {
+      const res = await fetch("/api/admin/snapshots", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "create", label: snapshotLabel.trim() || undefined }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setSnapshotModalOpen(false);
+        setSnapshotLabel("");
+        setMessage(`Đã tạo bản snapshot sao lưu thành công (${(data.size / 1024).toFixed(1)} KB)`);
+        loadSnapshots();
+        loadUsage();
+        loadAuditLogs();
+      } else {
+        setSnapshotMsg(data.error || "Không thể tạo snapshot");
+      }
+    } catch {
+      setSnapshotMsg("Lỗi kết nối khi tạo snapshot");
+    } finally {
+      setCreatingSnapshot(false);
+    }
+  };
+
+  const handleRestoreSnapshot = async (item: SnapshotItem) => {
+    const confirmMsg = `CẢNH BÁO PHỤC HỒI:\n\nBạn có chắc chắn muốn phục hồi toàn bộ CSDL về bản snapshot:\n"${item.label}"\n(Thời điểm: ${new Date(item.uploadedAt).toLocaleString("vi-VN")})?\n\nToàn bộ dữ liệu hiện tại sẽ được thay thế bằng dữ liệu tại thời điểm này!`;
+    if (!window.confirm(confirmMsg)) return;
+
+    setRestoringSnapshotKey(item.key);
+    try {
+      const res = await fetch("/api/admin/snapshots", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "restore", key: item.key }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        alert(`Phục hồi CSDL thành công (${data.restoredCount} phân vùng)! Trang web sẽ tự động tải lại.`);
+        location.reload();
+      } else {
+        alert(data.error || "Không thể phục hồi dữ liệu");
+      }
+    } catch {
+      alert("Lỗi kết nối máy chủ khi phục hồi dữ liệu");
+    } finally {
+      setRestoringSnapshotKey(null);
+    }
+  };
+
+  const handleDeleteSnapshot = async (item: SnapshotItem) => {
+    if (!window.confirm(`Xóa bản snapshot "${item.label}" khỏi Cloudflare R2?`)) return;
+    try {
+      const res = await fetch(`/api/admin/snapshots?key=${encodeURIComponent(item.key)}`, {
+        method: "DELETE",
+      });
+      if (res.ok) {
+        loadSnapshots();
+        loadUsage();
+        loadAuditLogs();
+      }
+    } catch {}
+  };
+
   const logout = async () => {
     await fetch("/api/auth/logout", { method: "POST" });
     location.reload();
@@ -221,6 +318,12 @@ export function AdminSettings({
         return "Đổi mật khẩu";
       case "DELETE_USER":
         return "Xóa tài khoản";
+      case "CREATE_SNAPSHOT":
+        return "Tạo snapshot";
+      case "RESTORE_SNAPSHOT":
+        return "Phục hồi CSDL";
+      case "DELETE_SNAPSHOT":
+        return "Xóa snapshot";
       case "SYNC_BACKUP":
         return "Sao lưu CSDL";
       default:
@@ -234,7 +337,7 @@ export function AdminSettings({
         <div>
           <em>MASTER ADMIN</em>
           <h1>Cài đặt & người dùng</h1>
-          <p>Tạo tài khoản, phân quyền, bảo mật và nhật ký thao tác hệ thống.</p>
+          <p>Tạo tài khoản, phân quyền, sao lưu Snapshot R2 và nhật ký thao tác hệ thống.</p>
         </div>
         <button className="ghost" onClick={logout}>
           Đăng xuất
@@ -370,6 +473,7 @@ export function AdminSettings({
 
       <AdminUsage usage={usage} onRefresh={loadUsage} />
 
+      {/* Danh sách tài khoản */}
       <section className="admin-card user-list-card">
         <div className="section-heading">
           <div>
@@ -416,7 +520,7 @@ export function AdminSettings({
                   </td>
                   <td>
                     <div style={{ display: "flex", justifyContent: "flex-end", gap: "6px" }}>
-                      {/* Đổi mật khẩu cho user hoặc chính mình */}
+                      {/* Đổi mật khẩu */}
                       {(u.role !== "master" || u.id === currentUser.id) && (
                         <button
                           className="ghost"
@@ -457,6 +561,111 @@ export function AdminSettings({
                   </td>
                 </tr>
               ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      {/* Sao lưu & Phục hồi CSDL Snapshot trên Cloudflare R2 */}
+      <section className="admin-card snapshot-card" style={{ marginTop: "20px" }}>
+        <div className="section-heading">
+          <div>
+            <span>💾</span>
+            <h2>Sao lưu & phục hồi CSDL (Cloudflare R2 Snapshots)</h2>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            <small>{snapshots.length} bản snapshot</small>
+            <button
+              className="ghost"
+              onClick={loadSnapshots}
+              disabled={snapshotLoading}
+              style={{ fontSize: "12px", padding: "4px 10px", height: "auto" }}
+            >
+              {snapshotLoading ? "Đang tải..." : "↻ Làm mới"}
+            </button>
+            <button
+              className="primary"
+              onClick={() => {
+                setSnapshotModalOpen(true);
+                setSnapshotLabel(`Bản sao lưu ${new Date().toLocaleDateString("vi-VN")} lúc ${new Date().toLocaleTimeString("vi-VN")}`);
+                setSnapshotMsg("");
+              }}
+              style={{ fontSize: "12px", padding: "6px 14px", height: "auto" }}
+            >
+              ＋ Tạo bản snapshot sao lưu
+            </button>
+          </div>
+        </div>
+
+        <div className="user-table" style={{ maxHeight: "380px", overflowY: "auto" }}>
+          <table>
+            <thead>
+              <tr>
+                <th style={{ width: "230px" }}>Tên / Nhãn snapshot</th>
+                <th style={{ width: "160px" }}>Thời điểm tạo</th>
+                <th style={{ width: "110px" }}>Người tạo</th>
+                <th style={{ width: "120px" }}>Dung lượng nén</th>
+                <th style={{ width: "90px" }}>Phân vùng</th>
+                <th style={{ textAlign: "right" }}>Thao tác phục hồi</th>
+              </tr>
+            </thead>
+            <tbody>
+              {snapshots.length === 0 ? (
+                <tr>
+                  <td colSpan={6} style={{ textAlign: "center", color: "var(--muted)", padding: "28px" }}>
+                    Chưa có bản snapshot nào trong Cloudflare R2. Nhấn nút <b>"＋ Tạo bản snapshot sao lưu"</b> ở trên để tạo bản sao lưu đầu tiên!
+                  </td>
+                </tr>
+              ) : (
+                snapshots.map((item) => (
+                  <tr key={item.key}>
+                    <td>
+                      <b style={{ color: "var(--blue)" }}>{item.label}</b>
+                    </td>
+                    <td style={{ fontSize: "12px", color: "var(--muted)", whiteSpace: "nowrap" }}>
+                      {new Date(item.uploadedAt).toLocaleString("vi-VN")}
+                    </td>
+                    <td>
+                      <span style={{ fontSize: "12px" }}>{item.createdBy}</span>
+                    </td>
+                    <td style={{ fontSize: "12px", fontWeight: "600" }}>
+                      {(item.size / 1024).toFixed(1)} KB (Gzip)
+                    </td>
+                    <td style={{ fontSize: "12px" }}>
+                      {item.recordCount} state
+                    </td>
+                    <td>
+                      <div style={{ display: "flex", justifyContent: "flex-end", gap: "6px" }}>
+                        <button
+                          className="primary"
+                          style={{
+                            fontSize: "11px",
+                            padding: "4px 10px",
+                            height: "auto",
+                            background: "#e67700",
+                            borderColor: "#d9480f",
+                          }}
+                          disabled={restoringSnapshotKey === item.key}
+                          onClick={() => handleRestoreSnapshot(item)}
+                          title="Khôi phục toàn bộ CSDL về trạng thái tại thời điểm này"
+                        >
+                          {restoringSnapshotKey === item.key
+                            ? "Đang phục hồi..."
+                            : "↺ Phục hồi về thời điểm này"}
+                        </button>
+                        <button
+                          className="ghost danger"
+                          style={{ fontSize: "11px", padding: "4px 8px", height: "auto" }}
+                          onClick={() => handleDeleteSnapshot(item)}
+                          title="Xóa bản snapshot này khỏi R2"
+                        >
+                          Xóa
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
@@ -553,6 +762,51 @@ export function AdminSettings({
                 onClick={handleResetPassword}
               >
                 {resetLoading ? "Đang lưu..." : "Xác nhận đặt lại"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal tạo snapshot sao lưu */}
+      {snapshotModalOpen && (
+        <div className="backdrop" onClick={() => !creatingSnapshot && setSnapshotModalOpen(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <i>💾</i>
+            <h2>Tạo bản snapshot sao lưu CSDL</h2>
+            <p>
+              Toàn bộ dữ liệu CSDL mua hàng, đề nghị thanh toán và lịch sử sẽ được kết xuất, nén Gzip và lưu an toàn vào <b>Cloudflare R2 Bucket</b>.
+            </p>
+            <label style={{ margin: "14px 0" }}>
+              Tên / Nhãn bản sao lưu
+              <input
+                type="text"
+                value={snapshotLabel}
+                onChange={(e) => setSnapshotLabel(e.target.value)}
+                placeholder="Ví dụ: Sao lưu trước khi đối soát..."
+                autoFocus
+                disabled={creatingSnapshot}
+              />
+            </label>
+            {snapshotMsg && (
+              <p style={{ color: "#e03131", fontSize: "13px", margin: "0 0 10px" }}>
+                {snapshotMsg}
+              </p>
+            )}
+            <div>
+              <button
+                className="ghost"
+                onClick={() => setSnapshotModalOpen(false)}
+                disabled={creatingSnapshot}
+              >
+                Hủy
+              </button>
+              <button
+                className="primary"
+                disabled={creatingSnapshot}
+                onClick={handleCreateSnapshot}
+              >
+                {creatingSnapshot ? "Đang nén & lưu lên R2..." : "Tạo & Lưu vào R2"}
               </button>
             </div>
           </div>

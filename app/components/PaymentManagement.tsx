@@ -88,7 +88,6 @@ export function PaymentManagement({
   // Hidden date picker ref
   const calendarPickerRef = useRef<HTMLInputElement>(null);
   const calendarCbRef = useRef<((dateVal: string) => void) | null>(null);
-  const restoreFileRef = useRef<HTMLInputElement>(null);
 
   // Keep activeRequestId valid
   useEffect(() => {
@@ -609,57 +608,6 @@ export function PaymentManagement({
     }, 150);
   };
 
-  // JSON Export & Restore
-  const handleExportJson = () => {
-    const data = {
-      format: "phenikaa-payment-offline-v1",
-      exported_at: new Date().toISOString(),
-      data: {
-        requests: paymentRequests,
-        payment_groups: paymentGroups,
-        print_template: paymentTemplate,
-      },
-    };
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `phenikaa-payment-backup-${new Date().toISOString().slice(0, 10)}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
-
-  const handleImportJson = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      try {
-        const parsed = JSON.parse(reader.result as string);
-        const d = parsed.data || parsed;
-        if (d && (d.requests || d.payment_groups)) {
-          if (
-            !confirm(
-              `Khôi phục dữ liệu từ tệp sao lưu (${d.requests?.length || 0} đề nghị thanh toán)?`
-            )
-          )
-            return;
-          onUpdateState({
-            paymentRequests: d.requests || [],
-            paymentGroups: d.payment_groups || [],
-            paymentTemplate: d.print_template || DEFAULT_PAYMENT_TEMPLATE,
-          });
-          alert("Khôi phục dữ liệu JSON thành công!");
-        } else {
-          alert("Tệp JSON không đúng định dạng dữ liệu thanh toán Phenikaa");
-        }
-      } catch (err: any) {
-        alert("Lỗi đọc file JSON: " + err.message);
-      }
-    };
-    reader.readAsText(file);
-    e.target.value = "";
-  };
 
   return (
     <section className={`content payment-management ${isWorkspaceExpanded ? "workspace-expanded" : ""}`}>
@@ -673,15 +621,6 @@ export function PaymentManagement({
             calendarCbRef.current(parseFlexibleDate(e.target.value));
           }
         }}
-      />
-
-      {/* Hidden file input for JSON restore */}
-      <input
-        type="file"
-        ref={restoreFileRef}
-        accept=".json"
-        style={{ display: "none" }}
-        onChange={handleImportJson}
       />
 
       {/* Top Heading */}
@@ -718,15 +657,6 @@ export function PaymentManagement({
               )}
               <button className="primary" onClick={() => setShowPOPickerModal(true)}>
                 ⚡ Lập từ PO
-              </button>
-              <button className="btn" onClick={handleExportJson}>
-                ↓ Sao lưu JSON
-              </button>
-              <button
-                className="btn"
-                onClick={() => restoreFileRef.current?.click()}
-              >
-                ↑ Khôi phục JSON
               </button>
               <button className="btn" onClick={() => handlePrintSingle()}>
                 ⎙ In phiếu đang xem
