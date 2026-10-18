@@ -104,26 +104,97 @@ export function PaymentManagement({
 
   // Filtered requests for DATA table (sắp xếp số thứ tự từ dưới lên trên, số to ở trên)
   const filteredRequests = useMemo(() => {
-    const q = normName(searchQuery);
+    const rawQ = searchQuery.trim();
+    const tokens = rawQ ? normName(rawQ).split(/\s+/).filter(Boolean) : [];
+
     const list = paymentRequests.filter((r) => {
+      // 1. Bộ lọc trạng thái
       if (statusFilter && r.status !== statusFilter) return false;
+
+      // 2. Bộ lọc nhóm
       if (groupFilter && String(r.group_id || "") !== String(groupFilter)) return false;
-      if (q) {
-        const text = [
+
+      // 3. Tìm kiếm theo từ khóa đa trường (NCC, STT, nội dung, hóa đơn, số tiền, nhóm, dòng chi tiết...)
+      if (tokens.length > 0) {
+        // Nhóm liên quan
+        const grp = paymentGroups.find(
+          (g) => String(g.id) === String(r.group_id) || (r.group_code && g.code === r.group_code)
+        );
+
+        // Nhà cung cấp liên quan
+        const supp = suppliers.find(
+          (s) =>
+            normName(s.name) === normName(r.payee_name) ||
+            (s.shortName && normName(s.shortName) === normName(r.payee_name)) ||
+            (r.beneficiary_id && s.id === r.beneficiary_id)
+        );
+
+        // Chi tiết từng dòng hàng hóa/hóa đơn
+        const linesText = (r.lines || [])
+          .map(
+            (l) =>
+              `${l.description || ""} ${l.invoice_no || ""} ${l.amount || ""} ${fmtMoney(l.amount)} ${l.note || ""}`
+          )
+          .join(" ");
+
+        // Xây dựng kho dữ liệu tìm kiếm toàn diện cho dòng đề nghị
+        const corpus = [
+          // STT
+          r.legacy_stt,
+          `stt ${r.legacy_stt || ""}`,
+          `stt${r.legacy_stt || ""}`,
+          r.id,
+          `stt ${r.id}`,
+          `#${r.legacy_stt || r.id}`,
+          // Nhà cung cấp & Thụ hưởng
           r.payee_name,
+          supp?.name,
+          supp?.shortName,
+          supp?.code,
+          // Nhóm thanh toán & Mã PO
           r.group_code,
+          grp?.code,
+          grp?.name,
+          // Nội dung & Hàng hóa
           r.description,
           r.item_name,
+          linesText,
+          // Số hóa đơn & Ngày
           r.invoice_no,
-          r.legacy_stt,
-          r.bank,
+          r.invoice_date,
+          r.request_date,
+          // Số tiền & Tiền tệ
+          String(r.amount || ""),
+          fmtMoney(r.amount),
+          r.currency,
+          // Loại thanh toán & Trạng thái
+          r.payment_type,
+          r.status,
+          r.doc_supplement,
+          (r.documents || []).join(" "),
+          // Ngân hàng & Tài khoản
+          r.address,
           r.account_no,
-          r.amount,
+          (r.account_no || "").replace(/[\s.-]/g, ""),
+          r.bank,
           r.created_by_name,
         ]
-          .join(" ")
-          .toLowerCase();
-        if (!normName(text).includes(q)) return false;
+          .filter(Boolean)
+          .join(" ");
+
+        const normCorpus = normName(corpus);
+        const corpusDigits = corpus.replace(/\D/g, "");
+
+        // Mọi token người dùng gõ đều phải được tìm thấy (hỗ trợ gõ nhiều từ cách nhau dấu cách)
+        const allMatched = tokens.every((token) => {
+          if (normCorpus.includes(token)) return true;
+          // Nếu token có chữ số (số tiền có dấu chấm, số tài khoản, số hóa đơn...)
+          const tokenDigits = token.replace(/\D/g, "");
+          if (tokenDigits && corpusDigits.includes(tokenDigits)) return true;
+          return false;
+        });
+
+        if (!allMatched) return false;
       }
       return true;
     });
@@ -134,7 +205,16 @@ export function PaymentManagement({
       if (nb !== na) return nb - na;
       return (Number(b.id) || 0) - (Number(a.id) || 0);
     });
-  }, [paymentRequests, searchQuery, statusFilter, groupFilter]);
+  }, [paymentRequests, searchQuery, statusFilter, groupFilter, paymentGroups, suppliers]);
+
+  // Cập nhật activeRequestId hiển thị mục đầu tiên khi kết quả tìm kiếm thay đổi
+  useEffect(() => {
+    if (filteredRequests.length > 0) {
+      if (!filteredRequests.some((r) => r.id === activeRequestId)) {
+        setActiveRequestId(filteredRequests[0].id);
+      }
+    }
+  }, [filteredRequests, activeRequestId]);
 
   // Suggestion lists for autocomplete datalists
   const bankSuggestions = useMemo(() => {
@@ -636,34 +716,6 @@ export function PaymentManagement({
               : "Lập, theo dõi và phê duyệt đề nghị thanh toán chuyển khoản Phenikaa. Dùng chung danh mục Nhà cung cấp và Cài đặt của hệ thống mua hàng."}
           </p>
         </div>
-        <div className="actions">
-          <button
-            className="payment-btn"
-            onClick={() => setUserMobileToggle(!isCardView)}
-            title="Chuyển đổi giao diện giữa dạng bảng tính desktop và dạng thẻ trực quan"
-          >
-            {isCardView ? "📊 Xem dạng bảng tính" : "🗂️ Xem dạng thẻ"}
-          </button>
-          {!isPhoneScreen && (
-            <>
-              {isCardView && (
-                <button
-                  className="payment-btn btn-primary"
-                  onClick={handleAddNewFromCardView}
-                  title="Thêm một đề nghị thanh toán mới trực tiếp trong giao diện thẻ"
-                >
-                  ＋ Thêm đề nghị mới
-                </button>
-              )}
-              <button className="primary" onClick={() => setShowPOPickerModal(true)}>
-                ⚡ Lập từ PO
-              </button>
-              <button className="btn" onClick={() => handlePrintSingle()}>
-                ⎙ In phiếu đang xem
-              </button>
-            </>
-          )}
-        </div>
       </div>
 
       {/* Toolbar */}
@@ -671,6 +723,7 @@ export function PaymentManagement({
         {!isPhoneScreen && (
           <>
             <button
+              type="button"
               className="payment-btn btn-primary"
               onClick={isCardView ? handleAddNewFromCardView : handleAddRequestRow}
               title={isCardView ? "Thêm một đề nghị thanh toán mới và chỉnh sửa" : "Thêm một dòng đề nghị thanh toán mới vào bảng"}
@@ -678,26 +731,68 @@ export function PaymentManagement({
               ＋ Thêm đề nghị {isCardView ? "mới" : "(thêm dòng)"}
             </button>
 
-            {!isCardView && (
-              <button
-                type="button"
-                className={`btn-workspace-toggle ${isWorkspaceExpanded ? "active" : ""}`}
-                onClick={() => setIsWorkspaceExpanded(!isWorkspaceExpanded)}
-                title={isWorkspaceExpanded ? "Thu gọn về giao diện chuẩn" : "Mở rộng không gian làm việc (giống So sánh báo giá)"}
-              >
-                <span>{isWorkspaceExpanded ? "🗗" : "⛶"}</span>
-                {isWorkspaceExpanded ? "Thu gọn giao diện" : "Mở rộng không gian"}
-              </button>
-            )}
+            <button
+              type="button"
+              className="payment-btn"
+              onClick={() => setShowPOPickerModal(true)}
+              title="Lập đề nghị thanh toán từ đơn đặt hàng PO"
+              style={{ background: "#f8fafc", borderColor: "#cbd5e1" }}
+            >
+              ⚡ Lập từ PO
+            </button>
+
+            <button
+              type="button"
+              className={`btn-workspace-toggle ${isWorkspaceExpanded ? "active" : ""}`}
+              onClick={() => setIsWorkspaceExpanded(!isWorkspaceExpanded)}
+              title={isWorkspaceExpanded ? "Thu gọn về giao diện chuẩn" : "Mở rộng không gian làm việc (giống So sánh báo giá)"}
+            >
+              <span>{isWorkspaceExpanded ? "🗗" : "⛶"}</span>
+              {isWorkspaceExpanded ? "Thu gọn giao diện" : "Mở rộng không gian"}
+            </button>
+
+            <button
+              type="button"
+              className="payment-btn"
+              onClick={() => setUserMobileToggle(!isCardView)}
+              title="Chuyển đổi giao diện giữa dạng bảng tính desktop và dạng thẻ trực quan"
+            >
+              {isCardView ? "📊 Xem dạng bảng tính" : "🗂️ Xem dạng thẻ"}
+            </button>
           </>
         )}
 
-        <input
-          placeholder="Tìm NCC, STT, nội dung, hóa đơn..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          style={{ width: isPhoneScreen ? "100%" : "230px" }}
-        />
+        <div style={{ position: "relative", display: "inline-flex", alignItems: "center", width: isPhoneScreen ? "100%" : "250px" }}>
+          <input
+            placeholder="Tìm NCC, STT, nội dung, hóa đơn..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            style={{ width: "100%", paddingRight: searchQuery ? "28px" : "10px" }}
+          />
+          {searchQuery && (
+            <button
+              type="button"
+              onClick={() => setSearchQuery("")}
+              title="Xóa tìm kiếm"
+              style={{
+                position: "absolute",
+                right: "6px",
+                top: "50%",
+                transform: "translateY(-50%)",
+                background: "none",
+                border: "none",
+                color: "#94a3b8",
+                cursor: "pointer",
+                padding: "2px 6px",
+                fontSize: "13px",
+                lineHeight: "1",
+              }}
+            >
+              ✕
+            </button>
+          )}
+        </div>
+
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
@@ -763,9 +858,6 @@ export function PaymentManagement({
 
         {!isPhoneScreen && (
           <>
-            <button className="payment-btn" onClick={() => handlePrintSingle()}>
-              ⎙ In phiếu đang xem
-            </button>
             {!isCardView && (
               <>
                 <button className="payment-btn" onClick={handlePrintChecked}>
