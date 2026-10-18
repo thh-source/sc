@@ -1,4 +1,4 @@
-﻿import { PaymentPrintTemplate, PaymentRequestEntry } from "./types";
+import { PaymentPrintTemplate, PaymentRequestEntry } from "./types";
 
 export const PAID_STATUSES = [
   "Done",
@@ -135,7 +135,9 @@ export function normName(str: string): string {
     .toLowerCase()
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
-    .replace(/đ/g, "d")
+    .replace(/[đĐ]/g, "d")
+    .replace(/["'“”‘’«»`´]/g, "")
+    .replace(/[[\](){},;:!?/\\#@$%^&*_+~=<>|-]/g, " ")
     .replace(/\s+/g, " ")
     .trim();
 }

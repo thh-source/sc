@@ -178,6 +178,13 @@ export function PaymentManagement({
           (r.account_no || "").replace(/[\s.-]/g, ""),
           r.bank,
           r.created_by_name,
+          // Người đề nghị / Người tạo từ template mẫu (phòng trường hợp bản ghi chưa lưu created_by_name)
+          paymentTemplate?.default_requester_name,
+          paymentTemplate?.sign4_name,
+          `người tạo ${r.created_by_name || paymentTemplate?.default_requester_name || ""}`,
+          `người đề nghị ${r.created_by_name || paymentTemplate?.default_requester_name || ""}`,
+          `ncc ${r.payee_name || ""}`,
+          `thụ hưởng ${r.payee_name || ""}`,
         ]
           .filter(Boolean)
           .join(" ");
@@ -205,7 +212,7 @@ export function PaymentManagement({
       if (nb !== na) return nb - na;
       return (Number(b.id) || 0) - (Number(a.id) || 0);
     });
-  }, [paymentRequests, searchQuery, statusFilter, groupFilter, paymentGroups, suppliers]);
+  }, [paymentRequests, searchQuery, statusFilter, groupFilter, paymentGroups, suppliers, paymentTemplate]);
 
   // Cập nhật activeRequestId hiển thị mục đầu tiên khi kết quả tìm kiếm thay đổi
   useEffect(() => {
