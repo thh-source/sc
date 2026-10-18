@@ -205,8 +205,8 @@
 
 .payment-table-scroll {
   overflow: auto;
-  max-height: calc(100vh - 280px);
-  min-height: 480px;
+  max-height: calc(100vh - 210px);
+  min-height: 520px;
 }
 
 /* Grid styling */

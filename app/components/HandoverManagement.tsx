@@ -4,7 +4,6 @@ import React, { useState, useMemo, useRef } from "react";
 import { createPortal } from "react-dom";
 import { PaymentHandoverItem } from "../types";
 import {
-  fmtMoney,
   normName,
   localToday,
   parsePrintDate,
@@ -96,26 +95,7 @@ export function HandoverManagement({
     return list.sort((a, b) => (Number(b.id) || 0) - (Number(a.id) || 0));
   }, [paymentHandovers, handoverDeptFilter, handoverSearch]);
 
-  // Metric summaries
-  const metrics = useMemo(() => {
-    let totalDocQty = 0;
-    let totalPassQty = 0;
-    let totalFailQty = 0;
 
-    for (const h of paymentHandovers) {
-      totalDocQty += Number(String(h.quantity_doc || 0).replace(/,/g, "")) || 0;
-      totalPassQty += Number(String(h.quantity_pass || 0).replace(/,/g, "")) || 0;
-      totalFailQty += Number(String(h.quantity_fail || 0).replace(/,/g, "")) || 0;
-    }
-
-    return {
-      totalItems: paymentHandovers.length,
-      deptCount: handoverDepts.length,
-      totalDocQty,
-      totalPassQty,
-      totalFailQty,
-    };
-  }, [paymentHandovers, handoverDepts]);
 
   // Open calendar
   const openCalendar = (currentVal: string, cb: (dateVal: string) => void) => {
@@ -353,29 +333,7 @@ export function HandoverManagement({
         </div>
       </div>
 
-      {/* Metric Summary Cards */}
-      <div className="payment-summary-cards handover-metrics-cards">
-        <div className="payment-card card-primary">
-          <div className="payment-card-label">Tổng danh mục vật tư</div>
-          <div className="payment-card-value">{metrics.totalItems}</div>
-          <div className="payment-card-sub">{metrics.deptCount} phòng ban tiếp nhận</div>
-        </div>
-        <div className="payment-card card-success">
-          <div className="payment-card-label">Tổng SL kiểm tra Đạt</div>
-          <div className="payment-card-value">{fmtMoney(metrics.totalPassQty)}</div>
-          <div className="payment-card-sub">Theo kết quả nghiệm thu thực tế</div>
-        </div>
-        <div className="payment-card card-info">
-          <div className="payment-card-label">Tổng SL theo chứng từ</div>
-          <div className="payment-card-value">{fmtMoney(metrics.totalDocQty)}</div>
-          <div className="payment-card-sub">Căn cứ hóa đơn & phiếu giao</div>
-        </div>
-        <div className="payment-card card-warning">
-          <div className="payment-card-label">SL không đạt / chờ xử lý</div>
-          <div className="payment-card-value">{fmtMoney(metrics.totalFailQty)}</div>
-          <div className="payment-card-sub">Hỏng hóc, sai quy cách</div>
-        </div>
-      </div>
+
 
       {/* Main Toolbar */}
       <div className="payment-toolbar">

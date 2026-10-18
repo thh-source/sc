@@ -115,34 +115,6 @@ export function PaymentManagement({
     [paymentRequests, activeRequestId]
   );
 
-  // Metric summaries
-  const metrics = useMemo(() => {
-    let totalPaidVND = 0;
-    let totalPendingVND = 0;
-    let totalCount = paymentRequests.length;
-    let paidCount = 0;
-
-    for (const r of paymentRequests) {
-      const amt = Number(String(r.amount || 0).replace(/,/g, "")) || 0;
-      const cur = String(r.currency || "VND").toUpperCase();
-      if (cur === "VND") {
-        if (PAID_STATUSES.includes(r.status)) {
-          totalPaidVND += amt;
-          paidCount += 1;
-        } else {
-          totalPendingVND += amt;
-        }
-      }
-    }
-
-    return {
-      totalCount,
-      paidCount,
-      totalPaidVND,
-      totalPendingVND,
-    };
-  }, [paymentRequests]);
-
   // Filtered requests for DATA table (sắp xếp số thứ tự từ dưới lên trên, số to ở trên)
   const filteredRequests = useMemo(() => {
     const q = normName(searchQuery);
@@ -624,24 +596,7 @@ export function PaymentManagement({
         </div>
       </div>
 
-      {/* Metric Summary Cards */}
-      <div className="payment-summary-cards">
-        <div className="payment-card card-primary">
-          <div className="payment-card-label">Tổng đề nghị thanh toán</div>
-          <div className="payment-card-value">{metrics.totalCount}</div>
-          <div className="payment-card-sub">{metrics.paidCount} phiếu đã thanh toán xong</div>
-        </div>
-        <div className="payment-card card-success">
-          <div className="payment-card-label">Đã thanh toán (VND)</div>
-          <div className="payment-card-value">{fmtMoney(metrics.totalPaidVND)} ₫</div>
-          <div className="payment-card-sub">Trạng thái Done & Đã đi tiền</div>
-        </div>
-        <div className="payment-card card-warning">
-          <div className="payment-card-label">Chờ đi tiền / giải ngân</div>
-          <div className="payment-card-value">{fmtMoney(metrics.totalPendingVND)} ₫</div>
-          <div className="payment-card-sub">Đang trình ký & chờ ngân hàng</div>
-        </div>
-      </div>
+
 
       {/* Toolbar */}
       <div className="payment-toolbar">
