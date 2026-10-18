@@ -19,7 +19,7 @@ const hex = (bytes: ArrayBuffer | Uint8Array) =>
   [...new Uint8Array(bytes instanceof ArrayBuffer ? bytes : bytes.buffer)]
     .map((b) => b.toString(16).padStart(2, "0"))
     .join("");
-const randomHex = (size = 32) => {
+export const randomHex = (size = 32) => {
   const bytes = new Uint8Array(size);
   crypto.getRandomValues(bytes);
   return hex(bytes);
@@ -39,6 +39,12 @@ export async function ensureAuthSchema() {
     ),
     DB.prepare(
       "CREATE INDEX IF NOT EXISTS sessions_expiry_idx ON sessions(expires_at)",
+    ),
+    DB.prepare(
+      "CREATE TABLE IF NOT EXISTS audit_logs (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, action TEXT NOT NULL, entity_type TEXT NOT NULL, entity_id TEXT NOT NULL, created_at TEXT NOT NULL)",
+    ),
+    DB.prepare(
+      "CREATE INDEX IF NOT EXISTS audit_logs_created_idx ON audit_logs(created_at)",
     ),
   ]);
 }
@@ -126,12 +132,47 @@ export async function verifyLogin(username: string, password: string) {
   if (!row || !row.active) return null;
   const candidate = await hashPassword(password, row.passwordSalt);
   if (candidate !== row.passwordHash) return null;
+  recordAudit("LOGIN", "user", `${row.username} (${row.displayName})`).catch(() => {});
   return {
     id: row.id,
     username: row.username,
     displayName: row.displayName,
     role: row.role,
   };
+}
+
+export async function recordAudit(
+  action: string,
+  entityType: string,
+  entityId: string,
+) {
+  try {
+    const env = await runtime();
+    const now = new Date().toISOString();
+    await env.DB.prepare(
+      "INSERT INTO audit_logs (action, entity_type, entity_id, created_at) VALUES (?, ?, ?, ?)",
+    )
+      .bind(action, entityType, entityId, now)
+      .run();
+  } catch (e) {
+    console.error("Lỗi ghi audit log:", e);
+  }
+}
+
+export async function cleanupExpiredSessions(): Promise<number> {
+  try {
+    const env = await runtime();
+    const now = new Date().toISOString();
+    const res = await env.DB.prepare(
+      "DELETE FROM sessions WHERE expires_at <= ?",
+    )
+      .bind(now)
+      .run();
+    return res.meta?.changes || 0;
+  } catch (e) {
+    console.error("Lỗi dọn dẹp sessions:", e);
+    return 0;
+  }
 }
 
 export async function createSession(userId: string) {
@@ -146,6 +187,7 @@ export async function createSession(userId: string) {
   )
     .bind(tokenHash, userId, created.toISOString(), expires.toISOString())
     .run();
+  cleanupExpiredSessions().catch(() => {});
   return { token, expires };
 }
 
@@ -180,8 +222,19 @@ export async function removeCurrentSession() {
     token = jar.get("mh_session")?.value;
   if (token) {
     const env = await runtime();
+    const tokenHash = await hashToken(token);
+    try {
+      const session = await env.DB.prepare(
+        "SELECT u.username, u.display_name AS displayName FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=?",
+      )
+        .bind(tokenHash)
+        .first<{ username: string; displayName: string }>();
+      if (session) {
+        await recordAudit("LOGOUT", "user", `${session.username} (${session.displayName})`);
+      }
+    } catch {}
     await env.DB.prepare("DELETE FROM sessions WHERE token_hash=?")
-      .bind(await hashToken(token))
+      .bind(tokenHash)
       .run();
   }
   jar.delete("mh_session");

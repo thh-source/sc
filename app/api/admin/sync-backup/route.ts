@@ -1,4 +1,4 @@
-import { getCurrentUser } from "../../../auth";
+import { getCurrentUser, recordAudit } from "../../../auth";
 
 async function bindings() {
   return (await import("cloudflare:workers")).env;
@@ -70,6 +70,13 @@ export async function POST(request: Request) {
       .bind(payloadStr, id)
       .run();
   }
+
+  const actorName = user ? `${user.username} (${user.displayName})` : "Sync Token";
+  await recordAudit(
+    "SYNC_BACKUP",
+    "system",
+    `${actorName}: Đồng bộ CSDL (${paymentRequests?.length || 0} yêu cầu TT)`,
+  );
 
   return Response.json({
     ok: true,

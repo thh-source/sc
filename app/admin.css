@@ -338,3 +338,45 @@
     grid-column: auto;
   }
 }
+
+.audit-badge {
+  display: inline-block;
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+.audit-login, .audit-unlock_user {
+  background: #eaf8ef;
+  color: #1e7e34;
+}
+.audit-logout {
+  background: #f1f3f5;
+  color: #6c757d;
+}
+.audit-create_user, .audit-sync_backup {
+  background: #eaf3ff;
+  color: #1971c2;
+}
+.audit-lock_user {
+  background: #fff3e6;
+  color: #d9480f;
+}
+.audit-reset_password {
+  background: #f3f0ff;
+  color: #6741d9;
+}
+.audit-delete_user {
+  background: #ffe3e3;
+  color: #c92a2a;
+}
+button.danger {
+  color: #e03131 !important;
+}
+button.danger:hover {
+  background: #ffe3e3 !important;
+  border-color: #ffa8a8 !important;
+}
+
