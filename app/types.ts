@@ -164,7 +164,6 @@ export type View =
   | "po-list"
   | "po-detail"
   | "contracts"
-  | "project-contracts"
   | "payment"
   | "handover"
   | "print-templates"
@@ -307,7 +306,7 @@ export type StoredState = {
   poCart: POCartLine[];
   quotesByPr: Record<number, Quote>;
   quoteSupplierIdsByPr: Record<number, number[]>;
-  projectContracts: import("./ProjectContractManagement").ProjectContractWorkspace;
+  projectContracts?: any;
   quoteCompareMode?: QuoteMode;
   purchaseHistory?: PurchaseHistory[];
   purchaseHistoryImportIds?: string[];

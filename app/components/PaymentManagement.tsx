@@ -454,7 +454,7 @@ export function PaymentManagement({
 
     if (parsedRows.length > 0) {
       e.preventDefault();
-      onUpdateRequests([...parsedRows, ...paymentRequests]);
+      onUpdateState({ paymentRequests: [...parsedRows, ...paymentRequests] });
       alert(`Đã dán trực tiếp ${parsedRows.length} đề nghị thanh toán từ Excel vào đầu bảng!`);
     }
   };

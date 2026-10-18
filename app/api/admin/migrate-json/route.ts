@@ -1,4 +1,4 @@
-import { getChatGPTUser } from "../../../chatgpt-auth";
+import { getCurrentUser } from "../../../auth";
 import { StoredState } from "../../../types";
 
 async function bindings() {
@@ -6,7 +6,7 @@ async function bindings() {
 }
 
 export async function POST(request: Request) {
-  const user = await getChatGPTUser();
+  const user = await getCurrentUser();
   if (!user || user.role !== "master") {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }

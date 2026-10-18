@@ -1,7 +1,6 @@
-import React, { useState, useMemo, useEffect, Fragment } from "react";
-import { Item, Supplier, PurchaseHistory, Quote, PR, PO, ColumnKey, SortState, TrashItem, View } from "../types";
-import { fmt, dateVN, makeId, quoteAmount, quoteVatRate, quoteBeforeVat, quoteAfterVat, quoteComparePrice, priceStats, emptyItem, applyTools, reorder, BASE_COLUMNS } from "../utils";
-import { AutoGrowTextarea } from "./AutoGrowTextarea";
+import React, { useState, useMemo, Fragment } from "react";
+import { Supplier, PurchaseHistory } from "../types";
+import { fmt, dateVN, priceStats } from "../utils";
 import { BANK_SUGGESTIONS } from "../payment-utils";
 
 export function SupplierManagement({

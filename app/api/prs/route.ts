@@ -1,11 +1,11 @@
-import { getChatGPTUser } from "../../chatgpt-auth";
+import { getCurrentUser } from "../../auth";
 import { resolveWorkspace } from "../../state-store";
 import { getDb } from "../../../db";
 import { prs, prItems } from "../../../db/schema";
 import { eq, inArray } from "drizzle-orm";
 
 export async function GET(request: Request) {
-  const user = await getChatGPTUser();
+  const user = await getCurrentUser();
   if (!user) return Response.json({ error: "Unauthorized" }, { status: 401 });
   
   const workspaceId = await resolveWorkspace(user, new URL(request.url).searchParams.get("workspace"));
@@ -36,7 +36,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const user = await getChatGPTUser();
+  const user = await getCurrentUser();
   if (!user) return Response.json({ error: "Unauthorized" }, { status: 401 });
   
   const workspaceId = await resolveWorkspace(user, new URL(request.url).searchParams.get("workspace"));

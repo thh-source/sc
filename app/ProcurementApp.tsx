@@ -1,27 +1,21 @@
 "use client";
 import {
   ChangeEvent,
-  Fragment,
   useCallback,
   useEffect,
-  useLayoutEffect,
   useMemo,
   useRef,
   useState,
 } from "react";
 import type React from "react";
 import DocumentManager from "./DocumentManager";
-import ProjectContractManagement, {
-  type ProjectContractWorkspace,
-} from "./ProjectContractManagement";
 import SmartTableTools from "./SmartTableTools";
-import VisualTimeline from "./VisualTimeline";
 import "./vat-quote.css";
 
 import { PaymentManagement } from "./components/PaymentManagement";
 import { HandoverManagement } from "./components/HandoverManagement";
 import { PrintTemplatesManagement } from "./components/PrintTemplatesManagement";
-import { DEFAULT_PAYMENT_TEMPLATE, BANK_SUGGESTIONS } from "./payment-utils";
+import { BANK_SUGGESTIONS } from "./payment-utils";
 import {
   defaultPaymentGroups,
   defaultPaymentRequests,
@@ -29,21 +23,17 @@ import {
   defaultPaymentBeneficiaries,
   defaultPaymentTemplate,
 } from "./defaultPaymentData";
-import { Item, Supplier, PurchaseHistory, QuoteMode, QuoteEntry, Quote, PR, POAllocation, POItem, POCartLine, ApprovalRow, ApprovalDraft, PODoc, Payment, PO, TrashItem, View, ColumnKey, SortState, StoredState, PaymentRequestEntry, PaymentGroup, PaymentBeneficiary, PaymentHandoverItem, PaymentPrintTemplate } from "./types";
-import { BASE_COLUMNS, valueOf, reorder, applyTools, makeId, emptyItem, fmt, dateVN, DEFAULT_VAT_RATE, quoteDefaults, quoteAmount, quoteVatRate, quoteBeforeVat, quoteAfterVat, quoteComparePrice, priceStats, mergeHistorySeed, PurchaseHistorySeed, excelNumber, emptyPR, emptyPO, generateShortName } from "./utils";
+import { Item, Supplier, PurchaseHistory, QuoteMode, QuoteEntry, Quote, PR, POItem, POCartLine, ApprovalRow, ApprovalDraft, PODoc, PO, TrashItem, View, ColumnKey, SortState, PaymentRequestEntry, PaymentGroup, PaymentBeneficiary, PaymentHandoverItem, PaymentPrintTemplate } from "./types";
+import { BASE_COLUMNS, reorder, applyTools, makeId, emptyItem, fmt, dateVN, DEFAULT_VAT_RATE, quoteDefaults, quoteBeforeVat, quoteAfterVat, quoteComparePrice, mergeHistorySeed, PurchaseHistorySeed, excelNumber, emptyPR, emptyPO, generateShortName } from "./utils";
 import { items0, suppliers0, purchaseHistory0, quotes0, prs0, pos0, HISTORY_SEED_ID } from "./seed";
-import { AutoGrowTextarea } from "./components/AutoGrowTextarea";
 import { AdvancedItemsTable } from "./components/AdvancedItemsTable";
-import { DraftItemsTable } from "./components/DraftItemsTable";
 import { ProductCatalog } from "./components/ProductCatalog";
 import { CreatePRCatalog } from "./components/CreatePRCatalog";
 import { ContractManagement } from "./components/ContractManagement";
-import { EditableCell } from "./components/EditableCell";
 import { ApprovalSheet } from "./components/ApprovalSheet";
 
 import { Dashboard } from "./components/Dashboard";
 import { AdminSettings } from "./components/AdminSettings";
-import { AdminUsage } from "./components/AdminUsage";
 import { SupplierManagement } from "./components/SupplierManagement";
 import { POList } from "./components/POList";
 import { PODetail } from "./components/PODetail";
@@ -107,8 +97,6 @@ export default function ProcurementApp({
   const [poCart, setPoCart] = useState<POCartLine[]>([]),
     [poCartOpen, setPoCartOpen] = useState(false);
   const [approvalDraft, setApprovalDraft] = useState<ApprovalDraft | null>(null);
-  const [projectContracts, setProjectContracts] =
-    useState<ProjectContractWorkspace>({ projects: [] });
   const [trash, setTrash] = useState<TrashItem[]>([]),
     [hiddenContractIds, setHiddenContractIds] = useState<number[]>([]),
     [deleteTarget, setDeleteTarget] = useState<{
@@ -179,7 +167,6 @@ export default function ProcurementApp({
         poCart,
         quotesByPr,
         quoteSupplierIdsByPr,
-        projectContracts,
         quoteCompareMode,
         purchaseHistory,
         purchaseHistoryImportIds,
@@ -252,7 +239,6 @@ export default function ProcurementApp({
         poCart,
         quotesByPr,
         quoteSupplierIdsByPr,
-        projectContracts,
         quoteCompareMode,
         purchaseHistory,
         purchaseHistoryImportIds,
@@ -263,7 +249,7 @@ export default function ProcurementApp({
         paymentTemplate,
       },
     };
-  }, [hiddenContractIds, items, paymentBeneficiaries, paymentGroups, paymentHandovers, paymentRequests, paymentTemplate, poCart, pos, products, projectContracts, prs, purchaseHistory, purchaseHistoryImportIds, quoteCompareMode, quoteSupplierIds, quoteSupplierIdsByPr, quotes, quotesByPr, suppliers, trash, workspaceId]);
+  }, [hiddenContractIds, items, paymentBeneficiaries, paymentGroups, paymentHandovers, paymentRequests, paymentTemplate, poCart, pos, products, prs, purchaseHistory, purchaseHistoryImportIds, quoteCompareMode, quoteSupplierIds, quoteSupplierIdsByPr, quotes, quotesByPr, suppliers, trash, workspaceId]);
   useEffect(() => {
     if (
       reportMode ||
@@ -360,7 +346,6 @@ export default function ProcurementApp({
           );
           setHiddenContractIds(data.hiddenContractIds || []);
           setPoCart(data.poCart || []);
-          setProjectContracts(data.projectContracts || { projects: [] });
           setQuoteCompareMode(data.quoteCompareMode || "before-vat");
           setPurchaseHistory(data.purchaseHistory || purchaseHistory0);
           setPurchaseHistoryImportIds(data.purchaseHistoryImportIds || []);
@@ -400,7 +385,6 @@ export default function ProcurementApp({
           setTrash([]);
           setHiddenContractIds([]);
           setPoCart([]);
-          setProjectContracts({ projects: [] });
           setQuoteCompareMode("before-vat");
           setPurchaseHistory(purchaseHistory0);
           setPurchaseHistoryImportIds([]);
@@ -439,7 +423,6 @@ export default function ProcurementApp({
     trash,
     hiddenContractIds,
     poCart,
-    projectContracts,
     purchaseHistory,
     purchaseHistoryImportIds,
     workspaceId,
@@ -526,7 +509,6 @@ export default function ProcurementApp({
           poCart,
           quotesByPr,
           quoteSupplierIdsByPr,
-          projectContracts,
           purchaseHistory,
           purchaseHistoryImportIds,
           paymentRequests,
@@ -1288,7 +1270,6 @@ export default function ProcurementApp({
                 (view === "payment" && n.name === "Thanh toán") ||
                 (view === "handover" && n.name === "Bàn giao nội bộ") ||
                 (view === "print-templates" && n.name === "Mẫu phiếu in") ||
-                (view === "project-contracts" && n.name === "HĐ dự án") ||
                 (view === "products" && n.name === "Hàng hóa") ||
                 (view === "suppliers" && n.name === "Nhà cung cấp") ||
                 (view === "trash" && n.name.startsWith("Thùng rác")) ||
@@ -1459,12 +1440,6 @@ export default function ProcurementApp({
               if (patch.paymentTemplate !== undefined) setPaymentTemplate(patch.paymentTemplate);
             }}
             readOnly={reportMode}
-          />
-        )}
-        {view === "project-contracts" && !reportMode && (
-          <ProjectContractManagement
-            value={projectContracts}
-            onChange={setProjectContracts}
           />
         )}
         {view === "approval" && approvalDraft && !reportMode && (

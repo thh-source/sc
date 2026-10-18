@@ -1,8 +1,7 @@
-import React, { useState, useMemo, useEffect, Fragment } from "react";
-import { Item, Supplier, PurchaseHistory, Quote, PR, PO, ColumnKey, SortState, TrashItem, View } from "../types";
-import { fmt, dateVN, makeId, quoteAmount, quoteVatRate, quoteBeforeVat, quoteAfterVat, quoteComparePrice, priceStats, emptyItem, applyTools, reorder, BASE_COLUMNS, valueOf } from "../utils";
+import React, { useState } from "react";
+import { Item, ColumnKey, SortState } from "../types";
+import { fmt, reorder, BASE_COLUMNS, valueOf } from "../utils";
 import { AutoGrowTextarea } from "./AutoGrowTextarea";
-// Add other imports as necessary
 
 export function DraftItemsTable({
   items,

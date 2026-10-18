@@ -1,8 +1,7 @@
-import React, { useState, useMemo, useEffect, Fragment } from "react";
-import { Item, Supplier, PurchaseHistory, Quote, PR, PO, ColumnKey, SortState, TrashItem, View, QuoteEntry, QuoteMode } from "../types";
-import { fmt, dateVN, makeId, quoteAmount, quoteVatRate, quoteBeforeVat, quoteAfterVat, quoteComparePrice, priceStats, emptyItem, applyTools, reorder, BASE_COLUMNS, valueOf, quoteDefaults } from "../utils";
+import React, { useState, useMemo } from "react";
+import { Item, Supplier, PurchaseHistory, Quote, ColumnKey, SortState, QuoteEntry, QuoteMode } from "../types";
+import { fmt, priceStats, reorder, BASE_COLUMNS, valueOf, quoteDefaults, quoteBeforeVat, quoteAfterVat } from "../utils";
 import { AutoGrowTextarea } from "./AutoGrowTextarea";
-// Add other imports as necessary
 
 export function AdvancedItemsTable({
   items,

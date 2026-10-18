@@ -150,29 +150,6 @@ export function HandoverManagement({
     }
   };
 
-  // Handover actions
-  const handleLoadExcelHandovers = async () => {
-    if (readOnly) return;
-    try {
-      const res = await fetch("/handovers-data.json");
-      if (!res.ok) throw new Error("Không thể tải file dữ liệu");
-      const items: PaymentHandoverItem[] = await res.json();
-      if (!Array.isArray(items) || items.length === 0) return;
-
-      if (
-        !confirm(
-          `Bạn có muốn nạp ${items.length} danh mục vật tư Phenikaa gốc vào danh sách Bàn giao nội bộ?`
-        )
-      ) {
-        return;
-      }
-
-      triggerUpdateHandovers(items);
-      alert(`Đã nạp thành công ${items.length} vật tư bàn giao!`);
-    } catch (e: any) {
-      alert("Lỗi nạp dữ liệu: " + e.message);
-    }
-  };
 
   const handleAddHandoverRow = () => {
     if (readOnly) return;

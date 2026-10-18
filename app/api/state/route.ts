@@ -1,4 +1,4 @@
-import { getChatGPTUser } from "../../chatgpt-auth";
+﻿import { getCurrentUser } from "../../auth";
 import { resolveWorkspace, stateId } from "../../state-store";
 import { getDb } from "../../../db";
 import { appState, suppliers, products, prs, prItems, quotes, pos, poItems, poAllocations, poDocs, poPayments, purchaseHistory, trashItems } from "../../../db/schema";
@@ -9,7 +9,7 @@ async function bindings() {
 }
 
 export async function GET(request: Request) {
-  const user = await getChatGPTUser();
+  const user = await getCurrentUser();
   if (!user) return Response.json({ error: "Không có quyền truy cập" }, { status: 401 });
 
   const workspaceId = await resolveWorkspace(user, new URL(request.url).searchParams.get("workspace"));
@@ -103,14 +103,14 @@ export async function GET(request: Request) {
 }
 
 export async function PUT(request: Request) {
-  const user = await getChatGPTUser();
-  if (!user) return Response.json({ error: "Khng c quy?n truy c?p" }, { status: 401 });
+  const user = await getCurrentUser();
+  if (!user) return Response.json({ error: "Không có quyền truy cập" }, { status: 401 });
 
   let data;
   try {
     data = await request.json();
   } catch (e) {
-    return Response.json({ error: "JSON kh�ng h?p l?" }, { status: 400 });
+    return Response.json({ error: "JSON không hợp lệ" }, { status: 400 });
   }
 
   const workspaceId = await resolveWorkspace(user, new URL(request.url).searchParams.get("workspace"));
