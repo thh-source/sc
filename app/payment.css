@@ -1314,12 +1314,121 @@ table.payment-grid th.pcol-frozen {
 .m-card-actions {
   display: flex;
   gap: 8px;
-  margin-top: 6px;
+  margin-top: 10px;
 }
 
-.m-card-actions button {
-  padding: 5px 10px;
-  font-size: 12px;
+.m-btn-mark-paid {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 10px 16px;
+  border-radius: 8px;
+  border: 1px solid #16a34a;
+  background: #16a34a;
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 4px rgba(22, 163, 74, 0.2);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.m-btn-mark-paid:active {
+  transform: scale(0.98);
+  background: #15803d;
+}
+
+.m-btn-mark-paid.is-done {
+  background: #ecfdf5;
+  color: #15803d;
+  border: 1.5px solid #86efac;
+  box-shadow: none;
+}
+
+.m-btn-mark-paid.is-done:active {
+  background: #dcfce7;
+}
+
+.m-btn-mark-paid .m-btn-icon {
+  font-size: 15px;
+  font-weight: 900;
+}
+
+.m-btn-mark-paid small {
+  font-size: 11px;
+  font-weight: 500;
+  color: #64748b;
+  margin-left: 4px;
+}
+
+.payment-toolbar.payment-toolbar-mobile {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+  padding: 10px;
+}
+
+.payment-toolbar.payment-toolbar-mobile input,
+.payment-toolbar.payment-toolbar-mobile select {
+  width: 100% !important;
+  font-size: 13px;
+  min-height: 40px;
+}
+
+.m-card.m-card-checked {
+  border-color: #0284c7;
+  border-left: 5px solid #0284c7;
+  background: #f0f9ff;
+}
+
+.m-handover-qty-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin: 6px 0;
+}
+
+.m-qty-box {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 6px 8px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.m-qty-box small {
+  font-size: 11px;
+  color: #64748b;
+}
+
+.m-qty-box b {
+  font-size: 14px;
+  color: #1e293b;
+}
+
+.m-qty-box.pass {
+  background: #f0fdf4;
+  border-color: #bbf7d0;
+}
+
+.m-qty-box.pass b {
+  color: #166534;
+}
+
+.m-qty-box.fail {
+  background: #fef2f2;
+  border-color: #fecaca;
+}
+
+.m-qty-box.fail b {
+  color: #dc2626;
 }
 
 /* ==========================================================================

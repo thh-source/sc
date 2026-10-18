@@ -168,6 +168,67 @@ export function PODetail({
           </label>
         </div>
         <div className="delivery-table">
+          <div className="mobile-record-list">
+            {po.items.map((i) => (
+              <article key={i.id}>
+                <header>
+                  <b>{i.name}</b>
+                  <span className={`status ${i.deliveryStatus === "Đã giao" ? "done" : i.deliveryStatus === "Giao một phần" ? "progress" : "waiting"}`}>
+                    {i.deliveryStatus}
+                  </span>
+                </header>
+                <p>Mã: <b>{i.code}</b> · {i.category}</p>
+                <dl>
+                  <div>
+                    <dt>SL đặt</dt>
+                    <dd>{i.qty} {i.unit}</dd>
+                  </div>
+                  <div>
+                    <dt>Đã giao</dt>
+                    <dd>
+                      <input
+                        type="number"
+                        min="0"
+                        max={i.qty}
+                        value={i.deliveredQty}
+                        onChange={(e) => itemUpdate(i.id, "deliveredQty", Number(e.target.value))}
+                        style={{ width: "70px", padding: "4px 8px", fontSize: "12px", border: "1px solid #cbd5e1", borderRadius: "4px" }}
+                      />
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>Trạng thái</dt>
+                    <dd>
+                      <select
+                        value={i.deliveryStatus}
+                        onChange={(e) => itemUpdate(i.id, "deliveryStatus", e.target.value)}
+                        style={{ padding: "4px 6px", fontSize: "12px", border: "1px solid #cbd5e1", borderRadius: "4px" }}
+                      >
+                        <option>Chưa giao</option>
+                        <option>Giao một phần</option>
+                        <option>Đã giao</option>
+                      </select>
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>Ngày giao</dt>
+                    <dd>
+                      <input
+                        type="date"
+                        value={i.deliveryDate || ""}
+                        onChange={(e) => itemUpdate(i.id, "deliveryDate", e.target.value)}
+                        style={{ padding: "4px", fontSize: "11px", border: "1px solid #cbd5e1", borderRadius: "4px" }}
+                      />
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>Còn lại</dt>
+                    <dd><b>{Math.max(0, i.qty - i.deliveredQty)} {i.unit}</b></dd>
+                  </div>
+                </dl>
+              </article>
+            ))}
+          </div>
           <table>
             <thead>
               <tr>

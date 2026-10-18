@@ -25,6 +25,7 @@ import {
   BANK_SUGGESTIONS,
 } from "../payment-utils";
 import "../payment.css";
+import { useIsMobile } from "../useIsMobile";
 
 export interface PaymentManagementProps {
   paymentRequests?: PaymentRequestEntry[];
@@ -49,8 +50,10 @@ export function PaymentManagement({
   onUpdateState,
   readOnly = false,
 }: PaymentManagementProps) {
-  // Mobile card view toggle
-  const [isMobileView, setIsMobileView] = useState(false);
+  // Mobile card view detection (auto <= 768px, with manual toggle override)
+  const isAutoMobile = useIsMobile(768);
+  const [userMobileToggle, setUserMobileToggle] = useState<boolean | null>(null);
+  const showMobileCards = userMobileToggle !== null ? userMobileToggle : isAutoMobile;
 
   // Selection states
   const [checkedIds, setCheckedIds] = useState<Set<number>>(new Set());
@@ -261,6 +264,13 @@ export function PaymentManagement({
       return r;
     });
     onUpdateState({ paymentRequests: next });
+  };
+
+  // Toggle paid status on mobile (The only active feature permitted on mobile)
+  const handleTogglePaid = (reqId: number, nextPaid: boolean) => {
+    if (readOnly) return;
+    const targetStatus = nextPaid ? "Done" : "Đã giao KT, chờ đi tiền";
+    handleEditRequest(reqId, "status", targetStatus);
   };
 
   const handleAddRequestRow = () => {
@@ -650,61 +660,71 @@ export function PaymentManagement({
           <em>QUẢN LÝ TÀI CHÍNH · THANH TOÁN</em>
           <h1>Đề nghị thanh toán (Mẫu 01 – TT)</h1>
           <p>
-            Lập, theo dõi và phê duyệt đề nghị thanh toán chuyển khoản Phenikaa. Dùng chung danh mục Nhà cung cấp và Cài đặt của hệ thống mua hàng.
+            {showMobileCards
+              ? "Giao diện di động: Chỉ xem thông tin và đánh dấu đã thanh toán."
+              : "Lập, theo dõi và phê duyệt đề nghị thanh toán chuyển khoản Phenikaa. Dùng chung danh mục Nhà cung cấp và Cài đặt của hệ thống mua hàng."}
           </p>
         </div>
         <div className="actions">
           <button
             className="payment-btn"
-            onClick={() => setIsMobileView((v) => !v)}
+            onClick={() => setUserMobileToggle(!showMobileCards)}
             title="Chuyển đổi giao diện giữa dạng bảng tính desktop và dạng thẻ di động"
           >
-            {isMobileView ? "💻 Xem bản desktop" : "📱 Xem dạng thẻ"}
+            {showMobileCards ? "💻 Xem bản desktop" : "📱 Xem dạng thẻ"}
           </button>
-          <button className="primary" onClick={() => setShowPOPickerModal(true)}>
-            ⚡ Lập từ PO
-          </button>
-          <button className="btn" onClick={handleExportJson}>
-            ↓ Sao lưu JSON
-          </button>
-          <button
-            className="btn"
-            onClick={() => restoreFileRef.current?.click()}
-          >
-            ↑ Khôi phục JSON
-          </button>
-          <button className="btn" onClick={() => handlePrintSingle()}>
-            ⎙ In phiếu đang xem
-          </button>
+          {!showMobileCards && (
+            <>
+              <button className="primary" onClick={() => setShowPOPickerModal(true)}>
+                ⚡ Lập từ PO
+              </button>
+              <button className="btn" onClick={handleExportJson}>
+                ↓ Sao lưu JSON
+              </button>
+              <button
+                className="btn"
+                onClick={() => restoreFileRef.current?.click()}
+              >
+                ↑ Khôi phục JSON
+              </button>
+              <button className="btn" onClick={() => handlePrintSingle()}>
+                ⎙ In phiếu đang xem
+              </button>
+            </>
+          )}
         </div>
       </div>
 
-
-
       {/* Toolbar */}
-      <div className="payment-toolbar">
-        <button className="payment-btn btn-primary" onClick={handleAddRequestRow}>
-          ＋ Thêm đề nghị (thêm dòng)
-        </button>
+      <div className={`payment-toolbar ${showMobileCards ? "payment-toolbar-mobile" : ""}`}>
+        {!showMobileCards && (
+          <>
+            <button className="payment-btn btn-primary" onClick={handleAddRequestRow}>
+              ＋ Thêm đề nghị (thêm dòng)
+            </button>
 
-        <button
-          type="button"
-          className={`btn-workspace-toggle ${isWorkspaceExpanded ? "active" : ""}`}
-          onClick={() => setIsWorkspaceExpanded(!isWorkspaceExpanded)}
-          title={isWorkspaceExpanded ? "Thu gọn về giao diện chuẩn" : "Mở rộng không gian làm việc (giống So sánh báo giá)"}
-        >
-          <span>{isWorkspaceExpanded ? "🗗" : "⛶"}</span>
-          {isWorkspaceExpanded ? "Thu gọn giao diện" : "Mở rộng không gian"}
-        </button>
+            <button
+              type="button"
+              className={`btn-workspace-toggle ${isWorkspaceExpanded ? "active" : ""}`}
+              onClick={() => setIsWorkspaceExpanded(!isWorkspaceExpanded)}
+              title={isWorkspaceExpanded ? "Thu gọn về giao diện chuẩn" : "Mở rộng không gian làm việc (giống So sánh báo giá)"}
+            >
+              <span>{isWorkspaceExpanded ? "🗗" : "⛶"}</span>
+              {isWorkspaceExpanded ? "Thu gọn giao diện" : "Mở rộng không gian"}
+            </button>
+          </>
+        )}
+
         <input
           placeholder="Tìm NCC, STT, nội dung, hóa đơn..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          style={{ width: "230px" }}
+          style={{ width: showMobileCards ? "100%" : "230px" }}
         />
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
+          style={{ width: showMobileCards ? "100%" : "auto" }}
         >
           <option value="">Tất cả trạng thái</option>
           {PAYMENT_STATUSES.map((st) => (
@@ -716,6 +736,7 @@ export function PaymentManagement({
         <select
           value={groupFilter}
           onChange={(e) => setGroupFilter(e.target.value)}
+          style={{ width: showMobileCards ? "100%" : "auto" }}
         >
           <option value="">Tất cả nhóm</option>
           {paymentGroups.map((g) => (
@@ -725,56 +746,60 @@ export function PaymentManagement({
           ))}
         </select>
 
-        <div
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: "5px",
-            fontSize: "12px",
-            color: "#1e3a5f",
-            fontWeight: 600,
-            background: "#f0f4f9",
-            padding: "3px 8px",
-            borderRadius: "6px",
-            border: "1px solid #cbd5e1",
-          }}
-        >
-          <span>📌 Cố định:</span>
-          <select
-            value={freezeCol}
-            onChange={(e) => setFreezeCol(Number(e.target.value))}
-            style={{
-              padding: "3px 6px",
-              borderRadius: "5px",
-              border: "1px solid #cbd5e1",
-              fontSize: "12px",
-              background: "#fff",
-              cursor: "pointer",
-            }}
-          >
-            <option value="2">Cột STT (Mặc định)</option>
-            <option value="3">Đến NCC (Cột B)</option>
-            <option value="4">Đến Nhóm PO (Cột C)</option>
-            <option value="7">Đến Số HĐ (Cột F)</option>
-            <option value="8">Đến Ngày HĐ</option>
-            <option value="0">Không cố định cột</option>
-          </select>
-        </div>
+        {!showMobileCards && (
+          <>
+            <div
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "5px",
+                fontSize: "12px",
+                color: "#1e3a5f",
+                fontWeight: 600,
+                background: "#f0f4f9",
+                padding: "3px 8px",
+                borderRadius: "6px",
+                border: "1px solid #cbd5e1",
+              }}
+            >
+              <span>📌 Cố định:</span>
+              <select
+                value={freezeCol}
+                onChange={(e) => setFreezeCol(Number(e.target.value))}
+                style={{
+                  padding: "3px 6px",
+                  borderRadius: "5px",
+                  border: "1px solid #cbd5e1",
+                  fontSize: "12px",
+                  background: "#fff",
+                  cursor: "pointer",
+                }}
+              >
+                <option value="2">Cột STT (Mặc định)</option>
+                <option value="3">Đến NCC (Cột B)</option>
+                <option value="4">Đến Nhóm PO (Cột C)</option>
+                <option value="7">Đến Số HĐ (Cột F)</option>
+                <option value="8">Đến Ngày HĐ</option>
+                <option value="0">Không cố định cột</option>
+              </select>
+            </div>
 
-        <button className="payment-btn" onClick={() => handlePrintSingle()}>
-          ⎙ In phiếu đang xem
-        </button>
-        <button className="payment-btn" onClick={handlePrintChecked}>
-          ⎙ In các dòng đã tích ({checkedIds.size})
-        </button>
-        <button
-          className="payment-btn btn-danger"
-          onClick={handleDeleteSelectedRequests}
-        >
-          Xóa dòng đã chọn
-        </button>
+            <button className="payment-btn" onClick={() => handlePrintSingle()}>
+              ⎙ In phiếu đang xem
+            </button>
+            <button className="payment-btn" onClick={handlePrintChecked}>
+              ⎙ In các dòng đã tích ({checkedIds.size})
+            </button>
+            <button
+              className="payment-btn btn-danger"
+              onClick={handleDeleteSelectedRequests}
+            >
+              Xóa dòng đã chọn
+            </button>
+          </>
+        )}
 
-        <span style={{ marginLeft: "auto", fontSize: "12px", color: "#64748b" }}>
+        <span style={{ marginLeft: showMobileCards ? "0" : "auto", fontSize: "12px", color: "#64748b" }}>
           {filteredRequests.length} / {paymentRequests.length} đề nghị
         </span>
       </div>
@@ -838,7 +863,7 @@ export function PaymentManagement({
       </datalist>
 
       {/* Mobile Cards View */}
-      {isMobileView ? (
+      {showMobileCards ? (
         <div className="mobile-cards-container">
           {filteredRequests.map((r) => {
             const isDone = PAID_STATUSES.includes(r.status);
@@ -905,25 +930,30 @@ export function PaymentManagement({
                   </details>
                 )}
 
+                {/* Giao diện mobile chỉ có 1 tính năng duy nhất: Đánh dấu đã thanh toán */}
                 <div className="m-card-actions">
-                  <button
-                    className="payment-btn"
-                    onClick={() => handlePrintSingle(r)}
-                  >
-                    ⎙ In phiếu
-                  </button>
-                  <button
-                    className="payment-btn btn-danger"
-                    onClick={() => {
-                      if (confirm(`Xóa đề nghị thanh toán này?`)) {
-                        onUpdateState({
-                          paymentRequests: paymentRequests.filter((x) => x.id !== r.id),
-                        });
-                      }
-                    }}
-                  >
-                    Xóa
-                  </button>
+                  {isDone ? (
+                    <button
+                      type="button"
+                      className="m-btn-mark-paid is-done"
+                      onClick={() => handleTogglePaid(r.id, false)}
+                      title="Chạm để chuyển lại trạng thái Chưa thanh toán"
+                    >
+                      <span className="m-btn-icon">✓</span>
+                      <span>Đã thanh toán</span>
+                      <small>(Chạm để hủy)</small>
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      className="m-btn-mark-paid"
+                      onClick={() => handleTogglePaid(r.id, true)}
+                      title="Chạm để đánh dấu đề nghị này đã thanh toán xong"
+                    >
+                      <span className="m-btn-icon">✓</span>
+                      <span>Đánh dấu đã thanh toán</span>
+                    </button>
+                  )}
                 </div>
               </div>
             );
@@ -1396,8 +1426,8 @@ export function PaymentManagement({
         </div>
       )}
 
-      {/* Detail Lines Box for Active Request */}
-      {activeReq && (
+      {/* Detail Lines Box for Active Request (Desktop only - Mobile is strictly view-only) */}
+      {!showMobileCards && activeReq && (
         <details className="payment-detail-box" open>
           <summary>
             Chi tiết nhiều hóa đơn / hàng hóa của dòng đang chọn (STT: {activeReq.legacy_stt || activeReq.id} - {activeReq.payee_name || "Chưa có tên"})

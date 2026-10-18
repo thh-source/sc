@@ -1258,7 +1258,12 @@ export default function ProcurementApp({
         <nav>
           {visibleNav.map((n) => (
             <button
-              onClick={n.action}
+              onClick={() => {
+                n.action();
+                if (typeof window !== "undefined" && window.innerWidth <= 768) {
+                  setCollapsed(true);
+                }
+              }}
               className={
                 (view === "dashboard" && n.name === "Tổng quan") ||
                 (view === "compare" && n.name === "So sánh báo giá") ||
@@ -1999,9 +2004,9 @@ export default function ProcurementApp({
         <nav className="mobile-bottom-nav" aria-label="Điều hướng điện thoại">
           <button className={view === "dashboard" ? "active" : ""} onClick={() => setView("dashboard")}><span>▦</span><b>Tổng quan</b></button>
           <button className={view === "prs" || view === "create" ? "active" : ""} onClick={() => setView("prs")}><span>▣</span><b>PR</b></button>
-          <button className={view === "compare" ? "active" : ""} onClick={() => selectedPR.id ? setView("compare") : setView("prs")}><span>⚖</span><b>So sánh</b></button>
+          <button className={view === "payment" ? "active" : ""} onClick={() => setView("payment")}><span>💳</span><b>Thanh toán</b></button>
           <button className={view === "po-list" || view === "po-detail" ? "active" : ""} onClick={() => setView("po-list")}><span>▰</span><b>PO</b></button>
-          <button onClick={() => setCollapsed(false)}><span>☰</span><b>Thêm</b></button>
+          <button onClick={() => setCollapsed(false)}><span>☰</span><b>Menu</b></button>
         </nav>
       )}
     </div>

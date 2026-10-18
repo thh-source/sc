@@ -132,6 +132,84 @@ export function ProductCatalog({
         <span>{shown.length} hàng hóa</span>
       </div>
       <div className="product-table">
+        <div className="mobile-record-list">
+          {shown.map((p) => {
+            const h = history(p),
+              latest = h[0],
+              previous = h[1],
+              change =
+                latest && previous
+                  ? Math.round(
+                      ((latest.price - previous.price) / previous.price) *
+                        100,
+                    )
+                  : 0;
+            const isExp = expanded === p.id;
+            return (
+              <article key={p.id}>
+                <header>
+                  <button onClick={() => setExpanded(isExp ? null : p.id)}>{p.name || "Hàng hóa mới"}</button>
+                  <b className="product-code">{p.code}</b>
+                </header>
+                <p>{p.desc || p.spec || "Chưa có quy cách"}</p>
+                <dl>
+                  <div>
+                    <dt>Phân loại</dt>
+                    <dd>{p.category || "—"}</dd>
+                  </div>
+                  <div>
+                    <dt>ĐVT</dt>
+                    <dd>{p.unit || "—"}</dd>
+                  </div>
+                  <div>
+                    <dt>Giá dự kiến</dt>
+                    <dd>{fmt(p.estimate)} ₫</dd>
+                  </div>
+                  {latest && (
+                    <div>
+                      <dt>Mua gần nhất</dt>
+                      <dd>{latest.po} · {dateVN(latest.date)} ({fmt(latest.price)} ₫)</dd>
+                    </div>
+                  )}
+                  {latest && previous && (
+                    <div>
+                      <dt>Biến động</dt>
+                      <dd>
+                        <span className={change <= 0 ? "price-down" : "price-up"}>
+                          {change <= 0 ? "↓" : "↑"} {Math.abs(change)}%
+                        </span>
+                      </dd>
+                    </div>
+                  )}
+                </dl>
+                <footer>
+                  <button
+                    className="row-action"
+                    onClick={() => setExpanded(isExp ? null : p.id)}
+                  >
+                    {isExp ? "Thu gọn" : `Xem lịch sử giá (${h.length}) →`}
+                  </button>
+                </footer>
+                {isExp && (
+                  <div style={{ marginTop: "10px", borderTop: "1px solid #e2e8f0", paddingTop: "8px" }}>
+                    {h.length === 0 ? (
+                      <small style={{ color: "#64748b" }}>Chưa phát sinh mua hàng</small>
+                    ) : (
+                      <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                        {h.slice(0, 5).map((row, idx) => (
+                          <div key={idx} style={{ fontSize: "11px", display: "flex", justifyContent: "space-between", padding: "4px 0", borderBottom: "1px dashed #edf2f7" }}>
+                            <span>{dateVN(row.date)} · {row.po} ({row.source})</span>
+                            <b>{fmt(row.price)} ₫ ({row.qty} {p.unit})</b>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </article>
+            );
+          })}
+        </div>
         <table>
           <colgroup>
             <col className="product-col-code" />

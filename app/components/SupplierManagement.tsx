@@ -126,6 +126,119 @@ export function SupplierManagement({
         <span>{shownSuppliers.length} / {suppliers.length} nhà cung cấp</span>
       </div>
       <div className="supplier-list-panel">
+        <div className="mobile-record-list">
+          {shownSuppliers.map((supplier) => {
+            const stats = supplierStats(supplier);
+            const isSelected = selectedSupplierId === supplier.id;
+            return (
+              <article key={supplier.id} className="mobile-supplier-card">
+                <header>
+                  <button onClick={() => setSelectedSupplierId(isSelected ? null : supplier.id)}>
+                    {supplier.name || "Chưa đặt tên NCC"}
+                  </button>
+                  <b className="supplier-list-code">{supplier.code}</b>
+                </header>
+                {supplier.shortName && <p>Tên viết tắt: <b>{supplier.shortName}</b></p>}
+                <dl>
+                  {supplier.phone && (
+                    <div>
+                      <dt>Điện thoại</dt>
+                      <dd>
+                        <a href={`tel:${supplier.phone}`} style={{ color: "#0284c7", textDecoration: "none" }}>
+                          📞 {supplier.phone}
+                        </a>
+                      </dd>
+                    </div>
+                  )}
+                  {supplier.contact && (
+                    <div>
+                      <dt>Người liên hệ</dt>
+                      <dd>{supplier.contact}</dd>
+                    </div>
+                  )}
+                  {supplier.bank && (
+                    <div>
+                      <dt>Ngân hàng</dt>
+                      <dd>{supplier.bank} {supplier.bankAccount ? `(${supplier.bankAccount})` : ""}</dd>
+                    </div>
+                  )}
+                  <div>
+                    <dt>Giá trị mua</dt>
+                    <dd>{fmt(stats.totalValue)} ₫</dd>
+                  </div>
+                  <div>
+                    <dt>Lượt mua</dt>
+                    <dd>{stats.count} lượt · {stats.itemCount} mã hàng</dd>
+                  </div>
+                </dl>
+                <footer>
+                  <button
+                    className="row-action"
+                    onClick={() => setSelectedSupplierId(isSelected ? null : supplier.id)}
+                  >
+                    {isSelected ? "Thu gọn chi tiết" : "Xem chi tiết & lịch sử →"}
+                  </button>
+                </footer>
+                {isSelected && (
+                  <div style={{ marginTop: "10px", borderTop: "1px solid #e2e8f0", paddingTop: "10px" }}>
+                    <div className="supplier-fields" style={{ display: "grid", gridTemplateColumns: "1fr", gap: "8px" }}>
+                      <label>
+                        <span style={{ fontSize: "11px", color: "#64748b" }}>Tên NCC</span>
+                        <input
+                          value={supplier.name}
+                          onChange={(e) => update(supplier.id, "name", e.target.value)}
+                        />
+                      </label>
+                      <label>
+                        <span style={{ fontSize: "11px", color: "#64748b" }}>Tên viết tắt</span>
+                        <input
+                          value={supplier.shortName || ""}
+                          onChange={(e) => update(supplier.id, "shortName", e.target.value)}
+                        />
+                      </label>
+                      <label>
+                        <span style={{ fontSize: "11px", color: "#64748b" }}>Số tài khoản</span>
+                        <input
+                          value={supplier.bankAccount}
+                          onChange={(e) => update(supplier.id, "bankAccount", e.target.value)}
+                        />
+                      </label>
+                      <label>
+                        <span style={{ fontSize: "11px", color: "#64748b" }}>Ngân hàng</span>
+                        <input
+                          list="supplierMgmtBankList"
+                          value={supplier.bank}
+                          onChange={(e) => update(supplier.id, "bank", e.target.value)}
+                        />
+                      </label>
+                      <label>
+                        <span style={{ fontSize: "11px", color: "#64748b" }}>Người liên hệ</span>
+                        <input
+                          value={supplier.contact}
+                          onChange={(e) => update(supplier.id, "contact", e.target.value)}
+                        />
+                      </label>
+                      <label>
+                        <span style={{ fontSize: "11px", color: "#64748b" }}>Điện thoại</span>
+                        <input
+                          value={supplier.phone}
+                          onChange={(e) => update(supplier.id, "phone", e.target.value)}
+                        />
+                      </label>
+                      <label>
+                        <span style={{ fontSize: "11px", color: "#64748b" }}>Địa chỉ</span>
+                        <input
+                          value={supplier.address}
+                          onChange={(e) => update(supplier.id, "address", e.target.value)}
+                        />
+                      </label>
+                    </div>
+                  </div>
+                )}
+              </article>
+            );
+          })}
+        </div>
         <table className="supplier-list-table">
           <thead>
             <tr>

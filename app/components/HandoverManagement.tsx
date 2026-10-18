@@ -12,6 +12,7 @@ import {
   PHENIKAA_PHARMA_LOGO_BASE64,
 } from "../payment-utils";
 import "../payment.css";
+import { useIsMobile } from "../useIsMobile";
 
 const PHENIKAA_LOGO_SRC = PHENIKAA_PHARMA_LOGO_BASE64;
 
@@ -47,6 +48,11 @@ export function HandoverManagement({
     if (onUpdateHandovers) onUpdateHandovers(next);
     if (onUpdateState) onUpdateState({ paymentHandovers: next });
   };
+  // Mobile card view detection (auto <= 768px, with manual toggle override)
+  const isAutoMobile = useIsMobile(768);
+  const [userMobileToggle, setUserMobileToggle] = useState<boolean | null>(null);
+  const showMobileCards = userMobileToggle !== null ? userMobileToggle : isAutoMobile;
+
   // Selection states
   const [checkedHandovers, setCheckedHandovers] = useState<Set<number>>(new Set());
   const [handoverDeptFilter, setHandoverDeptFilter] = useState("");
@@ -286,50 +292,74 @@ export function HandoverManagement({
           <em>QUẢN LÝ VẬT TƯ · BÀN GIAO NỘI BỘ</em>
           <h1>Biên bản bàn giao, nghiệm thu vật tư (Không qua kho)</h1>
           <p>
-            Theo dõi danh mục vật tư chuyển trực tiếp từ Phòng Cung ứng đến các bộ phận sử dụng nội bộ Phenikaa.
+            {showMobileCards
+              ? "Giao diện di động: Tra cứu vật tư bàn giao và chọn in biên bản."
+              : "Theo dõi danh mục vật tư chuyển trực tiếp từ Phòng Cung ứng đến các bộ phận sử dụng nội bộ Phenikaa."}
           </p>
+        </div>
+        <div className="actions">
+          <button
+            className="payment-btn"
+            onClick={() => setUserMobileToggle(!showMobileCards)}
+            title="Chuyển đổi giao diện giữa dạng bảng tính desktop và dạng thẻ di động"
+          >
+            {showMobileCards ? "💻 Xem bản desktop" : "📱 Xem dạng thẻ"}
+          </button>
         </div>
       </div>
 
       {/* Main Toolbar */}
-      <div className="payment-toolbar">
-        <button className="payment-btn btn-primary" onClick={handleAddHandoverRow}>
-          ＋ Thêm dòng vật tư
-        </button>
-        <button
-          className="payment-btn"
-          style={{ background: "#107c41", color: "#fff", borderColor: "#0b5c30" }}
-          onClick={() => setShowPasteModal(true)}
-          title="Dán danh sách vật tư từ file Excel (Ctrl+V)"
-        >
-          📋 Dán từ Excel
-        </button>
-        <button
-          className="payment-btn"
-          style={{ background: "#0f766e", color: "#fff", borderColor: "#0d5e56" }}
-          onClick={() => handlePrintHandoverDirect()}
-          title="In biên bản bàn giao các vật tư đã chọn"
-        >
-          🖨️ In biên bản
-        </button>
-        <button className="payment-btn btn-danger" onClick={handleDeleteSelectedHandovers}>
-          🗑️ Xóa đã chọn
-        </button>
+      <div className={`payment-toolbar ${showMobileCards ? "payment-toolbar-mobile" : ""}`}>
+        {!showMobileCards ? (
+          <>
+            <button className="payment-btn btn-primary" onClick={handleAddHandoverRow}>
+              ＋ Thêm dòng vật tư
+            </button>
+            <button
+              className="payment-btn"
+              style={{ background: "#107c41", color: "#fff", borderColor: "#0b5c30" }}
+              onClick={() => setShowPasteModal(true)}
+              title="Dán danh sách vật tư từ file Excel (Ctrl+V)"
+            >
+              📋 Dán từ Excel
+            </button>
+            <button
+              className="payment-btn"
+              style={{ background: "#0f766e", color: "#fff", borderColor: "#0d5e56" }}
+              onClick={() => handlePrintHandoverDirect()}
+              title="In biên bản bàn giao các vật tư đã chọn"
+            >
+              🖨️ In biên bản {checkedHandovers.size > 0 ? `(${checkedHandovers.size})` : ""}
+            </button>
+            <button className="payment-btn btn-danger" onClick={handleDeleteSelectedHandovers}>
+              🗑️ Xóa đã chọn
+            </button>
 
-        <button
-          type="button"
-          className={`btn-workspace-toggle ${isWorkspaceExpanded ? "active" : ""}`}
-          onClick={() => setIsWorkspaceExpanded(!isWorkspaceExpanded)}
-          title={isWorkspaceExpanded ? "Thu gọn về giao diện chuẩn" : "Mở rộng không gian làm việc (giống So sánh báo giá)"}
-        >
-          <span>{isWorkspaceExpanded ? "🗗" : "⛶"}</span>
-          {isWorkspaceExpanded ? "Thu gọn" : "Mở rộng"}
-        </button>
+            <button
+              type="button"
+              className={`btn-workspace-toggle ${isWorkspaceExpanded ? "active" : ""}`}
+              onClick={() => setIsWorkspaceExpanded(!isWorkspaceExpanded)}
+              title={isWorkspaceExpanded ? "Thu gọn về giao diện chuẩn" : "Mở rộng không gian làm việc (giống So sánh báo giá)"}
+            >
+              <span>{isWorkspaceExpanded ? "🗗" : "⛶"}</span>
+              {isWorkspaceExpanded ? "Thu gọn" : "Mở rộng"}
+            </button>
+          </>
+        ) : (
+          <button
+            className="payment-btn"
+            style={{ background: "#0f766e", color: "#fff", borderColor: "#0d5e56", width: "100%", justifyContent: "center" }}
+            onClick={() => handlePrintHandoverDirect()}
+            title="In biên bản bàn giao các vật tư đã chọn"
+          >
+            🖨️ In biên bản {checkedHandovers.size > 0 ? `(${checkedHandovers.size} vật tư đã chọn)` : "(Tất cả vật tư)"}
+          </button>
+        )}
 
         <select
           value={handoverDeptFilter}
           onChange={(e) => setHandoverDeptFilter(e.target.value)}
-          style={{ minWidth: "170px" }}
+          style={{ width: showMobileCards ? "100%" : "auto", minWidth: "170px" }}
         >
           <option value="">Tất cả phòng ban nhận</option>
           {handoverDepts.map((d) => (
@@ -343,10 +373,10 @@ export function HandoverManagement({
           placeholder="Tìm vật tư, ĐVT, ghi chú, phòng ban..."
           value={handoverSearch}
           onChange={(e) => setHandoverSearch(e.target.value)}
-          style={{ width: "260px" }}
+          style={{ width: showMobileCards ? "100%" : "260px" }}
         />
 
-        <span style={{ marginLeft: "auto", fontSize: "12px", color: "#64748b" }}>
+        <span style={{ marginLeft: showMobileCards ? "0" : "auto", fontSize: "12px", color: "#64748b" }}>
           {filteredHandovers.length} / {paymentHandovers.length} vật tư
           {checkedHandovers.size > 0 && ` · Đã chọn: ${checkedHandovers.size}`}
         </span>
@@ -388,8 +418,85 @@ export function HandoverManagement({
         ))}
       </datalist>
 
-      {/* Handover Data Table with direct paste support */}
-      <div className="payment-table-container" onPaste={handleHandoverTablePaste}>
+      {/* Mobile Cards View */}
+      {showMobileCards ? (
+        <div className="mobile-cards-container">
+          {filteredHandovers.map((h) => {
+            const isChecked = checkedHandovers.has(h.id);
+            return (
+              <div key={h.id} className={`m-card ${isChecked ? "m-card-checked" : ""}`}>
+                <div className="m-card-header">
+                  <div className="m-card-stt">STT {h.id}</div>
+                  <span className="m-badge mb-badge-dept">🏢 {h.department || "Chưa chọn bộ phận"}</span>
+                </div>
+                <div className="m-card-payee">{h.item_name || "Chưa có tên vật tư"}</div>
+                <div className="m-card-desc">
+                  {h.specification ? `Quy cách: ${h.specification}` : "Chưa có quy cách"} · ĐVT: <b>{h.unit || "Cái"}</b>
+                </div>
+                <div className="m-handover-qty-grid">
+                  <div className="m-qty-box">
+                    <small>Chứng từ</small>
+                    <b>{h.quantity_doc}</b>
+                  </div>
+                  <div className="m-qty-box pass">
+                    <small>Đạt chuẩn</small>
+                    <b>{h.quantity_pass}</b>
+                  </div>
+                  <div className={`m-qty-box ${Number(h.quantity_fail) > 0 ? "fail" : ""}`}>
+                    <small>Hỏng / Lỗi</small>
+                    <b>{h.quantity_fail || 0}</b>
+                  </div>
+                </div>
+                <div className="m-card-meta">
+                  {h.handover_date && <div>📅 Ngày bàn giao: <b>{h.handover_date}</b></div>}
+                  {(h.sender_name || h.receiver_name) && (
+                    <div>
+                      👤 Giao: <b>{h.sender_name || "—"}</b> · Nhận: <b>{h.receiver_name || "—"}</b>
+                    </div>
+                  )}
+                  {h.note && <div>📝 Ghi chú: <i>{h.note}</i></div>}
+                </div>
+                <div className="m-card-actions">
+                  <label
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "8px",
+                      fontSize: "13px",
+                      cursor: "pointer",
+                      padding: "8px 12px",
+                      background: isChecked ? "#e0f2fe" : "#f8fafc",
+                      borderRadius: "6px",
+                      border: `1px solid ${isChecked ? "#38bdf8" : "#cbd5e1"}`,
+                      width: "100%",
+                      fontWeight: 600,
+                      color: isChecked ? "#0284c7" : "#475569",
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={isChecked}
+                      onChange={(e) => {
+                        const next = new Set(checkedHandovers);
+                        if (e.target.checked) next.add(h.id);
+                        else next.delete(h.id);
+                        setCheckedHandovers(next);
+                      }}
+                      style={{ width: "18px", height: "18px" }}
+                    />
+                    <span>{isChecked ? "✓ Đã chọn để in biên bản" : "Chọn vật tư này để in"}</span>
+                  </label>
+                </div>
+              </div>
+            );
+          })}
+          {filteredHandovers.length === 0 && (
+            <div className="m-empty">Không tìm thấy vật tư bàn giao nào</div>
+          )}
+        </div>
+      ) : (
+        /* Handover Data Table with direct paste support */
+        <div className="payment-table-container" onPaste={handleHandoverTablePaste}>
         <div className="payment-table-header">
           <span>BIÊN BẢN BÀN GIAO, NGHIỆM THU VẬT TƯ (KHÔNG QUA KHO) · HỖ TRỢ DÁN CTRL+V TỪ EXCEL</span>
           <span>{checkedHandovers.size > 0 ? `Đang chọn ${checkedHandovers.size} vật tư để in hoặc xóa` : "Tích chọn các vật tư muốn in biên bản"}</span>
@@ -581,6 +688,7 @@ export function HandoverManagement({
           </table>
         </div>
       </div>
+    )}
 
       {/* MODAL: Excel Paste for Handover */}
       {showPasteModal && (
