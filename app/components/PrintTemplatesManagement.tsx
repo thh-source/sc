@@ -438,26 +438,30 @@ export function PrintTemplatesManagement({
                   <table>
                     <thead>
                       <tr>
-                        <th style={{ width: "38px" }}>{tplForm.col_stt}</th>
-                        <th style={{ width: "135px" }}>{tplForm.col_invoice}</th>
+                        <th style={{ width: "36px" }}>{tplForm.col_stt}</th>
+                        <th style={{ width: "170px" }}>{tplForm.col_invoice}</th>
                         <th>{tplForm.col_item}</th>
-                        <th style={{ width: "125px" }}>{tplForm.col_amount}</th>
-                        <th style={{ width: "100px" }}>{tplForm.col_note}</th>
+                        <th style={{ width: "135px" }}>{tplForm.col_amount}</th>
+                        <th style={{ width: "90px" }}>{tplForm.col_note}</th>
                       </tr>
                     </thead>
                     <tbody>
                       {lines.map((l, li) => (
                         <tr key={li}>
                           <td>{li + 1}</td>
-                          <td>{l.invoice_no ? `${l.invoice_no}${l.invoice_date ? " (" + l.invoice_date + ")" : ""}` : ""}</td>
-                          <td style={{ textAlign: "left", paddingLeft: "6px" }}>{l.description}</td>
-                          <td style={{ textAlign: "right", paddingRight: "6px" }}>{fmtMoney(l.amount)}</td>
-                          <td>{l.note || ""}</td>
+                          <td style={{ textAlign: "center", wordBreak: "break-word", overflowWrap: "anywhere", whiteSpace: "normal", padding: "6px 6px" }}>
+                            {l.invoice_no ? `${l.invoice_no}${l.invoice_date ? " (" + l.invoice_date + ")" : ""}` : ""}
+                          </td>
+                          <td style={{ textAlign: "left", paddingLeft: "8px", paddingRight: "8px", wordBreak: "break-word", overflowWrap: "anywhere", whiteSpace: "normal", padding: "6px 8px" }}>
+                            {l.description}
+                          </td>
+                          <td style={{ textAlign: "right", paddingRight: "8px", whiteSpace: "nowrap" }}>{fmtMoney(l.amount)}</td>
+                          <td style={{ wordBreak: "break-word", overflowWrap: "anywhere" }}>{l.note || ""}</td>
                         </tr>
                       ))}
                       <tr className="sum">
                         <td colSpan={3} style={{ textAlign: "center", fontWeight: "bold" }}>{tplForm.col_total}</td>
-                        <td style={{ textAlign: "right", paddingRight: "6px", fontWeight: "bold" }}>{fmtMoney(sampleReq.amount)}</td>
+                        <td style={{ textAlign: "right", paddingRight: "8px", fontWeight: "bold", whiteSpace: "nowrap" }}>{fmtMoney(sampleReq.amount)}</td>
                         <td>{cur}</td>
                       </tr>
                     </tbody>
@@ -684,26 +688,30 @@ export function PrintTemplatesManagement({
               <table>
                 <thead>
                   <tr>
-                    <th style={{ width: "38px" }}>{tplForm.col_stt}</th>
-                    <th style={{ width: "135px" }}>{tplForm.col_invoice}</th>
+                    <th style={{ width: "36px" }}>{tplForm.col_stt}</th>
+                    <th style={{ width: "170px" }}>{tplForm.col_invoice}</th>
                     <th>{tplForm.col_item}</th>
-                    <th style={{ width: "125px" }}>{tplForm.col_amount}</th>
-                    <th style={{ width: "100px" }}>{tplForm.col_note}</th>
+                    <th style={{ width: "135px" }}>{tplForm.col_amount}</th>
+                    <th style={{ width: "90px" }}>{tplForm.col_note}</th>
                   </tr>
                 </thead>
                 <tbody>
                   {lines.map((l, li) => (
                     <tr key={li}>
                       <td>{li + 1}</td>
-                      <td>{l.invoice_no ? `${l.invoice_no}${l.invoice_date ? " (" + l.invoice_date + ")" : ""}` : ""}</td>
-                      <td style={{ textAlign: "left", paddingLeft: "6px" }}>{l.description}</td>
-                      <td style={{ textAlign: "right", paddingRight: "6px" }}>{fmtMoney(l.amount)}</td>
-                      <td>{l.note || ""}</td>
+                      <td style={{ textAlign: "center", wordBreak: "break-word", overflowWrap: "anywhere", whiteSpace: "normal", padding: "6px 6px" }}>
+                        {l.invoice_no ? `${l.invoice_no}${l.invoice_date ? " (" + l.invoice_date + ")" : ""}` : ""}
+                      </td>
+                      <td style={{ textAlign: "left", paddingLeft: "8px", paddingRight: "8px", wordBreak: "break-word", overflowWrap: "anywhere", whiteSpace: "normal", padding: "6px 8px" }}>
+                        {l.description}
+                      </td>
+                      <td style={{ textAlign: "right", paddingRight: "8px", whiteSpace: "nowrap" }}>{fmtMoney(l.amount)}</td>
+                      <td style={{ wordBreak: "break-word", overflowWrap: "anywhere" }}>{l.note || ""}</td>
                     </tr>
                   ))}
                   <tr className="sum">
                     <td colSpan={3} style={{ textAlign: "center", fontWeight: "bold" }}>{tplForm.col_total}</td>
-                    <td style={{ textAlign: "right", paddingRight: "6px", fontWeight: "bold" }}>{fmtMoney(sampleReq.amount)}</td>
+                    <td style={{ textAlign: "right", paddingRight: "8px", fontWeight: "bold", whiteSpace: "nowrap" }}>{fmtMoney(sampleReq.amount)}</td>
                     <td>{cur}</td>
                   </tr>
                 </tbody>

@@ -1766,7 +1766,7 @@ export function PaymentManagement({
             const cur = String(req.currency || "VND").toUpperCase();
             const words = moneyWords({ amount: req.amount, currency: cur });
             const lines = (req.lines && req.lines.length > 0) ? req.lines : [
-              { description: req.description || req.item_name || "", invoice_no: req.invoice_no || "", invoice_date: req.invoice_date || "", amount: req.amount },
+              { description: req.item_name || req.description || "", invoice_no: req.invoice_no || "", invoice_date: req.invoice_date || "", amount: req.amount },
             ];
 
             const pNameNorm = (req.payee_name || "").trim().toLowerCase();
@@ -1824,26 +1824,30 @@ export function PaymentManagement({
                 <table>
                   <thead>
                     <tr>
-                      <th style={{ width: "38px" }}>{tpl.col_stt}</th>
-                      <th style={{ width: "135px" }}>{tpl.col_invoice}</th>
+                      <th style={{ width: "36px" }}>{tpl.col_stt}</th>
+                      <th style={{ width: "170px" }}>{tpl.col_invoice}</th>
                       <th>{tpl.col_item}</th>
-                      <th style={{ width: "125px" }}>{tpl.col_amount}</th>
-                      <th style={{ width: "100px" }}>{tpl.col_note}</th>
+                      <th style={{ width: "135px" }}>{tpl.col_amount}</th>
+                      <th style={{ width: "90px" }}>{tpl.col_note}</th>
                     </tr>
                   </thead>
                   <tbody>
                     {lines.map((l, li) => (
                       <tr key={li}>
                         <td>{li + 1}</td>
-                        <td>{l.invoice_no ? `${l.invoice_no}${l.invoice_date ? " (" + l.invoice_date + ")" : ""}` : ""}</td>
-                        <td style={{ textAlign: "left", paddingLeft: "6px" }}>{l.description}</td>
-                        <td style={{ textAlign: "right", paddingRight: "6px" }}>{fmtMoney(l.amount)}</td>
-                        <td>{l.note || ""}</td>
+                        <td style={{ textAlign: "center", wordBreak: "break-word", overflowWrap: "anywhere", whiteSpace: "normal", padding: "6px 6px" }}>
+                          {l.invoice_no ? `${l.invoice_no}${l.invoice_date ? " (" + l.invoice_date + ")" : ""}` : ""}
+                        </td>
+                        <td style={{ textAlign: "left", paddingLeft: "8px", paddingRight: "8px", wordBreak: "break-word", overflowWrap: "anywhere", whiteSpace: "normal", padding: "6px 8px" }}>
+                          {l.description}
+                        </td>
+                        <td style={{ textAlign: "right", paddingRight: "8px", whiteSpace: "nowrap" }}>{fmtMoney(l.amount)}</td>
+                        <td style={{ wordBreak: "break-word", overflowWrap: "anywhere" }}>{l.note || ""}</td>
                       </tr>
                     ))}
                     <tr className="sum">
                       <td colSpan={3} style={{ textAlign: "center", fontWeight: "bold" }}>{tpl.col_total}</td>
-                      <td style={{ textAlign: "right", paddingRight: "6px", fontWeight: "bold" }}>{fmtMoney(req.amount)}</td>
+                      <td style={{ textAlign: "right", paddingRight: "8px", fontWeight: "bold", whiteSpace: "nowrap" }}>{fmtMoney(req.amount)}</td>
                       <td>{cur}</td>
                     </tr>
                   </tbody>
