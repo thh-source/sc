@@ -31,7 +31,6 @@ import { PRList } from "./components/PRList";
 const AdminSettings = lazy(() => import("./components/AdminSettings").then(m => ({ default: m.AdminSettings })));
 const TrashPage = lazy(() => import("./components/TrashPage").then(m => ({ default: m.TrashPage })));
 const ContractManagement = lazy(() => import("./components/ContractManagement").then(m => ({ default: m.ContractManagement })));
-const PrintTemplatesManagement = lazy(() => import("./components/PrintTemplatesManagement").then(m => ({ default: m.PrintTemplatesManagement })));
 const HandoverManagement = lazy(() => import("./components/HandoverManagement").then(m => ({ default: m.HandoverManagement })));
 const ProductCatalog = lazy(() => import("./components/ProductCatalog").then(m => ({ default: m.ProductCatalog })));
 const SupplierManagement = lazy(() => import("./components/SupplierManagement").then(m => ({ default: m.SupplierManagement })));
@@ -1246,7 +1245,6 @@ export default function ProcurementApp({
     { icon: "▧", name: "Hợp đồng", action: () => setView("contracts") },
     { icon: "💳", name: "Thanh toán", action: () => setView("payment") },
     { icon: "📦", name: "Bàn giao nội bộ", action: () => setView("handover") },
-    { icon: "📄", name: "Mẫu phiếu in", action: () => setView("print-templates") },
     { icon: "▱", name: "Nhà cung cấp", action: () => setView("suppliers") },
     { icon: "◇", name: "Hàng hóa", action: () => setView("products") },
     {
@@ -1274,7 +1272,6 @@ export default function ProcurementApp({
           "Hợp đồng",
           "Thanh toán",
           "Bàn giao nội bộ",
-          "Mẫu phiếu in",
         ].includes(n.name),
       )
     : nav;
@@ -1313,11 +1310,11 @@ export default function ProcurementApp({
                 (view === "contracts" && n.name === "Hợp đồng") ||
                 (view === "payment" && n.name === "Thanh toán") ||
                 (view === "handover" && n.name === "Bàn giao nội bộ") ||
-                (view === "print-templates" && n.name === "Mẫu phiếu in") ||
                 (view === "products" && n.name === "Hàng hóa") ||
                 (view === "suppliers" && n.name === "Nhà cung cấp") ||
                 (view === "trash" && n.name.startsWith("Thùng rác")) ||
-                (view === "settings" && n.name === "Cài đặt")
+                ((view === "settings" || view === "print-templates") &&
+                  n.name === "Cài đặt")
                   ? "active"
                   : ""
               }
@@ -1476,17 +1473,6 @@ export default function ProcurementApp({
             readOnly={reportMode}
           />
         )}
-        {view === "print-templates" && (
-          <PrintTemplatesManagement
-            paymentTemplate={paymentTemplate}
-            suppliers={suppliers}
-            sampleRequest={paymentRequests[0] || null}
-            onUpdateState={(patch) => {
-              if (patch.paymentTemplate !== undefined) setPaymentTemplate(patch.paymentTemplate);
-            }}
-            readOnly={reportMode}
-          />
-        )}
         {view === "approval" && approvalDraft && !reportMode && (
           <ApprovalSheet
             draft={approvalDraft}
@@ -1506,10 +1492,20 @@ export default function ProcurementApp({
             onCreatePR={() => setView("create")}
           />
         )}
-        {view === "settings" &&
+        {(view === "settings" || view === "print-templates") &&
           currentUser &&
           (currentUser.role === "master" || currentUser.role === "admin") && (
-            <AdminSettings currentUser={currentUser} />
+            <AdminSettings
+              currentUser={currentUser}
+              defaultTab={view === "print-templates" ? "templates" : "users"}
+              paymentTemplate={paymentTemplate}
+              suppliers={suppliers}
+              sampleRequest={paymentRequests[0] || null}
+              onUpdateState={(patch) => {
+                if (patch.paymentTemplate !== undefined) setPaymentTemplate(patch.paymentTemplate);
+              }}
+              readOnly={reportMode}
+            />
           )}
         {view === "prs" && (
           <PRList

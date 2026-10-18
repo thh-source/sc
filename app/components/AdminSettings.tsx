@@ -1,9 +1,17 @@
 import React, { useState, useEffect } from "react";
 import { dateVN } from "../utils";
 import { AdminUsage } from "./AdminUsage";
+import { PrintTemplatesManagement } from "./PrintTemplatesManagement";
+import { PaymentPrintTemplate, PaymentRequestEntry, Supplier } from "../types";
 
 export function AdminSettings({
   currentUser,
+  defaultTab = "users",
+  paymentTemplate,
+  suppliers,
+  sampleRequest,
+  onUpdateState,
+  readOnly = false,
 }: {
   currentUser: {
     id: string;
@@ -11,6 +19,12 @@ export function AdminSettings({
     displayName: string;
     role: string;
   };
+  defaultTab?: "users" | "templates" | "snapshots" | "audit";
+  paymentTemplate?: PaymentPrintTemplate;
+  suppliers?: Supplier[];
+  sampleRequest?: PaymentRequestEntry | null;
+  onUpdateState?: (patch: { paymentTemplate?: PaymentPrintTemplate }) => void;
+  readOnly?: boolean;
 }) {
   type UserRow = {
     id: string;
@@ -62,6 +76,12 @@ export function AdminSettings({
       updatedAt: string | null;
     };
   };
+
+  const [activeTab, setActiveTab] = useState<"users" | "templates" | "snapshots" | "audit">(defaultTab);
+
+  useEffect(() => {
+    if (defaultTab) setActiveTab(defaultTab);
+  }, [defaultTab]);
 
   const [users, setUsers] = useState<UserRow[]>([]),
     [usage, setUsage] = useState<UsageInfo | null>(null),
@@ -336,397 +356,457 @@ export function AdminSettings({
       <div className="heading">
         <div>
           <em>MASTER ADMIN</em>
-          <h1>Cài đặt & người dùng</h1>
-          <p>Tạo tài khoản, phân quyền, sao lưu Snapshot R2 và nhật ký thao tác hệ thống.</p>
+          <h1>Cài đặt hệ thống</h1>
+          <p>Quản lý tài khoản, cấu hình mẫu phiếu in, sao lưu Cloudflare R2 và nhật ký kiểm toán.</p>
         </div>
         <button className="ghost" onClick={logout}>
           Đăng xuất
         </button>
       </div>
 
-      <div className="admin-grid">
-        <section className="admin-card create-user-card">
-          <div className="section-heading">
-            <div>
-              <span>＋</span>
-              <h2>Tạo tài khoản người dùng</h2>
-            </div>
-          </div>
-          <div className="admin-form">
-            <label>
-              ID đăng nhập
-              <input
-                value={form.username}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, username: e.target.value }))
-                }
-                placeholder="Ví dụ: nguyenvana"
-              />
-            </label>
-            <label>
-              Tên người dùng
-              <input
-                value={form.displayName}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, displayName: e.target.value }))
-                }
-                placeholder="Nguyễn Văn A"
-              />
-            </label>
-            <label>
-              Mật khẩu ban đầu
-              <input
-                type="password"
-                value={form.password}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, password: e.target.value }))
-                }
-                placeholder="Tối thiểu 8 ký tự"
-              />
-            </label>
-            <label>
-              Vai trò
-              <select
-                value={form.role}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, role: e.target.value }))
-                }
-              >
-                <option value="user">Người dùng</option>
-                <option value="admin">Admin</option>
-              </select>
-            </label>
-            {message && (
-              <div
-                className={
-                  message.startsWith("Đã")
-                    ? "admin-message success"
-                    : "admin-message"
-                }
-              >
-                {message}
-              </div>
-            )}
-            <button
-              className="primary"
-              disabled={
-                !form.username || !form.displayName || form.password.length < 8
-              }
-              onClick={create}
-            >
-              Tạo tài khoản
-            </button>
-          </div>
-        </section>
-
-        <section className="admin-card master-card">
-          <div className="section-heading">
-            <div>
-              <span>◆</span>
-              <h2>Tài khoản đang đăng nhập</h2>
-            </div>
-          </div>
-          <dl>
-            <div>
-              <dt>ID</dt>
-              <dd>{currentUser.username}</dd>
-            </div>
-            <div>
-              <dt>Tên</dt>
-              <dd>{currentUser.displayName}</dd>
-            </div>
-            <div>
-              <dt>Quyền</dt>
-              <dd>
-                <span>
-                  {currentUser.role === "master" ? "Master Admin" : "Admin"}
-                </span>
-              </dd>
-            </div>
-            <div>
-              <dt>Phiên đăng nhập</dt>
-              <dd style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
-                <span>12 giờ</span>
-                <button
-                  className="ghost"
-                  style={{ fontSize: "11px", padding: "3px 8px", height: "auto" }}
-                  onClick={handleCleanupSessions}
-                  disabled={cleaningSessions}
-                  title="Dọn dẹp các phiên đã hết hạn trong cơ sở dữ liệu"
-                >
-                  {cleaningSessions ? "Đang dọn..." : "🧹 Dọn phiên hết hạn"}
-                </button>
-              </dd>
-            </div>
-            {cleanupStatus && (
-              <div>
-                <dt></dt>
-                <dd style={{ fontSize: "12px", color: "var(--green)" }}>{cleanupStatus}</dd>
-              </div>
-            )}
-          </dl>
-          <p>
-            Mật khẩu được băm PBKDF2 bảo mật cao. Hệ thống tự động ghi nhật ký kiểm toán cho các tác vụ quản trị.
-          </p>
-        </section>
+      {/* Thanh điều hướng Tab trong Cài đặt */}
+      <div
+        className="admin-tabs"
+        style={{
+          display: "flex",
+          gap: "8px",
+          marginBottom: "20px",
+          borderBottom: "1px solid var(--line)",
+          paddingBottom: "12px",
+          overflowX: "auto",
+        }}
+      >
+        <button
+          className={activeTab === "users" ? "primary" : "ghost"}
+          onClick={() => setActiveTab("users")}
+          style={{ fontSize: "13px", padding: "7px 15px", height: "auto" }}
+        >
+          👥 Tài khoản & Phân quyền
+        </button>
+        <button
+          className={activeTab === "templates" ? "primary" : "ghost"}
+          onClick={() => setActiveTab("templates")}
+          style={{ fontSize: "13px", padding: "7px 15px", height: "auto" }}
+        >
+          📄 Mẫu phiếu in
+        </button>
+        <button
+          className={activeTab === "snapshots" ? "primary" : "ghost"}
+          onClick={() => setActiveTab("snapshots")}
+          style={{ fontSize: "13px", padding: "7px 15px", height: "auto" }}
+        >
+          💾 Sao lưu R2 Snapshots ({snapshots.length})
+        </button>
+        <button
+          className={activeTab === "audit" ? "primary" : "ghost"}
+          onClick={() => setActiveTab("audit")}
+          style={{ fontSize: "13px", padding: "7px 15px", height: "auto" }}
+        >
+          📋 Nhật ký thao tác ({auditLogs.length})
+        </button>
       </div>
 
-      <AdminUsage usage={usage} onRefresh={loadUsage} />
+      {/* Tab 1: Tài khoản & Phân quyền */}
+      {activeTab === "users" && (
+        <>
+          <div className="admin-grid">
+            <section className="admin-card create-user-card">
+              <div className="section-heading">
+                <div>
+                  <span>＋</span>
+                  <h2>Tạo tài khoản người dùng</h2>
+                </div>
+              </div>
+              <div className="admin-form">
+                <label>
+                  ID đăng nhập
+                  <input
+                    value={form.username}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, username: e.target.value }))
+                    }
+                    placeholder="Ví dụ: nguyenvana"
+                  />
+                </label>
+                <label>
+                  Tên người dùng
+                  <input
+                    value={form.displayName}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, displayName: e.target.value }))
+                    }
+                    placeholder="Nguyễn Văn A"
+                  />
+                </label>
+                <label>
+                  Mật khẩu ban đầu
+                  <input
+                    type="password"
+                    value={form.password}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, password: e.target.value }))
+                    }
+                    placeholder="Tối thiểu 8 ký tự"
+                  />
+                </label>
+                <label>
+                  Vai trò
+                  <select
+                    value={form.role}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, role: e.target.value }))
+                    }
+                  >
+                    <option value="user">Người dùng</option>
+                    <option value="admin">Admin</option>
+                  </select>
+                </label>
+                {message && (
+                  <div
+                    className={
+                      message.startsWith("Đã")
+                        ? "admin-message success"
+                        : "admin-message"
+                    }
+                  >
+                    {message}
+                  </div>
+                )}
+                <button
+                  className="primary"
+                  disabled={
+                    !form.username || !form.displayName || form.password.length < 8
+                  }
+                  onClick={create}
+                >
+                  Tạo tài khoản
+                </button>
+              </div>
+            </section>
 
-      {/* Danh sách tài khoản */}
-      <section className="admin-card user-list-card">
-        <div className="section-heading">
-          <div>
-            <span>♙</span>
-            <h2>Danh sách tài khoản</h2>
-          </div>
-          <small>{users.length} tài khoản</small>
-        </div>
-        <div className="user-table">
-          <table>
-            <thead>
-              <tr>
-                <th>ID</th>
-                <th>Tên người dùng</th>
-                <th>Vai trò</th>
-                <th>Ngày tạo</th>
-                <th>Trạng thái</th>
-                <th style={{ textAlign: "right" }}>Thao tác</th>
-              </tr>
-            </thead>
-            <tbody>
-              {users.map((u) => (
-                <tr key={u.id}>
-                  <td>
-                    <b>{u.username}</b>
-                  </td>
-                  <td>{u.displayName}</td>
-                  <td>
-                    <span className={`role ${u.role}`}>
-                      {u.role === "master"
-                        ? "Master Admin"
-                        : u.role === "admin"
-                          ? "Admin"
-                          : "Người dùng"}
+            <section className="admin-card master-card">
+              <div className="section-heading">
+                <div>
+                  <span>◆</span>
+                  <h2>Tài khoản đang đăng nhập</h2>
+                </div>
+              </div>
+              <dl>
+                <div>
+                  <dt>ID</dt>
+                  <dd>{currentUser.username}</dd>
+                </div>
+                <div>
+                  <dt>Tên</dt>
+                  <dd>{currentUser.displayName}</dd>
+                </div>
+                <div>
+                  <dt>Quyền</dt>
+                  <dd>
+                    <span>
+                      {currentUser.role === "master" ? "Master Admin" : "Admin"}
                     </span>
-                  </td>
-                  <td>{dateVN(u.createdAt)}</td>
-                  <td>
-                    <span
-                      className={u.active ? "account-active" : "account-locked"}
+                  </dd>
+                </div>
+                <div>
+                  <dt>Phiên đăng nhập</dt>
+                  <dd style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+                    <span>12 giờ</span>
+                    <button
+                      className="ghost"
+                      style={{ fontSize: "11px", padding: "3px 8px", height: "auto" }}
+                      onClick={handleCleanupSessions}
+                      disabled={cleaningSessions}
+                      title="Dọn dẹp các phiên đã hết hạn trong cơ sở dữ liệu"
                     >
-                      {u.active ? "Đang hoạt động" : "Đã khóa"}
-                    </span>
-                  </td>
-                  <td>
-                    <div style={{ display: "flex", justifyContent: "flex-end", gap: "6px" }}>
-                      {/* Đổi mật khẩu */}
-                      {(u.role !== "master" || u.id === currentUser.id) && (
-                        <button
-                          className="ghost"
-                          style={{ fontSize: "11px", padding: "4px 8px", height: "auto" }}
-                          onClick={() => {
-                            setResetTargetUser(u);
-                            setNewPassword("");
-                            setResetMsg("");
-                          }}
-                          title="Đặt lại mật khẩu cho tài khoản này"
-                        >
-                          Đổi MK
-                        </button>
-                      )}
-
-                      {/* Khóa/Mở khóa */}
-                      {u.role !== "master" && u.id !== currentUser.id && (
-                        <button
-                          style={{ fontSize: "11px", padding: "4px 8px", height: "auto" }}
-                          onClick={() => toggle(u)}
-                        >
-                          {u.active ? "Khóa" : "Mở"}
-                        </button>
-                      )}
-
-                      {/* Xóa tài khoản */}
-                      {u.role !== "master" && u.id !== currentUser.id && (
-                        <button
-                          className="ghost danger"
-                          style={{ fontSize: "11px", padding: "4px 8px", height: "auto" }}
-                          onClick={() => handleDeleteUser(u)}
-                          title="Xóa tài khoản khỏi hệ thống"
-                        >
-                          Xóa
-                        </button>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </section>
-
-      {/* Sao lưu & Phục hồi CSDL Snapshot trên Cloudflare R2 */}
-      <section className="admin-card snapshot-card" style={{ marginTop: "20px" }}>
-        <div className="section-heading">
-          <div>
-            <span>💾</span>
-            <h2>Sao lưu & phục hồi CSDL (Cloudflare R2 Snapshots)</h2>
+                      {cleaningSessions ? "Đang dọn..." : "🧹 Dọn phiên hết hạn"}
+                    </button>
+                  </dd>
+                </div>
+                {cleanupStatus && (
+                  <div>
+                    <dt></dt>
+                    <dd style={{ fontSize: "12px", color: "var(--green)" }}>{cleanupStatus}</dd>
+                  </div>
+                )}
+              </dl>
+              <p>
+                Mật khẩu được băm PBKDF2 bảo mật cao. Hệ thống tự động ghi nhật ký kiểm toán cho các tác vụ quản trị.
+              </p>
+            </section>
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-            <small>{snapshots.length} bản snapshot</small>
-            <button
-              className="ghost"
-              onClick={loadSnapshots}
-              disabled={snapshotLoading}
-              style={{ fontSize: "12px", padding: "4px 10px", height: "auto" }}
-            >
-              {snapshotLoading ? "Đang tải..." : "↻ Làm mới"}
-            </button>
-            <button
-              className="primary"
-              onClick={() => {
-                setSnapshotModalOpen(true);
-                setSnapshotLabel(`Bản sao lưu ${new Date().toLocaleDateString("vi-VN")} lúc ${new Date().toLocaleTimeString("vi-VN")}`);
-                setSnapshotMsg("");
-              }}
-              style={{ fontSize: "12px", padding: "6px 14px", height: "auto" }}
-            >
-              ＋ Tạo bản snapshot sao lưu
-            </button>
-          </div>
-        </div>
 
-        <div className="user-table" style={{ maxHeight: "380px", overflowY: "auto" }}>
-          <table>
-            <thead>
-              <tr>
-                <th style={{ width: "230px" }}>Tên / Nhãn snapshot</th>
-                <th style={{ width: "160px" }}>Thời điểm tạo</th>
-                <th style={{ width: "110px" }}>Người tạo</th>
-                <th style={{ width: "120px" }}>Dung lượng nén</th>
-                <th style={{ width: "90px" }}>Phân vùng</th>
-                <th style={{ textAlign: "right" }}>Thao tác phục hồi</th>
-              </tr>
-            </thead>
-            <tbody>
-              {snapshots.length === 0 ? (
+          <AdminUsage usage={usage} onRefresh={loadUsage} />
+
+          <section className="admin-card user-list-card">
+            <div className="section-heading">
+              <div>
+                <span>♙</span>
+                <h2>Danh sách tài khoản</h2>
+              </div>
+              <small>{users.length} tài khoản</small>
+            </div>
+            <div className="user-table">
+              <table>
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>Tên người dùng</th>
+                    <th>Vai trò</th>
+                    <th>Ngày tạo</th>
+                    <th>Trạng thái</th>
+                    <th style={{ textAlign: "right" }}>Thao tác</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {users.map((u) => (
+                    <tr key={u.id}>
+                      <td>
+                        <b>{u.username}</b>
+                      </td>
+                      <td>{u.displayName}</td>
+                      <td>
+                        <span className={`role ${u.role}`}>
+                          {u.role === "master"
+                            ? "Master Admin"
+                            : u.role === "admin"
+                              ? "Admin"
+                              : "Người dùng"}
+                        </span>
+                      </td>
+                      <td>{dateVN(u.createdAt)}</td>
+                      <td>
+                        <span
+                          className={u.active ? "account-active" : "account-locked"}
+                        >
+                          {u.active ? "Đang hoạt động" : "Đã khóa"}
+                        </span>
+                      </td>
+                      <td>
+                        <div style={{ display: "flex", justifyContent: "flex-end", gap: "6px" }}>
+                          {(u.role !== "master" || u.id === currentUser.id) && (
+                            <button
+                              className="ghost"
+                              style={{ fontSize: "11px", padding: "4px 8px", height: "auto" }}
+                              onClick={() => {
+                                setResetTargetUser(u);
+                                setNewPassword("");
+                                setResetMsg("");
+                              }}
+                              title="Đặt lại mật khẩu cho tài khoản này"
+                            >
+                              Đổi MK
+                            </button>
+                          )}
+
+                          {u.role !== "master" && u.id !== currentUser.id && (
+                            <button
+                              style={{ fontSize: "11px", padding: "4px 8px", height: "auto" }}
+                              onClick={() => toggle(u)}
+                            >
+                              {u.active ? "Khóa" : "Mở"}
+                            </button>
+                          )}
+
+                          {u.role !== "master" && u.id !== currentUser.id && (
+                            <button
+                              className="ghost danger"
+                              style={{ fontSize: "11px", padding: "4px 8px", height: "auto" }}
+                              onClick={() => handleDeleteUser(u)}
+                              title="Xóa tài khoản khỏi hệ thống"
+                            >
+                              Xóa
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        </>
+      )}
+
+      {/* Tab 2: Mẫu phiếu in */}
+      {activeTab === "templates" && (
+        <div className="admin-templates-tab">
+          <PrintTemplatesManagement
+            paymentTemplate={paymentTemplate}
+            suppliers={suppliers}
+            sampleRequest={sampleRequest}
+            onUpdateState={onUpdateState}
+            readOnly={readOnly}
+          />
+        </div>
+      )}
+
+      {/* Tab 3: Sao lưu R2 Snapshots */}
+      {activeTab === "snapshots" && (
+        <section className="admin-card snapshot-card">
+          <div className="section-heading">
+            <div>
+              <span>💾</span>
+              <h2>Sao lưu & phục hồi CSDL (Cloudflare R2 Snapshots)</h2>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <small>{snapshots.length} bản snapshot</small>
+              <button
+                className="ghost"
+                onClick={loadSnapshots}
+                disabled={snapshotLoading}
+                style={{ fontSize: "12px", padding: "4px 10px", height: "auto" }}
+              >
+                {snapshotLoading ? "Đang tải..." : "↻ Làm mới"}
+              </button>
+              <button
+                className="primary"
+                onClick={() => {
+                  setSnapshotModalOpen(true);
+                  setSnapshotLabel(`Bản sao lưu ${new Date().toLocaleDateString("vi-VN")} lúc ${new Date().toLocaleTimeString("vi-VN")}`);
+                  setSnapshotMsg("");
+                }}
+                style={{ fontSize: "12px", padding: "6px 14px", height: "auto" }}
+              >
+                ＋ Tạo bản snapshot sao lưu
+              </button>
+            </div>
+          </div>
+
+          <div className="user-table" style={{ maxHeight: "420px", overflowY: "auto" }}>
+            <table>
+              <thead>
                 <tr>
-                  <td colSpan={6} style={{ textAlign: "center", color: "var(--muted)", padding: "28px" }}>
-                    Chưa có bản snapshot nào trong Cloudflare R2. Nhấn nút <b>"＋ Tạo bản snapshot sao lưu"</b> ở trên để tạo bản sao lưu đầu tiên!
-                  </td>
+                  <th style={{ width: "230px" }}>Tên / Nhãn snapshot</th>
+                  <th style={{ width: "160px" }}>Thời điểm tạo</th>
+                  <th style={{ width: "110px" }}>Người tạo</th>
+                  <th style={{ width: "120px" }}>Dung lượng nén</th>
+                  <th style={{ width: "90px" }}>Phân vùng</th>
+                  <th style={{ textAlign: "right" }}>Thao tác phục hồi</th>
                 </tr>
-              ) : (
-                snapshots.map((item) => (
-                  <tr key={item.key}>
-                    <td>
-                      <b style={{ color: "var(--blue)" }}>{item.label}</b>
-                    </td>
-                    <td style={{ fontSize: "12px", color: "var(--muted)", whiteSpace: "nowrap" }}>
-                      {new Date(item.uploadedAt).toLocaleString("vi-VN")}
-                    </td>
-                    <td>
-                      <span style={{ fontSize: "12px" }}>{item.createdBy}</span>
-                    </td>
-                    <td style={{ fontSize: "12px", fontWeight: "600" }}>
-                      {(item.size / 1024).toFixed(1)} KB (Gzip)
-                    </td>
-                    <td style={{ fontSize: "12px" }}>
-                      {item.recordCount} state
-                    </td>
-                    <td>
-                      <div style={{ display: "flex", justifyContent: "flex-end", gap: "6px" }}>
-                        <button
-                          className="primary"
-                          style={{
-                            fontSize: "11px",
-                            padding: "4px 10px",
-                            height: "auto",
-                            background: "#e67700",
-                            borderColor: "#d9480f",
-                          }}
-                          disabled={restoringSnapshotKey === item.key}
-                          onClick={() => handleRestoreSnapshot(item)}
-                          title="Khôi phục toàn bộ CSDL về trạng thái tại thời điểm này"
-                        >
-                          {restoringSnapshotKey === item.key
-                            ? "Đang phục hồi..."
-                            : "↺ Phục hồi về thời điểm này"}
-                        </button>
-                        <button
-                          className="ghost danger"
-                          style={{ fontSize: "11px", padding: "4px 8px", height: "auto" }}
-                          onClick={() => handleDeleteSnapshot(item)}
-                          title="Xóa bản snapshot này khỏi R2"
-                        >
-                          Xóa
-                        </button>
-                      </div>
+              </thead>
+              <tbody>
+                {snapshots.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} style={{ textAlign: "center", color: "var(--muted)", padding: "28px" }}>
+                      Chưa có bản snapshot nào trong Cloudflare R2. Nhấn nút <b>"＋ Tạo bản snapshot sao lưu"</b> ở trên để tạo bản sao lưu đầu tiên!
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </section>
+                ) : (
+                  snapshots.map((item) => (
+                    <tr key={item.key}>
+                      <td>
+                        <b style={{ color: "var(--blue)" }}>{item.label}</b>
+                      </td>
+                      <td style={{ fontSize: "12px", color: "var(--muted)", whiteSpace: "nowrap" }}>
+                        {new Date(item.uploadedAt).toLocaleString("vi-VN")}
+                      </td>
+                      <td>
+                        <span style={{ fontSize: "12px" }}>{item.createdBy}</span>
+                      </td>
+                      <td style={{ fontSize: "12px", fontWeight: "600" }}>
+                        {(item.size / 1024).toFixed(1)} KB (Gzip)
+                      </td>
+                      <td style={{ fontSize: "12px" }}>
+                        {item.recordCount} state
+                      </td>
+                      <td>
+                        <div style={{ display: "flex", justifyContent: "flex-end", gap: "6px" }}>
+                          <button
+                            className="primary"
+                            style={{
+                              fontSize: "11px",
+                              padding: "4px 10px",
+                              height: "auto",
+                              background: "#e67700",
+                              borderColor: "#d9480f",
+                            }}
+                            disabled={restoringSnapshotKey === item.key}
+                            onClick={() => handleRestoreSnapshot(item)}
+                            title="Khôi phục toàn bộ CSDL về trạng thái tại thời điểm này"
+                          >
+                            {restoringSnapshotKey === item.key
+                              ? "Đang phục hồi..."
+                              : "↺ Phục hồi về thời điểm này"}
+                          </button>
+                          <button
+                            className="ghost danger"
+                            style={{ fontSize: "11px", padding: "4px 8px", height: "auto" }}
+                            onClick={() => handleDeleteSnapshot(item)}
+                            title="Xóa bản snapshot này khỏi R2"
+                          >
+                            Xóa
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
 
-      {/* Nhật ký kiểm toán & Thao tác hệ thống */}
-      <section className="admin-card audit-logs-card" style={{ marginTop: "20px" }}>
-        <div className="section-heading">
-          <div>
-            <span>📋</span>
-            <h2>Nhật ký thao tác & kiểm toán (Audit Logs)</h2>
+      {/* Tab 4: Nhật ký thao tác (Audit Logs) */}
+      {activeTab === "audit" && (
+        <section className="admin-card audit-logs-card">
+          <div className="section-heading">
+            <div>
+              <span>📋</span>
+              <h2>Nhật ký thao tác & kiểm toán (Audit Logs)</h2>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <small>{auditLogs.length} bản ghi gần nhất</small>
+              <button
+                className="ghost"
+                onClick={loadAuditLogs}
+                disabled={auditLoading}
+                style={{ fontSize: "12px", padding: "4px 10px", height: "auto" }}
+              >
+                {auditLoading ? "Đang tải..." : "↻ Làm mới"}
+              </button>
+            </div>
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-            <small>{auditLogs.length} bản ghi gần nhất</small>
-            <button
-              className="ghost"
-              onClick={loadAuditLogs}
-              disabled={auditLoading}
-              style={{ fontSize: "12px", padding: "4px 10px", height: "auto" }}
-            >
-              {auditLoading ? "Đang tải..." : "↻ Làm mới"}
-            </button>
-          </div>
-        </div>
-        <div className="user-table" style={{ maxHeight: "380px", overflowY: "auto" }}>
-          <table>
-            <thead>
-              <tr>
-                <th style={{ width: "160px" }}>Thời gian</th>
-                <th style={{ width: "130px" }}>Thao tác</th>
-                <th>Chi tiết hành động</th>
-              </tr>
-            </thead>
-            <tbody>
-              {auditLogs.length === 0 ? (
+          <div className="user-table" style={{ maxHeight: "420px", overflowY: "auto" }}>
+            <table>
+              <thead>
                 <tr>
-                  <td colSpan={3} style={{ textAlign: "center", color: "var(--muted)", padding: "28px" }}>
-                    Chưa có nhật ký nào được ghi nhận.
-                  </td>
+                  <th style={{ width: "160px" }}>Thời gian</th>
+                  <th style={{ width: "130px" }}>Thao tác</th>
+                  <th>Chi tiết hành động</th>
                 </tr>
-              ) : (
-                auditLogs.map((log) => (
-                  <tr key={log.id}>
-                    <td style={{ fontSize: "12px", color: "var(--muted)", whiteSpace: "nowrap" }}>
-                      {new Date(log.createdAt).toLocaleString("vi-VN")}
-                    </td>
-                    <td>
-                      <span className={`audit-badge audit-${log.action.toLowerCase()}`}>
-                        {renderActionName(log.action)}
-                      </span>
-                    </td>
-                    <td style={{ fontSize: "13px" }}>
-                      {log.entityId}
+              </thead>
+              <tbody>
+                {auditLogs.length === 0 ? (
+                  <tr>
+                    <td colSpan={3} style={{ textAlign: "center", color: "var(--muted)", padding: "28px" }}>
+                      Chưa có nhật ký nào được ghi nhận.
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </section>
+                ) : (
+                  auditLogs.map((log) => (
+                    <tr key={log.id}>
+                      <td style={{ fontSize: "12px", color: "var(--muted)", whiteSpace: "nowrap" }}>
+                        {new Date(log.createdAt).toLocaleString("vi-VN")}
+                      </td>
+                      <td>
+                        <span className={`audit-badge audit-${log.action.toLowerCase()}`}>
+                          {renderActionName(log.action)}
+                        </span>
+                      </td>
+                      <td style={{ fontSize: "13px" }}>
+                        {log.entityId}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
 
       {/* Modal đặt lại mật khẩu */}
       {resetTargetUser && (
