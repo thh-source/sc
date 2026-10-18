@@ -50,10 +50,15 @@ export function PaymentManagement({
   onUpdateState,
   readOnly = false,
 }: PaymentManagementProps) {
-  // Mobile card view detection (auto <= 768px, with manual toggle override)
+  // Mobile / Desktop & Card view detection
   const isAutoMobile = useIsMobile(768);
   const [userMobileToggle, setUserMobileToggle] = useState<boolean | null>(null);
-  const showMobileCards = userMobileToggle !== null ? userMobileToggle : isAutoMobile;
+  const isPhoneScreen = isAutoMobile;
+  const isCardView = userMobileToggle !== null ? userMobileToggle : isAutoMobile;
+  const showMobileCards = isCardView;
+
+  // Card view Edit modal state (allows editing on computer in card mode)
+  const [editModalReqId, setEditModalReqId] = useState<number | null>(null);
 
   // Selection states
   const [checkedIds, setCheckedIds] = useState<Set<number>>(new Set());
@@ -301,6 +306,14 @@ export function PaymentManagement({
     const next = [newReq, ...paymentRequests];
     onUpdateState({ paymentRequests: next });
     setActiveRequestId(maxId);
+    return maxId;
+  };
+
+  const handleAddNewFromCardView = () => {
+    const newId = handleAddRequestRow();
+    if (newId) {
+      setEditModalReqId(newId);
+    }
   };
 
   const handleDeleteSelectedRequests = () => {
@@ -318,6 +331,23 @@ export function PaymentManagement({
     setCheckedIds(new Set());
     if (activeRequestId && toDelete.has(activeRequestId)) {
       setActiveRequestId(next[0]?.id ?? null);
+    }
+  };
+
+  const handleDeleteRequest = (id: number) => {
+    if (readOnly) return;
+    const target = paymentRequests.find((r) => r.id === id);
+    if (!target) return;
+    if (confirm(`Bạn có chắc muốn xóa đề nghị STT ${target.legacy_stt || target.id} (${target.payee_name || "Chưa có NCC"})?`)) {
+      const next = paymentRequests.filter((r) => r.id !== id);
+      onUpdateState({ paymentRequests: next });
+      if (editModalReqId === id) setEditModalReqId(null);
+      if (activeRequestId === id) setActiveRequestId(next[0]?.id ?? null);
+      if (checkedIds.has(id)) {
+        const nextChecked = new Set(checkedIds);
+        nextChecked.delete(id);
+        setCheckedIds(nextChecked);
+      }
     }
   };
 
@@ -660,21 +690,32 @@ export function PaymentManagement({
           <em>QUẢN LÝ TÀI CHÍNH · THANH TOÁN</em>
           <h1>Đề nghị thanh toán (Mẫu 01 – TT)</h1>
           <p>
-            {showMobileCards
+            {isPhoneScreen
               ? "Giao diện di động: Chỉ xem thông tin và đánh dấu đã thanh toán."
+              : isCardView
+              ? "Chế độ xem dạng thẻ trực quan: Xem, tìm kiếm, chỉnh sửa và lập đề nghị thanh toán mới."
               : "Lập, theo dõi và phê duyệt đề nghị thanh toán chuyển khoản Phenikaa. Dùng chung danh mục Nhà cung cấp và Cài đặt của hệ thống mua hàng."}
           </p>
         </div>
         <div className="actions">
           <button
             className="payment-btn"
-            onClick={() => setUserMobileToggle(!showMobileCards)}
-            title="Chuyển đổi giao diện giữa dạng bảng tính desktop và dạng thẻ di động"
+            onClick={() => setUserMobileToggle(!isCardView)}
+            title="Chuyển đổi giao diện giữa dạng bảng tính desktop và dạng thẻ trực quan"
           >
-            {showMobileCards ? "💻 Xem bản desktop" : "📱 Xem dạng thẻ"}
+            {isCardView ? "📊 Xem dạng bảng tính" : "🗂️ Xem dạng thẻ"}
           </button>
-          {!showMobileCards && (
+          {!isPhoneScreen && (
             <>
+              {isCardView && (
+                <button
+                  className="payment-btn btn-primary"
+                  onClick={handleAddNewFromCardView}
+                  title="Thêm một đề nghị thanh toán mới trực tiếp trong giao diện thẻ"
+                >
+                  ＋ Thêm đề nghị mới
+                </button>
+              )}
               <button className="primary" onClick={() => setShowPOPickerModal(true)}>
                 ⚡ Lập từ PO
               </button>
@@ -696,22 +737,28 @@ export function PaymentManagement({
       </div>
 
       {/* Toolbar */}
-      <div className={`payment-toolbar ${showMobileCards ? "payment-toolbar-mobile" : ""}`}>
-        {!showMobileCards && (
+      <div className={`payment-toolbar ${isPhoneScreen ? "payment-toolbar-mobile" : ""}`}>
+        {!isPhoneScreen && (
           <>
-            <button className="payment-btn btn-primary" onClick={handleAddRequestRow}>
-              ＋ Thêm đề nghị (thêm dòng)
+            <button
+              className="payment-btn btn-primary"
+              onClick={isCardView ? handleAddNewFromCardView : handleAddRequestRow}
+              title={isCardView ? "Thêm một đề nghị thanh toán mới và chỉnh sửa" : "Thêm một dòng đề nghị thanh toán mới vào bảng"}
+            >
+              ＋ Thêm đề nghị {isCardView ? "mới" : "(thêm dòng)"}
             </button>
 
-            <button
-              type="button"
-              className={`btn-workspace-toggle ${isWorkspaceExpanded ? "active" : ""}`}
-              onClick={() => setIsWorkspaceExpanded(!isWorkspaceExpanded)}
-              title={isWorkspaceExpanded ? "Thu gọn về giao diện chuẩn" : "Mở rộng không gian làm việc (giống So sánh báo giá)"}
-            >
-              <span>{isWorkspaceExpanded ? "🗗" : "⛶"}</span>
-              {isWorkspaceExpanded ? "Thu gọn giao diện" : "Mở rộng không gian"}
-            </button>
+            {!isCardView && (
+              <button
+                type="button"
+                className={`btn-workspace-toggle ${isWorkspaceExpanded ? "active" : ""}`}
+                onClick={() => setIsWorkspaceExpanded(!isWorkspaceExpanded)}
+                title={isWorkspaceExpanded ? "Thu gọn về giao diện chuẩn" : "Mở rộng không gian làm việc (giống So sánh báo giá)"}
+              >
+                <span>{isWorkspaceExpanded ? "🗗" : "⛶"}</span>
+                {isWorkspaceExpanded ? "Thu gọn giao diện" : "Mở rộng không gian"}
+              </button>
+            )}
           </>
         )}
 
@@ -719,12 +766,12 @@ export function PaymentManagement({
           placeholder="Tìm NCC, STT, nội dung, hóa đơn..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          style={{ width: showMobileCards ? "100%" : "230px" }}
+          style={{ width: isPhoneScreen ? "100%" : "230px" }}
         />
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
-          style={{ width: showMobileCards ? "100%" : "auto" }}
+          style={{ width: isPhoneScreen ? "100%" : "auto" }}
         >
           <option value="">Tất cả trạng thái</option>
           {PAYMENT_STATUSES.map((st) => (
@@ -736,7 +783,7 @@ export function PaymentManagement({
         <select
           value={groupFilter}
           onChange={(e) => setGroupFilter(e.target.value)}
-          style={{ width: showMobileCards ? "100%" : "auto" }}
+          style={{ width: isPhoneScreen ? "100%" : "auto" }}
         >
           <option value="">Tất cả nhóm</option>
           {paymentGroups.map((g) => (
@@ -746,60 +793,66 @@ export function PaymentManagement({
           ))}
         </select>
 
-        {!showMobileCards && (
-          <>
-            <div
+        {!isPhoneScreen && !isCardView && (
+          <div
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "5px",
+              fontSize: "12px",
+              color: "#1e3a5f",
+              fontWeight: 600,
+              background: "#f0f4f9",
+              padding: "3px 8px",
+              borderRadius: "6px",
+              border: "1px solid #cbd5e1",
+            }}
+          >
+            <span>📌 Cố định:</span>
+            <select
+              value={freezeCol}
+              onChange={(e) => setFreezeCol(Number(e.target.value))}
               style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "5px",
-                fontSize: "12px",
-                color: "#1e3a5f",
-                fontWeight: 600,
-                background: "#f0f4f9",
-                padding: "3px 8px",
-                borderRadius: "6px",
+                padding: "3px 6px",
+                borderRadius: "5px",
                 border: "1px solid #cbd5e1",
+                fontSize: "12px",
+                background: "#fff",
+                cursor: "pointer",
               }}
             >
-              <span>📌 Cố định:</span>
-              <select
-                value={freezeCol}
-                onChange={(e) => setFreezeCol(Number(e.target.value))}
-                style={{
-                  padding: "3px 6px",
-                  borderRadius: "5px",
-                  border: "1px solid #cbd5e1",
-                  fontSize: "12px",
-                  background: "#fff",
-                  cursor: "pointer",
-                }}
-              >
-                <option value="2">Cột STT (Mặc định)</option>
-                <option value="3">Đến NCC (Cột B)</option>
-                <option value="4">Đến Nhóm PO (Cột C)</option>
-                <option value="7">Đến Số HĐ (Cột F)</option>
-                <option value="8">Đến Ngày HĐ</option>
-                <option value="0">Không cố định cột</option>
-              </select>
-            </div>
+              <option value="2">Cột STT (Mặc định)</option>
+              <option value="3">Đến NCC (Cột B)</option>
+              <option value="4">Đến Nhóm PO (Cột C)</option>
+              <option value="7">Đến Số HĐ (Cột F)</option>
+              <option value="8">Đến Ngày HĐ</option>
+              <option value="0">Không cố định cột</option>
+            </select>
+          </div>
+        )}
 
+        {!isPhoneScreen && (
+          <>
             <button className="payment-btn" onClick={() => handlePrintSingle()}>
               ⎙ In phiếu đang xem
             </button>
-            <button className="payment-btn" onClick={handlePrintChecked}>
-              ⎙ In các dòng đã tích ({checkedIds.size})
-            </button>
-            <button
-              className="payment-btn btn-danger"
-              onClick={handleDeleteSelectedRequests}
-            >
-              Xóa dòng đã chọn
-            </button>
+            {!isCardView && (
+              <>
+                <button className="payment-btn" onClick={handlePrintChecked}>
+                  ⎙ In các dòng đã tích ({checkedIds.size})
+                </button>
+                <button
+                  className="payment-btn btn-danger"
+                  onClick={handleDeleteSelectedRequests}
+                >
+                  Xóa dòng đã chọn
+                </button>
+              </>
+            )}
           </>
         )}
 
-        <span style={{ marginLeft: showMobileCards ? "0" : "auto", fontSize: "12px", color: "#64748b" }}>
+        <span style={{ marginLeft: isPhoneScreen ? "0" : "auto", fontSize: "12px", color: "#64748b" }}>
           {filteredRequests.length} / {paymentRequests.length} đề nghị
         </span>
       </div>
@@ -881,9 +934,31 @@ export function PaymentManagement({
               <div key={r.id} className={`m-card ${isDone ? "m-card-done" : ""}`}>
                 <div className="m-card-header">
                   <div className="m-card-stt">STT {r.legacy_stt || r.id}</div>
-                  <span className={`m-badge ${stClass}`}>{r.status}</span>
+                  {isPhoneScreen ? (
+                    <span className={`m-badge ${stClass}`}>{r.status}</span>
+                  ) : (
+                    <select
+                      className={`m-badge-select ${stClass}`}
+                      value={r.status || "Đã giao KT, chờ đi tiền"}
+                      onChange={(e) => handleEditRequest(r.id, "status", e.target.value)}
+                      title="Chuyển nhanh trạng thái"
+                    >
+                      {PAYMENT_STATUSES.map((st) => (
+                        <option key={st} value={st}>
+                          {st}
+                        </option>
+                      ))}
+                    </select>
+                  )}
                 </div>
-                <div className="m-card-payee">{payee}</div>
+                <div
+                  className="m-card-payee"
+                  onClick={() => !isPhoneScreen && setEditModalReqId(r.id)}
+                  style={{ cursor: !isPhoneScreen ? "pointer" : "default" }}
+                  title={!isPhoneScreen ? "Nhấp để chỉnh sửa đề nghị này" : undefined}
+                >
+                  {payee}
+                </div>
                 <div className="m-card-amount">
                   {fmtMoney(r.amount)} <small>{r.currency || "VND"}</small>
                 </div>
@@ -930,35 +1005,97 @@ export function PaymentManagement({
                   </details>
                 )}
 
-                {/* Giao diện mobile chỉ có 1 tính năng duy nhất: Đánh dấu đã thanh toán */}
-                <div className="m-card-actions">
-                  {isDone ? (
+                {/* Mobile: Chỉ cho xem và có 1 tính năng duy nhất: Đánh dấu đã thanh toán */}
+                {isPhoneScreen ? (
+                  <div className="m-card-actions">
+                    {isDone ? (
+                      <button
+                        type="button"
+                        className="m-btn-mark-paid is-done"
+                        onClick={() => handleTogglePaid(r.id, false)}
+                        title="Chạm để chuyển lại trạng thái Chưa thanh toán"
+                      >
+                        <span className="m-btn-icon">✓</span>
+                        <span>Đã thanh toán</span>
+                        <small>(Chạm để hủy)</small>
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        className="m-btn-mark-paid"
+                        onClick={() => handleTogglePaid(r.id, true)}
+                        title="Chạm để đánh dấu đề nghị này đã thanh toán xong"
+                      >
+                        <span className="m-btn-icon">✓</span>
+                        <span>Đánh dấu đã thanh toán</span>
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                  /* Desktop Card Actions: Đầy đủ tính năng sửa, in, hồ sơ, xóa trên máy tính */
+                  <div className="m-card-desktop-tools">
                     <button
                       type="button"
-                      className="m-btn-mark-paid is-done"
-                      onClick={() => handleTogglePaid(r.id, false)}
-                      title="Chạm để chuyển lại trạng thái Chưa thanh toán"
+                      className="m-btn-edit-card"
+                      onClick={() => setEditModalReqId(r.id)}
+                      title="Chỉnh sửa chi tiết thông tin đề nghị thanh toán"
                     >
-                      <span className="m-btn-icon">✓</span>
-                      <span>Đã thanh toán</span>
-                      <small>(Chạm để hủy)</small>
+                      ✏️ Sửa chi tiết
                     </button>
-                  ) : (
                     <button
                       type="button"
-                      className="m-btn-mark-paid"
-                      onClick={() => handleTogglePaid(r.id, true)}
-                      title="Chạm để đánh dấu đề nghị này đã thanh toán xong"
+                      className={`m-btn-toggle-done ${isDone ? "is-done" : ""}`}
+                      onClick={() => handleTogglePaid(r.id, !isDone)}
+                      title={isDone ? "Bỏ đánh dấu đã thanh toán" : "Đánh dấu đã thanh toán"}
                     >
-                      <span className="m-btn-icon">✓</span>
-                      <span>Đánh dấu đã thanh toán</span>
+                      {isDone ? "✓ Đã TT" : "○ Đánh dấu TT"}
                     </button>
-                  )}
-                </div>
+                    <button
+                      type="button"
+                      className="m-btn-icon-action"
+                      onClick={() => handlePrintSingle(r)}
+                      title="In phiếu thanh toán này"
+                    >
+                      ⎙ In
+                    </button>
+                    <button
+                      type="button"
+                      className="m-btn-icon-action"
+                      onClick={() => setDocModalReqId(r.id)}
+                      title="Hồ sơ chứng từ"
+                    >
+                      📎 Hồ sơ
+                    </button>
+                    <button
+                      type="button"
+                      className="m-btn-icon-action btn-danger"
+                      onClick={() => handleDeleteRequest(r.id)}
+                      title="Xóa đề nghị này"
+                    >
+                      🗑️
+                    </button>
+                  </div>
+                )}
               </div>
             );
           })}
-          {filteredRequests.length === 0 && (
+
+          {/* On desktop: '+ Thêm đề nghị mới' interactive card */}
+          {!isPhoneScreen && (
+            <div
+              className="m-card m-card-add-new"
+              onClick={handleAddNewFromCardView}
+              title="Nhấp để thêm đề nghị thanh toán mới ngay tại đây"
+            >
+              <div className="m-card-add-icon">＋</div>
+              <div className="m-card-add-title">Thêm đề nghị thanh toán mới</div>
+              <div className="m-card-add-sub">
+                Tạo phiếu nhanh chóng và mở form chỉnh sửa thẻ trực quan
+              </div>
+            </div>
+          )}
+
+          {filteredRequests.length === 0 && isPhoneScreen && (
             <div className="m-empty">Không tìm thấy đề nghị thanh toán nào</div>
           )}
         </div>
@@ -1400,11 +1537,7 @@ export function PaymentManagement({
                           title="Xóa đề nghị này"
                           onClick={(e) => {
                             e.stopPropagation();
-                            if (confirm(`Bạn có chắc muốn xóa đề nghị STT ${r.legacy_stt || r.id}?`)) {
-                              onUpdateState({
-                                paymentRequests: paymentRequests.filter((x) => x.id !== r.id),
-                              });
-                            }
+                            handleDeleteRequest(r.id);
                           }}
                         >
                           ✕
@@ -1580,6 +1713,493 @@ export function PaymentManagement({
           </div>
         </details>
       )}
+
+      {/* MODAL 0: Edit Payment Request in Card View (Desktop Full Feature) */}
+      {editModalReqId !== null && (() => {
+        const editReq = paymentRequests.find((r) => r.id === editModalReqId);
+        if (!editReq) return null;
+        const attachedDocs = new Set(editReq.documents || []);
+
+        return (
+          <div className="payment-modal-overlay" onClick={() => setEditModalReqId(null)}>
+            <div
+              className="payment-modal-card card-edit-modal"
+              style={{ maxWidth: "860px", width: "95vw" }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="payment-modal-header">
+                <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                  <span style={{ fontSize: "20px" }}>✏️</span>
+                  <div>
+                    <h3 style={{ margin: 0, fontSize: "17px", color: "#0f172a" }}>
+                      Chỉnh sửa Đề nghị thanh toán — STT {editReq.legacy_stt || editReq.id}
+                    </h3>
+                    <div style={{ fontSize: "12px", color: "#64748b", marginTop: "2px" }}>
+                      Dữ liệu tự động lưu khi chỉnh sửa · Nhấn Đóng hoặc Hoàn tất khi xong
+                    </div>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setEditModalReqId(null)}
+                  style={{ fontSize: "20px", cursor: "pointer", border: "none", background: "transparent" }}
+                >
+                  ✕
+                </button>
+              </div>
+
+              <div className="card-edit-modal-body" style={{ display: "flex", flexDirection: "column", gap: "16px", maxHeight: "72vh", overflowY: "auto", paddingRight: "4px" }}>
+                {/* Section 1: Nhà cung cấp & Thụ hưởng */}
+                <div className="card-edit-section">
+                  <div className="card-edit-sec-title">🏢 THÔNG TIN NHÀ CUNG CẤP & THỤ HƯỞNG</div>
+                  <div className="card-edit-grid-2">
+                    <div className="card-edit-field">
+                      <label>Nhà cung cấp (Gõ để tìm hoặc chọn NCC):</label>
+                      <input
+                        list="nccDataList"
+                        value={editReq.payee_name || ""}
+                        onChange={(e) => handleEditRequest(editReq.id, "payee_name", e.target.value)}
+                        placeholder="Chọn hoặc nhập tên NCC..."
+                        className="card-edit-input"
+                      />
+                    </div>
+                    <div className="card-edit-field">
+                      <label>Địa chỉ NCC:</label>
+                      <input
+                        value={editReq.address || ""}
+                        onChange={(e) => handleEditRequest(editReq.id, "address", e.target.value)}
+                        placeholder="Địa chỉ nhà cung cấp..."
+                        className="card-edit-input"
+                      />
+                    </div>
+                    <div className="card-edit-field">
+                      <label>Số tài khoản ngân hàng:</label>
+                      <input
+                        value={editReq.account_no || ""}
+                        onChange={(e) => handleEditRequest(editReq.id, "account_no", e.target.value)}
+                        placeholder="Số tài khoản..."
+                        className="card-edit-input"
+                      />
+                    </div>
+                    <div className="card-edit-field">
+                      <label>Ngân hàng:</label>
+                      <input
+                        list="bankDataList"
+                        value={editReq.bank || ""}
+                        onChange={(e) => handleEditRequest(editReq.id, "bank", e.target.value)}
+                        placeholder="Chọn hoặc nhập ngân hàng..."
+                        className="card-edit-input"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Section 2: Nội dung & Điều kiện thanh toán */}
+                <div className="card-edit-section">
+                  <div className="card-edit-sec-title">📝 NỘI DUNG & ĐIỀU KIỆN THANH TOÁN</div>
+                  <div className="card-edit-grid-2">
+                    <div className="card-edit-field" style={{ gridColumn: "span 2" }}>
+                      <label>Nội dung thanh toán:</label>
+                      <textarea
+                        rows={2}
+                        value={editReq.description || ""}
+                        onChange={(e) => handleEditRequest(editReq.id, "description", e.target.value)}
+                        placeholder="Mô tả nội dung đề nghị thanh toán..."
+                        className="card-edit-input"
+                      />
+                    </div>
+                    <div className="card-edit-field">
+                      <label>Nhóm HĐ / Mã PO:</label>
+                      <input
+                        list="groupDataList"
+                        value={editReq.group_code || (paymentGroups.find((g) => g.id === editReq.group_id)?.code || "")}
+                        onChange={(e) => handleEditRequest(editReq.id, "group_code", e.target.value)}
+                        placeholder="Chọn hoặc nhập mã PO / Nhóm..."
+                        className="card-edit-input"
+                      />
+                    </div>
+                    <div className="card-edit-field">
+                      <label>Người đề nghị:</label>
+                      <input
+                        list="requesterDataList"
+                        value={editReq.created_by_name || ""}
+                        onChange={(e) => handleEditRequest(editReq.id, "created_by_name", e.target.value)}
+                        placeholder="Họ tên người đề nghị..."
+                        className="card-edit-input"
+                      />
+                    </div>
+                    <div className="card-edit-field">
+                      <label>Ngày đề nghị:</label>
+                      <div className="cell-date-wrap">
+                        <input
+                          value={editReq.request_date || ""}
+                          placeholder="dd/mm/yyyy"
+                          onChange={(e) => handleEditRequest(editReq.id, "request_date", e.target.value)}
+                          onBlur={(e) => {
+                            const parsed = parseFlexibleDate(e.target.value);
+                            if (parsed !== e.target.value) {
+                              handleEditRequest(editReq.id, "request_date", parsed);
+                            }
+                          }}
+                          className="card-edit-input"
+                        />
+                        <button
+                          type="button"
+                          className="cell-date-btn"
+                          title="Chọn ngày"
+                          onClick={() =>
+                            openCalendar(editReq.request_date || "", (val) =>
+                              handleEditRequest(editReq.id, "request_date", val)
+                            )
+                          }
+                        >
+                          📅
+                        </button>
+                      </div>
+                    </div>
+                    <div className="card-edit-field">
+                      <label>Thời hạn chuyển tiền:</label>
+                      <div className="cell-date-wrap">
+                        <input
+                          value={editReq.due_date || ""}
+                          placeholder="dd/mm/yyyy"
+                          onChange={(e) => handleEditRequest(editReq.id, "due_date", e.target.value)}
+                          onBlur={(e) => {
+                            const parsed = parseFlexibleDate(e.target.value);
+                            if (parsed !== e.target.value) {
+                              handleEditRequest(editReq.id, "due_date", parsed);
+                            }
+                          }}
+                          className="card-edit-input"
+                        />
+                        <button
+                          type="button"
+                          className="cell-date-btn"
+                          title="Chọn ngày"
+                          onClick={() =>
+                            openCalendar(editReq.due_date || "", (val) =>
+                              handleEditRequest(editReq.id, "due_date", val)
+                            )
+                          }
+                        >
+                          📅
+                        </button>
+                      </div>
+                    </div>
+                    <div className="card-edit-field">
+                      <label>Hình thức thanh toán:</label>
+                      <select
+                        value={editReq.payment_type || "TT trước 100%"}
+                        onChange={(e) => handleEditRequest(editReq.id, "payment_type", e.target.value)}
+                        className="card-edit-input"
+                      >
+                        {PAYMENT_TYPES.map((pt) => (
+                          <option key={pt} value={pt}>
+                            {pt}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="card-edit-field">
+                      <label>Trạng thái giải ngân:</label>
+                      <select
+                        value={editReq.status || "Đã giao KT, chờ đi tiền"}
+                        onChange={(e) => handleEditRequest(editReq.id, "status", e.target.value)}
+                        className="card-edit-input"
+                      >
+                        {PAYMENT_STATUSES.map((st) => (
+                          <option key={st} value={st}>
+                            {st}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="card-edit-field">
+                      <label>Tổng số tiền:</label>
+                      <div style={{ display: "flex", gap: "6px" }}>
+                        <input
+                          value={fmtMoney(editReq.amount)}
+                          placeholder="0"
+                          onChange={(e) => {
+                            const raw = e.target.value.replace(/,/g, "");
+                            handleEditRequest(editReq.id, "amount", raw);
+                          }}
+                          className="card-edit-input"
+                          style={{ fontWeight: 700, color: "#0d9488", textAlign: "right" }}
+                        />
+                        <select
+                          value={editReq.currency || "VND"}
+                          onChange={(e) => handleEditRequest(editReq.id, "currency", e.target.value)}
+                          className="card-edit-input"
+                          style={{ width: "90px" }}
+                        >
+                          <option value="VND">VND</option>
+                          <option value="USD">USD</option>
+                          <option value="EUR">EUR</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div className="card-edit-field">
+                      <label>Bổ sung hồ sơ / Ghi chú chứng từ:</label>
+                      <input
+                        list="docSupplementDataList"
+                        value={editReq.doc_supplement || ""}
+                        onChange={(e) => handleEditRequest(editReq.id, "doc_supplement", e.target.value)}
+                        placeholder="Ghi chú hồ sơ còn thiếu..."
+                        className="card-edit-input"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Section 3: Danh mục chi tiết các dòng hóa đơn / hàng hóa */}
+                <div className="card-edit-section">
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
+                    <div className="card-edit-sec-title" style={{ margin: 0 }}>
+                      📦 CHI TIẾT DANH MỤC HÓA ĐƠN / HÀNG HÓA ({editReq.lines?.length || 0} dòng)
+                    </div>
+                    <button
+                      type="button"
+                      className="payment-btn btn-primary"
+                      style={{ padding: "4px 10px", fontSize: "12px" }}
+                      onClick={() => {
+                        const lines = [
+                          ...(editReq.lines || []),
+                          { description: "", invoice_no: "", invoice_date: "", amount: 0 },
+                        ];
+                        handleEditRequest(editReq.id, "lines", lines);
+                      }}
+                    >
+                      ＋ Thêm dòng hàng hóa
+                    </button>
+                  </div>
+
+                  <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                    <div
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns: "1.5fr 115px 140px 140px 36px",
+                        gap: "8px",
+                        fontSize: "11.5px",
+                        fontWeight: 600,
+                        color: "#475569",
+                        padding: "0 2px",
+                      }}
+                    >
+                      <div>Tên hàng hóa / dịch vụ</div>
+                      <div>Số hóa đơn</div>
+                      <div>Ngày hóa đơn</div>
+                      <div style={{ textAlign: "right" }}>Số tiền</div>
+                      <div></div>
+                    </div>
+
+                    {(editReq.lines || []).map((line, lIdx) => (
+                      <div
+                        key={lIdx}
+                        style={{
+                          display: "grid",
+                          gridTemplateColumns: "1.5fr 115px 140px 140px 36px",
+                          gap: "8px",
+                          alignItems: "center",
+                        }}
+                      >
+                        <input
+                          list="itemDataList"
+                          className="card-edit-input"
+                          value={line.description || ""}
+                          placeholder="Tên hàng hóa..."
+                          onChange={(e) => {
+                            const lines = [...(editReq.lines || [])];
+                            lines[lIdx] = { ...lines[lIdx], description: e.target.value };
+                            handleEditRequest(editReq.id, "lines", lines);
+                            if (lIdx === 0) handleEditRequest(editReq.id, "item_name", e.target.value);
+                          }}
+                        />
+                        <input
+                          list="invoiceDataList"
+                          className="card-edit-input"
+                          value={line.invoice_no || ""}
+                          placeholder="Số HĐ..."
+                          onChange={(e) => {
+                            const lines = [...(editReq.lines || [])];
+                            lines[lIdx] = { ...lines[lIdx], invoice_no: e.target.value };
+                            handleEditRequest(editReq.id, "lines", lines);
+                            if (lIdx === 0) handleEditRequest(editReq.id, "invoice_no", e.target.value);
+                          }}
+                        />
+                        <div className="cell-date-wrap">
+                          <input
+                            className="card-edit-input"
+                            value={line.invoice_date || ""}
+                            placeholder="dd/mm/yyyy"
+                            onChange={(e) => {
+                              const lines = [...(editReq.lines || [])];
+                              lines[lIdx] = { ...lines[lIdx], invoice_date: e.target.value };
+                              handleEditRequest(editReq.id, "lines", lines);
+                            }}
+                            onBlur={(e) => {
+                              const parsed = parseFlexibleDate(e.target.value);
+                              if (parsed !== e.target.value) {
+                                const lines = [...(editReq.lines || [])];
+                                lines[lIdx] = { ...lines[lIdx], invoice_date: parsed };
+                                handleEditRequest(editReq.id, "lines", lines);
+                                if (lIdx === 0) handleEditRequest(editReq.id, "invoice_date", parsed);
+                              }
+                            }}
+                          />
+                          <button
+                            type="button"
+                            className="cell-date-btn"
+                            title="Chọn ngày"
+                            onClick={() =>
+                              openCalendar(line.invoice_date || "", (val) => {
+                                const lines = [...(editReq.lines || [])];
+                                lines[lIdx] = { ...lines[lIdx], invoice_date: val };
+                                handleEditRequest(editReq.id, "lines", lines);
+                                if (lIdx === 0) handleEditRequest(editReq.id, "invoice_date", val);
+                              })
+                            }
+                          >
+                            📅
+                          </button>
+                        </div>
+                        <input
+                          className="card-edit-input"
+                          style={{ textAlign: "right", fontWeight: 600 }}
+                          value={fmtMoney(line.amount)}
+                          placeholder="0"
+                          onChange={(e) => {
+                            const raw = Number(e.target.value.replace(/,/g, "")) || 0;
+                            const lines = [...(editReq.lines || [])];
+                            lines[lIdx] = { ...lines[lIdx], amount: raw };
+                            const totalAmt = lines.reduce(
+                              (sum, it) => sum + (Number(it.amount) || 0),
+                              0
+                            );
+                            handleEditRequest(editReq.id, "lines", lines);
+                            handleEditRequest(editReq.id, "amount", totalAmt);
+                          }}
+                        />
+                        <button
+                          type="button"
+                          className="payment-btn btn-danger"
+                          style={{ padding: "4px 8px" }}
+                          title="Xóa dòng hàng này"
+                          onClick={() => {
+                            const lines = (editReq.lines || []).filter((_, idx) => idx !== lIdx);
+                            const totalAmt = lines.reduce(
+                              (sum, it) => sum + (Number(it.amount) || 0),
+                              0
+                            );
+                            handleEditRequest(editReq.id, "lines", lines);
+                            if (lines.length > 0) handleEditRequest(editReq.id, "amount", totalAmt);
+                          }}
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ))}
+                    {(editReq.lines || []).length === 0 && (
+                      <div style={{ fontSize: "12px", color: "#94a3b8", fontStyle: "italic", padding: "8px 0" }}>
+                        Chưa có dòng hàng hóa phân tách. Bấm &quot;＋ Thêm dòng hàng hóa&quot; để bổ sung chi tiết.
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Section 4: Hồ sơ chứng từ đi kèm */}
+                <div className="card-edit-section">
+                  <div className="card-edit-sec-title">📎 HỒ SƠ / CHỨNG TỪ ĐI KÈM</div>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
+                    {customDocTypes.map((doc) => {
+                      const isChecked = attachedDocs.has(doc);
+                      return (
+                        <label
+                          key={doc}
+                          style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: "6px",
+                            padding: "6px 10px",
+                            borderRadius: "6px",
+                            border: `1px solid ${isChecked ? "#3b82f6" : "#cbd5e1"}`,
+                            background: isChecked ? "#eff6ff" : "#ffffff",
+                            color: isChecked ? "#1d4ed8" : "#334155",
+                            cursor: "pointer",
+                            fontSize: "12.5px",
+                            fontWeight: isChecked ? 600 : 400,
+                            userSelect: "none",
+                            transition: "all 0.15s ease",
+                          }}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={(e) => {
+                              const nextDocs = new Set(attachedDocs);
+                              if (e.target.checked) nextDocs.add(doc);
+                              else nextDocs.delete(doc);
+                              handleEditRequest(editReq.id, "documents", Array.from(nextDocs));
+                            }}
+                          />
+                          <span>{doc}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+
+              {/* Modal Footer */}
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  borderTop: "1px solid #e2e8f0",
+                  paddingTop: "12px",
+                  marginTop: "8px",
+                }}
+              >
+                <div style={{ display: "flex", gap: "8px" }}>
+                  <button
+                    type="button"
+                    className="payment-btn"
+                    onClick={() => handlePrintSingle(editReq)}
+                    title="In phiếu thanh toán này"
+                  >
+                    ⎙ In phiếu
+                  </button>
+                  <button
+                    type="button"
+                    className="payment-btn btn-danger"
+                    onClick={() => handleDeleteRequest(editReq.id)}
+                    title="Xóa đề nghị thanh toán này"
+                  >
+                    🗑️ Xóa đề nghị
+                  </button>
+                </div>
+                <div style={{ display: "flex", gap: "8px" }}>
+                  <button
+                    type="button"
+                    className="payment-btn"
+                    onClick={() => setEditModalReqId(null)}
+                  >
+                    Đóng
+                  </button>
+                  <button
+                    type="button"
+                    className="payment-btn btn-primary"
+                    onClick={() => setEditModalReqId(null)}
+                  >
+                    ✓ Hoàn tất
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* MODAL 1: Document Attachment */}
       {docModalReqId !== null && (
