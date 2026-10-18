@@ -1,4 +1,4 @@
-﻿import { getCurrentUser } from "../../auth";
+import { getCurrentUser } from "../../auth";
 import { resolveWorkspace, stateId } from "../../state-store";
 import { getDb } from "../../../db";
 import { appState, suppliers, products, prs, prItems, quotes, pos, poItems, poAllocations, poDocs, poPayments, purchaseHistory, trashItems } from "../../../db/schema";
@@ -19,7 +19,14 @@ export async function GET(request: Request) {
   let updatedAt: any = null;
   let version = 0;
 
-  const row = await drizzleDb.select().from(appState).where(eq(appState.id, stateId(workspaceId))).get();
+  const mainId = stateId(workspaceId);
+  const historyId = `${mainId}:history`;
+
+  const [row, historyRow] = await Promise.all([
+    drizzleDb.select().from(appState).where(eq(appState.id, mainId)).get(),
+    drizzleDb.select().from(appState).where(eq(appState.id, historyId)).get(),
+  ]);
+
   if (!row) {
     const fallback = await drizzleDb.select().from(appState).where(eq(appState.id, "procurement")).get();
     if (fallback) {
@@ -35,6 +42,17 @@ export async function GET(request: Request) {
 
   if (!data) {
     return Response.json({ data: null, updatedAt: null, version: 0, workspaceId });
+  }
+
+  // Merge partitioned history if present
+  if (historyRow && historyRow.payload) {
+    try {
+      const histData = JSON.parse(historyRow.payload);
+      if (histData.purchaseHistory) data.purchaseHistory = histData.purchaseHistory;
+      if (histData.purchaseHistoryImportIds) data.purchaseHistoryImportIds = histData.purchaseHistoryImportIds;
+    } catch (e) {
+      console.error("Lỗi parse history partition:", e);
+    }
   }
 
   // RECOVERY MIGRATION: If app_state is missing `prs` (due to diff bug), load from legacy tables
@@ -106,7 +124,7 @@ export async function PUT(request: Request) {
   const user = await getCurrentUser();
   if (!user) return Response.json({ error: "Không có quyền truy cập" }, { status: 401 });
 
-  let data;
+  let data: any;
   try {
     data = await request.json();
   } catch (e) {
@@ -117,26 +135,84 @@ export async function PUT(request: Request) {
   const drizzleDb = getDb();
   
   const now = new Date().toISOString();
+  const mainId = stateId(workspaceId);
+  const historyId = `${mainId}:history`;
+
+  // Read optimistic concurrency header
+  const expectedVersionHeader = request.headers.get("x-expected-version");
+  const expectedVersion = expectedVersionHeader ? Number(expectedVersionHeader) : undefined;
   
   try {
-    const existing = await drizzleDb.select().from(appState).where(eq(appState.id, stateId(workspaceId))).get();
+    const existing = await drizzleDb.select().from(appState).where(eq(appState.id, mainId)).get();
+
+    // Check version conflict
+    if (existing && expectedVersion !== undefined && !isNaN(expectedVersion) && expectedVersion > 0) {
+      if (existing.version > expectedVersion) {
+        return Response.json(
+          {
+            error: "CONFLICT",
+            currentVersion: existing.version,
+            message: "Dữ liệu đã được cập nhật từ một phiên làm việc khác. Vui lòng tải lại trang để tránh ghi đè dữ liệu mới.",
+          },
+          { status: 409 }
+        );
+      }
+    }
+
+    // Partition purchaseHistory out of the main row to prevent SQLite row-size overflow
+    let historyData: any = null;
+    if (data.purchaseHistory !== undefined || data.purchaseHistoryImportIds !== undefined) {
+      historyData = {};
+      if (data.purchaseHistory !== undefined) {
+        historyData.purchaseHistory = data.purchaseHistory;
+        delete data.purchaseHistory;
+      }
+      if (data.purchaseHistoryImportIds !== undefined) {
+        historyData.purchaseHistoryImportIds = data.purchaseHistoryImportIds;
+        delete data.purchaseHistoryImportIds;
+      }
+    }
+
+    // Save history partition if modified
+    if (historyData) {
+      const existingHist = await drizzleDb.select().from(appState).where(eq(appState.id, historyId)).get();
+      let mergedHist = historyData;
+      if (existingHist && existingHist.payload) {
+        try {
+          const parsed = JSON.parse(existingHist.payload);
+          mergedHist = { ...parsed, ...historyData };
+        } catch {}
+      }
+      const histStr = JSON.stringify(mergedHist);
+      if (existingHist) {
+        await drizzleDb.update(appState).set({ payload: histStr, updatedAt: now, version: existingHist.version + 1 }).where(eq(appState.id, historyId));
+      } else {
+        await drizzleDb.insert(appState).values({ id: historyId, payload: histStr, updatedAt: now, version: 1 });
+      }
+    }
+
+    // Merge main state data and clean up legacy purchaseHistory from main row
     let merged = data;
     if (existing) {
       try {
         const existingData = JSON.parse(existing.payload);
+        // Delete legacy purchaseHistory from main row to shrink main payload
+        delete existingData.purchaseHistory;
+        delete existingData.purchaseHistoryImportIds;
         merged = { ...existingData, ...data };
       } catch (e) {
         // Fallback if existing data is corrupt
       }
     }
     const payloadStr = JSON.stringify(merged);
+    const nextVersion = existing ? existing.version + 1 : 1;
     
     if (existing) {
-      await drizzleDb.update(appState).set({ payload: payloadStr, updatedAt: now, version: existing.version + 1 }).where(eq(appState.id, stateId(workspaceId)));
+      await drizzleDb.update(appState).set({ payload: payloadStr, updatedAt: now, version: nextVersion }).where(eq(appState.id, mainId));
     } else {
-      await drizzleDb.insert(appState).values({ id: stateId(workspaceId), payload: payloadStr, updatedAt: now, version: 1 });
+      await drizzleDb.insert(appState).values({ id: mainId, payload: payloadStr, updatedAt: now, version: 1 });
     }
-    return Response.json({ ok: true, updatedAt: now });
+    return Response.json({ ok: true, version: nextVersion, updatedAt: now });
   } catch (err: any) {
     return Response.json({ error: err.message }, { status: 500 });
   }

@@ -15,14 +15,7 @@ import "./vat-quote.css";
 import { PaymentManagement } from "./components/PaymentManagement";
 import { HandoverManagement } from "./components/HandoverManagement";
 import { PrintTemplatesManagement } from "./components/PrintTemplatesManagement";
-import { BANK_SUGGESTIONS } from "./payment-utils";
-import {
-  defaultPaymentGroups,
-  defaultPaymentRequests,
-  defaultPaymentHandovers,
-  defaultPaymentBeneficiaries,
-  defaultPaymentTemplate,
-} from "./defaultPaymentData";
+import { BANK_SUGGESTIONS, DEFAULT_PAYMENT_TEMPLATE } from "./payment-utils";
 import { Item, Supplier, PurchaseHistory, QuoteMode, QuoteEntry, Quote, PR, POItem, POCartLine, ApprovalRow, ApprovalDraft, PODoc, PO, TrashItem, View, ColumnKey, SortState, PaymentRequestEntry, PaymentGroup, PaymentBeneficiary, PaymentHandoverItem, PaymentPrintTemplate } from "./types";
 import { BASE_COLUMNS, reorder, applyTools, makeId, emptyItem, fmt, dateVN, DEFAULT_VAT_RATE, quoteDefaults, quoteBeforeVat, quoteAfterVat, quoteComparePrice, mergeHistorySeed, PurchaseHistorySeed, excelNumber, emptyPR, emptyPO, generateShortName } from "./utils";
 import { items0, suppliers0, purchaseHistory0, quotes0, prs0, pos0, HISTORY_SEED_ID } from "./seed";
@@ -106,11 +99,11 @@ export default function ProcurementApp({
     [deletePassword, setDeletePassword] = useState(""),
     [deleteError, setDeleteError] = useState(""),
     [deleteBusy, setDeleteBusy] = useState(false);
-  const [paymentRequests, setPaymentRequests] = useState<PaymentRequestEntry[]>(defaultPaymentRequests),
-    [paymentGroups, setPaymentGroups] = useState<PaymentGroup[]>(defaultPaymentGroups),
-    [paymentBeneficiaries, setPaymentBeneficiaries] = useState<PaymentBeneficiary[]>(defaultPaymentBeneficiaries),
-    [paymentHandovers, setPaymentHandovers] = useState<PaymentHandoverItem[]>(defaultPaymentHandovers),
-    [paymentTemplate, setPaymentTemplate] = useState<PaymentPrintTemplate>(defaultPaymentTemplate);
+  const [paymentRequests, setPaymentRequests] = useState<PaymentRequestEntry[]>([]),
+    [paymentGroups, setPaymentGroups] = useState<PaymentGroup[]>([]),
+    [paymentBeneficiaries, setPaymentBeneficiaries] = useState<PaymentBeneficiary[]>([]),
+    [paymentHandovers, setPaymentHandovers] = useState<PaymentHandoverItem[]>([]),
+    [paymentTemplate, setPaymentTemplate] = useState<PaymentPrintTemplate>(DEFAULT_PAYMENT_TEMPLATE);
   const [storageReady, setStorageReady] = useState(false),
     [storageStatus, setStorageStatus] = useState("Đang kết nối dữ liệu...");
   const [workspaceId, setWorkspaceId] = useState(currentUser?.id || ""),
@@ -143,6 +136,7 @@ export default function ProcurementApp({
   }, []);
   const fileRef = useRef<HTMLInputElement>(null),
     previousPayloadRef = useRef<StoredState | null>(null),
+    serverVersionRef = useRef<number>(0),
     saveRunningRef = useRef(false),
     savePendingRef = useRef(false),
     saveRevisionRef = useRef(0),
@@ -170,6 +164,11 @@ export default function ProcurementApp({
         quoteCompareMode,
         purchaseHistory,
         purchaseHistoryImportIds,
+        paymentRequests,
+        paymentGroups,
+        paymentBeneficiaries,
+        paymentHandovers,
+        paymentTemplate,
       },
     });
   const persistState = useCallback(async (keepalive = false) => {
@@ -203,12 +202,27 @@ export default function ProcurementApp({
           `/api/state?workspace=${encodeURIComponent(job.workspaceId)}`,
           {
             method: "PUT",
-            headers: { "Content-Type": "application/json" },
+            headers: {
+              "Content-Type": "application/json",
+              ...(serverVersionRef.current > 0
+                ? { "x-expected-version": String(serverVersionRef.current) }
+                : {}),
+            },
             body: JSON.stringify(payloadToSend),
             keepalive,
           },
         );
+        if (response.status === 409) {
+          setStorageStatus(
+            "⚠️ Dữ liệu đã thay đổi ở phiên/thiết bị khác. Vui lòng tải lại trang (F5)!",
+          );
+          return;
+        }
         if (!response.ok) throw new Error("SAVE_FAILED");
+        const resData = await response.json().catch(() => null);
+        if (resData?.version) {
+          serverVersionRef.current = resData.version;
+        }
         savedRevisionRef.current = job.revision;
         previousPayloadRef.current = job.payload;
         setStorageStatus(
@@ -274,6 +288,9 @@ export default function ProcurementApp({
       })
       .then((body) => {
         if (!active) return;
+        if (body.version) {
+          serverVersionRef.current = body.version;
+        }
         const data = body.data as StoredState | null;
         if (data) {
           previousPayloadRef.current = data;
@@ -300,7 +317,10 @@ export default function ProcurementApp({
           
           const loadedSuppliers: Supplier[] = data.suppliers || suppliers0;
           const mergedSuppliers = [...loadedSuppliers];
-          for (const b of defaultPaymentBeneficiaries) {
+          const benList = (data.paymentBeneficiaries && data.paymentBeneficiaries.length > 0)
+            ? data.paymentBeneficiaries
+            : [];
+          for (const b of benList) {
             const match = mergedSuppliers.find(
               (s) =>
                 s.name.toLowerCase() === b.name.toLowerCase() ||
@@ -349,27 +369,29 @@ export default function ProcurementApp({
           setQuoteCompareMode(data.quoteCompareMode || "before-vat");
           setPurchaseHistory(data.purchaseHistory || purchaseHistory0);
           setPurchaseHistoryImportIds(data.purchaseHistoryImportIds || []);
-          setPaymentRequests(
-            data.paymentRequests && data.paymentRequests.length > 0
-              ? data.paymentRequests
-              : defaultPaymentRequests
-          );
-          setPaymentGroups(
-            data.paymentGroups && data.paymentGroups.length > 0
-              ? data.paymentGroups
-              : defaultPaymentGroups
-          );
-          setPaymentBeneficiaries(
-            data.paymentBeneficiaries && data.paymentBeneficiaries.length > 0
-              ? data.paymentBeneficiaries
-              : defaultPaymentBeneficiaries
-          );
-          setPaymentHandovers(
-            data.paymentHandovers && data.paymentHandovers.length > 0
-              ? data.paymentHandovers
-              : defaultPaymentHandovers
-          );
-          setPaymentTemplate(data.paymentTemplate || defaultPaymentTemplate);
+          
+          const hasPaymentRequests = data.paymentRequests && data.paymentRequests.length > 0;
+          if (hasPaymentRequests) {
+            setPaymentRequests(data.paymentRequests);
+            setPaymentGroups(data.paymentGroups || []);
+            setPaymentBeneficiaries(data.paymentBeneficiaries || []);
+            setPaymentHandovers(data.paymentHandovers || []);
+            setPaymentTemplate(data.paymentTemplate || DEFAULT_PAYMENT_TEMPLATE);
+          } else {
+            fetch("/default-payment-seed.json")
+              .then((res) => res.json())
+              .then((seed) => {
+                if (!active) return;
+                setPaymentRequests(seed.defaultPaymentRequests || []);
+                setPaymentGroups(seed.defaultPaymentGroups || []);
+                setPaymentBeneficiaries(seed.defaultPaymentBeneficiaries || []);
+                setPaymentHandovers(seed.defaultPaymentHandovers || []);
+                if (seed.defaultPaymentTemplate) {
+                  setPaymentTemplate(seed.defaultPaymentTemplate);
+                }
+              })
+              .catch((err) => console.error("Không thể tải payment seed:", err));
+          }
           if (data.prs?.length) setSelectedPR(data.prs[0]);
           if (data.pos?.length) setCurrentPO(data.pos[0]);
         } else {
@@ -388,13 +410,27 @@ export default function ProcurementApp({
           setQuoteCompareMode("before-vat");
           setPurchaseHistory(purchaseHistory0);
           setPurchaseHistoryImportIds([]);
-          setPaymentRequests(defaultPaymentRequests);
-          setPaymentGroups(defaultPaymentGroups);
-          setPaymentBeneficiaries(defaultPaymentBeneficiaries);
-          setPaymentHandovers(defaultPaymentHandovers);
-          setPaymentTemplate(defaultPaymentTemplate);
+          setPaymentRequests([]);
+          setPaymentGroups([]);
+          setPaymentBeneficiaries([]);
+          setPaymentHandovers([]);
+          setPaymentTemplate(DEFAULT_PAYMENT_TEMPLATE);
           setSelectedPR(emptyPR);
           setCurrentPO(emptyPO);
+
+          fetch("/default-payment-seed.json")
+            .then((res) => res.json())
+            .then((seed) => {
+              if (!active) return;
+              setPaymentRequests(seed.defaultPaymentRequests || []);
+              setPaymentGroups(seed.defaultPaymentGroups || []);
+              setPaymentBeneficiaries(seed.defaultPaymentBeneficiaries || []);
+              setPaymentHandovers(seed.defaultPaymentHandovers || []);
+              if (seed.defaultPaymentTemplate) {
+                setPaymentTemplate(seed.defaultPaymentTemplate);
+              }
+            })
+            .catch((err) => console.error("Không thể tải payment seed:", err));
         }
         setStorageReady(true);
         setStorageStatus(data ? "Đã đồng bộ online" : "Sẵn sàng lưu online");
@@ -406,7 +442,7 @@ export default function ProcurementApp({
   }, [reportToken, workspaceId]);
   useEffect(() => {
     if (!storageReady || reportMode) return;
-    const timer = setTimeout(() => void persistState(), 300);
+    const timer = setTimeout(() => void persistState(), 1200);
     return () => clearTimeout(timer);
   }, [
     storageReady,
