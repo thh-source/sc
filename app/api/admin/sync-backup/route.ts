@@ -1,16 +1,30 @@
+import { getCurrentUser } from "../../../auth";
+
 async function bindings() {
   return (await import("cloudflare:workers")).env;
 }
 
 export async function POST(request: Request) {
-  const authHeader = request.headers.get("x-sync-secret");
-  if (authHeader !== "aqp-phenikaa-sync-2026") {
+  const env = await bindings();
+  const configuredSyncSecret = (env.SYNC_SECRET as string | undefined)?.trim();
+  const authHeader = request.headers.get("x-sync-secret")?.trim();
+
+  // Allow either an authenticated Master/Admin session or a valid secret header matching env.SYNC_SECRET
+  const user = await getCurrentUser();
+  const isMasterOrAdmin = user && (user.role === "master" || user.role === "admin");
+  const isSecretValid = Boolean(configuredSyncSecret && authHeader && authHeader === configuredSyncSecret);
+
+  if (!isMasterOrAdmin && !isSecretValid) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const env = await bindings();
   const db = env.DB;
-  const body = await request.json();
+  let body: any;
+  try {
+    body = await request.json();
+  } catch {
+    return Response.json({ error: "Invalid JSON body" }, { status: 400 });
+  }
 
   const {
     paymentGroups,
