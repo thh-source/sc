@@ -813,6 +813,9 @@ table.payment-grid th.pcol-frozen {
 .handover-paper .hb-table td.left {
   text-align: left;
   padding-left: 5px;
+  white-space: normal !important;
+  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 .handover-paper .hb-table td.right {
@@ -848,7 +851,15 @@ table.payment-grid th.pcol-frozen {
   font-weight: bold;
   font-size: 12.5px;
   text-align: center;
-  min-height: 55px;
+  min-height: 85px;
+}
+
+.handover-paper .hb-sign-col i {
+  font-weight: normal;
+  font-style: italic;
+  font-size: 11.5px;
+  display: block;
+  margin-top: 2px;
 }
 
 /* @media print setup - hoàn toàn cô lập bản in, ẩn 100% giao diện webapp */

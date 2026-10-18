@@ -59,9 +59,7 @@ export function HandoverManagement({
   const [pasteTargetDate, setPasteTargetDate] = useState(localToday());
   const [pasteParsedRows, setPasteParsedRows] = useState<any[]>([]);
 
-  // Preview / Print states
-  const [previewHandoverDept, setPreviewHandoverDept] = useState<string | null>(null);
-  const [previewHandoverItems, setPreviewHandoverItems] = useState<PaymentHandoverItem[]>([]);
+  // Print states
   const [isPrinting, setIsPrinting] = useState(false);
   const [printItemsList, setPrintItemsList] = useState<PaymentHandoverItem[]>([]);
 
@@ -264,28 +262,6 @@ export function HandoverManagement({
     alert(`Đã thêm thành công ${newItems.length} vật tư vào danh sách bàn giao!`);
   };
 
-  // Preview Handover
-  const handlePreviewHandover = () => {
-    let itemsToPrint = [];
-    if (checkedHandovers.size > 0) {
-      itemsToPrint = paymentHandovers.filter((h) => checkedHandovers.has(h.id));
-    } else if (handoverDeptFilter) {
-      itemsToPrint = paymentHandovers.filter(
-        (h) => String(h.department || "").trim() === handoverDeptFilter
-      );
-    } else {
-      itemsToPrint = filteredHandovers;
-    }
-
-    if (itemsToPrint.length === 0) {
-      alert("Vui lòng tích chọn vật tư hoặc chọn bộ phận nhận để xem trước biên bản");
-      return;
-    }
-
-    setPreviewHandoverDept(itemsToPrint[0]?.department || "Bộ phận nhận");
-    setPreviewHandoverItems(itemsToPrint);
-  };
-
   // Print Handover Direct (2 copies) via Portal
   const handlePrintHandoverDirect = (customItems?: PaymentHandoverItem[]) => {
     const items = customItems || (
@@ -332,49 +308,31 @@ export function HandoverManagement({
             Theo dõi danh mục vật tư chuyển trực tiếp từ Phòng Cung ứng đến các bộ phận sử dụng nội bộ Phenikaa.
           </p>
         </div>
-        <div className="actions">
-          <button
-            className="payment-btn btn-primary"
-            style={{ background: "#0284c7", borderColor: "#0369a1" }}
-            onClick={handleLoadExcelHandovers}
-            title="Cập nhật toàn bộ 85 vật tư từ file Excel Phenikaa vào bảng"
-          >
-            📥 Nạp 85 vật tư từ Excel gốc
-          </button>
-          <button
-            className="payment-btn btn-primary"
-            style={{ background: "#107c41", borderColor: "#0b5c30" }}
-            onClick={() => setShowPasteModal(true)}
-          >
-            📋 Dán từ Excel (Ctrl+V)
-          </button>
-          <button
-            className="payment-btn btn-primary"
-            style={{ background: "#2563eb", borderColor: "#1d4ed8" }}
-            onClick={handlePreviewHandover}
-            title="Xem trực tiếp bản in biên bản có logo Phenikaa trên màn hình"
-          >
-            👁️ Xem trước biên bản (kèm Logo)
-          </button>
-          <button
-            className="payment-btn btn-primary"
-            style={{ background: "#0f766e", borderColor: "#0d5e56" }}
-            onClick={() => handlePrintHandoverDirect()}
-          >
-            🖨️ In biên bản đã chọn (2 bản)
-          </button>
-        </div>
       </div>
-
-
 
       {/* Main Toolbar */}
       <div className="payment-toolbar">
         <button className="payment-btn btn-primary" onClick={handleAddHandoverRow}>
           ＋ Thêm dòng vật tư
         </button>
+        <button
+          className="payment-btn"
+          style={{ background: "#107c41", color: "#fff", borderColor: "#0b5c30" }}
+          onClick={() => setShowPasteModal(true)}
+          title="Dán danh sách vật tư từ file Excel (Ctrl+V)"
+        >
+          📋 Dán từ Excel
+        </button>
+        <button
+          className="payment-btn"
+          style={{ background: "#0f766e", color: "#fff", borderColor: "#0d5e56" }}
+          onClick={() => handlePrintHandoverDirect()}
+          title="In biên bản bàn giao các vật tư đã chọn"
+        >
+          🖨️ In biên bản
+        </button>
         <button className="payment-btn btn-danger" onClick={handleDeleteSelectedHandovers}>
-          🗑️ Xóa dòng đã chọn
+          🗑️ Xóa đã chọn
         </button>
 
         <button
@@ -384,7 +342,7 @@ export function HandoverManagement({
           title={isWorkspaceExpanded ? "Thu gọn về giao diện chuẩn" : "Mở rộng không gian làm việc (giống So sánh báo giá)"}
         >
           <span>{isWorkspaceExpanded ? "🗗" : "⛶"}</span>
-          {isWorkspaceExpanded ? "Thu gọn giao diện" : "Mở rộng không gian"}
+          {isWorkspaceExpanded ? "Thu gọn" : "Mở rộng"}
         </button>
 
         <select
@@ -759,138 +717,6 @@ export function HandoverManagement({
         </div>
       )}
 
-      {/* MODAL: Handover Preview (Biên bản bàn giao 2 bản kèm Logo) */}
-      {previewHandoverDept && (
-        <div className="payment-modal-overlay">
-          <div className="payment-modal-card" style={{ maxWidth: "880px", maxHeight: "94vh" }}>
-            <div className="payment-modal-header">
-              <h3 style={{ color: "#0f766e" }}>
-                📄 Xem trước Biên bản bàn giao (Bản in kèm Logo Phenikaa Pharma)
-              </h3>
-              <button type="button" onClick={() => setPreviewHandoverDept(null)}>✕</button>
-            </div>
-
-            <div style={{ flex: 1, overflowY: "auto", background: "#cbd5e1", padding: "16px", borderRadius: "6px" }}>
-              {[1, 2].map((copyNum) => (
-                <div key={copyNum} className="handover-paper paper" style={{ marginBottom: "20px" }}>
-                  <table className="hb-box">
-                    <tbody>
-                      <tr>
-                        <td className="hb-box-left">
-                          <div className="hb-logo">
-                            <img
-                              src={PHENIKAA_LOGO_SRC}
-                              alt="PHENIKAA PHARMA"
-                              style={{
-                                height: "36px",
-                                width: "160px",
-                                objectFit: "contain",
-                                display: "block",
-                                margin: "0 auto",
-                              }}
-                            />
-                          </div>
-                          <div className="hb-sender-dept">Bộ phận: Phòng Cung ứng</div>
-                        </td>
-                        <td className="hb-box-right">
-                          <div className="hb-title-main">BIÊN BẢN BÀN GIAO, NGHIỆM THU VẬT TƯ,</div>
-                          <div className="hb-title-main">HÀNG HÓA</div>
-                          <div className="hb-title-sub">(Không qua kho) - Bản số {copyNum}</div>
-                        </td>
-                      </tr>
-                    </tbody>
-                  </table>
-
-                  <div className="hb-info">
-                    <div className="hb-line">
-                      Hôm nay, ngày&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;tháng&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;năm {new Date().getFullYear()}
-                    </div>
-                    <div className="hb-line">Tại Công ty CP Dược phẩm Phenikaa</div>
-                    <div className="hb-line">
-                      Địa chỉ: Lô đất CN2-10, KCN Công nghệ cao 2, KCNC Hòa Lạc, Xã Hòa Lạc, TP Hà Nội
-                    </div>
-                    <div className="hb-line">Chúng tôi gồm:</div>
-                    <div className="hb-two-col">
-                      <div>Ông (bà): Trần Hải Hà - Người giao hàng</div>
-                      <div>Địa chỉ: Phòng Cung ứng</div>
-                    </div>
-                    <div className="hb-two-col">
-                      <div>Ông (bà): .................................................... Người nhận hàng</div>
-                      <div>Địa chỉ: {previewHandoverDept}</div>
-                    </div>
-                    <div className="hb-line">Cùng nhau tiến hành giao nhận và nghiệm thu số lượng vật tư sau:</div>
-                  </div>
-
-                  <table className="hb-table">
-                    <thead>
-                      <tr>
-                        <th style={{ width: "35px" }}>STT</th>
-                        <th>Tên hàng hóa - Quy cách</th>
-                        <th style={{ width: "50px" }}>ĐVT</th>
-                        <th style={{ width: "75px" }}>SL theo<br />chứng từ</th>
-                        <th style={{ width: "75px" }}>SL kiểm tra<br />Đạt</th>
-                        <th style={{ width: "75px" }}>SL kiểm tra<br />K.Đạt</th>
-                        <th style={{ width: "80px" }}>Ghi chú</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {previewHandoverItems.map((it, idx) => (
-                        <tr key={it.id || idx}>
-                          <td className="center">{idx + 1}</td>
-                          <td className="left">{it.item_name || ""}</td>
-                          <td className="center">{it.unit || ""}</td>
-                          <td className="center">{it.quantity_doc || ""}</td>
-                          <td className="center">{it.quantity_pass || ""}</td>
-                          <td className="center">{it.quantity_fail || ""}</td>
-                          <td className="center">{it.note || ""}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-
-                  <div className="hb-footer">
-                    <div className="hb-conclusion-title">Kết luận:</div>
-                    <div className="hb-conclusion-body">
-                      Biên bản này được lập thành 02 bản, 01 bản giao cho người giao hàng; 01 bản giao cho người nhận hàng.
-                    </div>
-                    <div className="hb-sign-row">
-                      <div className="hb-sign-col">Người giao hàng<br /><br /><br /><br />Trần Hải Hà</div>
-                      <div className="hb-sign-col">Người nhận hàng<br /><br /><br /><br />....................................</div>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderTop: "1px solid #e2e8f0", paddingTop: "12px" }}>
-              <span style={{ fontSize: "12px", color: "#64748b" }}>
-                Biên bản hiển thị đầy đủ logo Phenikaa Pharma và lập thành 02 bản giao nhận
-              </span>
-              <div style={{ display: "flex", gap: "8px" }}>
-                <button
-                  type="button"
-                  className="payment-btn"
-                  onClick={() => setPreviewHandoverDept(null)}
-                >
-                  Đóng
-                </button>
-                <button
-                  type="button"
-                  className="payment-btn btn-primary"
-                  style={{ background: "#0f766e", borderColor: "#0d5e56" }}
-                  onClick={() => {
-                    setPreviewHandoverDept(null);
-                    handlePrintHandoverDirect(previewHandoverItems);
-                  }}
-                >
-                  🖨️ In biên bản này (2 bản)
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* PORTAL PRINT CONTAINER - Completely isolated from app */}
       {typeof document !== "undefined" && isPrinting && createPortal(
         <div id="paymentPrintPortal">
@@ -931,7 +757,7 @@ export function HandoverManagement({
                             </div>
                             <div className="hb-title-main">HÀNG HÓA</div>
                             <div className="hb-title-sub">
-                              (Không qua kho) - Bản số {copyNum}
+                              (Không qua kho)
                             </div>
                           </td>
                         </tr>
@@ -991,7 +817,9 @@ export function HandoverManagement({
                         {deptItems.map((it, idx) => (
                           <tr key={it.id || idx}>
                             <td className="center">{idx + 1}</td>
-                            <td className="left">{it.item_name || ""}</td>
+                            <td className="left" style={{ whiteSpace: "normal", wordBreak: "break-word", overflowWrap: "anywhere" }}>
+                              {it.item_name || ""}
+                            </td>
                             <td className="center">{it.unit || ""}</td>
                             <td className="center">{it.quantity_doc || ""}</td>
                             <td className="center">{it.quantity_pass || ""}</td>
@@ -1009,8 +837,14 @@ export function HandoverManagement({
                         bản giao cho người nhận hàng.
                       </div>
                       <div className="hb-sign-row">
-                        <div className="hb-sign-col">Người giao hàng<br /><br /><br /><br />Trần Hải Hà</div>
-                        <div className="hb-sign-col">Người nhận hàng<br /><br /><br /><br />....................................</div>
+                        <div className="hb-sign-col">
+                          Người giao hàng<br />
+                          <i>(Ký, ghi rõ họ tên)</i>
+                        </div>
+                        <div className="hb-sign-col">
+                          Người nhận hàng<br />
+                          <i>(Ký, ghi rõ họ tên)</i>
+                        </div>
                       </div>
                     </div>
                   </div>

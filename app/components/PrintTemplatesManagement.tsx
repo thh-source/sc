@@ -572,7 +572,7 @@ export function PrintTemplatesManagement({
                           <td className="hb-box-right">
                             <div className="hb-title-main">BIÊN BẢN BÀN GIAO, NGHIỆM THU VẬT TƯ,</div>
                             <div className="hb-title-main">HÀNG HÓA</div>
-                            <div className="hb-title-sub">(Không qua kho) - Bản số {copyNum}</div>
+                            <div className="hb-title-sub">(Không qua kho)</div>
                           </td>
                         </tr>
                       </tbody>
@@ -614,7 +614,9 @@ export function PrintTemplatesManagement({
                         {sampleHandoverItems.map((it, idx) => (
                           <tr key={it.id || idx}>
                             <td className="center">{idx + 1}</td>
-                            <td className="left">{it.item_name || ""}</td>
+                            <td className="left" style={{ whiteSpace: "normal", wordBreak: "break-word", overflowWrap: "anywhere" }}>
+                              {it.item_name || ""}
+                            </td>
                             <td className="center">{it.unit || ""}</td>
                             <td className="center">{it.quantity_doc || ""}</td>
                             <td className="center">{it.quantity_pass || ""}</td>
@@ -631,8 +633,14 @@ export function PrintTemplatesManagement({
                         Biên bản này được lập thành 02 bản, 01 bản giao cho người giao hàng; 01 bản giao cho người nhận hàng.
                       </div>
                       <div className="hb-sign-row">
-                        <div className="hb-sign-col">Người giao hàng<br /><br /><br /><br />{tplForm.default_requester_name || "Trần Hải Hà"}</div>
-                        <div className="hb-sign-col">Người nhận hàng<br /><br /><br /><br />....................................</div>
+                        <div className="hb-sign-col">
+                          Người giao hàng<br />
+                          <i>(Ký, ghi rõ họ tên)</i>
+                        </div>
+                        <div className="hb-sign-col">
+                          Người nhận hàng<br />
+                          <i>(Ký, ghi rõ họ tên)</i>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -762,7 +770,7 @@ export function PrintTemplatesManagement({
                         <td className="hb-box-right">
                           <div className="hb-title-main">BIÊN BẢN BÀN GIAO, NGHIỆM THU VẬT TƯ,</div>
                           <div className="hb-title-main">HÀNG HÓA</div>
-                          <div className="hb-title-sub">(Không qua kho) - Bản số {copyNum}</div>
+                          <div className="hb-title-sub">(Không qua kho)</div>
                         </td>
                       </tr>
                     </tbody>
@@ -804,7 +812,9 @@ export function PrintTemplatesManagement({
                       {sampleHandoverItems.map((it, idx) => (
                         <tr key={it.id || idx}>
                           <td className="center">{idx + 1}</td>
-                          <td className="left">{it.item_name || ""}</td>
+                          <td className="left" style={{ whiteSpace: "normal", wordBreak: "break-word", overflowWrap: "anywhere" }}>
+                            {it.item_name || ""}
+                          </td>
                           <td className="center">{it.unit || ""}</td>
                           <td className="center">{it.quantity_doc || ""}</td>
                           <td className="center">{it.quantity_pass || ""}</td>
@@ -821,8 +831,14 @@ export function PrintTemplatesManagement({
                       Biên bản này được lập thành 02 bản, 01 bản giao cho người giao hàng; 01 bản giao cho người nhận hàng.
                     </div>
                     <div className="hb-sign-row">
-                      <div className="hb-sign-col">Người giao hàng<br /><br /><br /><br />{tplForm.default_requester_name || "Trần Hải Hà"}</div>
-                      <div className="hb-sign-col">Người nhận hàng<br /><br /><br /><br />....................................</div>
+                      <div className="hb-sign-col">
+                        Người giao hàng<br />
+                        <i>(Ký, ghi rõ họ tên)</i>
+                      </div>
+                      <div className="hb-sign-col">
+                        Người nhận hàng<br />
+                        <i>(Ký, ghi rõ họ tên)</i>
+                      </div>
                     </div>
                   </div>
                 </div>
