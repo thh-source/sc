@@ -159,6 +159,20 @@ export async function PUT(request: Request) {
       }
     }
 
+    // Check if legacy main row still contains purchaseHistory that needs migration
+    let legacyHist: any = null;
+    let existingData: any = null;
+    if (existing && existing.payload) {
+      try {
+        existingData = JSON.parse(existing.payload);
+        if (existingData.purchaseHistory !== undefined || existingData.purchaseHistoryImportIds !== undefined) {
+          legacyHist = {};
+          if (existingData.purchaseHistory !== undefined) legacyHist.purchaseHistory = existingData.purchaseHistory;
+          if (existingData.purchaseHistoryImportIds !== undefined) legacyHist.purchaseHistoryImportIds = existingData.purchaseHistoryImportIds;
+        }
+      } catch {}
+    }
+
     // Partition purchaseHistory out of the main row to prevent SQLite row-size overflow
     let historyData: any = null;
     if (data.purchaseHistory !== undefined || data.purchaseHistoryImportIds !== undefined) {
@@ -173,7 +187,12 @@ export async function PUT(request: Request) {
       }
     }
 
-    // Save history partition if modified
+    // If existing main row has legacy history, migrate it into history partition
+    if (legacyHist) {
+      historyData = { ...legacyHist, ...(historyData || {}) };
+    }
+
+    // Save history partition if modified or migrating legacy history
     if (historyData) {
       const existingHist = await drizzleDb.select().from(appState).where(eq(appState.id, historyId)).get();
       let mergedHist = historyData;
@@ -194,14 +213,10 @@ export async function PUT(request: Request) {
     // Merge main state data and clean up legacy purchaseHistory from main row
     let merged = data;
     if (existing) {
-      try {
-        const existingData = JSON.parse(existing.payload);
-        // Delete legacy purchaseHistory from main row to shrink main payload
+      if (existingData) {
         delete existingData.purchaseHistory;
         delete existingData.purchaseHistoryImportIds;
         merged = { ...existingData, ...data };
-      } catch (e) {
-        // Fallback if existing data is corrupt
       }
     }
     const payloadStr = JSON.stringify(merged);
