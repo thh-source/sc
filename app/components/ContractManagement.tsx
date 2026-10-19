@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useMemo } from "react";
-import { Supplier, PO, PaymentGroup, PaymentRequestEntry } from "../types";
+import { Supplier, PO, PaymentGroup, PaymentRequestEntry, Item, PR } from "../types";
 import { fmt, dateVN } from "../utils";
 import VisualTimeline from "../VisualTimeline";
 import DocumentManager from "../DocumentManager";
@@ -21,6 +21,9 @@ export interface ContractManagementProps {
   paymentRequests?: PaymentRequestEntry[];
   onUpdateState?: (patch: { paymentGroups?: PaymentGroup[] }) => void;
   onNavigateToPayment?: (filterGroupId?: number | string) => void;
+  onCreateContract?: (contractPO: PO, paymentGroup?: PaymentGroup) => void;
+  prs?: PR[];
+  products?: Item[];
 }
 
 export function ContractManagement({
@@ -36,6 +39,9 @@ export function ContractManagement({
   paymentRequests = [],
   onUpdateState,
   onNavigateToPayment,
+  onCreateContract,
+  prs = [],
+  products = [],
 }: ContractManagementProps) {
   // Main tab switcher: PO Contracts vs Contract Groups
   const [mainTab, setMainTab] = useState<"pos" | "groups">("pos");
@@ -56,6 +62,36 @@ export function ContractManagement({
     pending: number;
     remaining: number;
   } | null>(null);
+
+  // State for Create Contract Modal
+  const [showCreateContractModal, setShowCreateContractModal] = useState(false);
+  const [contractCreationMode, setContractCreationMode] = useState<"direct" | "from_po">("direct");
+
+  // Direct contract creation draft
+  const [cNumber, setCNumber] = useState("");
+  const [cTitle, setCTitle] = useState("");
+  const [cSupplierId, setCSupplierId] = useState<number | "">("");
+  const [cSignDate, setCSignDate] = useState("");
+  const [cExpectedDate, setCExpectedDate] = useState("");
+  const [cNote, setCNote] = useState("");
+  const [cCreatePaymentGroup, setCCreatePaymentGroup] = useState(true);
+  const [cItems, setCItems] = useState<
+    Array<{
+      id: number;
+      name: string;
+      spec: string;
+      unit: string;
+      qty: number;
+      price: number;
+    }>
+  >([]);
+  const [cError, setCError] = useState("");
+
+  // From PO mode draft
+  const [selectedPOIdForContract, setSelectedPOIdForContract] = useState<number | "">("");
+  const [fromPoContractNumber, setFromPoContractNumber] = useState("");
+  const [fromPoContractNote, setFromPoContractNote] = useState("");
+  const [fromPoCreateGroup, setFromPoCreateGroup] = useState(true);
 
   // Group metrics and calculations linked with paymentRequests
   const groupMetrics = useMemo(() => {
@@ -169,6 +205,230 @@ export function ContractManagement({
     }
   };
 
+  const openCreateContractModal = () => {
+    const nextNum = pos.length + 1;
+    const year = new Date().getFullYear();
+    setCNumber(`HĐ-${year}-${String(nextNum).padStart(3, "0")}`);
+    setCTitle("");
+    setCSupplierId(suppliers[0]?.id || "");
+    setCSignDate(new Date().toISOString().slice(0, 10));
+    setCExpectedDate("");
+    setCNote("");
+    setCCreatePaymentGroup(true);
+    setCItems([
+      {
+        id: Date.now(),
+        name: "Gói hợp đồng cung cấp hàng hóa/dịch vụ",
+        spec: "",
+        unit: "Gói",
+        qty: 1,
+        price: 0,
+      },
+    ]);
+    setCError("");
+
+    if (pos.length > 0) {
+      const firstPo = pos[0];
+      setSelectedPOIdForContract(firstPo.id);
+      setFromPoContractNumber(
+        firstPo.number.startsWith("HĐ-")
+          ? firstPo.number
+          : `HĐ-${firstPo.number}`
+      );
+      setFromPoContractNote(firstPo.contractNote || "");
+      setFromPoCreateGroup(true);
+    } else {
+      setSelectedPOIdForContract("");
+      setFromPoContractNumber("");
+      setFromPoContractNote("");
+      setFromPoCreateGroup(true);
+    }
+
+    setContractCreationMode("direct");
+    setShowCreateContractModal(true);
+  };
+
+  const handleSelectPOForContract = (poIdVal: string) => {
+    const pId = Number(poIdVal);
+    setSelectedPOIdForContract(pId);
+    const target = pos.find((p) => p.id === pId);
+    if (target) {
+      setFromPoContractNumber(
+        target.number.startsWith("HĐ-")
+          ? target.number
+          : `HĐ-${target.number}`
+      );
+      setFromPoContractNote(target.contractNote || "");
+    }
+  };
+
+  const handleSaveContract = () => {
+    if (contractCreationMode === "direct") {
+      if (!cNumber.trim()) {
+        setCError("Vui lòng nhập số hợp đồng.");
+        return;
+      }
+      if (!cSupplierId) {
+        setCError("Vui lòng chọn nhà cung cấp / đối tác.");
+        return;
+      }
+      if (cItems.length === 0) {
+        setCError("Hợp đồng phải có ít nhất 1 hạng mục / mặt hàng.");
+        return;
+      }
+      const invalid = cItems.find((it) => !it.name.trim() || Number(it.qty) <= 0);
+      if (invalid) {
+        setCError("Mỗi hạng mục cần có tên và số lượng > 0.");
+        return;
+      }
+
+      const supplierObj = suppliers.find((s) => s.id === Number(cSupplierId));
+      const cTotal = cItems.reduce(
+        (s, it) => s + (Number(it.qty) || 0) * (Number(it.price) || 0),
+        0
+      );
+
+      const contractPO: PO = {
+        id: Date.now(),
+        number: cNumber.trim(),
+        prNumber: "Hợp đồng trực tiếp",
+        supplierId: Number(cSupplierId),
+        createdDate: cSignDate || new Date().toISOString().slice(0, 10),
+        expectedDate: cExpectedDate || "",
+        status: "Mới tạo",
+        contractNote: cNote.trim() || cTitle.trim(),
+        note: cTitle.trim() ? `Hợp đồng: ${cTitle.trim()}` : "Hợp đồng kinh tế",
+        items: cItems.map((it, idx) => ({
+          id: it.id || Date.now() + idx,
+          code: `HĐ-${String(idx + 1).padStart(2, "0")}`,
+          category: "Hợp đồng",
+          name: it.name.trim(),
+          desc: "",
+          spec: it.spec || "",
+          unit: it.unit.trim() || "Gói",
+          qty: Number(it.qty) || 1,
+          estimate: Number(it.price) || 0,
+          price: Number(it.price) || 0,
+          deliveryStatus: "Chưa giao",
+          deliveredQty: 0,
+          deliveryDate: "",
+        })),
+        docs: [
+          {
+            id: Date.now() + 1,
+            name: "Hợp đồng kinh tế đã ký",
+            status: "Chờ bổ sung",
+            note: "",
+          },
+          {
+            id: Date.now() + 2,
+            name: "Bảo lãnh hợp đồng / Tạm ứng",
+            status: "Còn thiếu",
+            note: "",
+          },
+          {
+            id: Date.now() + 3,
+            name: "Hóa đơn VAT",
+            status: "Còn thiếu",
+            note: "",
+          },
+          {
+            id: Date.now() + 4,
+            name: "Biên bản nghiệm thu bàn giao",
+            status: "Còn thiếu",
+            note: "",
+          },
+        ],
+        payments: [
+          {
+            id: Date.now() + 5,
+            phase: "Tạm ứng hợp đồng",
+            percent: 30,
+            amount: Math.round(cTotal * 0.3),
+            status: "Chưa thanh toán",
+            date: "",
+          },
+          {
+            id: Date.now() + 6,
+            phase: "Nghiệm thu thanh toán đợt 2",
+            percent: 40,
+            amount: Math.round(cTotal * 0.4),
+            status: "Chưa thanh toán",
+            date: "",
+          },
+          {
+            id: Date.now() + 7,
+            phase: "Quyết toán & Thanh lý",
+            percent: 30,
+            amount:
+              cTotal -
+              Math.round(cTotal * 0.3) -
+              Math.round(cTotal * 0.4),
+            status: "Chưa thanh toán",
+            date: "",
+          },
+        ],
+      };
+
+      let paymentGroup: PaymentGroup | undefined = undefined;
+      if (cCreatePaymentGroup) {
+        paymentGroup = {
+          id: Date.now() + 10,
+          code: cNumber.trim(),
+          name:
+            cTitle.trim() ||
+            `Hợp đồng ${cNumber.trim()} - ${supplierObj?.name || ""}`,
+          payee_name: supplierObj?.name || "",
+          total_amount: cTotal,
+          currency: "VND",
+          note: cNote.trim(),
+        };
+      }
+
+      onCreateContract?.(contractPO, paymentGroup);
+      setSelectedId(contractPO.id);
+      setShowCreateContractModal(false);
+    } else {
+      if (!selectedPOIdForContract) {
+        setCError("Vui lòng chọn đơn PO để lập hợp đồng.");
+        return;
+      }
+      const targetPO = pos.find((p) => p.id === Number(selectedPOIdForContract));
+      if (!targetPO) {
+        setCError("Không tìm thấy đơn PO đã chọn.");
+        return;
+      }
+
+      const updatedPO: PO = {
+        ...targetPO,
+        contractNote: fromPoContractNote.trim() || targetPO.contractNote,
+      };
+      onUpdate(updatedPO);
+
+      if (fromPoCreateGroup) {
+        const poTotal = targetPO.items.reduce(
+          (sum, it) => sum + it.qty * it.price,
+          0
+        );
+        const poSupplier = suppliers.find((s) => s.id === targetPO.supplierId);
+        const gCode = fromPoContractNumber.trim() || `HĐ-${targetPO.number}`;
+        const newGroup: PaymentGroup = {
+          id: Date.now(),
+          code: gCode,
+          name: `Hợp đồng theo đơn ${targetPO.number}`,
+          payee_name: poSupplier?.name || "",
+          total_amount: poTotal,
+          currency: "VND",
+          note: fromPoContractNote.trim() || targetPO.note || "",
+        };
+        onUpdateState?.({ paymentGroups: [newGroup, ...paymentGroups] });
+      }
+
+      setSelectedId(targetPO.id);
+      setShowCreateContractModal(false);
+    }
+  };
+
   // PO-contract calculations
   const selected = pos.find((p) => p.id === selectedId) || pos[0];
   const supplier = selected ? suppliers.find((s) => s.id === selected.supplierId) : undefined;
@@ -237,7 +497,14 @@ export function ContractManagement({
         <div className="actions">
           {mainTab === "pos" ? (
             <>
-              <button className="primary">＋ Tạo hợp đồng từ PO</button>
+              {!readOnly && (
+                <button
+                  className="primary"
+                  onClick={() => openCreateContractModal()}
+                >
+                  ＋ Tạo hợp đồng mới
+                </button>
+              )}
               {onDelete && selected && (
                 <button className="danger-action" onClick={() => onDelete(selected)}>
                   🗑 Xóa hợp đồng
@@ -289,8 +556,17 @@ export function ContractManagement({
         <>
           {!selected ? (
             <div style={{ padding: "40px 20px", textAlign: "center", color: "#64748b" }}>
-              <h3>Chưa có PO để tạo hợp đồng</h3>
-              <p>Vui lòng phát hành PO trong Quản lý PO để bắt đầu theo dõi tiến độ hợp đồng.</p>
+              <h3>Chưa có hợp đồng nào</h3>
+              <p>Bạn có thể tạo hợp đồng trực tiếp mới hoặc phát hành PO từ Quản lý PO.</p>
+              {!readOnly && (
+                <button
+                  className="primary"
+                  style={{ marginTop: 14 }}
+                  onClick={() => openCreateContractModal()}
+                >
+                  ＋ Tạo hợp đồng mới
+                </button>
+              )}
             </div>
           ) : (
             <>
@@ -1033,6 +1309,853 @@ export function ContractManagement({
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {/* CREATE CONTRACT MODAL */}
+      {showCreateContractModal && (
+        <div
+          className="payment-modal-overlay"
+          onClick={() => setShowCreateContractModal(false)}
+        >
+          <div
+            className="payment-modal-card"
+            style={{ maxWidth: 880, width: "95vw" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="payment-modal-header">
+              <div>
+                <h3 style={{ margin: 0, fontSize: 18, color: "#0f172a" }}>
+                  ＋ Tạo hợp đồng kinh tế / Gói thầu mới
+                </h3>
+                <small style={{ color: "#64748b" }}>
+                  Khởi tạo hợp đồng trực tiếp không qua luồng so sánh báo giá
+                </small>
+              </div>
+              <button
+                type="button"
+                className="payment-modal-close"
+                onClick={() => setShowCreateContractModal(false)}
+              >
+                ×
+              </button>
+            </div>
+
+            {/* Mode selector */}
+            <div
+              style={{
+                display: "flex",
+                gap: 8,
+                borderBottom: "1px solid #e2e8f0",
+                paddingBottom: 8,
+              }}
+            >
+              <button
+                type="button"
+                className={`payment-tab-btn ${contractCreationMode === "direct" ? "active" : ""}`}
+                style={{
+                  padding: "6px 14px",
+                  borderRadius: 6,
+                  fontSize: 13,
+                  cursor: "pointer",
+                  border: "1px solid #cbd5e1",
+                  background:
+                    contractCreationMode === "direct" ? "#0284c7" : "#fff",
+                  color: contractCreationMode === "direct" ? "#fff" : "#334155",
+                  fontWeight: 600,
+                }}
+                onClick={() => setContractCreationMode("direct")}
+              >
+                📄 Tạo hợp đồng trực tiếp mới
+              </button>
+              <button
+                type="button"
+                disabled={pos.length === 0}
+                className={`payment-tab-btn ${contractCreationMode === "from_po" ? "active" : ""}`}
+                style={{
+                  padding: "6px 14px",
+                  borderRadius: 6,
+                  fontSize: 13,
+                  cursor: pos.length === 0 ? "not-allowed" : "pointer",
+                  border: "1px solid #cbd5e1",
+                  background:
+                    contractCreationMode === "from_po" ? "#0284c7" : "#fff",
+                  color: contractCreationMode === "from_po" ? "#fff" : "#334155",
+                  fontWeight: 600,
+                  opacity: pos.length === 0 ? 0.5 : 1,
+                }}
+                onClick={() => setContractCreationMode("from_po")}
+              >
+                🔗 Tạo liên kết từ PO sẵn có ({pos.length})
+              </button>
+            </div>
+
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: 16,
+                maxHeight: "72vh",
+                overflowY: "auto",
+                paddingRight: 4,
+              }}
+            >
+              {contractCreationMode === "direct" ? (
+                <>
+                  <div
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+                      gap: 12,
+                    }}
+                  >
+                    <div>
+                      <label
+                        style={{
+                          display: "block",
+                          fontSize: 12,
+                          fontWeight: 600,
+                          color: "#475569",
+                          marginBottom: 4,
+                        }}
+                      >
+                        Số hợp đồng <span style={{ color: "#ef4444" }}>*</span>
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        className="payment-input"
+                        style={{ width: "100%" }}
+                        value={cNumber}
+                        onChange={(e) => setCNumber(e.target.value)}
+                        placeholder="VD: HĐ-2026-001 hoặc HĐ/PKN/2026"
+                      />
+                    </div>
+
+                    <div>
+                      <label
+                        style={{
+                          display: "block",
+                          fontSize: 12,
+                          fontWeight: 600,
+                          color: "#475569",
+                          marginBottom: 4,
+                        }}
+                      >
+                        Nhà cung cấp / Đối tác <span style={{ color: "#ef4444" }}>*</span>
+                      </label>
+                      <select
+                        className="payment-input"
+                        style={{ width: "100%" }}
+                        value={cSupplierId}
+                        onChange={(e) =>
+                          setCSupplierId(Number(e.target.value) || "")
+                        }
+                      >
+                        <option value="">-- Chọn nhà cung cấp --</option>
+                        {suppliers.map((s) => (
+                          <option key={s.id} value={s.id}>
+                            {s.code} - {s.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div style={{ gridColumn: "1 / -1" }}>
+                      <label
+                        style={{
+                          display: "block",
+                          fontSize: 12,
+                          fontWeight: 600,
+                          color: "#475569",
+                          marginBottom: 4,
+                        }}
+                      >
+                        Tên / Trích yếu nội dung hợp đồng
+                      </label>
+                      <input
+                        type="text"
+                        className="payment-input"
+                        style={{ width: "100%" }}
+                        value={cTitle}
+                        onChange={(e) => setCTitle(e.target.value)}
+                        placeholder="VD: Cung cấp thiết bị phòng thí nghiệm & phụ tùng thay thế"
+                      />
+                    </div>
+
+                    <div>
+                      <label
+                        style={{
+                          display: "block",
+                          fontSize: 12,
+                          fontWeight: 600,
+                          color: "#475569",
+                          marginBottom: 4,
+                        }}
+                      >
+                        Ngày ký kết
+                      </label>
+                      <input
+                        type="date"
+                        className="payment-input"
+                        style={{ width: "100%" }}
+                        value={cSignDate}
+                        onChange={(e) => setCSignDate(e.target.value)}
+                      />
+                    </div>
+
+                    <div>
+                      <label
+                        style={{
+                          display: "block",
+                          fontSize: 12,
+                          fontWeight: 600,
+                          color: "#475569",
+                          marginBottom: 4,
+                        }}
+                      >
+                        Thời hạn hoàn thành / Giao hàng
+                      </label>
+                      <input
+                        type="date"
+                        className="payment-input"
+                        style={{ width: "100%" }}
+                        value={cExpectedDate}
+                        onChange={(e) => setCExpectedDate(e.target.value)}
+                      />
+                    </div>
+
+                    <div style={{ gridColumn: "1 / -1" }}>
+                      <label
+                        style={{
+                          display: "block",
+                          fontSize: 12,
+                          fontWeight: 600,
+                          color: "#475569",
+                          marginBottom: 4,
+                        }}
+                      >
+                        Điều khoản / Ghi chú hợp đồng
+                      </label>
+                      <textarea
+                        rows={2}
+                        className="payment-input"
+                        style={{ width: "100%", resize: "vertical" }}
+                        value={cNote}
+                        onChange={(e) => setCNote(e.target.value)}
+                        placeholder="Ghi chú điều khoản thanh toán, bảo hành, nghiệm thu..."
+                      />
+                    </div>
+                  </div>
+
+                  {/* Items section */}
+                  <div style={{ borderTop: "1px solid #e2e8f0", paddingTop: 12 }}>
+                    <div
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        marginBottom: 8,
+                        flexWrap: "wrap",
+                        gap: 8,
+                      }}
+                    >
+                      <h4 style={{ margin: 0, fontSize: 14, color: "#1e293b" }}>
+                        Hạng mục / Chi tiết hợp đồng ({cItems.length})
+                      </h4>
+                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                        {products && products.length > 0 && (
+                          <select
+                            className="payment-input"
+                            style={{ fontSize: 12, maxWidth: 220 }}
+                            value=""
+                            onChange={(e) => {
+                              const prodId = Number(e.target.value);
+                              const prod = products.find((p) => p.id === prodId);
+                              if (prod) {
+                                setCItems((prev) => [
+                                  ...prev,
+                                  {
+                                    id: Date.now() + Math.random(),
+                                    name: prod.name,
+                                    spec: prod.spec || "",
+                                    unit: prod.unit || "Cái",
+                                    qty: 1,
+                                    price: prod.estimate || 0,
+                                  },
+                                ]);
+                              }
+                            }}
+                          >
+                            <option value="">＋ Thêm từ danh mục...</option>
+                            {products.map((p) => (
+                              <option key={p.id} value={p.id}>
+                                {p.code} - {p.name}
+                              </option>
+                            ))}
+                          </select>
+                        )}
+                        <button
+                          type="button"
+                          className="payment-btn"
+                          onClick={() =>
+                            setCItems((prev) => [
+                              ...prev,
+                              {
+                                id: Date.now() + Math.random(),
+                                name: "",
+                                spec: "",
+                                unit: "Gói",
+                                qty: 1,
+                                price: 0,
+                              },
+                            ])
+                          }
+                        >
+                          ＋ Thêm hạng mục
+                        </button>
+                      </div>
+                    </div>
+
+                    <div
+                      style={{
+                        overflowX: "auto",
+                        border: "1px solid #e2e8f0",
+                        borderRadius: 6,
+                      }}
+                    >
+                      <table
+                        style={{
+                          width: "100%",
+                          borderCollapse: "collapse",
+                          fontSize: 12,
+                        }}
+                      >
+                        <thead>
+                          <tr
+                            style={{
+                              background: "#f8fafc",
+                              borderBottom: "1px solid #cbd5e1",
+                            }}
+                          >
+                            <th
+                              style={{
+                                padding: "8px 6px",
+                                textAlign: "center",
+                                width: 35,
+                              }}
+                            >
+                              STT
+                            </th>
+                            <th style={{ padding: "8px 6px", textAlign: "left" }}>
+                              Tên hạng mục / Hàng hóa dịch vụ <span style={{ color: "#ef4444" }}>*</span>
+                            </th>
+                            <th
+                              style={{
+                                padding: "8px 6px",
+                                textAlign: "left",
+                                width: 140,
+                              }}
+                            >
+                              Quy cách / Ghi chú
+                            </th>
+                            <th
+                              style={{
+                                padding: "8px 6px",
+                                textAlign: "center",
+                                width: 65,
+                              }}
+                            >
+                              ĐVT
+                            </th>
+                            <th
+                              style={{
+                                padding: "8px 6px",
+                                textAlign: "right",
+                                width: 75,
+                              }}
+                            >
+                              Số lượng
+                            </th>
+                            <th
+                              style={{
+                                padding: "8px 6px",
+                                textAlign: "right",
+                                width: 110,
+                              }}
+                            >
+                              Đơn giá (₫)
+                            </th>
+                            <th
+                              style={{
+                                padding: "8px 6px",
+                                textAlign: "right",
+                                width: 110,
+                              }}
+                            >
+                              Thành tiền
+                            </th>
+                            <th
+                              style={{
+                                padding: "8px 6px",
+                                textAlign: "center",
+                                width: 40,
+                              }}
+                            ></th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {cItems.map((it, idx) => {
+                            const lineTotal =
+                              (Number(it.qty) || 0) * (Number(it.price) || 0);
+                            return (
+                              <tr
+                                key={it.id}
+                                style={{ borderBottom: "1px solid #f1f5f9" }}
+                              >
+                                <td
+                                  style={{
+                                    textAlign: "center",
+                                    color: "#64748b",
+                                  }}
+                                >
+                                  {idx + 1}
+                                </td>
+                                <td style={{ padding: "4px" }}>
+                                  <input
+                                    type="text"
+                                    required
+                                    className="payment-input"
+                                    style={{ width: "100%" }}
+                                    value={it.name}
+                                    onChange={(e) => {
+                                      const val = e.target.value;
+                                      setCItems((prev) =>
+                                        prev.map((x, i) =>
+                                          i === idx ? { ...x, name: val } : x
+                                        )
+                                      );
+                                    }}
+                                    placeholder="Tên hạng mục..."
+                                  />
+                                </td>
+                                <td style={{ padding: "4px" }}>
+                                  <input
+                                    type="text"
+                                    className="payment-input"
+                                    style={{ width: "100%" }}
+                                    value={it.spec}
+                                    onChange={(e) => {
+                                      const val = e.target.value;
+                                      setCItems((prev) =>
+                                        prev.map((x, i) =>
+                                          i === idx ? { ...x, spec: val } : x
+                                        )
+                                      );
+                                    }}
+                                  />
+                                </td>
+                                <td style={{ padding: "4px" }}>
+                                  <input
+                                    type="text"
+                                    className="payment-input"
+                                    style={{
+                                      width: "100%",
+                                      textAlign: "center",
+                                    }}
+                                    value={it.unit}
+                                    onChange={(e) => {
+                                      const val = e.target.value;
+                                      setCItems((prev) =>
+                                        prev.map((x, i) =>
+                                          i === idx ? { ...x, unit: val } : x
+                                        )
+                                      );
+                                    }}
+                                  />
+                                </td>
+                                <td style={{ padding: "4px" }}>
+                                  <input
+                                    type="number"
+                                    min="1"
+                                    className="payment-input"
+                                    style={{
+                                      width: "100%",
+                                      textAlign: "right",
+                                    }}
+                                    value={it.qty}
+                                    onChange={(e) => {
+                                      const val = Number(e.target.value) || 0;
+                                      setCItems((prev) =>
+                                        prev.map((x, i) =>
+                                          i === idx ? { ...x, qty: val } : x
+                                        )
+                                      );
+                                    }}
+                                  />
+                                </td>
+                                <td style={{ padding: "4px" }}>
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    step="1000"
+                                    className="payment-input"
+                                    style={{
+                                      width: "100%",
+                                      textAlign: "right",
+                                    }}
+                                    value={it.price}
+                                    onChange={(e) => {
+                                      const val = Number(e.target.value) || 0;
+                                      setCItems((prev) =>
+                                        prev.map((x, i) =>
+                                          i === idx ? { ...x, price: val } : x
+                                        )
+                                      );
+                                    }}
+                                  />
+                                </td>
+                                <td
+                                  style={{
+                                    padding: "6px 8px",
+                                    textAlign: "right",
+                                    fontWeight: 600,
+                                    color: "#0f172a",
+                                  }}
+                                >
+                                  {fmt(lineTotal)} ₫
+                                </td>
+                                <td style={{ textAlign: "center" }}>
+                                  {cItems.length > 1 && (
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        setCItems((prev) =>
+                                          prev.filter((_, i) => i !== idx)
+                                        )
+                                      }
+                                      style={{
+                                        background: "none",
+                                        border: "none",
+                                        color: "#ef4444",
+                                        cursor: "pointer",
+                                        fontSize: 16,
+                                        padding: "2px 6px",
+                                      }}
+                                    >
+                                      🗑
+                                    </button>
+                                  )}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                        <tfoot>
+                          <tr
+                            style={{
+                              background: "#f8fafc",
+                              fontWeight: 700,
+                              borderTop: "2px solid #cbd5e1",
+                            }}
+                          >
+                            <td
+                              colSpan={4}
+                              style={{
+                                padding: "8px 12px",
+                                textAlign: "right",
+                              }}
+                            >
+                              TỔNG GIÁ TRỊ HỢP ĐỒNG:
+                            </td>
+                            <td
+                              style={{
+                                padding: "8px 6px",
+                                textAlign: "right",
+                              }}
+                            >
+                              {cItems.reduce(
+                                (s, it) => s + (Number(it.qty) || 0),
+                                0
+                              )}
+                            </td>
+                            <td></td>
+                            <td
+                              style={{
+                                padding: "8px 8px",
+                                textAlign: "right",
+                                color: "#0284c7",
+                                fontSize: 13,
+                              }}
+                            >
+                              {fmt(
+                                cItems.reduce(
+                                  (s, it) =>
+                                    s +
+                                    (Number(it.qty) || 0) *
+                                      (Number(it.price) || 0),
+                                  0
+                                )
+                              )}{" "}
+                              ₫
+                            </td>
+                            <td></td>
+                          </tr>
+                        </tfoot>
+                      </table>
+                    </div>
+                  </div>
+
+                  {/* Payment group integration checkbox */}
+                  <div
+                    style={{
+                      background: "#f8fafc",
+                      border: "1px solid #e2e8f0",
+                      borderRadius: 6,
+                      padding: "10px 14px",
+                    }}
+                  >
+                    <label
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 8,
+                        fontSize: 13,
+                        cursor: "pointer",
+                        fontWeight: 600,
+                        color: "#0369a1",
+                      }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={cCreatePaymentGroup}
+                        onChange={(e) =>
+                          setCCreatePaymentGroup(e.target.checked)
+                        }
+                      />
+                      <span>
+                        Đồng thời đăng ký vào Nhóm nội dung hợp đồng để lập Đề nghị thanh toán (ĐNTT)
+                      </span>
+                    </label>
+                    <small
+                      style={{
+                        display: "block",
+                        color: "#64748b",
+                        marginTop: 4,
+                        marginLeft: 24,
+                      }}
+                    >
+                      Tự động liên thông hợp đồng sang tab "Nhóm nội dung hợp đồng & Đơn hàng" và mô-đun Quản lý thanh toán.
+                    </small>
+                  </div>
+                </>
+              ) : (
+                /* From PO Mode */
+                <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                  <div>
+                    <label
+                      style={{
+                        display: "block",
+                        fontSize: 12,
+                        fontWeight: 600,
+                        color: "#475569",
+                        marginBottom: 4,
+                      }}
+                    >
+                      Chọn đơn PO cần lập hợp đồng <span style={{ color: "#ef4444" }}>*</span>
+                    </label>
+                    <select
+                      className="payment-input"
+                      style={{ width: "100%" }}
+                      value={selectedPOIdForContract}
+                      onChange={(e) => handleSelectPOForContract(e.target.value)}
+                    >
+                      {pos.map((p) => {
+                        const s = suppliers.find((x) => x.id === p.supplierId);
+                        const v = p.items.reduce(
+                          (sum, it) => sum + it.qty * it.price,
+                          0
+                        );
+                        return (
+                          <option key={p.id} value={p.id}>
+                            {p.number} - {s?.name || "NCC"} ({fmt(v)} ₫) - {dateVN(p.createdDate)}
+                          </option>
+                        );
+                      })}
+                    </select>
+                  </div>
+
+                  {(() => {
+                    const chosen = pos.find(
+                      (p) => p.id === Number(selectedPOIdForContract)
+                    );
+                    if (!chosen) return null;
+                    const chSupplier = suppliers.find(
+                      (s) => s.id === chosen.supplierId
+                    );
+                    const chTotal = chosen.items.reduce(
+                      (sum, it) => sum + it.qty * it.price,
+                      0
+                    );
+                    return (
+                      <div
+                        style={{
+                          background: "#f0f9ff",
+                          border: "1px solid #bae6fd",
+                          borderRadius: 6,
+                          padding: 12,
+                          display: "grid",
+                          gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+                          gap: 8,
+                          fontSize: 12,
+                        }}
+                      >
+                        <div>
+                          <span style={{ color: "#0369a1", fontWeight: 600 }}>
+                            Mã đơn PO:
+                          </span>{" "}
+                          <b>{chosen.number}</b>
+                        </div>
+                        <div>
+                          <span style={{ color: "#0369a1", fontWeight: 600 }}>
+                            Nhà cung cấp:
+                          </span>{" "}
+                          <b>{chSupplier?.name}</b>
+                        </div>
+                        <div>
+                          <span style={{ color: "#0369a1", fontWeight: 600 }}>
+                            Giá trị đơn PO:
+                          </span>{" "}
+                          <b>{fmt(chTotal)} ₫</b>
+                        </div>
+                        <div>
+                          <span style={{ color: "#0369a1", fontWeight: 600 }}>
+                            Số mặt hàng:
+                          </span>{" "}
+                          <b>{chosen.items.length} mặt hàng</b>
+                        </div>
+                      </div>
+                    );
+                  })()}
+
+                  <div>
+                    <label
+                      style={{
+                        display: "block",
+                        fontSize: 12,
+                        fontWeight: 600,
+                        color: "#475569",
+                        marginBottom: 4,
+                      }}
+                    >
+                      Số hợp đồng kinh tế
+                    </label>
+                    <input
+                      type="text"
+                      className="payment-input"
+                      style={{ width: "100%" }}
+                      value={fromPoContractNumber}
+                      onChange={(e) => setFromPoContractNumber(e.target.value)}
+                      placeholder="VD: HĐ-PO-2026-0001"
+                    />
+                  </div>
+
+                  <div>
+                    <label
+                      style={{
+                        display: "block",
+                        fontSize: 12,
+                        fontWeight: 600,
+                        color: "#475569",
+                        marginBottom: 4,
+                      }}
+                    >
+                      Điều khoản / Ghi chú hợp đồng
+                    </label>
+                    <textarea
+                      rows={3}
+                      className="payment-input"
+                      style={{ width: "100%", resize: "vertical" }}
+                      value={fromPoContractNote}
+                      onChange={(e) => setFromPoContractNote(e.target.value)}
+                      placeholder="Ghi chú điều khoản, bảo lãnh, thời hạn bàn giao..."
+                    />
+                  </div>
+
+                  <div
+                    style={{
+                      background: "#f8fafc",
+                      border: "1px solid #e2e8f0",
+                      borderRadius: 6,
+                      padding: "10px 14px",
+                    }}
+                  >
+                    <label
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 8,
+                        fontSize: 13,
+                        cursor: "pointer",
+                        fontWeight: 600,
+                        color: "#0369a1",
+                      }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={fromPoCreateGroup}
+                        onChange={(e) =>
+                          setFromPoCreateGroup(e.target.checked)
+                        }
+                      />
+                      <span>
+                        Đồng thời đăng ký vào Nhóm nội dung hợp đồng để lập Đề nghị thanh toán (ĐNTT)
+                      </span>
+                    </label>
+                  </div>
+                </div>
+              )}
+
+              {cError && (
+                <div
+                  style={{
+                    color: "#ef4444",
+                    fontSize: 12,
+                    fontWeight: 600,
+                  }}
+                >
+                  ⚠ {cError}
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div
+              className="payment-modal-footer"
+              style={{
+                display: "flex",
+                justifyContent: "flex-end",
+                gap: 10,
+                borderTop: "1px solid #e2e8f0",
+                paddingTop: 12,
+              }}
+            >
+              <button
+                type="button"
+                className="payment-btn"
+                onClick={() => setShowCreateContractModal(false)}
+              >
+                Hủy bỏ
+              </button>
+              <button
+                type="button"
+                className="payment-btn btn-primary"
+                onClick={handleSaveContract}
+              >
+                ✓ Lưu và kích hoạt hợp đồng
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </section>

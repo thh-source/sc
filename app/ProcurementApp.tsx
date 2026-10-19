@@ -1429,6 +1429,16 @@ export default function ProcurementApp({
           <ContractManagement
             pos={activeContracts}
             suppliers={suppliers}
+            products={products}
+            prs={prs}
+            onCreateContract={(contractPO, paymentGroup) => {
+              setPos((list) => [contractPO, ...list]);
+              if (paymentGroup) {
+                setPaymentGroups((groups) => [paymentGroup, ...groups]);
+              }
+              setCurrentPO(contractPO);
+              setStorageStatus(`Đã tạo hợp đồng ${contractPO.number}`);
+            }}
             onOpenPO={(po) => {
               setCurrentPO(po);
               setView("po-detail");
@@ -1550,11 +1560,31 @@ export default function ProcurementApp({
           <POList
             pos={pos}
             suppliers={suppliers}
+            prs={prs}
+            products={products}
+            onCreatePO={(newPO, openDetail, sourcePrId) => {
+              setPos((list) => [newPO, ...list]);
+              setCurrentPO(newPO);
+              if (sourcePrId) {
+                setPrs((list) =>
+                  list.map((pr) =>
+                    pr.id === sourcePrId
+                      ? { ...pr, status: "Đã tạo đủ PO" }
+                      : pr
+                  )
+                );
+              }
+              setStorageStatus(`Đã tạo đơn PO ${newPO.number}`);
+              if (openDetail) {
+                setView("po-detail");
+              }
+            }}
             onOpen={(po) => {
               setCurrentPO(po);
               setView("po-detail");
             }}
             onDelete={reportMode ? undefined : (po) => requestDelete("PO", po)}
+            readOnly={reportMode}
           />
         )}
         {view === "trash" && (
