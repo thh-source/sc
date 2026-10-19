@@ -252,6 +252,8 @@ export type PaymentHandoverItem = {
   sender_name?: string;
   sender_dept?: string;
   receiver_name?: string;
+  source_type?: string;
+  source_number?: string;
 };
 
 export type PaymentPrintTemplate = {

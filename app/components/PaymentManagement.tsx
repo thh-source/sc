@@ -10,6 +10,7 @@ import {
   PaymentPrintTemplate,
   PaymentDetailLine,
 } from "../types";
+import { dateVN } from "../utils";
 import {
   DEFAULT_PAYMENT_TEMPLATE,
   PAID_STATUSES,
@@ -26,6 +27,11 @@ import {
 } from "../payment-utils";
 import "../payment.css";
 import { useIsMobile } from "../useIsMobile";
+
+export const isPOContract = (p: PO): boolean =>
+  p.number.startsWith("HĐ-") ||
+  Boolean(p.contractNote && p.contractNote.trim().length > 0) ||
+  Boolean(p.prNumber && p.prNumber.toLowerCase().includes("hợp đồng"));
 
 export interface PaymentManagementProps {
   paymentRequests?: PaymentRequestEntry[];
@@ -80,6 +86,11 @@ export function PaymentManagement({
 
   const [showPOPickerModal, setShowPOPickerModal] = useState(false);
   const [poSearch, setPoSearch] = useState("");
+  const [poFilterType, setPoFilterType] = useState<"all" | "po" | "contract">("all");
+  const [poSelectedMilestone, setPoSelectedMilestone] = useState<Record<number, string>>({});
+  const [linkDocModalTargetReqId, setLinkDocModalTargetReqId] = useState<number | null>(null);
+  const contractCount = useMemo(() => pos.filter(isPOContract).length, [pos]);
+  const poOnlyCount = useMemo(() => pos.length - contractCount, [pos, contractCount]);
 
   // Print portal states
   const [isPrinting, setIsPrinting] = useState(false);
@@ -607,13 +618,34 @@ export function PaymentManagement({
     }
   };
 
-  // Create request from PO
-  const handleCreateFromPO = (po: PO) => {
+  // Create request from PO / Contract
+  const handleCreateFromPO = (po: PO, selectedPaymentPhase?: string, customAmount?: number) => {
     if (readOnly) return;
     const s = suppliers.find((x) => x.id === po.supplierId);
     const poTotal = po.items.reduce((sum, item) => sum + item.qty * item.price, 0);
+    const isContract =
+      po.number.startsWith("HĐ-") ||
+      (po.contractNote && po.contractNote.trim().length > 0) ||
+      (po.prNumber && po.prNumber.toLowerCase().includes("hợp đồng"));
+    const docTypeLabel = isContract ? "Hợp đồng" : "Đơn hàng PO";
+
     const maxId = Math.max(0, ...paymentRequests.map((r) => Number(r.id) || 0)) + 1;
     const maxStt = Math.max(0, ...paymentRequests.map((r) => Number(r.legacy_stt) || 0)) + 1;
+
+    let amountToPay = poTotal;
+    let phaseText = "";
+
+    if (selectedPaymentPhase) {
+      const matchedPayment = po.payments?.find(
+        (p) => String(p.id) === selectedPaymentPhase || p.phase === selectedPaymentPhase
+      );
+      if (matchedPayment) {
+        amountToPay = matchedPayment.amount || (poTotal * matchedPayment.percent) / 100;
+        phaseText = matchedPayment.phase;
+      }
+    } else if (customAmount !== undefined && customAmount > 0) {
+      amountToPay = customAmount;
+    }
 
     const itemNames = po.items.map((i) => i.name).slice(0, 3).join(", ");
     const lines: PaymentDetailLine[] = po.items.map((it) => ({
@@ -623,20 +655,24 @@ export function PaymentManagement({
       amount: it.qty * it.price,
     }));
 
+    const description = phaseText
+      ? `Thanh toán ${phaseText} theo ${docTypeLabel} ${po.number} (Tổng giá trị: ${fmtMoney(poTotal)} ₫)`
+      : `Thanh toán theo ${docTypeLabel} ${po.number} (Tổng giá trị: ${fmtMoney(poTotal)} ₫)`;
+
     const newReq: PaymentRequestEntry = {
       id: maxId,
       legacy_stt: String(maxStt).padStart(2, "0"),
       payee_name: s?.name || "",
       group_code: po.number,
-      description: `Thanh toán tiền mua hàng theo đơn hàng PO ${po.number}`,
+      description,
       item_name: itemNames,
       invoice_no: "",
       invoice_date: "",
-      amount: poTotal,
+      amount: amountToPay,
       currency: "VND",
       documents: ["ĐNTT", "Hóa đơn", "Hợp đồng", "BB nghiệm thu"],
       request_date: localToday(),
-      payment_type: "TT trước 100%",
+      payment_type: phaseText || "TT trước 100%",
       status: "Đã giao KT, chờ đi tiền",
       address: s?.address || "",
       account_no: s?.bankAccount || "",
@@ -646,24 +682,114 @@ export function PaymentManagement({
     };
 
     let nextGroups = [...paymentGroups];
-    if (!nextGroups.some((g) => normName(g.code) === normName(po.number))) {
+    const existingGroup = nextGroups.find((g) => normName(g.code) === normName(po.number));
+    if (!existingGroup) {
       const maxGId = Math.max(0, ...nextGroups.map((g) => Number(g.id) || 0)) + 1;
       nextGroups.push({
         id: maxGId,
         code: po.number,
-        name: `Đơn hàng ${po.number} - ${s?.name || ""}`,
+        name: `${docTypeLabel} ${po.number} - ${s?.name || ""}`,
         payee_name: s?.name || "",
         total_amount: poTotal,
         currency: "VND",
+        note: po.contractNote || po.note || "",
       });
       newReq.group_id = maxGId;
+    } else {
+      newReq.group_id = existingGroup.id;
+      if (!existingGroup.total_amount || Number(existingGroup.total_amount) === 0) {
+        existingGroup.total_amount = poTotal;
+      }
     }
 
     const next = [newReq, ...paymentRequests];
     onUpdateState({ paymentRequests: next, paymentGroups: nextGroups });
     setActiveRequestId(maxId);
     setShowPOPickerModal(false);
-    alert(`Đã lập Đề nghị thanh toán thành công từ PO ${po.number}!`);
+    alert(
+      `Đã lập Đề nghị thanh toán thành công từ ${docTypeLabel} ${po.number} với số tiền ${fmtMoney(amountToPay)} ₫!`
+    );
+  };
+
+  // Link PO / Contract info into existing request
+  const handleLinkDocToRequest = (reqId: number, po: PO, selectedPaymentPhase?: string) => {
+    if (readOnly) return;
+    const s = suppliers.find((x) => x.id === po.supplierId);
+    const poTotal = po.items.reduce((sum, item) => sum + item.qty * item.price, 0);
+    const isContract =
+      po.number.startsWith("HĐ-") ||
+      (po.contractNote && po.contractNote.trim().length > 0) ||
+      (po.prNumber && po.prNumber.toLowerCase().includes("hợp đồng"));
+    const docTypeLabel = isContract ? "Hợp đồng" : "Đơn hàng PO";
+
+    let amountToPay = poTotal;
+    let phaseText = "";
+
+    if (selectedPaymentPhase) {
+      const matchedPayment = po.payments?.find(
+        (p) => String(p.id) === selectedPaymentPhase || p.phase === selectedPaymentPhase
+      );
+      if (matchedPayment) {
+        amountToPay = matchedPayment.amount || (poTotal * matchedPayment.percent) / 100;
+        phaseText = matchedPayment.phase;
+      }
+    }
+
+    const lines: PaymentDetailLine[] = po.items.map((it) => ({
+      description: it.name + (it.spec ? ` (${it.spec})` : ""),
+      invoice_no: "",
+      invoice_date: "",
+      amount: it.qty * it.price,
+    }));
+
+    const description = phaseText
+      ? `Thanh toán ${phaseText} theo ${docTypeLabel} ${po.number} (Tổng giá trị: ${fmtMoney(poTotal)} ₫)`
+      : `Thanh toán theo ${docTypeLabel} ${po.number} (Tổng giá trị: ${fmtMoney(poTotal)} ₫)`;
+
+    let nextGroups = [...paymentGroups];
+    let targetGroupId: number | undefined = undefined;
+    const existingGroup = nextGroups.find((g) => normName(g.code) === normName(po.number));
+    if (!existingGroup) {
+      const maxGId = Math.max(0, ...nextGroups.map((g) => Number(g.id) || 0)) + 1;
+      nextGroups.push({
+        id: maxGId,
+        code: po.number,
+        name: `${docTypeLabel} ${po.number} - ${s?.name || ""}`,
+        payee_name: s?.name || "",
+        total_amount: poTotal,
+        currency: "VND",
+        note: po.contractNote || po.note || "",
+      });
+      targetGroupId = maxGId;
+    } else {
+      targetGroupId = Number(existingGroup.id);
+      if (!existingGroup.total_amount || Number(existingGroup.total_amount) === 0) {
+        existingGroup.total_amount = poTotal;
+      }
+    }
+
+    const next = paymentRequests.map((r) => {
+      if (r.id !== reqId) return r;
+      return {
+        ...r,
+        group_code: po.number,
+        group_id: targetGroupId,
+        payee_name: s?.name || r.payee_name,
+        amount: amountToPay,
+        description,
+        payment_type: phaseText || r.payment_type || "TT trước 100%",
+        address: s?.address || r.address,
+        account_no: s?.bankAccount || r.account_no,
+        bank: s?.bank || r.bank,
+        lines: lines.length > 0 ? lines : r.lines,
+      };
+    });
+
+    onUpdateState({ paymentRequests: next, paymentGroups: nextGroups });
+    setLinkDocModalTargetReqId(null);
+    alert(
+      `Đã liên kết thành công thông tin & giá trị từ ${docTypeLabel} ${po.number} (Giá trị: ${fmtMoney(poTotal)} ₫) vào Đề nghị thanh toán!`
+    );
   };
 
   // Print Handlers via Portal (Clean & Isolated)
@@ -741,11 +867,15 @@ export function PaymentManagement({
             <button
               type="button"
               className="payment-btn"
-              onClick={() => setShowPOPickerModal(true)}
-              title="Lập đề nghị thanh toán từ đơn đặt hàng PO"
-              style={{ background: "#f8fafc", borderColor: "#cbd5e1" }}
+              onClick={() => {
+                setPoFilterType("all");
+                setPoSearch("");
+                setShowPOPickerModal(true);
+              }}
+              title="Lập đề nghị thanh toán từ đơn đặt hàng PO hoặc Hợp đồng kinh tế"
+              style={{ background: "#f8fafc", borderColor: "#0284c7", color: "#0369a1", fontWeight: 600 }}
             >
-              ⚡ Lập từ PO
+              ⚡ Lập từ PO / Hợp đồng
             </button>
 
             <button
@@ -998,6 +1128,22 @@ export function PaymentManagement({
                 <div className="m-card-meta">
                   {r.request_date && <div>📅 Ngày: <b>{r.request_date}</b></div>}
                   {grp && <div>📁 Nhóm HĐ: <b>{grp.code}</b></div>}
+                  {(() => {
+                    const matchedPO = pos.find(
+                      (p) => normName(p.number) === normName(r.group_code || "")
+                    );
+                    const totalDocVal = matchedPO
+                      ? matchedPO.items.reduce((s, it) => s + it.qty * it.price, 0)
+                      : Number(grp?.total_amount) || 0;
+                    if (totalDocVal > 0) {
+                      return (
+                        <div style={{ color: "#0369a1", fontSize: "11.5px", fontWeight: 600 }}>
+                          🔗 Giá trị HĐ/PO: <b>{fmtMoney(totalDocVal)} ₫</b>
+                        </div>
+                      );
+                    }
+                    return null;
+                  })()}
                   {(r.invoice_no || r.invoice_date) && (
                     <div>
                       🧾 HĐ: <b>{r.invoice_no || "---"}</b>{" "}
@@ -1838,7 +1984,18 @@ export function PaymentManagement({
                       />
                     </div>
                     <div className="card-edit-field">
-                      <label>Nhóm HĐ / Mã PO:</label>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
+                        <label style={{ margin: 0, fontWeight: 600 }}>Nhóm HĐ / Mã PO:</label>
+                        <button
+                          type="button"
+                          className="payment-btn"
+                          style={{ padding: "1px 7px", fontSize: "11px", color: "#0284c7", borderColor: "#bae6fd", background: "#f0f9ff" }}
+                          onClick={() => setLinkDocModalTargetReqId(editReq.id)}
+                          title="Chọn PO hoặc Hợp đồng để liên kết toàn bộ giá trị và thông tin"
+                        >
+                          ⚡ Link từ HĐ / PO
+                        </button>
+                      </div>
                       <input
                         list="groupDataList"
                         value={editReq.group_code || (paymentGroups.find((g) => g.id === editReq.group_id)?.code || "")}
@@ -1847,6 +2004,87 @@ export function PaymentManagement({
                         className="card-edit-input"
                       />
                     </div>
+
+                    {(() => {
+                      const matchedPO = pos.find(
+                        (p) => normName(p.number) === normName(editReq.group_code || "")
+                      );
+                      const matchedGroup = paymentGroups.find(
+                        (g) =>
+                          normName(g.code) === normName(editReq.group_code || "") ||
+                          (editReq.group_id && g.id === editReq.group_id)
+                      );
+                      const totalVal = matchedPO
+                        ? matchedPO.items.reduce((s, it) => s + it.qty * it.price, 0)
+                        : Number(matchedGroup?.total_amount) || 0;
+
+                      if (!totalVal) return null;
+
+                      const codeNorm = normName(editReq.group_code || matchedGroup?.code || "");
+                      const relatedReqs = paymentRequests.filter(
+                        (r) =>
+                          normName(r.group_code || "") === codeNorm ||
+                          (matchedGroup && r.group_id === matchedGroup.id)
+                      );
+                      const totalPaid = relatedReqs
+                        .filter((r) => PAID_STATUSES.has(r.status))
+                        .reduce((s, r) => s + (Number(r.amount) || 0), 0);
+                      const remaining = Math.max(0, totalVal - totalPaid);
+
+                      return (
+                        <div
+                          style={{
+                            gridColumn: "span 2",
+                            background: "#f0fdf4",
+                            border: "1px solid #bbf7d0",
+                            borderRadius: "6px",
+                            padding: "8px 12px",
+                            fontSize: "12px",
+                          }}
+                        >
+                          <div style={{ fontWeight: 600, color: "#166534", display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: "6px" }}>
+                            <span>🔗 Giá trị Hợp đồng / PO: <b>{fmtMoney(totalVal)} ₫</b></span>
+                            <span>Đã giải ngân: <b>{fmtMoney(totalPaid)} ₫</b></span>
+                            <span style={{ color: remaining > 0 ? "#0369a1" : "#166534" }}>
+                              Còn lại: <b>{fmtMoney(remaining)} ₫</b>
+                            </span>
+                          </div>
+                          <div style={{ display: "flex", gap: "8px", marginTop: "6px", flexWrap: "wrap" }}>
+                            <button
+                              type="button"
+                              className="payment-btn"
+                              style={{ padding: "2px 8px", fontSize: "11px", background: "#fff" }}
+                              onClick={() => {
+                                handleEditRequest(editReq.id, "amount", remaining > 0 ? remaining : totalVal);
+                              }}
+                            >
+                              ⤓ Điền số tiền còn lại ({fmtMoney(remaining > 0 ? remaining : totalVal)} ₫)
+                            </button>
+                            <button
+                              type="button"
+                              className="payment-btn"
+                              style={{ padding: "2px 8px", fontSize: "11px", background: "#fff" }}
+                              onClick={() => {
+                                handleEditRequest(editReq.id, "amount", totalVal);
+                              }}
+                            >
+                              ⤓ Điền 100% giá trị ({fmtMoney(totalVal)} ₫)
+                            </button>
+                            <button
+                              type="button"
+                              className="payment-btn"
+                              style={{ padding: "2px 8px", fontSize: "11px", background: "#fff" }}
+                              onClick={() => {
+                                const desc = `Thanh toán theo hợp đồng / đơn hàng ${editReq.group_code} (Tổng giá trị: ${fmtMoney(totalVal)} ₫)`;
+                                handleEditRequest(editReq.id, "description", desc);
+                              }}
+                            >
+                              ⤓ Cập nhật nội dung theo HĐ/PO
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })()}
                     <div className="card-edit-field">
                       <label>Người đề nghị:</label>
                       <input
@@ -2354,81 +2592,457 @@ export function PaymentManagement({
         </div>
       )}
 
-      {/* MODAL 2: PO Picker Modal */}
+      {/* MODAL 2: PO / Contract Picker Modal */}
       {showPOPickerModal && (
         <div className="payment-modal-overlay">
-          <div className="payment-modal-card" style={{ maxWidth: "680px" }}>
+          <div className="payment-modal-card" style={{ maxWidth: "760px", width: "95%" }}>
             <div className="payment-modal-header">
-              <h3>⚡ Chọn Đơn mua hàng (PO) để lập Đề nghị thanh toán</h3>
+              <h3>⚡ Chọn PO / Hợp đồng để lập Đề nghị thanh toán</h3>
               <button type="button" onClick={() => setShowPOPickerModal(false)}>✕</button>
             </div>
 
             <div style={{ fontSize: "12.5px", color: "#64748b" }}>
-              Hệ thống tự động điền Nhà cung cấp, số tiền, danh sách hàng hóa và tạo nhóm giải ngân theo mã PO.
+              Hệ thống tự động điền Nhà cung cấp, số tiền, tài khoản ngân hàng, danh sách hàng hóa và tạo nhóm giải ngân theo mã PO / Hợp đồng.
+            </div>
+
+            {/* Document Type Tabs */}
+            <div style={{ display: "flex", gap: "8px", borderBottom: "1px solid #e2e8f0", paddingBottom: "10px" }}>
+              <button
+                type="button"
+                className={`payment-tab-btn ${poFilterType === "all" ? "active" : ""}`}
+                style={{
+                  padding: "6px 14px",
+                  borderRadius: "6px",
+                  fontSize: "13px",
+                  cursor: "pointer",
+                  border: "1px solid #cbd5e1",
+                  background: poFilterType === "all" ? "#0284c7" : "#fff",
+                  color: poFilterType === "all" ? "#fff" : "#334155",
+                  fontWeight: 600,
+                }}
+                onClick={() => setPoFilterType("all")}
+              >
+                Tất cả ({pos.length})
+              </button>
+              <button
+                type="button"
+                className={`payment-tab-btn ${poFilterType === "po" ? "active" : ""}`}
+                style={{
+                  padding: "6px 14px",
+                  borderRadius: "6px",
+                  fontSize: "13px",
+                  cursor: "pointer",
+                  border: "1px solid #cbd5e1",
+                  background: poFilterType === "po" ? "#0284c7" : "#fff",
+                  color: poFilterType === "po" ? "#fff" : "#334155",
+                  fontWeight: 600,
+                }}
+                onClick={() => setPoFilterType("po")}
+              >
+                🛒 Đơn mua hàng PO ({poOnlyCount})
+              </button>
+              <button
+                type="button"
+                className={`payment-tab-btn ${poFilterType === "contract" ? "active" : ""}`}
+                style={{
+                  padding: "6px 14px",
+                  borderRadius: "6px",
+                  fontSize: "13px",
+                  cursor: "pointer",
+                  border: "1px solid #cbd5e1",
+                  background: poFilterType === "contract" ? "#7c3aed" : "#fff",
+                  color: poFilterType === "contract" ? "#fff" : "#334155",
+                  fontWeight: 600,
+                }}
+                onClick={() => setPoFilterType("contract")}
+              >
+                📑 Hợp đồng kinh tế ({contractCount})
+              </button>
             </div>
 
             <input
-              placeholder="Tìm theo số PO hoặc tên nhà cung cấp..."
+              placeholder="Tìm theo số PO, số hợp đồng, tên nhà cung cấp, hoặc tên mặt hàng..."
               value={poSearch}
               onChange={(e) => setPoSearch(e.target.value)}
               style={{ width: "100%", padding: "8px 12px", border: "1px solid #cbd5e1", borderRadius: "6px", fontSize: "13px", boxSizing: "border-box" }}
             />
 
-            <div style={{ maxHeight: "360px", overflowY: "auto", display: "flex", flexDirection: "column", gap: "8px" }}>
+            <div style={{ maxHeight: "420px", overflowY: "auto", display: "flex", flexDirection: "column", gap: "10px" }}>
               {pos
                 .filter((p) => {
+                  const isContract = isPOContract(p);
+                  if (poFilterType === "po" && isContract) return false;
+                  if (poFilterType === "contract" && !isContract) return false;
                   if (!poSearch) return true;
                   const s = suppliers.find((x) => x.id === p.supplierId);
                   const q = normName(poSearch);
+                  const itemMatch = p.items.some(
+                    (it) => normName(it.name).includes(q) || normName(it.spec || "").includes(q)
+                  );
                   return (
                     normName(p.number).includes(q) ||
-                    (s && normName(s.name).includes(q))
+                    (s && (normName(s.name).includes(q) || normName(s.shortName || "").includes(q))) ||
+                    itemMatch
                   );
                 })
                 .map((po) => {
                   const s = suppliers.find((x) => x.id === po.supplierId);
-                  const total = po.items.reduce(
-                    (sum, it) => sum + it.qty * it.price,
-                    0
-                  );
+                  const total = po.items.reduce((sum, it) => sum + it.qty * it.price, 0);
+                  const isContract = isPOContract(po);
+                  const selectedPhase = poSelectedMilestone[po.id];
+
                   return (
                     <div
                       key={po.id}
                       style={{
-                        padding: "10px 14px",
-                        border: "1px solid #e2e8f0",
+                        padding: "12px 14px",
+                        border: isContract ? "1px solid #e9d5ff" : "1px solid #e2e8f0",
                         borderRadius: "8px",
+                        background: isContract ? "#faf5ff" : "#f8fafc",
                         display: "flex",
-                        justifyContent: "space-between",
-                        alignItems: "center",
-                        background: "#f8fafc",
+                        flexDirection: "column",
+                        gap: "8px",
                       }}
                     >
-                      <div>
-                        <div style={{ fontWeight: 700, color: "#0284c7" }}>PO #{po.number}</div>
-                        <div style={{ fontSize: "13px", color: "#1e293b" }}>{s?.name || "Chưa rõ NCC"}</div>
-                        <div style={{ fontSize: "11.5px", color: "#64748b" }}>
-                          Ngày: {po.date} · {po.items.length} mặt hàng
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "12px", flexWrap: "wrap" }}>
+                        <div>
+                          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                            <span
+                              style={{
+                                padding: "2px 8px",
+                                borderRadius: "4px",
+                                fontSize: "11px",
+                                fontWeight: 700,
+                                background: isContract ? "#ede9fe" : "#e0f2fe",
+                                color: isContract ? "#6b21a8" : "#0369a1",
+                                border: `1px solid ${isContract ? "#d8b4fe" : "#bae6fd"}`,
+                              }}
+                            >
+                              {isContract ? "📑 Hợp đồng" : "🛒 Đơn mua hàng PO"}
+                            </span>
+                            <span style={{ fontWeight: 700, fontSize: "14px", color: isContract ? "#6b21a8" : "#0284c7" }}>
+                              #{po.number}
+                            </span>
+                          </div>
+                          <div style={{ fontSize: "13px", fontWeight: 600, color: "#1e293b", marginTop: "4px" }}>
+                            {s?.name || "Chưa rõ NCC"}
+                          </div>
+                          <div style={{ fontSize: "11.5px", color: "#64748b", marginTop: "2px" }}>
+                            Ngày lập: <b>{dateVN(po.createdDate) || "---"}</b> · {po.items.length} mặt hàng
+                            {po.items.length > 0 && ` (${po.items.map((i) => i.name).slice(0, 3).join(", ")}${po.items.length > 3 ? "..." : ""})`}
+                          </div>
+                        </div>
+
+                        <div style={{ textAlign: "right", display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "6px" }}>
+                          <div style={{ fontWeight: 700, color: "#166534", fontSize: "15px" }}>
+                            {fmtMoney(total)} ₫
+                          </div>
+                          <button
+                            type="button"
+                            className="payment-btn btn-primary"
+                            onClick={() => handleCreateFromPO(po, selectedPhase)}
+                          >
+                            ⚡ Lập đề nghị {selectedPhase ? `(${selectedPhase})` : ""}
+                          </button>
                         </div>
                       </div>
-                      <div style={{ textAlign: "right", display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "6px" }}>
-                        <div style={{ fontWeight: 700, color: "#166534", fontSize: "14px" }}>
-                          {fmtMoney(total)} ₫
+
+                      {/* Payment milestones selector if contract/PO has payments */}
+                      {po.payments && po.payments.length > 0 && (
+                        <div style={{ borderTop: "1px dashed #cbd5e1", paddingTop: "6px", display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap", fontSize: "12px" }}>
+                          <span style={{ color: "#475569", fontWeight: 600 }}>Chọn đợt TT:</span>
+                          <button
+                            type="button"
+                            className="payment-btn"
+                            style={{
+                              fontSize: "11px",
+                              padding: "2px 8px",
+                              background: !selectedPhase ? "#0284c7" : "#fff",
+                              color: !selectedPhase ? "#fff" : "#334155",
+                              borderColor: !selectedPhase ? "#0284c7" : "#cbd5e1",
+                            }}
+                            onClick={() => {
+                              setPoSelectedMilestone((prev) => {
+                                const next = { ...prev };
+                                delete next[po.id];
+                                return next;
+                              });
+                            }}
+                          >
+                            100% ({fmtMoney(total)} ₫)
+                          </button>
+                          {po.payments.map((pm, pidx) => {
+                            const pmAmt = pm.amount || (total * pm.percent) / 100;
+                            const isChosen = selectedPhase === String(pm.id || pm.phase);
+                            return (
+                              <button
+                                key={pidx}
+                                type="button"
+                                className="payment-btn"
+                                style={{
+                                  fontSize: "11px",
+                                  padding: "2px 8px",
+                                  background: isChosen ? "#0284c7" : "#fff",
+                                  color: isChosen ? "#fff" : "#0284c7",
+                                  borderColor: "#0284c7",
+                                  fontWeight: isChosen ? 700 : 500,
+                                }}
+                                onClick={() => {
+                                  setPoSelectedMilestone((prev) => ({
+                                    ...prev,
+                                    [po.id]: String(pm.id || pm.phase),
+                                  }));
+                                }}
+                              >
+                                {pm.phase} ({pm.percent}%: {fmtMoney(pmAmt)} ₫)
+                              </button>
+                            );
+                          })}
                         </div>
-                        <button
-                          type="button"
-                          className="payment-btn btn-primary"
-                          onClick={() => handleCreateFromPO(po)}
-                        >
-                          Lập đề nghị
-                        </button>
-                      </div>
+                      )}
                     </div>
                   );
                 })}
               {pos.length === 0 && (
                 <div style={{ textAlign: "center", padding: "20px", color: "#64748b" }}>
-                  Chưa có đơn hàng PO nào được tạo trong hệ thống mua hàng.
+                  Chưa có đơn hàng PO hoặc hợp đồng nào trong hệ thống mua hàng.
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 3: Link PO / Contract into existing Payment Request */}
+      {linkDocModalTargetReqId !== null && (
+        <div className="payment-modal-overlay">
+          <div className="payment-modal-card" style={{ maxWidth: "760px", width: "95%" }}>
+            <div className="payment-modal-header">
+              <h3>⚡ Liên kết Hợp đồng / PO vào Đề nghị thanh toán</h3>
+              <button type="button" onClick={() => setLinkDocModalTargetReqId(null)}>✕</button>
+            </div>
+
+            {(() => {
+              const targetReq = paymentRequests.find((r) => r.id === linkDocModalTargetReqId);
+              return (
+                <div style={{ fontSize: "12.5px", color: "#64748b", display: "flex", flexDirection: "column", gap: "6px" }}>
+                  <div>
+                    Đang liên kết cho Đề nghị: <b>STT {targetReq?.legacy_stt || targetReq?.id}</b> -{" "}
+                    <b>{targetReq?.payee_name || "Chưa có NCC"}</b> (Số tiền hiện tại:{" "}
+                    <b>{fmtMoney(targetReq?.amount || 0)} ₫</b>)
+                  </div>
+                  <div>
+                    Khi chọn PO hoặc Hợp đồng dưới đây, hệ thống sẽ tự động cập nhật: <b>Mã HĐ/PO</b>, <b>Giá trị thanh toán</b>, <b>Tên & TK Ngân hàng NCC</b>, <b>Nội dung chuyển tiền</b>, và <b>Bảng chi tiết các mặt hàng</b>.
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* Document Type Tabs */}
+            <div style={{ display: "flex", gap: "8px", borderBottom: "1px solid #e2e8f0", paddingBottom: "10px" }}>
+              <button
+                type="button"
+                className={`payment-tab-btn ${poFilterType === "all" ? "active" : ""}`}
+                style={{
+                  padding: "6px 14px",
+                  borderRadius: "6px",
+                  fontSize: "13px",
+                  cursor: "pointer",
+                  border: "1px solid #cbd5e1",
+                  background: poFilterType === "all" ? "#0284c7" : "#fff",
+                  color: poFilterType === "all" ? "#fff" : "#334155",
+                  fontWeight: 600,
+                }}
+                onClick={() => setPoFilterType("all")}
+              >
+                Tất cả ({pos.length})
+              </button>
+              <button
+                type="button"
+                className={`payment-tab-btn ${poFilterType === "po" ? "active" : ""}`}
+                style={{
+                  padding: "6px 14px",
+                  borderRadius: "6px",
+                  fontSize: "13px",
+                  cursor: "pointer",
+                  border: "1px solid #cbd5e1",
+                  background: poFilterType === "po" ? "#0284c7" : "#fff",
+                  color: poFilterType === "po" ? "#fff" : "#334155",
+                  fontWeight: 600,
+                }}
+                onClick={() => setPoFilterType("po")}
+              >
+                🛒 Đơn mua hàng PO ({poOnlyCount})
+              </button>
+              <button
+                type="button"
+                className={`payment-tab-btn ${poFilterType === "contract" ? "active" : ""}`}
+                style={{
+                  padding: "6px 14px",
+                  borderRadius: "6px",
+                  fontSize: "13px",
+                  cursor: "pointer",
+                  border: "1px solid #cbd5e1",
+                  background: poFilterType === "contract" ? "#7c3aed" : "#fff",
+                  color: poFilterType === "contract" ? "#fff" : "#334155",
+                  fontWeight: 600,
+                }}
+                onClick={() => setPoFilterType("contract")}
+              >
+                📑 Hợp đồng kinh tế ({contractCount})
+              </button>
+            </div>
+
+            <input
+              placeholder="Tìm theo số PO, số hợp đồng, tên nhà cung cấp, hoặc tên mặt hàng..."
+              value={poSearch}
+              onChange={(e) => setPoSearch(e.target.value)}
+              style={{ width: "100%", padding: "8px 12px", border: "1px solid #cbd5e1", borderRadius: "6px", fontSize: "13px", boxSizing: "border-box" }}
+            />
+
+            <div style={{ maxHeight: "400px", overflowY: "auto", display: "flex", flexDirection: "column", gap: "10px" }}>
+              {pos
+                .filter((p) => {
+                  const isContract = isPOContract(p);
+                  if (poFilterType === "po" && isContract) return false;
+                  if (poFilterType === "contract" && !isContract) return false;
+                  if (!poSearch) return true;
+                  const s = suppliers.find((x) => x.id === p.supplierId);
+                  const q = normName(poSearch);
+                  const itemMatch = p.items.some(
+                    (it) => normName(it.name).includes(q) || normName(it.spec || "").includes(q)
+                  );
+                  return (
+                    normName(p.number).includes(q) ||
+                    (s && (normName(s.name).includes(q) || normName(s.shortName || "").includes(q))) ||
+                    itemMatch
+                  );
+                })
+                .map((po) => {
+                  const s = suppliers.find((x) => x.id === po.supplierId);
+                  const total = po.items.reduce((sum, it) => sum + it.qty * it.price, 0);
+                  const isContract = isPOContract(po);
+                  const selectedPhase = poSelectedMilestone[po.id];
+
+                  return (
+                    <div
+                      key={po.id}
+                      style={{
+                        padding: "12px 14px",
+                        border: isContract ? "1px solid #e9d5ff" : "1px solid #e2e8f0",
+                        borderRadius: "8px",
+                        background: isContract ? "#faf5ff" : "#f8fafc",
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: "8px",
+                      }}
+                    >
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "12px", flexWrap: "wrap" }}>
+                        <div>
+                          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                            <span
+                              style={{
+                                padding: "2px 8px",
+                                borderRadius: "4px",
+                                fontSize: "11px",
+                                fontWeight: 700,
+                                background: isContract ? "#ede9fe" : "#e0f2fe",
+                                color: isContract ? "#6b21a8" : "#0369a1",
+                                border: `1px solid ${isContract ? "#d8b4fe" : "#bae6fd"}`,
+                              }}
+                            >
+                              {isContract ? "📑 Hợp đồng" : "🛒 Đơn mua hàng PO"}
+                            </span>
+                            <span style={{ fontWeight: 700, fontSize: "14px", color: isContract ? "#6b21a8" : "#0284c7" }}>
+                              #{po.number}
+                            </span>
+                          </div>
+                          <div style={{ fontSize: "13px", fontWeight: 600, color: "#1e293b", marginTop: "4px" }}>
+                            {s?.name || "Chưa rõ NCC"}
+                          </div>
+                          <div style={{ fontSize: "11.5px", color: "#64748b", marginTop: "2px" }}>
+                            Ngày lập: <b>{dateVN(po.createdDate) || "---"}</b> · {po.items.length} mặt hàng
+                            {po.items.length > 0 && ` (${po.items.map((i) => i.name).slice(0, 3).join(", ")}${po.items.length > 3 ? "..." : ""})`}
+                          </div>
+                        </div>
+
+                        <div style={{ textAlign: "right", display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "6px" }}>
+                          <div style={{ fontWeight: 700, color: "#166534", fontSize: "15px" }}>
+                            {fmtMoney(total)} ₫
+                          </div>
+                          <button
+                            type="button"
+                            className="payment-btn btn-primary"
+                            onClick={() => {
+                              if (linkDocModalTargetReqId !== null) {
+                                handleLinkDocToRequest(linkDocModalTargetReqId, po, selectedPhase);
+                              }
+                            }}
+                          >
+                            🔗 Liên kết vào đề nghị này
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Payment milestones selector if contract/PO has payments */}
+                      {po.payments && po.payments.length > 0 && (
+                        <div style={{ borderTop: "1px dashed #cbd5e1", paddingTop: "6px", display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap", fontSize: "12px" }}>
+                          <span style={{ color: "#475569", fontWeight: 600 }}>Chọn đợt TT:</span>
+                          <button
+                            type="button"
+                            className="payment-btn"
+                            style={{
+                              fontSize: "11px",
+                              padding: "2px 8px",
+                              background: !selectedPhase ? "#0284c7" : "#fff",
+                              color: !selectedPhase ? "#fff" : "#334155",
+                              borderColor: !selectedPhase ? "#0284c7" : "#cbd5e1",
+                            }}
+                            onClick={() => {
+                              setPoSelectedMilestone((prev) => {
+                                const next = { ...prev };
+                                delete next[po.id];
+                                return next;
+                              });
+                            }}
+                          >
+                            100% ({fmtMoney(total)} ₫)
+                          </button>
+                          {po.payments.map((pm, pidx) => {
+                            const pmAmt = pm.amount || (total * pm.percent) / 100;
+                            const isChosen = selectedPhase === String(pm.id || pm.phase);
+                            return (
+                              <button
+                                key={pidx}
+                                type="button"
+                                className="payment-btn"
+                                style={{
+                                  fontSize: "11px",
+                                  padding: "2px 8px",
+                                  background: isChosen ? "#0284c7" : "#fff",
+                                  color: isChosen ? "#fff" : "#0284c7",
+                                  borderColor: "#0284c7",
+                                  fontWeight: isChosen ? 700 : 500,
+                                }}
+                                onClick={() => {
+                                  setPoSelectedMilestone((prev) => ({
+                                    ...prev,
+                                    [po.id]: String(pm.id || pm.phase),
+                                  }));
+                                }}
+                              >
+                                {pm.phase} ({pm.percent}%: {fmtMoney(pmAmt)} ₫)
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              {pos.length === 0 && (
+                <div style={{ textAlign: "center", padding: "20px", color: "#64748b" }}>
+                  Chưa có đơn hàng PO hoặc hợp đồng nào trong hệ thống mua hàng.
                 </div>
               )}
             </div>

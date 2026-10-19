@@ -2,7 +2,7 @@
 
 import React, { useState, useMemo, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
-import { PaymentHandoverItem } from "../types";
+import { PaymentHandoverItem, PR, PO, Supplier } from "../types";
 import {
   normName,
   localToday,
@@ -36,6 +36,9 @@ export interface HandoverManagementProps {
   onUpdateHandovers?: (handovers: PaymentHandoverItem[]) => void;
   onUpdateState?: (patch: { paymentHandovers?: PaymentHandoverItem[] }) => void;
   readOnly?: boolean;
+  prs?: PR[];
+  pos?: PO[];
+  suppliers?: Supplier[];
 }
 
 export function HandoverManagement({
@@ -43,6 +46,9 @@ export function HandoverManagement({
   onUpdateHandovers,
   onUpdateState,
   readOnly = false,
+  prs = [],
+  pos = [],
+  suppliers = [],
 }: HandoverManagementProps) {
   const triggerUpdateHandovers = (next: PaymentHandoverItem[]) => {
     if (onUpdateHandovers) onUpdateHandovers(next);
@@ -65,6 +71,15 @@ export function HandoverManagement({
   const [pasteTargetDept, setPasteTargetDept] = useState("");
   const [pasteTargetDate, setPasteTargetDate] = useState(localToday());
   const [pasteParsedRows, setPasteParsedRows] = useState<any[]>([]);
+
+  // Import from PR / PO / Contract Modal
+  const [showImportDocModal, setShowImportDocModal] = useState(false);
+  const [importDocType, setImportDocType] = useState<"pr" | "po" | "contract">("pr");
+  const [selectedDocId, setSelectedDocId] = useState<string | number>("");
+  const [docSearchQuery, setDocSearchQuery] = useState("");
+  const [selectedItemIds, setSelectedItemIds] = useState<Set<string | number>>(new Set());
+  const [itemCustomQty, setItemCustomQty] = useState<Record<string | number, number>>({});
+  const [importTargetDept, setImportTargetDept] = useState("");
 
   // Print states
   const [isPrinting, setIsPrinting] = useState(false);
@@ -246,6 +261,245 @@ export function HandoverManagement({
     alert(`Đã thêm thành công ${newItems.length} vật tư vào danh sách bàn giao!`);
   };
 
+  // Contract items list derived from POs
+  const contractsList = useMemo(() => {
+    return pos.filter(
+      (p) =>
+        p.number.startsWith("HĐ-") ||
+        (p.contractNote && p.contractNote.trim().length > 0) ||
+        (p.prNumber && p.prNumber.toLowerCase().includes("hợp đồng"))
+    );
+  }, [pos]);
+
+  const availableDocs = useMemo(() => {
+    const q = normName(docSearchQuery);
+    if (importDocType === "pr") {
+      return prs.filter((pr) => {
+        if (!q) return true;
+        const text = [
+          pr.number,
+          pr.department,
+          pr.purpose,
+          ...(pr.items || []).map((i) => i.name),
+        ].join(" ");
+        return normName(text).includes(q);
+      });
+    } else if (importDocType === "po") {
+      return pos.filter((po) => {
+        if (!q) return true;
+        const s = suppliers.find((x) => x.id === po.supplierId);
+        const text = [
+          po.number,
+          s?.name,
+          po.prNumber,
+          ...(po.items || []).map((i) => i.name),
+        ].join(" ");
+        return normName(text).includes(q);
+      });
+    } else {
+      const list = contractsList.length > 0 ? contractsList : pos;
+      return list.filter((c) => {
+        if (!q) return true;
+        const s = suppliers.find((x) => x.id === c.supplierId);
+        const text = [
+          c.number,
+          s?.name,
+          c.contractNote,
+          ...(c.items || []).map((i) => i.name),
+        ].join(" ");
+        return normName(text).includes(q);
+      });
+    }
+  }, [importDocType, docSearchQuery, prs, pos, suppliers, contractsList]);
+
+  const activeDoc = useMemo(() => {
+    if (!selectedDocId) return null;
+    if (importDocType === "pr") {
+      return prs.find((p) => p.id === Number(selectedDocId)) || null;
+    } else {
+      return pos.find((p) => p.id === Number(selectedDocId)) || null;
+    }
+  }, [selectedDocId, importDocType, prs, pos]);
+
+  const activeDocItems = useMemo(() => {
+    if (!activeDoc) return [];
+    return activeDoc.items || [];
+  }, [activeDoc]);
+
+  const openImportDocModal = () => {
+    let defType: "pr" | "po" | "contract" = "pr";
+    if (prs.length === 0 && pos.length > 0) {
+      defType = "po";
+    }
+    setImportDocType(defType);
+    setDocSearchQuery("");
+
+    let firstDoc = null;
+    if (defType === "pr" && prs.length > 0) {
+      firstDoc = prs[0];
+    } else if (pos.length > 0) {
+      firstDoc = pos[0];
+    }
+
+    if (firstDoc) {
+      setSelectedDocId(firstDoc.id);
+      const items = firstDoc.items || [];
+      setSelectedItemIds(new Set(items.map((it) => it.id)));
+      const qtyMap: Record<string | number, number> = {};
+      items.forEach((it) => {
+        qtyMap[it.id] = it.qty;
+      });
+      setItemCustomQty(qtyMap);
+      setImportTargetDept(
+        "department" in firstDoc && firstDoc.department
+          ? firstDoc.department
+          : handoverDeptFilter || "Phòng Cung ứng"
+      );
+    } else {
+      setSelectedDocId("");
+      setSelectedItemIds(new Set());
+      setItemCustomQty({});
+      setImportTargetDept(handoverDeptFilter || "Phòng Cung ứng");
+    }
+
+    setShowImportDocModal(true);
+  };
+
+  const handleSwitchImportType = (type: "pr" | "po" | "contract") => {
+    setImportDocType(type);
+    setDocSearchQuery("");
+    let firstDoc = null;
+    if (type === "pr") {
+      firstDoc = prs[0] || null;
+    } else if (type === "po") {
+      firstDoc = pos[0] || null;
+    } else {
+      firstDoc = (contractsList.length > 0 ? contractsList[0] : pos[0]) || null;
+    }
+
+    if (firstDoc) {
+      setSelectedDocId(firstDoc.id);
+      const items = firstDoc.items || [];
+      setSelectedItemIds(new Set(items.map((it) => it.id)));
+      const qtyMap: Record<string | number, number> = {};
+      items.forEach((it) => {
+        qtyMap[it.id] = it.qty;
+      });
+      setItemCustomQty(qtyMap);
+      setImportTargetDept(
+        "department" in firstDoc && firstDoc.department
+          ? firstDoc.department
+          : handoverDeptFilter || "Phòng Cung ứng"
+      );
+    } else {
+      setSelectedDocId("");
+      setSelectedItemIds(new Set());
+      setItemCustomQty({});
+    }
+  };
+
+  const handleSelectDoc = (docIdVal: string | number) => {
+    const dId = Number(docIdVal);
+    setSelectedDocId(dId);
+    let doc = null;
+    if (importDocType === "pr") {
+      doc = prs.find((p) => p.id === dId);
+    } else {
+      doc = pos.find((p) => p.id === dId);
+    }
+    if (doc) {
+      const items = doc.items || [];
+      setSelectedItemIds(new Set(items.map((it) => it.id)));
+      const qtyMap: Record<string | number, number> = {};
+      items.forEach((it) => {
+        qtyMap[it.id] = it.qty;
+      });
+      setItemCustomQty(qtyMap);
+      if ("department" in doc && doc.department) {
+        setImportTargetDept(doc.department);
+      }
+    }
+  };
+
+  const handleToggleSelectItem = (id: string | number) => {
+    setSelectedItemIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const handleToggleSelectAllItems = () => {
+    if (selectedItemIds.size === activeDocItems.length) {
+      setSelectedItemIds(new Set());
+    } else {
+      setSelectedItemIds(new Set(activeDocItems.map((it) => it.id)));
+    }
+  };
+
+  const handleConfirmImportItems = () => {
+    if (readOnly) return;
+    if (!activeDoc) {
+      alert("Vui lòng chọn chứng từ nguồn.");
+      return;
+    }
+    const chosenItems = activeDocItems.filter((it) => selectedItemIds.has(it.id));
+    if (chosenItems.length === 0) {
+      alert("Vui lòng tích chọn ít nhất 1 mặt hàng để nạp vào danh sách bàn giao.");
+      return;
+    }
+
+    const maxId = Math.max(0, ...paymentHandovers.map((h) => Number(h.id) || 0)) + 1;
+    let curId = maxId;
+
+    const docTypeLabel =
+      importDocType === "pr"
+        ? "PR"
+        : importDocType === "contract"
+        ? "Hợp đồng"
+        : "PO";
+
+    const docSupplier =
+      "supplierId" in activeDoc && activeDoc.supplierId
+        ? suppliers.find((s) => s.id === activeDoc.supplierId)
+        : null;
+
+    const suppPart = docSupplier?.name ? ` - NCC: ${docSupplier.name}` : "";
+
+    const newHandovers: PaymentHandoverItem[] = chosenItems.map((it) => {
+      const actualQty = itemCustomQty[it.id] !== undefined ? itemCustomQty[it.id] : it.qty;
+      const specPart = it.spec ? ` (${it.spec})` : "";
+      return {
+        id: curId++,
+        department:
+          importTargetDept.trim() ||
+          ("department" in activeDoc && activeDoc.department
+            ? activeDoc.department
+            : "Phòng Cung ứng"),
+        item_name: it.name,
+        unit: it.unit || "Cái",
+        quantity_doc: String(it.qty),
+        quantity_pass: String(actualQty),
+        quantity_fail: "",
+        note: `Nhận từ ${docTypeLabel} #${activeDoc.number}${suppPart}${specPart}`,
+        handover_date: localToday(),
+        sender_name: "Trần Hải Hà",
+        sender_dept: "Phòng Cung ứng",
+        receiver_name: "",
+        source_type: docTypeLabel,
+        source_number: activeDoc.number,
+      };
+    });
+
+    triggerUpdateHandovers([...newHandovers, ...paymentHandovers]);
+    setCheckedHandovers(new Set(newHandovers.map((h) => h.id)));
+    setShowImportDocModal(false);
+    alert(
+      `Đã nạp thành công ${newHandovers.length} mặt hàng từ ${docTypeLabel} #${activeDoc.number} vào danh sách bàn giao!`
+    );
+  };
+
   // Print Handover Direct (2 copies) via Portal
   const handlePrintHandoverDirect = (customItems?: PaymentHandoverItem[]) => {
     const items = customItems || (
@@ -317,6 +571,14 @@ export function HandoverManagement({
             </button>
             <button
               className="payment-btn"
+              style={{ background: "#0284c7", color: "#fff", borderColor: "#0369a1" }}
+              onClick={openImportDocModal}
+              title="Nhập sản phẩm từ PR, PO hoặc Hợp đồng vào danh sách bàn giao"
+            >
+              📦 Chọn từ PR / PO / Hợp đồng
+            </button>
+            <button
+              className="payment-btn"
               style={{ background: "#107c41", color: "#fff", borderColor: "#0b5c30" }}
               onClick={() => setShowPasteModal(true)}
               title="Dán danh sách vật tư từ file Excel (Ctrl+V)"
@@ -346,14 +608,24 @@ export function HandoverManagement({
             </button>
           </>
         ) : (
-          <button
-            className="payment-btn"
-            style={{ background: "#0f766e", color: "#fff", borderColor: "#0d5e56", width: "100%", justifyContent: "center" }}
-            onClick={() => handlePrintHandoverDirect()}
-            title="In biên bản bàn giao các vật tư đã chọn"
-          >
-            🖨️ In biên bản {checkedHandovers.size > 0 ? `(${checkedHandovers.size} vật tư đã chọn)` : "(Tất cả vật tư)"}
-          </button>
+          <div style={{ display: "flex", gap: "8px", width: "100%", flexWrap: "wrap" }}>
+            <button
+              className="payment-btn"
+              style={{ background: "#0284c7", color: "#fff", borderColor: "#0369a1", flex: 1, justifyContent: "center" }}
+              onClick={openImportDocModal}
+              title="Nhập sản phẩm từ PR, PO hoặc Hợp đồng vào danh sách bàn giao"
+            >
+              📦 Chọn từ PR / PO / HĐ
+            </button>
+            <button
+              className="payment-btn"
+              style={{ background: "#0f766e", color: "#fff", borderColor: "#0d5e56", flex: 1, justifyContent: "center" }}
+              onClick={() => handlePrintHandoverDirect()}
+              title="In biên bản bàn giao các vật tư đã chọn"
+            >
+              🖨️ In biên bản {checkedHandovers.size > 0 ? `(${checkedHandovers.size})` : ""}
+            </button>
+          </div>
         )}
 
         <select
@@ -801,6 +1073,285 @@ export function HandoverManagement({
               >
                 ✓ Chèn vào danh sách bàn giao ({pasteParsedRows.length})
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: Import from PR / PO / Contract */}
+      {showImportDocModal && (
+        <div className="payment-modal-overlay" onClick={() => setShowImportDocModal(false)}>
+          <div
+            className="payment-modal-card"
+            style={{ maxWidth: "900px", width: "95vw" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="payment-modal-header">
+              <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                <span style={{ fontSize: "22px" }}>📦</span>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: "17px", color: "#0f172a" }}>
+                    Nhập sản phẩm từ PR, PO hoặc Hợp đồng vào Biên bản bàn giao
+                  </h3>
+                  <div style={{ fontSize: "12px", color: "#64748b", marginTop: "2px" }}>
+                    Chọn chứng từ nguồn và tích chọn các mặt hàng cần đưa vào danh sách bàn giao
+                  </div>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowImportDocModal(false)}
+                style={{ fontSize: "20px", cursor: "pointer", border: "none", background: "transparent" }}
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Source Tab Selector */}
+            <div style={{ display: "flex", gap: "8px", borderBottom: "1px solid #e2e8f0", paddingBottom: "8px" }}>
+              <button
+                type="button"
+                className={`payment-tab-btn ${importDocType === "pr" ? "active" : ""}`}
+                style={{
+                  padding: "6px 14px",
+                  borderRadius: "6px",
+                  fontSize: "13px",
+                  cursor: "pointer",
+                  border: "1px solid #cbd5e1",
+                  background: importDocType === "pr" ? "#0284c7" : "#fff",
+                  color: importDocType === "pr" ? "#fff" : "#334155",
+                  fontWeight: 600,
+                }}
+                onClick={() => handleSwitchImportType("pr")}
+              >
+                📋 Yêu cầu mua sắm PR ({prs.length})
+              </button>
+              <button
+                type="button"
+                className={`payment-tab-btn ${importDocType === "po" ? "active" : ""}`}
+                style={{
+                  padding: "6px 14px",
+                  borderRadius: "6px",
+                  fontSize: "13px",
+                  cursor: "pointer",
+                  border: "1px solid #cbd5e1",
+                  background: importDocType === "po" ? "#0284c7" : "#fff",
+                  color: importDocType === "po" ? "#fff" : "#334155",
+                  fontWeight: 600,
+                }}
+                onClick={() => handleSwitchImportType("po")}
+              >
+                🛒 Đơn mua hàng PO ({pos.length})
+              </button>
+              <button
+                type="button"
+                className={`payment-tab-btn ${importDocType === "contract" ? "active" : ""}`}
+                style={{
+                  padding: "6px 14px",
+                  borderRadius: "6px",
+                  fontSize: "13px",
+                  cursor: "pointer",
+                  border: "1px solid #cbd5e1",
+                  background: importDocType === "contract" ? "#0284c7" : "#fff",
+                  color: importDocType === "contract" ? "#fff" : "#334155",
+                  fontWeight: 600,
+                }}
+                onClick={() => handleSwitchImportType("contract")}
+              >
+                📑 Hợp đồng kinh tế ({contractsList.length > 0 ? contractsList.length : pos.length})
+              </button>
+            </div>
+
+            {/* Document Selection & Search */}
+            <div style={{ display: "grid", gridTemplateColumns: "1.5fr 1fr", gap: "12px" }}>
+              <div>
+                <label style={{ display: "block", fontSize: "12px", fontWeight: 600, color: "#475569", marginBottom: "4px" }}>
+                  Chọn {importDocType === "pr" ? "phiếu PR" : importDocType === "contract" ? "Hợp đồng" : "đơn PO"}:
+                </label>
+                <select
+                  style={{ width: "100%", padding: "7px 10px", border: "1px solid #cbd5e1", borderRadius: "6px", fontSize: "13px" }}
+                  value={selectedDocId}
+                  onChange={(e) => handleSelectDoc(e.target.value)}
+                >
+                  <option value="">-- Chọn chứng từ --</option>
+                  {availableDocs.map((doc) => {
+                    const s = "supplierId" in doc ? suppliers.find((x) => x.id === doc.supplierId) : null;
+                    const subText = s ? s.name : "department" in doc ? doc.department : "";
+                    const itemCount = doc.items?.length || 0;
+                    return (
+                      <option key={doc.id} value={doc.id}>
+                        {doc.number} {subText ? `- ${subText}` : ""} ({itemCount} mặt hàng)
+                      </option>
+                    );
+                  })}
+                </select>
+              </div>
+
+              <div>
+                <label style={{ display: "block", fontSize: "12px", fontWeight: 600, color: "#475569", marginBottom: "4px" }}>
+                  Bộ phận nhận bàn giao:
+                </label>
+                <input
+                  list="handoverDeptsList"
+                  style={{ width: "100%", padding: "7px 10px", border: "1px solid #cbd5e1", borderRadius: "6px", fontSize: "13px", boxSizing: "border-box" }}
+                  value={importTargetDept}
+                  onChange={(e) => setImportTargetDept(e.target.value)}
+                  placeholder="Nhập hoặc chọn phòng ban..."
+                />
+                <datalist id="handoverDeptsList">
+                  {handoverDepts.map((d) => (
+                    <option key={d} value={d} />
+                  ))}
+                </datalist>
+              </div>
+            </div>
+
+            {/* Document Details Box if selected */}
+            {activeDoc && (
+              <div style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: "6px", padding: "8px 12px", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "8px", fontSize: "12px" }}>
+                <div>
+                  <span style={{ color: "#64748b" }}>Số chứng từ:</span> <b>{activeDoc.number}</b>
+                </div>
+                <div>
+                  <span style={{ color: "#64748b" }}>
+                    {"supplierId" in activeDoc ? "Nhà cung cấp:" : "Bộ phận yêu cầu:"}
+                  </span>{" "}
+                  <b>
+                    {"supplierId" in activeDoc
+                      ? suppliers.find((s) => s.id === activeDoc.supplierId)?.name || "Chưa rõ"
+                      : "department" in activeDoc
+                      ? activeDoc.department
+                      : ""}
+                  </b>
+                </div>
+                <div>
+                  <span style={{ color: "#64748b" }}>Ngày lập:</span>{" "}
+                  <b>{"createdDate" in activeDoc ? activeDoc.createdDate : "date" in activeDoc ? activeDoc.date : ""}</b>
+                </div>
+                <div>
+                  <span style={{ color: "#64748b" }}>Số lượng mặt hàng:</span> <b>{activeDocItems.length} mục</b>
+                </div>
+              </div>
+            )}
+
+            {/* Items selection table */}
+            <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <span style={{ fontSize: "13px", fontWeight: 600, color: "#1e293b" }}>
+                  Danh sách sản phẩm / vật tư trong chứng từ:
+                </span>
+                <span style={{ fontSize: "12px", color: selectedItemIds.size > 0 ? "#0284c7" : "#64748b", fontWeight: 600 }}>
+                  Đã chọn: {selectedItemIds.size} / {activeDocItems.length} mặt hàng
+                </span>
+              </div>
+
+              <div style={{ border: "1px solid #cbd5e1", borderRadius: "6px", overflowX: "auto", maxHeight: "260px" }}>
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12px" }}>
+                  <thead>
+                    <tr style={{ background: "#f1f5f9", position: "sticky", top: 0, zIndex: 2 }}>
+                      <th style={{ padding: "6px 8px", width: "40px", textAlign: "center", borderBottom: "1px solid #cbd5e1" }}>
+                        <input
+                          type="checkbox"
+                          checked={selectedItemIds.size === activeDocItems.length && activeDocItems.length > 0}
+                          onChange={handleToggleSelectAllItems}
+                          title="Chọn tất cả"
+                        />
+                      </th>
+                      <th style={{ padding: "6px 8px", width: "40px", textAlign: "center", borderBottom: "1px solid #cbd5e1" }}>STT</th>
+                      <th style={{ padding: "6px 8px", width: "80px", textAlign: "left", borderBottom: "1px solid #cbd5e1" }}>Mã hàng</th>
+                      <th style={{ padding: "6px 8px", textAlign: "left", borderBottom: "1px solid #cbd5e1" }}>Tên sản phẩm, vật tư</th>
+                      <th style={{ padding: "6px 8px", width: "140px", textAlign: "left", borderBottom: "1px solid #cbd5e1" }}>Quy cách</th>
+                      <th style={{ padding: "6px 8px", width: "60px", textAlign: "center", borderBottom: "1px solid #cbd5e1" }}>ĐVT</th>
+                      <th style={{ padding: "6px 8px", width: "80px", textAlign: "right", borderBottom: "1px solid #cbd5e1" }}>SL chứng từ</th>
+                      <th style={{ padding: "6px 8px", width: "110px", textAlign: "right", borderBottom: "1px solid #cbd5e1" }}>SL bàn giao</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {activeDocItems.map((it, idx) => {
+                      const isChecked = selectedItemIds.has(it.id);
+                      const customQty = itemCustomQty[it.id] !== undefined ? itemCustomQty[it.id] : it.qty;
+                      return (
+                        <tr
+                          key={it.id}
+                          style={{
+                            borderBottom: "1px solid #f1f5f9",
+                            background: isChecked ? "#f0f9ff" : "#fff",
+                            cursor: "pointer",
+                          }}
+                          onClick={() => handleToggleSelectItem(it.id)}
+                        >
+                          <td style={{ textAlign: "center", padding: "6px 8px" }} onClick={(e) => e.stopPropagation()}>
+                            <input
+                              type="checkbox"
+                              checked={isChecked}
+                              onChange={() => handleToggleSelectItem(it.id)}
+                            />
+                          </td>
+                          <td style={{ textAlign: "center", color: "#64748b", padding: "6px 8px" }}>{idx + 1}</td>
+                          <td style={{ padding: "6px 8px", color: "#0284c7", fontWeight: 600 }}>{it.code || "---"}</td>
+                          <td style={{ padding: "6px 8px", fontWeight: 600, color: "#0f172a" }}>{it.name}</td>
+                          <td style={{ padding: "6px 8px", color: "#64748b" }}>{it.spec || "---"}</td>
+                          <td style={{ padding: "6px 8px", textAlign: "center" }}>{it.unit || "Cái"}</td>
+                          <td style={{ padding: "6px 8px", textAlign: "right", fontWeight: 600 }}>{it.qty}</td>
+                          <td style={{ padding: "4px 8px", textAlign: "right" }} onClick={(e) => e.stopPropagation()}>
+                            <input
+                              type="number"
+                              min="0"
+                              step="any"
+                              value={customQty}
+                              onChange={(e) => {
+                                const val = Number(e.target.value) || 0;
+                                setItemCustomQty((prev) => ({ ...prev, [it.id]: val }));
+                              }}
+                              style={{
+                                width: "80px",
+                                padding: "4px 6px",
+                                textAlign: "right",
+                                border: "1px solid #cbd5e1",
+                                borderRadius: "4px",
+                                fontSize: "12px",
+                                fontWeight: 600,
+                              }}
+                            />
+                          </td>
+                        </tr>
+                      );
+                    })}
+                    {activeDocItems.length === 0 && (
+                      <tr>
+                        <td colSpan={8} style={{ textAlign: "center", padding: "20px", color: "#64748b" }}>
+                          {activeDoc ? "Chứng từ này không có mặt hàng nào." : "Vui lòng chọn chứng từ phía trên để xem danh sách mặt hàng."}
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderTop: "1px solid #e2e8f0", paddingTop: "12px" }}>
+              <div style={{ fontSize: "12px", color: "#64748b" }}>
+                ℹ️ Các mặt hàng bàn giao sẽ tự động được gán thông tin nguồn (Số PR / PO / HĐ) vào mục ghi chú.
+              </div>
+              <div style={{ display: "flex", gap: "8px" }}>
+                <button
+                  type="button"
+                  className="payment-btn"
+                  onClick={() => setShowImportDocModal(false)}
+                >
+                  Hủy bỏ
+                </button>
+                <button
+                  type="button"
+                  className="payment-btn btn-primary"
+                  style={{ background: "#0284c7", borderColor: "#0369a1" }}
+                  disabled={selectedItemIds.size === 0}
+                  onClick={handleConfirmImportItems}
+                >
+                  ✓ Nạp {selectedItemIds.size} mặt hàng vào danh sách bàn giao
+                </button>
+              </div>
             </div>
           </div>
         </div>
