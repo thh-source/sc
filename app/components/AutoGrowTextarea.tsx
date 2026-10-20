@@ -1,16 +1,34 @@
 import React, { useLayoutEffect, useRef } from "react";
 
+export interface AutoGrowTextareaProps {
+  value: string;
+  onChange: (value: string) => void;
+  className?: string;
+  placeholder?: string;
+  title?: string;
+  style?: React.CSSProperties;
+  rows?: number;
+  readOnly?: boolean;
+  disabled?: boolean;
+  onBlur?: React.FocusEventHandler<HTMLTextAreaElement>;
+  onFocus?: React.FocusEventHandler<HTMLTextAreaElement>;
+  onKeyDown?: React.KeyboardEventHandler<HTMLTextAreaElement>;
+}
+
 export function AutoGrowTextarea({
   value,
   onChange,
   className = "",
   placeholder = "",
-}: {
-  value: string;
-  onChange: (value: string) => void;
-  className?: string;
-  placeholder?: string;
-}) {
+  title,
+  style,
+  rows = 1,
+  readOnly,
+  disabled,
+  onBlur,
+  onFocus,
+  onKeyDown,
+}: AutoGrowTextareaProps) {
   const ref = useRef<HTMLTextAreaElement>(null);
   useLayoutEffect(() => {
     const element = ref.current;
@@ -27,7 +45,7 @@ export function AutoGrowTextarea({
       cancelAnimationFrame(frame);
       frame = requestAnimationFrame(() => {
         element.style.height = "0px";
-        element.style.height = `${Math.max(32, element.scrollHeight + 2)}px`;
+        element.style.height = `${Math.max(28, element.scrollHeight + 2)}px`;
       });
     };
     grow();
@@ -43,10 +61,17 @@ export function AutoGrowTextarea({
   return (
     <textarea
       ref={ref}
-      rows={1}
+      rows={rows}
+      title={title}
       className={`smart-cell-textarea ${className}`}
       value={value}
       placeholder={placeholder}
+      readOnly={readOnly}
+      disabled={disabled}
+      style={style}
+      onBlur={onBlur}
+      onFocus={onFocus}
+      onKeyDown={onKeyDown}
       onChange={(event) => onChange(event.target.value)}
     />
   );

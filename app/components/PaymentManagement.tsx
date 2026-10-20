@@ -30,6 +30,7 @@ import {
 } from "../payment-utils";
 import "../payment.css";
 import { useIsMobile } from "../useIsMobile";
+import { AutoGrowTextarea } from "./AutoGrowTextarea";
 
 export const isPOContract = (p: PO): boolean =>
   p.number.startsWith("HĐ-") ||
@@ -1147,22 +1148,20 @@ export function PaymentManagement({
         );
       case "description":
         return (
-          <input
-            className="cell-editor"
-            list="descDataList"
+          <AutoGrowTextarea
+            className="cell-editor cell-editor-textarea"
             value={r.description || ""}
-            onChange={(e) => handleEditRequest(r.id, "description", e.target.value)}
+            onChange={(val) => handleEditRequest(r.id, "description", val)}
             placeholder="Nội dung chuyển tiền..."
+            title={r.description || "Nội dung chuyển tiền..."}
           />
         );
       case "item_name":
         return (
-          <input
-            className="cell-editor"
-            list="itemDataList"
+          <AutoGrowTextarea
+            className="cell-editor cell-editor-textarea"
             value={r.item_name || ""}
-            onChange={(e) => {
-              const val = e.target.value;
+            onChange={(val) => {
               handleEditRequest(r.id, "item_name", val);
               if (r.lines && r.lines.length > 0) {
                 const nextLines = [...r.lines];
@@ -1171,6 +1170,7 @@ export function PaymentManagement({
               }
             }}
             placeholder="Tên hàng hóa / dịch vụ..."
+            title={r.item_name || "Tên hàng hóa / dịch vụ..."}
           />
         );
       case "invoice_no": {
@@ -1378,21 +1378,22 @@ export function PaymentManagement({
         );
       case "doc_supplement":
         return (
-          <input
-            className="cell-editor"
-            list="docSupplementDataList"
+          <AutoGrowTextarea
+            className="cell-editor cell-editor-textarea"
             value={r.doc_supplement || ""}
-            onChange={(e) => handleEditRequest(r.id, "doc_supplement", e.target.value)}
+            onChange={(val) => handleEditRequest(r.id, "doc_supplement", val)}
             placeholder="Ghi chú hồ sơ..."
+            title={r.doc_supplement || "Ghi chú hồ sơ..."}
           />
         );
       case "address":
         return (
-          <input
-            className="cell-editor"
+          <AutoGrowTextarea
+            className="cell-editor cell-editor-textarea"
             value={r.address || ""}
-            onChange={(e) => handleEditRequest(r.id, "address", e.target.value)}
+            onChange={(val) => handleEditRequest(r.id, "address", val)}
             placeholder="Địa chỉ NCC..."
+            title={r.address || "Địa chỉ NCC..."}
           />
         );
       case "account_no":
@@ -1742,6 +1743,9 @@ export function PaymentManagement({
                   {r.bank && (
                     <div>🏦 {r.bank} - TK: <b>{r.account_no || "---"}</b></div>
                   )}
+                  {r.address && (
+                    <div>📍 {r.address}</div>
+                  )}
                 </div>
 
                 {docs.length > 0 && (
@@ -2027,9 +2031,10 @@ export function PaymentManagement({
                           minWidth: "46px",
                           maxWidth: "46px",
                           background: bg,
-                          padding: "3px 2px",
+                          padding: "6px 2px 2px",
                           whiteSpace: "nowrap",
                           boxSizing: "border-box",
+                          verticalAlign: "top",
                         }}
                       >
                         <div style={{ display: "inline-flex", alignItems: "center", gap: "4px", justifyContent: "center" }}>
@@ -2065,20 +2070,25 @@ export function PaymentManagement({
                         const leftPx = stickyLeftMap[col.id];
                         const isLastPinned = col.id === lastPinnedId;
                         const colW = col.width || col.minWidth;
+                        const isMultilineCol = ["description", "address", "item_name", "doc_supplement"].includes(col.id);
 
                         const style: React.CSSProperties = {
                           width: `${colW}px`,
                           minWidth: `${colW}px`,
                           textAlign: col.id === "amount" ? "right" : col.id === "stt" ? "center" : "left",
-                          overflow: "hidden",
-                          whiteSpace: "nowrap",
+                          overflow: isMultilineCol ? "visible" : "hidden",
+                          whiteSpace: isMultilineCol ? "normal" : "nowrap",
+                          wordBreak: isMultilineCol ? "break-word" : undefined,
+                          overflowWrap: isMultilineCol ? "anywhere" : undefined,
                           boxSizing: "border-box",
+                          verticalAlign: "top",
                           ...(isPinned && leftPx !== undefined ? { left: `${leftPx}px` } : {}),
                         };
 
                         const classes = [
                           isPinned ? "pcol-frozen" : "",
                           isLastPinned ? "pcol-frozen-last" : "",
+                          isMultilineCol ? "pcol-multiline" : "",
                         ].filter(Boolean).join(" ");
 
                         return (
@@ -2095,8 +2105,9 @@ export function PaymentManagement({
                           width: "42px",
                           minWidth: "42px",
                           maxWidth: "42px",
-                          padding: "2px",
+                          padding: "4px 2px 2px",
                           boxSizing: "border-box",
+                          verticalAlign: "top",
                         }}
                       >
                         <button
@@ -2166,16 +2177,16 @@ export function PaymentManagement({
                   alignItems: "center",
                 }}
               >
-                <input
-                  list="itemDataList"
-                  style={{ padding: "6px 8px", border: "1px solid #cbd5e1", borderRadius: "5px", fontSize: "12px" }}
+                <AutoGrowTextarea
+                  className="cell-editor-textarea"
+                  style={{ padding: "6px 8px", border: "1px solid #cbd5e1", borderRadius: "5px", fontSize: "12px", background: "#fff" }}
                   value={line.description || ""}
                   placeholder="Tên hàng hóa..."
-                  onChange={(e) => {
+                  onChange={(val) => {
                     const lines = [...(activeReq.lines || [])];
-                    lines[lIdx] = { ...lines[lIdx], description: e.target.value };
+                    lines[lIdx] = { ...lines[lIdx], description: val };
                     handleEditRequest(activeReq.id, "lines", lines);
-                    if (lIdx === 0) handleEditRequest(activeReq.id, "item_name", e.target.value);
+                    if (lIdx === 0) handleEditRequest(activeReq.id, "item_name", val);
                   }}
                 />
                 <input

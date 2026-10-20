@@ -410,6 +410,63 @@ table.payment-grid th.pcol-frozen {
   box-shadow: 3px 0 6px -2px rgba(0, 0, 0, 0.12);
 }
 
+/* Multiline auto-wrap for table cells and textareas */
+table.payment-grid td.pcol-multiline,
+table.payment-table td.pcol-multiline {
+  overflow: visible !important;
+  white-space: normal !important;
+  text-overflow: clip !important;
+  vertical-align: top !important;
+  padding: 4px 6px !important;
+  word-break: break-word !important;
+  overflow-wrap: anywhere !important;
+  height: auto !important;
+}
+
+table.payment-grid td textarea.cell-editor,
+table.payment-table td textarea.cell-editor,
+table.payment-grid td .smart-cell-textarea,
+table.payment-table td .smart-cell-textarea {
+  width: 100% !important;
+  min-height: 30px !important;
+  height: auto !important;
+  border: 1px solid transparent !important;
+  outline: 0 !important;
+  padding: 4px 6px !important;
+  background: transparent !important;
+  font-size: 12px !important;
+  line-height: 1.4 !important;
+  font-family: inherit !important;
+  color: #1e293b !important;
+  resize: none !important;
+  box-sizing: border-box !important;
+  white-space: pre-wrap !important;
+  overflow-wrap: anywhere !important;
+  word-break: break-word !important;
+  overflow: hidden !important;
+  display: block !important;
+}
+
+table.payment-grid td textarea.cell-editor:focus,
+table.payment-table td textarea.cell-editor:focus,
+table.payment-grid td .smart-cell-textarea:focus,
+table.payment-table td .smart-cell-textarea:focus {
+  background: #ffffff !important;
+  border-color: #3b82f6 !important;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2) !important;
+  border-radius: 4px !important;
+}
+
+.payment-management.workspace-expanded textarea.cell-editor,
+.handover-management.workspace-expanded textarea.cell-editor,
+.payment-management.workspace-expanded td .smart-cell-textarea,
+.handover-management.workspace-expanded td .smart-cell-textarea {
+  font-size: 11.5px !important;
+  padding: 3px 5px !important;
+  min-height: 26px !important;
+  height: auto !important;
+}
+
 .col-check-head {
   position: sticky !important;
   left: 0 !important;
@@ -1840,15 +1897,19 @@ table.payment-grid th.pcol-frozen {
 .payment-management.workspace-expanded .payment-grid td,
 .payment-management.workspace-expanded .payment-grid th,
 .handover-management.workspace-expanded .payment-table td,
-.handover-management.workspace-expanded .payment-table th {
+.handover-management.workspace-expanded .payment-table th,
+.handover-management.workspace-expanded .payment-grid td,
+.handover-management.workspace-expanded .payment-grid th {
   padding: 4px 6px !important;
   font-size: 11.5px !important;
-  height: 34px !important;
+  min-height: 34px !important;
 }
 
-.payment-management.workspace-expanded .cell-editor,
+.payment-management.workspace-expanded .cell-editor:not(textarea),
 .handover-management.workspace-expanded .payment-table input,
-.handover-management.workspace-expanded .payment-table select {
+.handover-management.workspace-expanded .payment-table select,
+.handover-management.workspace-expanded .payment-grid input,
+.handover-management.workspace-expanded .payment-grid select {
   font-size: 11.5px !important;
   padding: 3px 5px !important;
   height: 28px !important;
