@@ -1,8 +1,8 @@
 import React from "react";
 import { Supplier, PO, POItem, PODoc, Payment } from "../types";
 import { fmt, dateVN, makeId } from "../utils";
-import VisualTimeline from "../VisualTimeline";
-import DocumentManager from "../DocumentManager";
+import VisualTimeline from "./VisualTimeline";
+import DocumentManager from "./DocumentManager";
 
 export function PODetail({
   po,

@@ -100,6 +100,25 @@ function remap(data: Record<string, any>, index: number) {
     hiddenContractIds: (data.hiddenContractIds || []).map((id: number) =>
       add(id, offset),
     ),
+    paymentRequests: (data.paymentRequests || []).map((p: any) => ({
+      ...p,
+      id: add(p.id, offset),
+      beneficiary_id: add(p.beneficiary_id, offset),
+      group_id: add(p.group_id, offset),
+    })),
+    paymentGroups: (data.paymentGroups || []).map((g: any) => ({
+      ...g,
+      id: add(g.id, offset),
+    })),
+    paymentBeneficiaries: (data.paymentBeneficiaries || []).map((b: any) => ({
+      ...b,
+      id: add(b.id, offset),
+    })),
+    paymentHandovers: (data.paymentHandovers || []).map((h: any) => ({
+      ...h,
+      id: add(h.id, offset),
+    })),
+    paymentTemplate: data.paymentTemplate || null,
   };
 }
 
@@ -114,7 +133,23 @@ export async function readAllWorkspaces() {
     remap(JSON.parse(row.payload), index),
   );
   const combined: Record<string, any> = {
-    prs: [], products: [], suppliers: [], quotes: {}, quotesByPr: {}, quoteSupplierIdsByPr: {}, pos: [], items: [], quoteSupplierIds: [], hiddenContractIds: [], trash: [], poCart: [],
+    prs: [],
+    products: [],
+    suppliers: [],
+    quotes: {},
+    quotesByPr: {},
+    quoteSupplierIdsByPr: {},
+    pos: [],
+    items: [],
+    quoteSupplierIds: [],
+    hiddenContractIds: [],
+    trash: [],
+    poCart: [],
+    paymentRequests: [],
+    paymentGroups: [],
+    paymentBeneficiaries: [],
+    paymentHandovers: [],
+    paymentTemplate: null,
   };
   for (const part of parts) {
     combined.prs.push(...part.prs);
@@ -127,6 +162,13 @@ export async function readAllWorkspaces() {
     combined.items.push(...part.items);
     combined.quoteSupplierIds.push(...part.quoteSupplierIds);
     combined.hiddenContractIds.push(...part.hiddenContractIds);
+    combined.paymentRequests.push(...(part.paymentRequests || []));
+    combined.paymentGroups.push(...(part.paymentGroups || []));
+    combined.paymentBeneficiaries.push(...(part.paymentBeneficiaries || []));
+    combined.paymentHandovers.push(...(part.paymentHandovers || []));
+    if (!combined.paymentTemplate && part.paymentTemplate) {
+      combined.paymentTemplate = part.paymentTemplate;
+    }
   }
   return combined;
 }

@@ -10,8 +10,8 @@ import {
   Suspense,
 } from "react";
 import type React from "react";
-import DocumentManager from "./DocumentManager";
-import SmartTableTools from "./SmartTableTools";
+import DocumentManager from "./components/DocumentManager";
+import SmartTableTools from "./components/SmartTableTools";
 import "./vat-quote.css";
 
 import { PaymentManagement } from "./components/PaymentManagement";
@@ -107,7 +107,12 @@ export default function ProcurementApp({
     [paymentHandovers, setPaymentHandovers] = useState<PaymentHandoverItem[]>([]),
     [paymentTemplate, setPaymentTemplate] = useState<PaymentPrintTemplate>(DEFAULT_PAYMENT_TEMPLATE);
   const [storageReady, setStorageReady] = useState(false),
-    [storageStatus, setStorageStatus] = useState("Đang kết nối dữ liệu...");
+    [storageStatus, setStorageStatus] = useState("Đang kết nối dữ liệu..."),
+    [conflictModal, setConflictModal] = useState<{
+      serverVersion: number;
+      time: string;
+    } | null>(null),
+    [loadTrigger, setLoadTrigger] = useState(0);
   const [workspaceId, setWorkspaceId] = useState(currentUser?.id || ""),
     [workspaceUsers, setWorkspaceUsers] = useState<
       { id: string; displayName: string; username: string; role: string }[]
@@ -215,8 +220,17 @@ export default function ProcurementApp({
           },
         );
         if (response.status === 409) {
+          const resData = (await response.json().catch(() => null)) as {
+            error?: string;
+            currentVersion?: number;
+            message?: string;
+          } | null;
+          setConflictModal({
+            serverVersion: resData?.currentVersion || (serverVersionRef.current + 1),
+            time: new Date().toLocaleTimeString("vi-VN"),
+          });
           setStorageStatus(
-            "⚠️ Dữ liệu đã thay đổi ở phiên/thiết bị khác. Vui lòng tải lại trang (F5)!",
+            "⚠️ Xung đột dữ liệu với phiên làm việc khác!",
           );
           return;
         }
@@ -412,7 +426,7 @@ export default function ProcurementApp({
     return () => {
       active = false;
     };
-  }, [reportToken, workspaceId]);
+  }, [loadTrigger, reportToken, workspaceId]);
   useEffect(() => {
     if (!storageReady || reportMode) return;
     const timer = setTimeout(() => void persistState(), 1200);
@@ -1274,7 +1288,9 @@ export default function ProcurementApp({
     <div
       className={`app ${collapsed ? "collapsed" : ""} ${reportMode ? "report-mode" : ""}`}
     >
-      <SmartTableTools scopeKey={view} />
+      {!["payment", "handover", "compare"].includes(view) && (
+        <SmartTableTools scopeKey={view} />
+      )}
       <aside>
         <div className="brand">
           <span>
@@ -2065,6 +2081,89 @@ export default function ProcurementApp({
                 onClick={() => setSupplierPicker(false)}
               >
                 Đóng
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {conflictModal && (
+        <div className="modal" style={{ zIndex: 9999, background: "rgba(15, 23, 42, 0.75)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <div
+            className="modal-card"
+            style={{
+              maxWidth: "540px",
+              width: "90%",
+              padding: "24px",
+              borderRadius: "12px",
+              boxShadow: "0 25px 50px -12px rgba(0,0,0,0.35)",
+              border: "1px solid #fed7aa",
+              background: "#ffffff",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: "14px", marginBottom: "16px" }}>
+              <span style={{ fontSize: "2.2rem", lineHeight: 1 }}>⚠️</span>
+              <div>
+                <h3 style={{ margin: 0, color: "#9a3412", fontSize: "1.2rem", fontWeight: 700 }}>
+                  Xung đột dữ liệu phiên làm việc
+                </h3>
+                <small style={{ color: "#64748b" }}>
+                  Phát hiện lúc {conflictModal.time} (Phiên bản máy chủ: #{conflictModal.serverVersion})
+                </small>
+              </div>
+            </div>
+            <p style={{ fontSize: "0.95rem", lineHeight: "1.6", color: "#334155", margin: "0 0 20px 0" }}>
+              Dữ liệu trên máy chủ đã được lưu bởi một phiên làm việc hoặc thiết bị khác trong khi bạn đang thao tác.
+              Để bảo vệ toàn vẹn dữ liệu, hệ thống đã tạm dừng tự động lưu. Vui lòng chọn cách xử lý:
+            </p>
+            <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+              <button
+                type="button"
+                className="btn primary"
+                style={{
+                  background: "#2563eb",
+                  color: "#fff",
+                  padding: "12px 16px",
+                  borderRadius: "8px",
+                  fontWeight: 600,
+                  fontSize: "0.95rem",
+                  cursor: "pointer",
+                  textAlign: "left",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  border: "none",
+                }}
+                onClick={() => {
+                  setConflictModal(null);
+                  setStorageStatus("Đang tải lại dữ liệu mới nhất...");
+                  setLoadTrigger((t) => t + 1);
+                }}
+              >
+                <span>🔄 Tải lại dữ liệu mới nhất từ máy chủ</span>
+                <span style={{ fontSize: "0.8rem", opacity: 0.85 }}>(Khuyến nghị)</span>
+              </button>
+              <button
+                type="button"
+                className="btn secondary"
+                style={{
+                  background: "#fff",
+                  color: "#b91c1c",
+                  border: "1px solid #fca5a5",
+                  padding: "12px 16px",
+                  borderRadius: "8px",
+                  fontWeight: 600,
+                  fontSize: "0.95rem",
+                  cursor: "pointer",
+                  textAlign: "left",
+                }}
+                onClick={() => {
+                  serverVersionRef.current = conflictModal.serverVersion;
+                  setConflictModal(null);
+                  setStorageStatus("Đang ghi đè dữ liệu lên máy chủ...");
+                  void persistState();
+                }}
+              >
+                ⚡ Ghi đè máy chủ bằng dữ liệu hiện tại trên máy này
               </button>
             </div>
           </div>

@@ -74,6 +74,21 @@ function savePreferences(key: string, value: Preferences) {
   localStorage.setItem(key, JSON.stringify(value));
 }
 
+function isReactManagedTable(table: HTMLTableElement | null): boolean {
+  if (!table) return true;
+  if (table.getAttribute("data-react-managed") === "true") return true;
+  if (
+    table.classList.contains("payment-table") ||
+    table.classList.contains("handover-table") ||
+    table.classList.contains("compare-table") ||
+    Boolean(table.closest(".payment-table-wrapper")) ||
+    Boolean(table.closest(".handover-table-wrapper"))
+  ) {
+    return true;
+  }
+  return false;
+}
+
 export default function SmartTableTools({ scopeKey }: { scopeKey: string }) {
   const activeRef = useRef<HTMLTableElement | null>(null),
     keyRef = useRef(""),
@@ -86,7 +101,7 @@ export default function SmartTableTools({ scopeKey }: { scopeKey: string }) {
     labels = labelsFor(table),
     syncPanel = true,
   ) => {
-    if (!labels.length) return;
+    if (!labels.length || isReactManagedTable(table)) return;
     let group = table.querySelector<HTMLTableColElement>(
       "colgroup[data-smart-columns]",
     );
@@ -265,8 +280,8 @@ export default function SmartTableTools({ scopeKey }: { scopeKey: string }) {
       frame = requestAnimationFrame(() => {
         const tables = [
           ...document.querySelectorAll<HTMLTableElement>(".app main table"),
-        ].filter((table) => table.offsetParent !== null);
-        if (!activeRef.current || activeRef.current.offsetParent === null) {
+        ].filter((table) => table.offsetParent !== null && !isReactManagedTable(table));
+        if (!activeRef.current || activeRef.current.offsetParent === null || isReactManagedTable(activeRef.current)) {
           activeRef.current = null;
           if (tables[0])
             activate(
@@ -286,7 +301,7 @@ export default function SmartTableTools({ scopeKey }: { scopeKey: string }) {
       const target = event.target as HTMLElement;
       if (target.closest(".smart-table-panel,.smart-table-launch")) return;
       const table = target.closest<HTMLTableElement>("table");
-      if (table && table.closest(".app main")) activate(table);
+      if (table && table.closest(".app main") && !isReactManagedTable(table)) activate(table);
     };
     const down = (event: MouseEvent) => {
       const th = (event.target as HTMLElement).closest<HTMLTableCellElement>(
@@ -298,8 +313,9 @@ export default function SmartTableTools({ scopeKey }: { scopeKey: string }) {
         th.getBoundingClientRect().right - event.clientX > 8
       )
         return;
-      const table = th.closest("table")!,
-        grid = headerGrid(table),
+      const table = th.closest("table");
+      if (!table || isReactManagedTable(table)) return;
+      const grid = headerGrid(table),
         rowIndex = (th.parentElement as HTMLTableRowElement)?.rowIndex || 0,
         indices = (grid[rowIndex] || [])
           .map((cell, index) => (cell === th ? index : -1))

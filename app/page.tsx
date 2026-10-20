@@ -1,5 +1,5 @@
 import ProcurementApp from "./ProcurementApp";
-import LoginForm from "./LoginForm";
+import LoginForm from "./components/LoginForm";
 import { getCurrentUser } from "./auth";
 
 export const dynamic = "force-dynamic";

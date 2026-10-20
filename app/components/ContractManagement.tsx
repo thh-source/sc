@@ -3,8 +3,8 @@
 import React, { useState, useMemo } from "react";
 import { Supplier, PO, PaymentGroup, PaymentRequestEntry, Item, PR } from "../types";
 import { fmt, dateVN } from "../utils";
-import VisualTimeline from "../VisualTimeline";
-import DocumentManager from "../DocumentManager";
+import VisualTimeline from "./VisualTimeline";
+import DocumentManager from "./DocumentManager";
 import { PAID_STATUSES, fmtMoney, normName } from "../payment-utils";
 import { SupplierSearchCombobox } from "./SupplierSearchCombobox";
 import { TreeProductPickerModal, SelectedItemData } from "./TreeProductPickerModal";
