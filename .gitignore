@@ -4,3 +4,6 @@ dist
 .env
 .dev.vars
 .gemini
+*.tsbuildinfo
+backup_*.json
+*.backup.json

@@ -709,7 +709,7 @@ export function PaymentManagement({
   const handleTableKeyDown = (e: React.KeyboardEvent<HTMLTableSectionElement>) => {
     if (e.key === "Tab") {
       const editors = Array.from(
-        e.currentTarget.querySelectorAll<HTMLInputElement | HTMLSelectElement>(
+        e.currentTarget.querySelectorAll<HTMLElement>(
           ".cell-editor:not([disabled])"
         )
       );
@@ -765,9 +765,9 @@ export function PaymentManagement({
       }
       const cols = parts.slice(startIdx);
 
-      let payee_name = cols[0] || "";
+      const payee_name = cols[0] || "";
       let group_code = "";
-      let group_id: number | null = null;
+      let group_id: number | string | undefined = undefined;
       let description = "";
       let item_name = "";
       let invoice_no = "";
@@ -837,7 +837,7 @@ export function PaymentManagement({
         request_date: localToday(),
         payment_type: "TT sau 100%",
         status: "Đã giao KT, chờ đi tiền",
-        missing_doc: "",
+        doc_supplement: "",
         address,
         account_no,
         bank,
@@ -938,7 +938,7 @@ export function PaymentManagement({
       lines,
     };
 
-    let nextGroups = [...paymentGroups];
+    const nextGroups = [...paymentGroups];
     const existingGroup = nextGroups.find((g) => normName(g.code) === normName(po.number));
     if (!existingGroup) {
       const maxGId = Math.max(0, ...nextGroups.map((g) => Number(g.id) || 0)) + 1;
@@ -1003,7 +1003,7 @@ export function PaymentManagement({
       ? `Thanh toán ${phaseText} theo ${docTypeLabel} ${po.number} (Tổng giá trị: ${fmtMoney(poTotal)} ₫)`
       : `Thanh toán theo ${docTypeLabel} ${po.number} (Tổng giá trị: ${fmtMoney(poTotal)} ₫)`;
 
-    let nextGroups = [...paymentGroups];
+    const nextGroups = [...paymentGroups];
     let targetGroupId: number | undefined = undefined;
     const existingGroup = nextGroups.find((g) => normName(g.code) === normName(po.number));
     if (!existingGroup) {
@@ -2432,7 +2432,7 @@ export function PaymentManagement({
                           (matchedGroup && r.group_id === matchedGroup.id)
                       );
                       const totalPaid = relatedReqs
-                        .filter((r) => PAID_STATUSES.has(r.status))
+                        .filter((r) => PAID_STATUSES.includes(r.status))
                         .reduce((s, r) => s + (Number(r.amount) || 0), 0);
                       const remaining = Math.max(0, totalVal - totalPaid);
 

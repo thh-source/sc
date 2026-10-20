@@ -132,8 +132,9 @@ export function TreeProductPickerModal({
     }
   };
 
-  const collapseAll = (allKeys: string[]) => {
+  const collapseAll = (keys?: string[]) => {
     if (q) {
+      const allKeys = keys || (activeTab === "pr" ? allPRNodeKeys : allCatalogNodeKeys);
       setCollapsedNodes(new Set(allKeys));
     } else {
       setExpandedNodes(new Set());
@@ -555,7 +556,7 @@ export function TreeProductPickerModal({
                 type="button"
                 className="payment-btn payment-btn-sm"
                 style={{ fontSize: "11.5px", padding: "4px 10px" }}
-                onClick={collapseAll}
+                onClick={() => collapseAll()}
               >
                 ⊟ Thu gọn tất cả
               </button>

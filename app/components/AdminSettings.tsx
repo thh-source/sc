@@ -116,19 +116,19 @@ export function AdminSettings({
 
   const load = () =>
     fetch("/api/users")
-      .then((r) => r.json())
+      .then((r) => r.json() as Promise<{ users?: UserRow[] }>)
       .then((b) => setUsers(b.users || []));
 
   const loadUsage = () =>
     fetch("/api/admin/usage")
-      .then((r) => (r.ok ? r.json() : null))
+      .then((r) => (r.ok ? (r.json() as Promise<UsageInfo | null>) : null))
       .then((body) => setUsage(body))
       .catch(() => setUsage(null));
 
   const loadAuditLogs = () => {
     setAuditLoading(true);
     fetch("/api/admin/audit-logs?limit=50")
-      .then((r) => (r.ok ? r.json() : null))
+      .then((r) => (r.ok ? (r.json() as Promise<{ logs?: AuditLogRow[] } | null>) : null))
       .then((b) => {
         if (b?.logs) setAuditLogs(b.logs);
       })
@@ -139,7 +139,7 @@ export function AdminSettings({
   const loadSnapshots = () => {
     setSnapshotLoading(true);
     fetch("/api/admin/snapshots")
-      .then((r) => (r.ok ? r.json() : null))
+      .then((r) => (r.ok ? (r.json() as Promise<{ snapshots?: SnapshotItem[] } | null>) : null))
       .then((b) => {
         if (b?.snapshots) setSnapshots(b.snapshots);
       })
@@ -161,7 +161,7 @@ export function AdminSettings({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form),
       }),
-      body = await response.json();
+      body = (await response.json()) as { error?: string };
     if (!response.ok) {
       setMessage(body.error || "Không thể tạo tài khoản");
       return;
@@ -194,7 +194,7 @@ export function AdminSettings({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ password: newPassword }),
       });
-      const data = await res.json();
+      const data = (await res.json()) as { error?: string };
       if (res.ok) {
         setMessage(`Đã đặt lại mật khẩu cho tài khoản "${resetTargetUser.username}"`);
         setResetTargetUser(null);
@@ -214,7 +214,7 @@ export function AdminSettings({
     if (!window.confirm(`Bạn có chắc chắn muốn xóa vĩnh viễn tài khoản "${u.displayName}" (${u.username})?`)) return;
     try {
       const res = await fetch(`/api/users/${u.id}`, { method: "DELETE" });
-      const data = await res.json();
+      const data = (await res.json()) as { error?: string };
       if (res.ok) {
         setMessage(`Đã xóa tài khoản ${u.username}`);
         load();
@@ -237,7 +237,7 @@ export function AdminSettings({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "cleanup_sessions" }),
       });
-      const data = await res.json();
+      const data = (await res.json()) as { deletedCount?: number };
       if (res.ok) {
         setCleanupStatus(`Đã dọn dẹp ${data.deletedCount || 0} phiên hết hạn`);
         setTimeout(() => setCleanupStatus(""), 4000);
@@ -260,7 +260,7 @@ export function AdminSettings({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "create", label: snapshotLabel.trim() || undefined }),
       });
-      const data = await res.json();
+      const data = (await res.json()) as { size: number; error?: string };
       if (res.ok) {
         setSnapshotModalOpen(false);
         setSnapshotLabel("");
@@ -289,7 +289,7 @@ export function AdminSettings({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "restore", key: item.key }),
       });
-      const data = await res.json();
+      const data = (await res.json()) as { restoredCount?: number; error?: string };
       if (res.ok) {
         alert(`Phục hồi CSDL thành công (${data.restoredCount} phân vùng)! Trang web sẽ tự động tải lại.`);
         location.reload();

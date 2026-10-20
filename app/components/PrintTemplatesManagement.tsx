@@ -2,7 +2,7 @@
 
 import React, { useState, useMemo } from "react";
 import { createPortal } from "react-dom";
-import { PaymentPrintTemplate, PaymentRequestEntry, PaymentHandoverItem, Supplier } from "../types";
+import { PaymentPrintTemplate, PaymentRequestEntry, PaymentDetailLine, PaymentHandoverItem, Supplier } from "../types";
 import {
   DEFAULT_PAYMENT_TEMPLATE,
   fmtMoney,
@@ -39,7 +39,7 @@ export function PrintTemplatesManagement({
   const [isPrinting, setIsPrinting] = useState(false);
   const [printType, setPrintType] = useState<"01-TT" | "handover">("01-TT");
 
-  const sampleReq = useMemo(() => {
+  const sampleReq: PaymentRequestEntry = useMemo(() => {
     if (sampleRequest) return sampleRequest;
     return {
       id: 999,
@@ -49,13 +49,18 @@ export function PrintTemplatesManagement({
       account_no: "19035678901234",
       bank: "Techcombank - Chi nhánh Thăng Long",
       description: "Thanh toán tiền vật tư, nguyên phụ liệu sản xuất theo HĐ đợt 1",
+      item_name: "Nguyên phụ liệu dược phẩm lô A-01",
+      invoice_no: "HD-001289",
+      invoice_date: "15/10/2026",
+      payment_type: "Chuyển khoản",
+      status: "Done",
       request_date: localToday(),
       amount: "45000000",
       currency: "VND",
       documents: ["Hóa đơn điện tử GTGT", "Biên bản nghiệm thu", "Hợp đồng mua bán"],
       lines: [
-        { description: "Nguyên phụ liệu dược phẩm lô A-01", invoice_no: "HD-001289", invoice_date: "15/10/2026", amount: 25000000 },
-        { description: "Bao bì và tá dược GMP", invoice_no: "HD-001290", invoice_date: "16/10/2026", amount: 20000000 },
+        { description: "Nguyên phụ liệu dược phẩm lô A-01", invoice_no: "HD-001289", invoice_date: "15/10/2026", amount: 25000000, note: "" },
+        { description: "Bao bì và tá dược GMP", invoice_no: "HD-001290", invoice_date: "16/10/2026", amount: 20000000, note: "" },
       ],
       created_by_name: tplForm.default_requester_name || "Trần Hải Hà",
     };
@@ -107,8 +112,8 @@ export function PrintTemplatesManagement({
   const dateParts = parsePrintDate(sampleReq.request_date);
   const cur = String(sampleReq.currency || "VND").toUpperCase();
   const words = moneyWords({ amount: sampleReq.amount, currency: cur });
-  const lines = (sampleReq.lines && sampleReq.lines.length > 0) ? sampleReq.lines : [
-    { description: sampleReq.description || sampleReq.item_name || "", invoice_no: sampleReq.invoice_no || "", invoice_date: sampleReq.invoice_date || "", amount: sampleReq.amount },
+  const lines: PaymentDetailLine[] = (sampleReq.lines && sampleReq.lines.length > 0) ? sampleReq.lines : [
+    { description: sampleReq.description || sampleReq.item_name || "", invoice_no: sampleReq.invoice_no || "", invoice_date: sampleReq.invoice_date || "", amount: sampleReq.amount, note: "" },
   ];
 
   return (

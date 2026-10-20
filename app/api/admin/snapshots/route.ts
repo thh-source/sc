@@ -11,7 +11,7 @@ export async function GET() {
     const list = await env.BUCKET.list({ prefix: "snapshots/" });
 
     const snapshots = list.objects
-      .map((obj) => ({
+      .map((obj: any) => ({
         key: obj.key,
         size: obj.size,
         uploadedAt: obj.uploaded.toISOString(),
@@ -21,7 +21,7 @@ export async function GET() {
         originalBytes: Number(obj.customMetadata?.originalBytes || obj.size),
       }))
       .sort(
-        (a, b) =>
+        (a: any, b: any) =>
           new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime(),
       );
 

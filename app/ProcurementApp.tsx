@@ -16,7 +16,7 @@ import "./vat-quote.css";
 
 import { PaymentManagement } from "./components/PaymentManagement";
 import { BANK_SUGGESTIONS, DEFAULT_PAYMENT_TEMPLATE } from "./payment-utils";
-import { Item, Supplier, PurchaseHistory, QuoteMode, QuoteEntry, Quote, PR, POItem, POCartLine, ApprovalRow, ApprovalDraft, PODoc, PO, TrashItem, View, ColumnKey, SortState, PaymentRequestEntry, PaymentGroup, PaymentBeneficiary, PaymentHandoverItem, PaymentPrintTemplate } from "./types";
+import { Item, Supplier, PurchaseHistory, QuoteMode, QuoteEntry, Quote, PR, POItem, POCartLine, ApprovalRow, ApprovalDraft, PODoc, PO, TrashItem, View, ColumnKey, SortState, PaymentRequestEntry, PaymentGroup, PaymentBeneficiary, PaymentHandoverItem, PaymentPrintTemplate, StoredState } from "./types";
 import { BASE_COLUMNS, reorder, applyTools, makeId, emptyItem, fmt, dateVN, DEFAULT_VAT_RATE, quoteDefaults, quoteBeforeVat, quoteAfterVat, quoteComparePrice, mergeHistorySeed, PurchaseHistorySeed, excelNumber, emptyPR, emptyPO, generateShortName } from "./utils";
 import { items0, suppliers0, purchaseHistory0, quotes0, prs0, pos0, HISTORY_SEED_ID } from "./seed";
 import { AdvancedItemsTable } from "./components/AdvancedItemsTable";
@@ -221,7 +221,7 @@ export default function ProcurementApp({
           return;
         }
         if (!response.ok) throw new Error("SAVE_FAILED");
-        const resData = await response.json().catch(() => null);
+        const resData = (await response.json().catch(() => null)) as { version?: number } | null;
         if (resData?.version) {
           serverVersionRef.current = resData.version;
         }
@@ -274,7 +274,7 @@ export default function ProcurementApp({
     )
       return;
     fetch("/api/users")
-      .then((response) => response.json())
+      .then((response) => response.json() as Promise<{ users?: any[] }>)
       .then((body) => setWorkspaceUsers(body.users || []))
       .catch(() => setWorkspaceUsers([]));
   }, [currentUser, reportMode]);
@@ -286,7 +286,7 @@ export default function ProcurementApp({
     fetch(url)
       .then((r) => {
         if (!r.ok) throw new Error();
-        return r.json();
+        return r.json() as Promise<{ version?: number; data?: StoredState }>;
       })
       .then((body) => {
         if (!active) return;
@@ -301,13 +301,13 @@ export default function ProcurementApp({
               Object.keys(data.quotes || {}).map(Number),
             ),
             legacyQuotePR =
-              data.prs?.find((pr) =>
-                pr.items.some((item) => legacyQuoteItemIds.has(item.id)),
+              data.prs?.find((pr: PR) =>
+                pr.items.some((item: Item) => legacyQuoteItemIds.has(item.id)),
               ) || firstPR,
             migratedQuotes =
               data.quotesByPr ||
               (legacyQuotePR && Object.keys(data.quotes || {}).length
-                ? { [legacyQuotePR.id]: data.quotes }
+                 ? { [legacyQuotePR.id]: data.quotes }
                 : {}),
             migratedSupplierIds =
               data.quoteSupplierIdsByPr ||
@@ -334,7 +334,7 @@ export default function ProcurementApp({
           const now = Date.now();
           setTrash(
             (data.trash || []).filter(
-              (entry) => new Date(entry.expiresAt).getTime() > now,
+              (entry: TrashItem) => new Date(entry.expiresAt).getTime() > now,
             ),
           );
           setHiddenContractIds(data.hiddenContractIds || []);
@@ -345,14 +345,14 @@ export default function ProcurementApp({
           
           const hasPaymentRequests = data.paymentRequests && data.paymentRequests.length > 0;
           if (hasPaymentRequests) {
-            setPaymentRequests(data.paymentRequests);
+            setPaymentRequests(data.paymentRequests || []);
             setPaymentGroups(data.paymentGroups || []);
             setPaymentBeneficiaries(data.paymentBeneficiaries || []);
             setPaymentHandovers(data.paymentHandovers || []);
             setPaymentTemplate(data.paymentTemplate || DEFAULT_PAYMENT_TEMPLATE);
           } else {
             fetch("/default-payment-seed.json")
-              .then((res) => res.json())
+              .then((res) => res.json() as Promise<any>)
               .then((seed) => {
                 if (!active) return;
                 setPaymentRequests(seed.defaultPaymentRequests || []);
@@ -392,7 +392,7 @@ export default function ProcurementApp({
           setCurrentPO(emptyPO);
 
           fetch("/default-payment-seed.json")
-            .then((res) => res.json())
+            .then((res) => res.json() as Promise<any>)
             .then((seed) => {
               if (!active) return;
               setPaymentRequests(seed.defaultPaymentRequests || []);
@@ -432,8 +432,14 @@ export default function ProcurementApp({
     trash,
     hiddenContractIds,
     poCart,
+    quoteCompareMode,
     purchaseHistory,
     purchaseHistoryImportIds,
+    paymentRequests,
+    paymentGroups,
+    paymentBeneficiaries,
+    paymentHandovers,
+    paymentTemplate,
     workspaceId,
     persistState,
   ]);
@@ -489,7 +495,7 @@ export default function ProcurementApp({
     try {
       const response = await fetch("/api/share", { method: "POST" });
       if (!response.ok) throw new Error();
-      const body = await response.json();
+      const body = (await response.json()) as { token: string };
       setStorageStatus("Đã tạo link báo cáo");
       window.open(
         `${window.location.origin}/report/${encodeURIComponent(body.token)}`,
@@ -518,6 +524,7 @@ export default function ProcurementApp({
           poCart,
           quotesByPr,
           quoteSupplierIdsByPr,
+          quoteCompareMode,
           purchaseHistory,
           purchaseHistoryImportIds,
           paymentRequests,
@@ -549,7 +556,7 @@ export default function ProcurementApp({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ password: deletePassword }),
       });
-      const body = await response.json();
+      const body = (await response.json()) as { error?: string };
       if (!response.ok) throw new Error(body.error || "Mật khẩu không đúng");
       const now = new Date(),
         expires = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000),

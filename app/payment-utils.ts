@@ -275,18 +275,18 @@ export function printEntries(x: PaymentRequestEntry) {
 }
 
 export function parseFlexibleDate(val: string): string {
-  let s = String(val || "").trim().replace(/[\/.\-\s]+$/, "");
+  const s = String(val || "").trim().replace(/[\/.\-\s]+$/, "");
   if (!s) return "";
   const currentYear = new Date().getFullYear();
 
   // 1. ISO format YYYY-MM-DD
-  let iso = s.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})$/);
+  const iso = s.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})$/);
   if (iso) {
-    let y = parseInt(iso[1], 10);
-    let m = parseInt(iso[2], 10);
+    const y = parseInt(iso[1], 10);
+    const m = parseInt(iso[2], 10);
     let d = parseInt(iso[3], 10);
     if (m >= 1 && m <= 12 && d >= 1 && d <= 31) {
-      let maxDays = new Date(y, m, 0).getDate();
+      const maxDays = new Date(y, m, 0).getDate();
       if (d > maxDays) d = maxDays;
       return `${String(d).padStart(2, "0")}/${String(m).padStart(2, "0")}/${y}`;
     }
@@ -297,50 +297,50 @@ export function parseFlexibleDate(val: string): string {
   if (!dmy) dmy = s.match(/^(\d{1,2})\s+(\d{1,2})(?:\s+(\d{2,4}))?$/);
   if (dmy) {
     let d = parseInt(dmy[1], 10);
-    let m = parseInt(dmy[2], 10);
-    let yStr = dmy[3];
+    const m = parseInt(dmy[2], 10);
+    const yStr = dmy[3];
     let y = currentYear;
     if (yStr) {
       y = yStr.length === 2 ? parseInt("20" + yStr, 10) : parseInt(yStr, 10);
     }
     if (m >= 1 && m <= 12 && d >= 1 && d <= 31) {
-      let maxDays = new Date(y, m, 0).getDate();
+      const maxDays = new Date(y, m, 0).getDate();
       if (d > maxDays) d = maxDays;
       return `${String(d).padStart(2, "0")}/${String(m).padStart(2, "0")}/${y}`;
     }
   }
 
   // 3. Continuous digits: 4 digits (DDMM), 6 digits (DDMMYY), 8 digits (DDMMYYYY)
-  let digits = s.replace(/\D/g, "");
+  const digits = s.replace(/\D/g, "");
   if (digits.length === 4) {
     let d = parseInt(digits.slice(0, 2), 10);
-    let m = parseInt(digits.slice(2, 4), 10);
+    const m = parseInt(digits.slice(2, 4), 10);
     if (m >= 1 && m <= 12 && d >= 1 && d <= 31) {
-      let maxDays = new Date(currentYear, m, 0).getDate();
+      const maxDays = new Date(currentYear, m, 0).getDate();
       if (d > maxDays) d = maxDays;
       return `${String(d).padStart(2, "0")}/${String(m).padStart(2, "0")}/${currentYear}`;
     }
   } else if (digits.length === 6) {
     let d = parseInt(digits.slice(0, 2), 10);
-    let m = parseInt(digits.slice(2, 4), 10);
-    let y = parseInt("20" + digits.slice(4, 6), 10);
+    const m = parseInt(digits.slice(2, 4), 10);
+    const y = parseInt("20" + digits.slice(4, 6), 10);
     if (m >= 1 && m <= 12 && d >= 1 && d <= 31) {
-      let maxDays = new Date(y, m, 0).getDate();
+      const maxDays = new Date(y, m, 0).getDate();
       if (d > maxDays) d = maxDays;
       return `${String(d).padStart(2, "0")}/${String(m).padStart(2, "0")}/${y}`;
     }
   } else if (digits.length === 8) {
     let d = parseInt(digits.slice(0, 2), 10);
-    let m = parseInt(digits.slice(2, 4), 10);
-    let y = parseInt(digits.slice(4, 8), 10);
+    const m = parseInt(digits.slice(2, 4), 10);
+    const y = parseInt(digits.slice(4, 8), 10);
     if (m >= 1 && m <= 12 && d >= 1 && d <= 31) {
-      let maxDays = new Date(y, m, 0).getDate();
+      const maxDays = new Date(y, m, 0).getDate();
       if (d > maxDays) d = maxDays;
       return `${String(d).padStart(2, "0")}/${String(m).padStart(2, "0")}/${y}`;
     }
   }
 
-  let p = parsePrintDate(s);
+  const p = parsePrintDate(s);
   if (p) {
     return `${String(p.d).padStart(2, "0")}/${String(p.m).padStart(2, "0")}/${p.y}`;
   }

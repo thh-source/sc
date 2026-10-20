@@ -73,7 +73,7 @@ export default function DocumentManager({
     )
       .then((response) => {
         if (!response.ok) throw new Error("LOAD_FAILED");
-        return response.json();
+        return response.json() as Promise<{ files?: any[] }>;
       })
       .then((body) => setFiles(body.files || []))
       .catch(() => onStatus?.("Không tải được danh sách hồ sơ"))
@@ -102,7 +102,7 @@ export default function DocumentManager({
     try {
       const response = await fetch("/api/files", { method: "POST", body: form });
       if (!response.ok) {
-        const body = await response.json().catch(() => ({}));
+        const body = (await response.json().catch(() => ({}))) as { error?: string };
         throw new Error(body.error || "UPLOAD_FAILED");
       }
       onStatus?.(`Đã lưu hồ sơ ${file.name}`);

@@ -217,6 +217,7 @@ export type PaymentRequestEntry = {
   account_no?: string;
   bank?: string;
   created_by_name?: string;
+  due_date?: string;
   lines?: PaymentDetailLine[];
 };
 
@@ -254,6 +255,7 @@ export type PaymentHandoverItem = {
   receiver_name?: string;
   source_type?: string;
   source_number?: string;
+  specification?: string;
 };
 
 export type PaymentPrintTemplate = {

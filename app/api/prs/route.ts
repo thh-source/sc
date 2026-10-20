@@ -41,7 +41,7 @@ export async function POST(request: Request) {
   
   const workspaceId = await resolveWorkspace(user, new URL(request.url).searchParams.get("workspace"));
   const db = getDb();
-  const data = await request.json(); // array of PRs
+  const data = (await request.json()) as any[]; // array of PRs
 
   // Drizzle batch insert or sequential
   // Since D1 doesn't support complex upserts easily with nested items, we can just delete all PRs for the workspace and re-insert them, or implement proper diffing.
