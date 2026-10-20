@@ -7,6 +7,7 @@ import VisualTimeline from "../VisualTimeline";
 import DocumentManager from "../DocumentManager";
 import { PAID_STATUSES, fmtMoney, normName } from "../payment-utils";
 import { SupplierSearchCombobox } from "./SupplierSearchCombobox";
+import { TreeProductPickerModal, SelectedItemData } from "./TreeProductPickerModal";
 import "../payment.css";
 
 export interface ContractManagementProps {
@@ -93,6 +94,9 @@ export function ContractManagement({
     }>
   >([]);
   const [cError, setCError] = useState("");
+  const [showTreePickerModal, setShowTreePickerModal] = useState(false);
+  const [inlineProductQuery, setInlineProductQuery] = useState("");
+  const [showInlineDropdown, setShowInlineDropdown] = useState(false);
 
   const cSelectedPR = useMemo(() => {
     if (!cPrId) return null;
@@ -293,8 +297,89 @@ export function ContractManagement({
     }
   };
 
-  const handleContractAddCustomProduct = (nameInput: string) => {
-    const trimmed = nameInput.trim();
+  const handleSelectItemsFromTree = (items: SelectedItemData[]) => {
+    setCItems((prev) => {
+      const cleanPrev = prev.filter(
+        (it) => it.name.trim() !== "" && it.name !== "Gói hợp đồng cung cấp hàng hóa/dịch vụ"
+      );
+      const newItems = items.map((it, idx) => ({
+        id: Date.now() + Math.random() + idx,
+        name: it.name,
+        spec: it.spec || "",
+        unit: it.unit || "Gói",
+        qty: it.qty || 1,
+        price: it.price || 0,
+      }));
+      return [...cleanPrev, ...newItems];
+    });
+
+    if (!cPrId && items[0]?.sourcePrId) {
+      setCPrId(items[0].sourcePrId);
+    }
+  };
+
+  const filteredInlineProducts = useMemo(() => {
+    const q = normName(inlineProductQuery);
+    const results: {
+      name: string;
+      spec?: string;
+      unit: string;
+      qty: number;
+      price: number;
+      source: string;
+      sourcePrId?: number;
+      sourcePrNumber?: string;
+    }[] = [];
+
+    if (cSelectedPR && cSelectedPR.items) {
+      cSelectedPR.items.forEach((it) => {
+        if (
+          !q ||
+          normName(it.name).includes(q) ||
+          normName(it.spec || "").includes(q) ||
+          normName(it.code || "").includes(q)
+        ) {
+          results.push({
+            name: it.name,
+            spec: it.spec,
+            unit: it.unit || "Cái",
+            qty: it.qty || 1,
+            price: it.estimate || 0,
+            source: `PR #${cSelectedPR.number}`,
+            sourcePrId: cSelectedPR.id,
+            sourcePrNumber: cSelectedPR.number,
+          });
+        }
+      });
+    }
+
+    products.forEach((p) => {
+      if (
+        !q ||
+        normName(p.name).includes(q) ||
+        normName(p.spec || "").includes(q) ||
+        normName(p.code || "").includes(q) ||
+        normName(p.category || "").includes(q)
+      ) {
+        if (!results.some((r) => normName(r.name) === normName(p.name))) {
+          results.push({
+            name: p.name,
+            spec: p.spec,
+            unit: p.unit || "Gói",
+            qty: 1,
+            price: p.estimate || 0,
+            source: p.category || "Danh mục chung",
+          });
+        }
+      }
+    });
+
+    return results.slice(0, 15);
+  }, [inlineProductQuery, cSelectedPR, products]);
+
+  const handleContractAddCustomProduct = (nameInput?: string | any) => {
+    const str = typeof nameInput === "string" ? nameInput : cCustomProductInput;
+    const trimmed = (str || "").trim();
     if (!trimmed) return;
     const existing = products.find((p) => normName(p.name) === normName(trimmed));
     if (existing) {
@@ -1758,101 +1843,203 @@ export function ContractManagement({
                         )}
                       </div>
                       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
-                        {cSelectedPR ? (
-                          <select
-                            className="payment-input"
-                            style={{
-                              fontSize: 12,
-                              maxWidth: 320,
-                              borderColor: "#0284c7",
-                              background: "#f0f9ff",
-                              fontWeight: 600,
-                            }}
-                            value=""
-                            onChange={(e) => {
-                              const itemId = Number(e.target.value);
-                              const it = cSelectedPR.items?.find((p) => p.id === itemId);
-                              if (it) {
-                                setCItems((prev) => [
-                                  ...prev.filter((x) => x.name.trim() !== "" && x.name !== "Gói hợp đồng cung cấp hàng hóa/dịch vụ"),
-                                  {
-                                    id: Date.now() + Math.random(),
-                                    name: it.name,
-                                    spec: it.spec || "",
-                                    unit: it.unit || "Cái",
-                                    qty: it.qty || 1,
-                                    price: it.estimate || 0,
-                                  },
-                                ]);
-                              }
-                            }}
-                          >
-                            <option value="">＋ Chọn mặt hàng từ PR #{cSelectedPR.number}...</option>
-                            {cSelectedPR.items?.map((it) => (
-                              <option key={it.id} value={it.id}>
-                                {it.name} (SL: {it.qty} {it.unit || "cái"})
-                              </option>
-                            ))}
-                          </select>
-                        ) : (
-                          <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
-                            {products && products.length > 0 && (
-                              <select
-                                className="payment-input"
-                                style={{ fontSize: 12, maxWidth: 220 }}
-                                value=""
-                                onChange={(e) => {
-                                  const prodId = Number(e.target.value);
-                                  const prod = products.find((p) => p.id === prodId);
-                                  if (prod) {
+                        {/* TREE PICKER BUTTON */}
+                        <button
+                          type="button"
+                          className="payment-btn"
+                          style={{
+                            background: "#0284c7",
+                            borderColor: "#0369a1",
+                            color: "#ffffff",
+                            fontWeight: 700,
+                            fontSize: "12px",
+                            padding: "6px 14px",
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: "6px",
+                            boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
+                          }}
+                          onClick={() => setShowTreePickerModal(true)}
+                          title="Mở cây thư mục theo Phòng ban → Phiếu PR hoặc Danh mục sản phẩm để tích chọn"
+                        >
+                          <span>🌲 Duyệt Cây thư mục PR & Danh mục</span>
+                        </button>
+
+                        {/* INLINE FAST-SEARCH COMBOBOX */}
+                        <div style={{ position: "relative" }}>
+                          <div style={{ display: "flex", gap: "4px", alignItems: "center" }}>
+                            <input
+                              type="text"
+                              className="payment-input"
+                              style={{ fontSize: 12, width: 230 }}
+                              placeholder="Gõ tìm nhanh sản phẩm..."
+                              value={inlineProductQuery}
+                              onFocus={() => setShowInlineDropdown(true)}
+                              onChange={(e) => {
+                                setInlineProductQuery(e.target.value);
+                                setShowInlineDropdown(true);
+                              }}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter" && inlineProductQuery.trim()) {
+                                  e.preventDefault();
+                                  handleContractAddCustomProduct(inlineProductQuery.trim());
+                                  setInlineProductQuery("");
+                                  setShowInlineDropdown(false);
+                                }
+                              }}
+                            />
+                            <button
+                              type="button"
+                              className="payment-btn payment-btn-sm"
+                              style={{
+                                padding: "5px 9px",
+                                fontSize: "11.5px",
+                                background: "#f0fdf4",
+                                color: "#166534",
+                                borderColor: "#bbf7d0",
+                                fontWeight: 600,
+                              }}
+                              onClick={() => {
+                                if (inlineProductQuery.trim()) {
+                                  handleContractAddCustomProduct(inlineProductQuery.trim());
+                                  setInlineProductQuery("");
+                                  setShowInlineDropdown(false);
+                                }
+                              }}
+                              title="Thêm mặt hàng này vào danh sách hợp đồng"
+                            >
+                              ＋ Thêm
+                            </button>
+                          </div>
+
+                          {showInlineDropdown && (
+                            <div
+                              style={{
+                                position: "absolute",
+                                top: "100%",
+                                left: 0,
+                                marginTop: "4px",
+                                width: "330px",
+                                maxHeight: "270px",
+                                overflowY: "auto",
+                                background: "#ffffff",
+                                border: "1px solid #cbd5e1",
+                                borderRadius: "8px",
+                                boxShadow: "0 10px 25px -5px rgba(0,0,0,0.15)",
+                                zIndex: 9999,
+                              }}
+                            >
+                              <div
+                                style={{
+                                  padding: "6px 10px",
+                                  background: "#f1f5f9",
+                                  borderBottom: "1px solid #e2e8f0",
+                                  fontSize: "11px",
+                                  fontWeight: 600,
+                                  color: "#475569",
+                                  display: "flex",
+                                  justifyContent: "space-between",
+                                  alignItems: "center",
+                                }}
+                              >
+                                <span>Gợi ý nhanh ({filteredInlineProducts.length})</span>
+                                <button
+                                  type="button"
+                                  style={{ border: 0, background: "none", color: "#64748b", cursor: "pointer", fontSize: "11px" }}
+                                  onClick={() => setShowInlineDropdown(false)}
+                                >
+                                  ✕ Đóng
+                                </button>
+                              </div>
+
+                              {filteredInlineProducts.map((p, idx) => (
+                                <div
+                                  key={idx}
+                                  style={{
+                                    padding: "7px 10px",
+                                    borderBottom: "1px solid #f1f5f9",
+                                    cursor: "pointer",
+                                    fontSize: "12px",
+                                  }}
+                                  onMouseEnter={(e) => (e.currentTarget.style.background = "#f0f9ff")}
+                                  onMouseLeave={(e) => (e.currentTarget.style.background = "#ffffff")}
+                                  onClick={() => {
                                     setCItems((prev) => [
                                       ...prev.filter((x) => x.name.trim() !== "" && x.name !== "Gói hợp đồng cung cấp hàng hóa/dịch vụ"),
                                       {
                                         id: Date.now() + Math.random(),
-                                        name: prod.name,
-                                        spec: prod.spec || "",
-                                        unit: prod.unit || "Cái",
-                                        qty: 1,
-                                        price: prod.estimate || 0,
+                                        name: p.name,
+                                        spec: p.spec || "",
+                                        unit: p.unit || "Gói",
+                                        qty: p.qty || 1,
+                                        price: p.price || 0,
                                       },
                                     ]);
-                                  }
+                                    if (!cPrId && p.sourcePrId) {
+                                      setCPrId(p.sourcePrId);
+                                    }
+                                    setInlineProductQuery("");
+                                    setShowInlineDropdown(false);
+                                  }}
+                                >
+                                  <div style={{ fontWeight: 600, color: "#0f172a" }}>{p.name}</div>
+                                  <div style={{ fontSize: "11px", color: "#64748b", display: "flex", justifyContent: "space-between", marginTop: "2px" }}>
+                                    <span>{p.source}</span>
+                                    <span>SL: {p.qty} {p.unit} · {fmt(p.price)} ₫</span>
+                                  </div>
+                                </div>
+                              ))}
+
+                              {filteredInlineProducts.length === 0 && (
+                                <div style={{ padding: "12px", textAlign: "center", fontSize: "12px", color: "#64748b" }}>
+                                  Không tìm thấy sản phẩm.
+                                  {inlineProductQuery.trim() && (
+                                    <button
+                                      type="button"
+                                      className="payment-btn payment-btn-sm"
+                                      style={{ marginTop: "6px", width: "100%", background: "#f0fdf4", color: "#166534", borderColor: "#bbf7d0" }}
+                                      onClick={() => {
+                                        handleContractAddCustomProduct(inlineProductQuery.trim());
+                                        setInlineProductQuery("");
+                                        setShowInlineDropdown(false);
+                                      }}
+                                    >
+                                      ＋ Thêm mới "{inlineProductQuery.trim()}"
+                                    </button>
+                                  )}
+                                </div>
+                              )}
+
+                              <div
+                                style={{
+                                  padding: "6px 10px",
+                                  background: "#f8fafc",
+                                  borderTop: "1px solid #e2e8f0",
+                                  textAlign: "center",
                                 }}
                               >
-                                <option value="">＋ Thêm từ danh mục...</option>
-                                {products.map((p) => (
-                                  <option key={p.id} value={p.id}>
-                                    {p.code} - {p.name}
-                                  </option>
-                                ))}
-                              </select>
-                            )}
-                            <div style={{ display: "flex", gap: 4 }}>
-                              <input
-                                type="text"
-                                className="payment-input"
-                                style={{ fontSize: 12, width: 170 }}
-                                placeholder="Gõ tên hàng mới..."
-                                value={cCustomProductInput}
-                                onChange={(e) => setCCustomProductInput(e.target.value)}
-                                onKeyDown={(e) => {
-                                  if (e.key === "Enter") {
-                                    e.preventDefault();
-                                    handleContractAddCustomProduct();
-                                  }
-                                }}
-                              />
-                              <button
-                                type="button"
-                                className="payment-btn"
-                                style={{ fontSize: 12, padding: "4px 8px" }}
-                                onClick={handleContractAddCustomProduct}
-                              >
-                                ＋ Thêm
-                              </button>
+                                <button
+                                  type="button"
+                                  style={{
+                                    background: "none",
+                                    border: "none",
+                                    color: "#0284c7",
+                                    fontSize: "11px",
+                                    fontWeight: 600,
+                                    cursor: "pointer",
+                                    textDecoration: "underline",
+                                  }}
+                                  onClick={() => {
+                                    setShowInlineDropdown(false);
+                                    setShowTreePickerModal(true);
+                                  }}
+                                >
+                                  🌲 Mở Cây thư mục PR & Danh mục đầy đủ →
+                                </button>
+                              </div>
                             </div>
-                          </div>
-                        )}
+                          )}
+                        </div>
                         <button
                           type="button"
                           className="payment-btn"
@@ -2476,6 +2663,19 @@ export function ContractManagement({
           </div>
         </div>
       )}
+
+      {/* TREE PRODUCT PICKER MODAL */}
+      <TreeProductPickerModal
+        isOpen={showTreePickerModal}
+        onClose={() => setShowTreePickerModal(false)}
+        prs={prs}
+        products={products}
+        selectedPRId={cPrId}
+        existingItemNames={cItems.map((it) => it.name)}
+        onSelectItems={handleSelectItemsFromTree}
+        onAddProduct={onAddProduct}
+        title="Tạo hợp đồng: Chọn sản phẩm theo Cây thư mục PR & Danh mục"
+      />
     </section>
   );
 }

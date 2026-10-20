@@ -2,6 +2,7 @@ import React, { useState, useMemo } from "react";
 import { Supplier, PO, PR, Item } from "../types";
 import { fmt, dateVN, makeId } from "../utils";
 import { SupplierSearchCombobox } from "./SupplierSearchCombobox";
+import { TreeProductPickerModal, SelectedItemData } from "./TreeProductPickerModal";
 import { normName } from "../payment-utils";
 import "../payment.css";
 
@@ -54,11 +55,98 @@ export function POList({
   const [draftItems, setDraftItems] = useState<DraftPOItem[]>([]);
   const [itemError, setItemError] = useState("");
   const [customProductInput, setCustomProductInput] = useState("");
+  const [showTreePickerModal, setShowTreePickerModal] = useState(false);
+  const [inlineProductQuery, setInlineProductQuery] = useState("");
+  const [showInlineDropdown, setShowInlineDropdown] = useState(false);
 
   const selectedPR = useMemo(() => {
     if (!draftPrId) return null;
     return prs.find((p) => p.id === Number(draftPrId)) || null;
   }, [draftPrId, prs]);
+
+  const handleSelectItemsFromTree = (items: SelectedItemData[]) => {
+    setDraftItems((prev) => {
+      const cleanPrev = prev.filter((it) => it.name.trim() !== "");
+      const newItems: DraftPOItem[] = items.map((it, idx) => ({
+        id: makeId(),
+        code: it.code || `VT-${String(cleanPrev.length + idx + 1).padStart(2, "0")}`,
+        category: it.category || "Hàng hóa",
+        name: it.name,
+        desc: "",
+        spec: it.spec || "",
+        unit: it.unit || "Cái",
+        qty: it.qty || 1,
+        price: it.price || 0,
+      }));
+      return [...cleanPrev, ...newItems];
+    });
+
+    if (!draftPrId && items[0]?.sourcePrId) {
+      setDraftPrId(items[0].sourcePrId);
+      if (items[0].sourcePrNumber) {
+        setDraftPrNumber(items[0].sourcePrNumber);
+      }
+    }
+  };
+
+  const filteredInlineProducts = useMemo(() => {
+    const q = normName(inlineProductQuery);
+    const results: {
+      name: string;
+      spec?: string;
+      unit: string;
+      qty: number;
+      price: number;
+      source: string;
+      sourcePrId?: number;
+      sourcePrNumber?: string;
+    }[] = [];
+
+    if (selectedPR && selectedPR.items) {
+      selectedPR.items.forEach((it) => {
+        if (
+          !q ||
+          normName(it.name).includes(q) ||
+          normName(it.spec || "").includes(q) ||
+          normName(it.code || "").includes(q)
+        ) {
+          results.push({
+            name: it.name,
+            spec: it.spec,
+            unit: it.unit || "Cái",
+            qty: it.qty || 1,
+            price: it.estimate || 0,
+            source: `PR #${selectedPR.number}`,
+            sourcePrId: selectedPR.id,
+            sourcePrNumber: selectedPR.number,
+          });
+        }
+      });
+    }
+
+    products.forEach((p) => {
+      if (
+        !q ||
+        normName(p.name).includes(q) ||
+        normName(p.spec || "").includes(q) ||
+        normName(p.code || "").includes(q) ||
+        normName(p.category || "").includes(q)
+      ) {
+        if (!results.some((r) => normName(r.name) === normName(p.name))) {
+          results.push({
+            name: p.name,
+            spec: p.spec,
+            unit: p.unit || "Cái",
+            qty: 1,
+            price: p.estimate || 0,
+            source: p.category || "Danh mục chung",
+          });
+        }
+      }
+    });
+
+    return results.slice(0, 15);
+  }, [inlineProductQuery, selectedPR, products]);
 
   const resetDraft = () => {
     const currentYear = new Date().getFullYear();
@@ -747,93 +835,67 @@ export function POList({
                   </div>
 
                   <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
-                    {selectedPR ? (
-                      /* PR items dropdown: ONLY shows items and quantities from chosen PR */
-                      <select
-                        className="payment-input"
-                        style={{
-                          fontSize: 12,
-                          maxWidth: 320,
-                          borderColor: "#0284c7",
-                          background: "#f0f9ff",
-                          fontWeight: 600,
-                        }}
-                        value=""
-                        onChange={(e) => {
-                          const itemId = Number(e.target.value);
-                          const it = selectedPR.items?.find((p) => p.id === itemId);
-                          if (it) {
-                            setDraftItems((prev) => [
-                              ...prev.filter((x) => x.name.trim() !== ""),
-                              {
-                                id: makeId(),
-                                code: it.code || `VT-${String(prev.length + 1).padStart(2, "0")}`,
-                                category: it.category || "Hàng hóa",
-                                name: it.name,
-                                desc: it.desc || "",
-                                spec: it.spec || "",
-                                unit: it.unit || "Cái",
-                                qty: it.qty || 1,
-                                price: it.estimate || 0,
-                              },
-                            ]);
-                          }
-                        }}
-                      >
-                        <option value="">
-                          📦 Chọn mặt hàng từ PR #{selectedPR.number} ({selectedPR.items?.length || 0} mục)...
-                        </option>
-                        {selectedPR.items?.map((it) => {
-                          const isAlready = draftItems.some(
-                            (di) => normName(di.name) === normName(it.name)
-                          );
-                          return (
-                            <option key={it.id} value={it.id}>
-                              {it.name} — SL: {it.qty} {it.unit} {it.spec ? `(${it.spec})` : ""}{" "}
-                              {isAlready ? "✓ (Đã thêm)" : ""}
-                            </option>
-                          );
-                        })}
-                      </select>
-                    ) : (
-                      /* When NO PR selected: Search & add from products catalog or add new product */
-                      <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                    {/* TREE PICKER BUTTON */}
+                    <button
+                      type="button"
+                      className="payment-btn"
+                      style={{
+                        background: "#0284c7",
+                        borderColor: "#0369a1",
+                        color: "#ffffff",
+                        fontWeight: 700,
+                        fontSize: "12px",
+                        padding: "6px 14px",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: "6px",
+                        boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
+                      }}
+                      onClick={() => setShowTreePickerModal(true)}
+                      title="Mở cây thư mục theo Phòng ban → Phiếu PR hoặc Danh mục sản phẩm để tích chọn"
+                    >
+                      <span>🌲 Duyệt Cây thư mục PR & Danh mục</span>
+                    </button>
+
+                    {/* INLINE FAST-SEARCH COMBOBOX */}
+                    <div style={{ position: "relative" }}>
+                      <div style={{ display: "flex", gap: "4px", alignItems: "center" }}>
                         <input
                           type="text"
                           className="payment-input"
-                          style={{ fontSize: 12, width: 220 }}
-                          placeholder="Gõ tìm hoặc thêm sản phẩm..."
-                          value={customProductInput}
-                          list="po-global-products-list"
-                          onChange={(e) => setCustomProductInput(e.target.value)}
+                          style={{ fontSize: 12, width: 230 }}
+                          placeholder="Gõ tìm nhanh sản phẩm..."
+                          value={inlineProductQuery}
+                          onFocus={() => setShowInlineDropdown(true)}
+                          onChange={(e) => {
+                            setInlineProductQuery(e.target.value);
+                            setShowInlineDropdown(true);
+                          }}
                           onKeyDown={(e) => {
-                            if (e.key === "Enter" && customProductInput.trim()) {
+                            if (e.key === "Enter" && inlineProductQuery.trim()) {
                               e.preventDefault();
-                              handleAddCustomProduct(customProductInput.trim());
+                              handleAddCustomProduct(inlineProductQuery.trim());
+                              setInlineProductQuery("");
+                              setShowInlineDropdown(false);
                             }
                           }}
                         />
-                        <datalist id="po-global-products-list">
-                          {products.map((p) => (
-                            <option key={p.id} value={p.name}>
-                              {p.code} - {p.unit} ({p.estimate} ₫)
-                            </option>
-                          ))}
-                        </datalist>
                         <button
                           type="button"
-                          className="payment-btn"
+                          className="payment-btn payment-btn-sm"
                           style={{
-                            fontSize: 11,
-                            padding: "4px 8px",
+                            padding: "5px 9px",
+                            fontSize: "11.5px",
                             background: "#f0fdf4",
                             color: "#166534",
                             borderColor: "#bbf7d0",
                             fontWeight: 600,
                           }}
                           onClick={() => {
-                            if (customProductInput.trim()) {
-                              handleAddCustomProduct(customProductInput.trim());
+                            if (inlineProductQuery.trim()) {
+                              handleAddCustomProduct(inlineProductQuery.trim());
+                              setInlineProductQuery("");
+                              setShowInlineDropdown(false);
                             }
                           }}
                           title="Thêm mặt hàng này vào danh sách đơn hàng"
@@ -841,7 +903,138 @@ export function POList({
                           ＋ Thêm
                         </button>
                       </div>
-                    )}
+
+                      {showInlineDropdown && (
+                        <div
+                          style={{
+                            position: "absolute",
+                            top: "100%",
+                            left: 0,
+                            marginTop: "4px",
+                            width: "330px",
+                            maxHeight: "270px",
+                            overflowY: "auto",
+                            background: "#ffffff",
+                            border: "1px solid #cbd5e1",
+                            borderRadius: "8px",
+                            boxShadow: "0 10px 25px -5px rgba(0,0,0,0.15)",
+                            zIndex: 9999,
+                          }}
+                        >
+                          <div
+                            style={{
+                              padding: "6px 10px",
+                              background: "#f1f5f9",
+                              borderBottom: "1px solid #e2e8f0",
+                              fontSize: "11px",
+                              fontWeight: 600,
+                              color: "#475569",
+                              display: "flex",
+                              justifyContent: "space-between",
+                              alignItems: "center",
+                            }}
+                          >
+                            <span>Gợi ý nhanh ({filteredInlineProducts.length})</span>
+                            <button
+                              type="button"
+                              style={{ border: 0, background: "none", color: "#64748b", cursor: "pointer", fontSize: "11px" }}
+                              onClick={() => setShowInlineDropdown(false)}
+                            >
+                              ✕ Đóng
+                            </button>
+                          </div>
+
+                          {filteredInlineProducts.map((p, idx) => (
+                            <div
+                              key={idx}
+                              style={{
+                                padding: "7px 10px",
+                                borderBottom: "1px solid #f1f5f9",
+                                cursor: "pointer",
+                                fontSize: "12px",
+                              }}
+                              onMouseEnter={(e) => (e.currentTarget.style.background = "#f0f9ff")}
+                              onMouseLeave={(e) => (e.currentTarget.style.background = "#ffffff")}
+                              onClick={() => {
+                                setDraftItems((prev) => [
+                                  ...prev.filter((x) => x.name.trim() !== ""),
+                                  {
+                                    id: makeId(),
+                                    code: `VT-${String(prev.length + 1).padStart(2, "0")}`,
+                                    category: "Hàng hóa",
+                                    name: p.name,
+                                    desc: "",
+                                    spec: p.spec || "",
+                                    unit: p.unit || "Cái",
+                                    qty: p.qty || 1,
+                                    price: p.price || 0,
+                                  },
+                                ]);
+                                if (!draftPrId && p.sourcePrId) {
+                                  setDraftPrId(p.sourcePrId);
+                                  if (p.sourcePrNumber) setDraftPrNumber(p.sourcePrNumber);
+                                }
+                                setInlineProductQuery("");
+                                setShowInlineDropdown(false);
+                              }}
+                            >
+                              <div style={{ fontWeight: 600, color: "#0f172a" }}>{p.name}</div>
+                              <div style={{ fontSize: "11px", color: "#64748b", display: "flex", justifyContent: "space-between", marginTop: "2px" }}>
+                                <span>{p.source}</span>
+                                <span>SL: {p.qty} {p.unit} · {fmt(p.price)} ₫</span>
+                              </div>
+                            </div>
+                          ))}
+
+                          {filteredInlineProducts.length === 0 && (
+                            <div style={{ padding: "12px", textAlign: "center", fontSize: "12px", color: "#64748b" }}>
+                              Không tìm thấy sản phẩm.
+                              {inlineProductQuery.trim() && (
+                                <button
+                                  type="button"
+                                  className="payment-btn payment-btn-sm"
+                                  style={{ marginTop: "6px", width: "100%", background: "#f0fdf4", color: "#166534", borderColor: "#bbf7d0" }}
+                                  onClick={() => {
+                                    handleAddCustomProduct(inlineProductQuery.trim());
+                                    setInlineProductQuery("");
+                                    setShowInlineDropdown(false);
+                                  }}
+                                >
+                                  ＋ Thêm mới "{inlineProductQuery.trim()}"
+                                </button>
+                              )}
+                            </div>
+                          )}
+
+                          <div
+                            style={{
+                              padding: "6px 10px",
+                              background: "#f8fafc",
+                              borderTop: "1px solid #e2e8f0",
+                              textAlign: "center",
+                            }}
+                          >
+                            <button
+                              type="button"
+                              style={{
+                                border: 0,
+                                background: "none",
+                                color: "#0284c7",
+                                fontWeight: 600,
+                                fontSize: "11.5px",
+                                cursor: "pointer",
+                              }}
+                              onClick={() => {
+                                setShowInlineDropdown(false);
+                                setShowTreePickerModal(true);
+                              }}
+                            >
+                              🌲 Mở Cây thư mục PR & Danh mục đầy đủ →
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
 
                     <button
                       type="button"
@@ -863,7 +1056,7 @@ export function POList({
                         ])
                       }
                     >
-                      ＋ Thêm dòng hàng
+                      ＋ Thêm dòng trống
                     </button>
                   </div>
                 </div>
@@ -1274,6 +1467,19 @@ export function POList({
           </div>
         </div>
       )}
+
+      {/* TREE PRODUCT PICKER MODAL */}
+      <TreeProductPickerModal
+        isOpen={showTreePickerModal}
+        onClose={() => setShowTreePickerModal(false)}
+        prs={prs}
+        products={products}
+        selectedPRId={draftPrId}
+        existingItemNames={draftItems.map((it) => it.name)}
+        onSelectItems={handleSelectItemsFromTree}
+        onAddProduct={onAddProduct}
+        title="Tạo đơn PO: Chọn sản phẩm theo Cây thư mục PR & Danh mục"
+      />
     </section>
   );
 }
