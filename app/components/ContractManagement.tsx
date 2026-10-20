@@ -1005,138 +1005,165 @@ export function ContractManagement({
 
           {/* Groups Data Table */}
           <div className="payment-table-container">
-            <table className="payment-table">
-              <thead>
-                <tr>
-                  <th style={{ width: 45, textAlign: "center" }}>STT</th>
-                  <th style={{ width: 130 }}>Mã nhóm / HĐ</th>
-                  <th style={{ minWidth: 220 }}>Tên nhóm hợp đồng / Gói thầu</th>
-                  <th style={{ minWidth: 180 }}>Đối tác / NCC</th>
-                  <th style={{ width: 130, textAlign: "right" }}>Giá trị HĐ</th>
-                  <th style={{ width: 130, textAlign: "right" }}>Đã giải ngân</th>
-                  <th style={{ width: 120, textAlign: "right" }}>Đang xử lý</th>
-                  <th style={{ width: 130, textAlign: "right" }}>Còn lại</th>
-                  <th style={{ width: 120, textAlign: "center" }}>Tiến độ</th>
-                  <th style={{ width: 110, textAlign: "center" }}>Phiếu TT</th>
-                  <th>Ghi chú</th>
-                  {!readOnly && <th style={{ width: 85, textAlign: "center" }}>Thao tác</th>}
-                </tr>
-              </thead>
-              <tbody>
-                {filteredGroups.length === 0 ? (
+            <div className="payment-table-scroll">
+              <table
+                className="payment-table"
+                style={{
+                  tableLayout: "fixed",
+                  width: "100%",
+                  minWidth: "1480px",
+                }}
+              >
+                <colgroup>
+                  <col style={{ width: "50px" }} />
+                  <col style={{ width: "135px" }} />
+                  <col style={{ width: "240px" }} />
+                  <col style={{ width: "200px" }} />
+                  <col style={{ width: "130px" }} />
+                  <col style={{ width: "125px" }} />
+                  <col style={{ width: "120px" }} />
+                  <col style={{ width: "125px" }} />
+                  <col style={{ width: "110px" }} />
+                  <col style={{ width: "110px" }} />
+                  <col style={{ minWidth: "160px" }} />
+                  {!readOnly && <col style={{ width: "85px" }} />}
+                </colgroup>
+                <thead>
                   <tr>
-                    <td colSpan={readOnly ? 11 : 12} style={{ textAlign: "center", padding: "32px", color: "#64748b" }}>
-                      {groupSearch
-                        ? "Không tìm thấy nhóm hợp đồng nào phù hợp với từ khóa."
-                        : "Chưa có nhóm hợp đồng / gói đơn hàng nào. Bấm '＋ Thêm nhóm hợp đồng mới' để tạo."}
-                    </td>
+                    <th style={{ width: 50, textAlign: "center", position: "sticky", left: 0, zIndex: 20, background: "#f1f5f9" }}>STT</th>
+                    <th style={{ width: 135 }}>Mã nhóm / HĐ</th>
+                    <th>Tên nhóm hợp đồng / Gói thầu</th>
+                    <th>Đối tác / NCC</th>
+                    <th style={{ width: 130, textAlign: "right" }}>Giá trị HĐ</th>
+                    <th style={{ width: 125, textAlign: "right" }}>Đã giải ngân</th>
+                    <th style={{ width: 120, textAlign: "right" }}>Đang xử lý</th>
+                    <th style={{ width: 125, textAlign: "right" }}>Còn lại</th>
+                    <th style={{ width: 110, textAlign: "center" }}>Tiến độ</th>
+                    <th style={{ width: 110, textAlign: "center" }}>Phiếu TT</th>
+                    <th>Ghi chú</th>
+                    {!readOnly && <th style={{ width: 85, textAlign: "center" }}>Thao tác</th>}
                   </tr>
-                ) : (
-                  filteredGroups.map((g, idx) => (
-                    <tr key={g.id}>
-                      <td style={{ textAlign: "center", color: "#64748b", fontWeight: 600 }}>{idx + 1}</td>
-                      <td>
-                        <strong style={{ color: "#0284c7", fontFamily: "monospace", fontSize: 13 }}>
-                          {g.code}
-                        </strong>
+                </thead>
+                <tbody>
+                  {filteredGroups.length === 0 ? (
+                    <tr>
+                      <td colSpan={readOnly ? 11 : 12} style={{ textAlign: "center", padding: "32px", color: "#64748b" }}>
+                        {groupSearch
+                          ? "Không tìm thấy nhóm hợp đồng nào phù hợp với từ khóa."
+                          : "Chưa có nhóm hợp đồng / gói đơn hàng nào. Bấm '＋ Thêm nhóm hợp đồng mới' để tạo."}
                       </td>
-                      <td>
-                        <div style={{ fontWeight: 600, color: "#1e293b" }}>{g.name}</div>
-                      </td>
-                      <td>
-                        <span style={{ color: "#334155" }}>{g.payee_name || "—"}</span>
-                      </td>
-                      <td style={{ textAlign: "right", fontWeight: 700, color: "#0f172a" }}>
-                        {fmtMoney(g.budget)} <small style={{ color: "#64748b" }}>{g.currency || "VND"}</small>
-                      </td>
-                      <td style={{ textAlign: "right", fontWeight: 700, color: "#10b981" }}>
-                        {fmtMoney(g.paid)}
-                      </td>
-                      <td style={{ textAlign: "right", fontWeight: 600, color: "#f59e0b" }}>
-                        {fmtMoney(g.pending)}
-                      </td>
-                      <td style={{ textAlign: "right", fontWeight: 600, color: g.remaining === 0 ? "#10b981" : "#475569" }}>
-                        {fmtMoney(g.remaining)}
-                      </td>
-                      <td style={{ textAlign: "center" }}>
-                        <div style={{ display: "flex", flexDirection: "column", gap: "2px", alignItems: "center" }}>
-                          <span style={{ fontSize: "11px", fontWeight: 700, color: g.progress >= 100 ? "#10b981" : "#0284c7" }}>
-                            {g.progress}%
-                          </span>
-                          <div
-                            style={{
-                              width: "70px",
-                              height: "6px",
-                              background: "#e2e8f0",
-                              borderRadius: "4px",
-                              overflow: "hidden",
-                            }}
-                          >
-                            <div
-                              style={{
-                                width: `${g.progress}%`,
-                                height: "100%",
-                                background: g.progress >= 100 ? "#10b981" : "#0284c7",
-                                borderRadius: "4px",
-                              }}
-                            />
-                          </div>
-                        </div>
-                      </td>
-                      <td style={{ textAlign: "center" }}>
-                        <button
-                          type="button"
-                          className="payment-btn payment-btn-sm"
-                          style={{
-                            fontSize: "11.5px",
-                            padding: "3px 8px",
-                            color: g.requestCount > 0 ? "#0284c7" : "#94a3b8",
-                            borderColor: g.requestCount > 0 ? "#bae6fd" : "#e2e8f0",
-                            background: g.requestCount > 0 ? "#f0f9ff" : "#f8fafc",
-                          }}
-                          onClick={() => {
-                            setViewGroupDetails({
-                              group: g,
-                              requests: g.requests,
-                              budget: g.budget,
-                              paid: g.paid,
-                              pending: g.pending,
-                              remaining: g.remaining,
-                            });
-                          }}
-                          title="Bấm để xem danh sách phiếu đề nghị thanh toán của nhóm này"
-                        >
-                          ↗ {g.requestCount} phiếu
-                        </button>
-                      </td>
-                      <td style={{ fontSize: "12px", color: "#64748b" }}>{g.note || "—"}</td>
-                      {!readOnly && (
-                        <td style={{ textAlign: "center" }}>
-                          <div style={{ display: "flex", gap: "4px", justifyContent: "center" }}>
+                    </tr>
+                  ) : (
+                    filteredGroups.map((g, idx) => {
+                      const isEven = idx % 2 === 1;
+                      const rowBg = isEven ? "#f8fafc" : "#ffffff";
+                      return (
+                        <tr key={g.id}>
+                          <td style={{ textAlign: "center", color: "#64748b", fontWeight: 600, position: "sticky", left: 0, zIndex: 10, background: rowBg }}>{idx + 1}</td>
+                          <td>
+                            <strong style={{ color: "#0284c7", fontFamily: "monospace", fontSize: 13 }}>
+                              {g.code}
+                            </strong>
+                          </td>
+                          <td>
+                            <div style={{ fontWeight: 600, color: "#1e293b", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={g.name}>{g.name}</div>
+                          </td>
+                          <td>
+                            <span style={{ color: "#334155", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", display: "block" }} title={g.payee_name || ""}>{g.payee_name || "—"}</span>
+                          </td>
+                          <td style={{ textAlign: "right", fontWeight: 700, color: "#0f172a" }}>
+                            {fmtMoney(g.budget)} <small style={{ color: "#64748b" }}>{g.currency || "VND"}</small>
+                          </td>
+                          <td style={{ textAlign: "right", fontWeight: 700, color: "#10b981" }}>
+                            {fmtMoney(g.paid)}
+                          </td>
+                          <td style={{ textAlign: "right", fontWeight: 600, color: "#f59e0b" }}>
+                            {fmtMoney(g.pending)}
+                          </td>
+                          <td style={{ textAlign: "right", fontWeight: 600, color: g.remaining === 0 ? "#10b981" : "#475569" }}>
+                            {fmtMoney(g.remaining)}
+                          </td>
+                          <td style={{ textAlign: "center" }}>
+                            <div style={{ display: "flex", flexDirection: "column", gap: "2px", alignItems: "center" }}>
+                              <span style={{ fontSize: "11px", fontWeight: 700, color: g.progress >= 100 ? "#10b981" : "#0284c7" }}>
+                                {g.progress}%
+                              </span>
+                              <div
+                                style={{
+                                  width: "70px",
+                                  height: "6px",
+                                  background: "#e2e8f0",
+                                  borderRadius: "4px",
+                                  overflow: "hidden",
+                                }}
+                              >
+                                <div
+                                  style={{
+                                    width: `${g.progress}%`,
+                                    height: "100%",
+                                    background: g.progress >= 100 ? "#10b981" : "#0284c7",
+                                    borderRadius: "4px",
+                                  }}
+                                />
+                              </div>
+                            </div>
+                          </td>
+                          <td style={{ textAlign: "center" }}>
                             <button
                               type="button"
                               className="payment-btn payment-btn-sm"
-                              onClick={() => setEditingGroup(g)}
-                              title="Sửa nhóm hợp đồng"
+                              style={{
+                                fontSize: "11.5px",
+                                padding: "3px 8px",
+                                color: g.requestCount > 0 ? "#0284c7" : "#94a3b8",
+                                borderColor: g.requestCount > 0 ? "#bae6fd" : "#e2e8f0",
+                                background: g.requestCount > 0 ? "#f0f9ff" : "#f8fafc",
+                              }}
+                              onClick={() => {
+                                setViewGroupDetails({
+                                  group: g,
+                                  requests: g.requests,
+                                  budget: g.budget,
+                                  paid: g.paid,
+                                  pending: g.pending,
+                                  remaining: g.remaining,
+                                });
+                              }}
+                              title="Bấm để xem danh sách phiếu đề nghị thanh toán của nhóm này"
                             >
-                              ✏️
+                              ↗ {g.requestCount} phiếu
                             </button>
-                            <button
-                              type="button"
-                              className="payment-btn payment-btn-sm payment-btn-danger"
-                              onClick={() => handleDeleteGroup(g.id)}
-                              title="Xóa nhóm hợp đồng"
-                            >
-                              🗑️
-                            </button>
-                          </div>
-                        </td>
-                      )}
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+                          </td>
+                          <td style={{ fontSize: "12px", color: "#64748b" }} title={g.note || ""}>{g.note || "—"}</td>
+                          {!readOnly && (
+                            <td style={{ textAlign: "center" }}>
+                              <div style={{ display: "flex", gap: "4px", justifyContent: "center" }}>
+                                <button
+                                  type="button"
+                                  className="payment-btn payment-btn-sm"
+                                  onClick={() => setEditingGroup(g)}
+                                  title="Sửa nhóm hợp đồng"
+                                >
+                                  ✏️
+                                </button>
+                                <button
+                                  type="button"
+                                  className="payment-btn payment-btn-sm payment-btn-danger"
+                                  onClick={() => handleDeleteGroup(g.id)}
+                                  title="Xóa nhóm hợp đồng"
+                                >
+                                  🗑️
+                                </button>
+                              </div>
+                            </td>
+                          )}
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
 
           {/* Quick Details Modal: Linked Payment Requests */}

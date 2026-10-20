@@ -240,6 +240,16 @@ export function SupplierManagement({
           })}
         </div>
         <table className="supplier-list-table">
+          <colgroup>
+            <col style={{ width: "110px" }} />
+            <col style={{ minWidth: "260px" }} />
+            <col style={{ width: "130px" }} />
+            <col style={{ width: "140px" }} />
+            <col style={{ width: "120px" }} />
+            <col style={{ width: "130px" }} />
+            <col style={{ width: "85px" }} />
+            <col style={{ width: "85px" }} />
+          </colgroup>
           <thead>
             <tr>
               <th>Mã NCC</th>
@@ -255,7 +265,7 @@ export function SupplierManagement({
           <tbody>
             {!shownSuppliers.length && (
               <tr>
-                <td colSpan={7}>Không tìm thấy nhà cung cấp phù hợp.</td>
+                <td colSpan={8} style={{ textAlign: "center", padding: "24px", color: "#64748b" }}>Không tìm thấy nhà cung cấp phù hợp.</td>
               </tr>
             )}
             {shownSuppliers.map((supplier) => {

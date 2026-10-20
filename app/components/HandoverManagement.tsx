@@ -31,6 +31,31 @@ const UNIT_SUGGESTIONS = [
   "Tấm",
 ];
 
+interface HandoverColDef {
+  id: string;
+  label: string;
+  width: number;
+  minWidth: number;
+  align?: "left" | "center" | "right";
+  pinned?: boolean;
+}
+
+const DEFAULT_HANDOVER_COLS: HandoverColDef[] = [
+  { id: "check", label: "", width: 44, minWidth: 44, align: "center", pinned: true },
+  { id: "stt", label: "STT", width: 50, minWidth: 45, align: "center", pinned: true },
+  { id: "department", label: "Bộ phận nhận", width: 170, minWidth: 120, align: "left" },
+  { id: "item_name", label: "Tên hàng hóa - Quy cách", width: 280, minWidth: 160, align: "left" },
+  { id: "unit", label: "ĐVT", width: 80, minWidth: 60, align: "center" },
+  { id: "quantity_doc", label: "SL chứng từ", width: 95, minWidth: 70, align: "center" },
+  { id: "quantity_pass", label: "SL Đạt", width: 95, minWidth: 70, align: "center" },
+  { id: "quantity_fail", label: "SL Hỏng", width: 95, minWidth: 70, align: "center" },
+  { id: "note", label: "Ghi chú", width: 170, minWidth: 100, align: "left" },
+  { id: "handover_date", label: "Ngày bàn giao", width: 130, minWidth: 110, align: "left" },
+  { id: "sender_name", label: "Bên giao", width: 140, minWidth: 110, align: "left" },
+  { id: "receiver_name", label: "Bên nhận", width: 140, minWidth: 110, align: "left" },
+  { id: "delete", label: "Xóa", width: 48, minWidth: 40, align: "center" },
+];
+
 export interface HandoverManagementProps {
   paymentHandovers: PaymentHandoverItem[];
   onUpdateHandovers?: (handovers: PaymentHandoverItem[]) => void;
@@ -58,6 +83,95 @@ export function HandoverManagement({
   const isAutoMobile = useIsMobile(768);
   const [userMobileToggle, setUserMobileToggle] = useState<boolean | null>(null);
   const showMobileCards = userMobileToggle !== null ? userMobileToggle : isAutoMobile;
+
+  // Column resizing state & persistence
+  const [columns, setColumns] = useState<HandoverColDef[]>(() => {
+    try {
+      const saved = localStorage.getItem("HANDOVER_TABLE_COLS_V1");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return DEFAULT_HANDOVER_COLS.map((def) => {
+            const found = parsed.find((p: any) => p.id === def.id);
+            return found ? { ...def, width: Math.max(def.minWidth, Number(found.width) || def.width) } : def;
+          });
+        }
+      }
+    } catch {}
+    return DEFAULT_HANDOVER_COLS;
+  });
+
+  const saveColumns = (newCols: HandoverColDef[]) => {
+    try {
+      localStorage.setItem(
+        "HANDOVER_TABLE_COLS_V1",
+        JSON.stringify(newCols.map((c) => ({ id: c.id, width: c.width })))
+      );
+    } catch {}
+  };
+
+  const resizingRef = useRef<{
+    colId: string;
+    startX: number;
+    startWidth: number;
+  } | null>(null);
+  const [resizingColId, setResizingColId] = useState<string | null>(null);
+
+  const handleStartResize = (colId: string, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const targetCol = columns.find((c) => c.id === colId);
+    if (!targetCol) return;
+    const startX = e.clientX;
+    const startWidth = targetCol.width || targetCol.minWidth || 100;
+    resizingRef.current = { colId, startX, startWidth };
+    setResizingColId(colId);
+
+    const handleMouseMove = (moveEvent: MouseEvent) => {
+      if (!resizingRef.current) return;
+      const delta = moveEvent.clientX - resizingRef.current.startX;
+      const minW = targetCol.minWidth || 40;
+      const nextWidth = Math.max(minW, Math.round(resizingRef.current.startWidth + delta));
+      setColumns((prev) =>
+        prev.map((c) => (c.id === resizingRef.current?.colId ? { ...c, width: nextWidth } : c))
+      );
+    };
+
+    const handleMouseUp = () => {
+      if (resizingRef.current) {
+        setColumns((latestCols) => {
+          saveColumns(latestCols);
+          return latestCols;
+        });
+      }
+      resizingRef.current = null;
+      setResizingColId(null);
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", handleMouseUp);
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+    };
+
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+    window.addEventListener("mousemove", handleMouseMove);
+    window.addEventListener("mouseup", handleMouseUp);
+  };
+
+  const handleDoubleClickResize = (colId: string, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const def = DEFAULT_HANDOVER_COLS.find((d) => d.id === colId);
+    if (!def) return;
+    const next = columns.map((c) => (c.id === colId ? { ...c, width: def.width } : c));
+    setColumns(next);
+    saveColumns(next);
+  };
+
+  const totalTableWidth = useMemo(
+    () => columns.reduce((sum, c) => sum + (c.width || c.minWidth), 0),
+    [columns]
+  );
 
   // Selection states
   const [checkedHandovers, setCheckedHandovers] = useState<Set<number>>(new Set());
@@ -774,12 +888,40 @@ export function HandoverManagement({
           <span>{checkedHandovers.size > 0 ? `Đang chọn ${checkedHandovers.size} vật tư để in hoặc xóa` : "Tích chọn các vật tư muốn in biên bản"}</span>
         </div>
         <div className="payment-table-scroll">
-          <table className="payment-grid" style={{ width: "100%" }}>
+          <table
+            className="payment-grid"
+            style={{
+              tableLayout: "fixed",
+              width: `${totalTableWidth}px`,
+              minWidth: "100%",
+            }}
+          >
+            <colgroup>
+              {columns.map((c) => (
+                <col key={`col-${c.id}`} style={{ width: `${c.width}px`, minWidth: `${c.minWidth}px` }} />
+              ))}
+            </colgroup>
             <thead>
               <tr>
-                <th style={{ width: "36px", textAlign: "center" }}>
+                <th
+                  style={{
+                    width: `${columns[0].width}px`,
+                    minWidth: `${columns[0].minWidth}px`,
+                    textAlign: "center",
+                    position: "sticky",
+                    left: 0,
+                    top: 0,
+                    zIndex: 25,
+                    background: "#f1f5f9",
+                    padding: "6px 2px",
+                    borderRight: "1px solid #cbd5e1",
+                    borderBottom: "2px solid #94a3b8",
+                    boxSizing: "border-box",
+                  }}
+                >
                   <input
                     type="checkbox"
+                    style={{ margin: 0, cursor: "pointer" }}
                     checked={
                       filteredHandovers.length > 0 &&
                       filteredHandovers.every((h) => checkedHandovers.has(h.id))
@@ -793,26 +935,101 @@ export function HandoverManagement({
                     }}
                   />
                 </th>
-                <th style={{ width: "50px", textAlign: "center" }}>STT</th>
-                <th style={{ minWidth: "160px" }}>Bộ phận nhận</th>
-                <th style={{ minWidth: "280px" }}>Tên hàng hóa - Quy cách</th>
-                <th style={{ width: "80px" }}>ĐVT</th>
-                <th style={{ width: "95px", textAlign: "center" }}>SL chứng từ</th>
-                <th style={{ width: "95px", textAlign: "center" }}>SL Đạt</th>
-                <th style={{ width: "95px", textAlign: "center" }}>SL Hỏng</th>
-                <th style={{ minWidth: "160px" }}>Ghi chú</th>
-                <th style={{ width: "125px" }}>Ngày bàn giao</th>
-                <th style={{ minWidth: "130px" }}>Bên giao</th>
-                <th style={{ minWidth: "130px" }}>Bên nhận</th>
-                <th style={{ width: "60px", textAlign: "center" }}>Xóa</th>
+                <th
+                  style={{
+                    width: `${columns[1].width}px`,
+                    minWidth: `${columns[1].minWidth}px`,
+                    textAlign: "center",
+                    position: "sticky",
+                    left: `${columns[0].width}px`,
+                    top: 0,
+                    zIndex: 25,
+                    background: "#f1f5f9",
+                    padding: "6px 2px",
+                    borderRight: "2.5px solid #0284c7",
+                    boxShadow: "3px 0 6px -2px rgba(0,0,0,0.12)",
+                    borderBottom: "2px solid #94a3b8",
+                    boxSizing: "border-box",
+                  }}
+                >
+                  STT
+                </th>
+                {columns.slice(2, -1).map((col) => {
+                  const colW = col.width || col.minWidth;
+                  return (
+                    <th
+                      key={col.id}
+                      style={{
+                        width: `${colW}px`,
+                        minWidth: `${colW}px`,
+                        textAlign: col.align || "left",
+                        position: "sticky",
+                        top: 0,
+                        zIndex: 5,
+                        background: "#f1f5f9",
+                        borderBottom: "2px solid #94a3b8",
+                        borderRight: "1px solid #cbd5e1",
+                        boxSizing: "border-box",
+                      }}
+                      title={`${col.label} (${colW}px)`}
+                    >
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: col.align === "center" ? "center" : "space-between",
+                          gap: "4px",
+                          paddingRight: "8px",
+                          overflow: "hidden",
+                        }}
+                      >
+                        <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          {col.label}
+                        </span>
+                      </div>
+                      <div
+                        className={`col-resize-handle ${resizingColId === col.id ? "is-resizing" : ""}`}
+                        onMouseDown={(e) => handleStartResize(col.id, e)}
+                        onDoubleClick={(e) => handleDoubleClickResize(col.id, e)}
+                        title="Kéo sang trái/phải để co dãn cột, nhấp đúp để đặt lại mặc định"
+                      />
+                    </th>
+                  );
+                })}
+                <th
+                  style={{
+                    width: `${columns[columns.length - 1].width}px`,
+                    minWidth: `${columns[columns.length - 1].minWidth}px`,
+                    textAlign: "center",
+                    position: "sticky",
+                    top: 0,
+                    zIndex: 5,
+                    background: "#f1f5f9",
+                    borderBottom: "2px solid #94a3b8",
+                    boxSizing: "border-box",
+                  }}
+                >
+                  Xóa
+                </th>
               </tr>
             </thead>
             <tbody>
               {filteredHandovers.map((h, idx) => {
                 const isChecked = checkedHandovers.has(h.id);
+                const isEven = idx % 2 === 1;
+                const rowBg = isChecked ? "#eff6ff" : (isEven ? "#f8fafc" : "#ffffff");
                 return (
                   <tr key={h.id} className={isChecked ? "chosen" : ""}>
-                    <td style={{ textAlign: "center" }}>
+                    <td
+                      style={{
+                        textAlign: "center",
+                        position: "sticky",
+                        left: 0,
+                        zIndex: 10,
+                        background: rowBg,
+                        borderRight: "1px solid #cbd5e1",
+                      }}
+                    >
                       <input
                         type="checkbox"
                         checked={isChecked}
@@ -824,7 +1041,21 @@ export function HandoverManagement({
                         }}
                       />
                     </td>
-                    <td style={{ textAlign: "center", color: "#64748b", fontWeight: 600 }}>{h.id}</td>
+                    <td
+                      style={{
+                        textAlign: "center",
+                        color: "#64748b",
+                        fontWeight: 600,
+                        position: "sticky",
+                        left: `${columns[0].width}px`,
+                        zIndex: 10,
+                        background: rowBg,
+                        borderRight: "2.5px solid #0284c7",
+                        boxShadow: "3px 0 6px -2px rgba(0,0,0,0.12)",
+                      }}
+                    >
+                      {h.id}
+                    </td>
                     <td>
                       <input
                         list="deptSuggestions"

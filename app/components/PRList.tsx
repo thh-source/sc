@@ -75,6 +75,16 @@ export function PRList({
         </div>
         <div className="pr-table">
           <table>
+            <colgroup>
+              <col style={{ width: "130px" }} />
+              <col style={{ width: "110px" }} />
+              <col style={{ width: "150px" }} />
+              <col style={{ minWidth: "260px" }} />
+              <col style={{ width: "100px" }} />
+              <col style={{ width: "130px" }} />
+              <col style={{ width: "140px" }} />
+              <col style={{ width: "90px" }} />
+            </colgroup>
             <thead>
               <tr>
                 <th>Số PR</th>

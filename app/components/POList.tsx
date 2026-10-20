@@ -385,6 +385,18 @@ export function POList({
 
         <div className="pr-table">
           <table>
+            <colgroup>
+              <col style={{ width: "130px" }} />
+              <col style={{ width: "130px" }} />
+              <col style={{ minWidth: "240px" }} />
+              <col style={{ width: "110px" }} />
+              <col style={{ width: "130px" }} />
+              <col style={{ width: "130px" }} />
+              <col style={{ width: "120px" }} />
+              <col style={{ width: "110px" }} />
+              <col style={{ width: "130px" }} />
+              <col style={{ width: "80px" }} />
+            </colgroup>
             <thead>
               <tr>
                 <th>Số PO</th>
