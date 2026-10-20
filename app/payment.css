@@ -214,13 +214,14 @@ table.payment-grid {
   border-collapse: separate;
   border-spacing: 0;
   font-size: 12px;
-  table-layout: fixed;
+  width: 100%;
+  min-width: max-content;
 }
 
 table.payment-grid th {
   position: sticky;
   top: 0;
-  z-index: 5;
+  z-index: 20;
   background: #f1f5f9;
   color: #334155;
   font-weight: 600;
@@ -375,11 +376,12 @@ table.payment-grid td select:focus {
 /* Freeze columns */
 .pcol-frozen {
   position: sticky !important;
-  background-color: #ffffff !important;
+  background-color: #ffffff;
+  z-index: 9 !important;
 }
 
 table.payment-grid tr:nth-child(even) .pcol-frozen {
-  background-color: #f8fafc !important;
+  background-color: #f8fafc;
 }
 
 table.payment-grid tr.chosen .pcol-frozen {
@@ -399,13 +401,39 @@ table.payment-grid tr.row-done.chosen .pcol-frozen {
 }
 
 table.payment-grid th.pcol-frozen {
-  background-color: #e2e8f0 !important;
-  z-index: 7 !important;
+  background-color: #f1f5f9 !important;
+  z-index: 35 !important;
 }
 
 .pcol-frozen-last {
   border-right: 2.5px solid #0284c7 !important;
   box-shadow: 3px 0 6px -2px rgba(0, 0, 0, 0.12);
+}
+
+.col-check-head {
+  position: sticky !important;
+  left: 0 !important;
+  top: 0 !important;
+  z-index: 40 !important;
+  background: #f1f5f9 !important;
+}
+
+.col-check-cell {
+  position: sticky !important;
+  left: 0 !important;
+  z-index: 10 !important;
+}
+
+.draggable-head {
+  cursor: grab;
+  user-select: none;
+}
+.draggable-head:active {
+  cursor: grabbing;
+}
+.draggable-head.dragging {
+  opacity: 0.45;
+  background: #dcecff !important;
 }
 
 .pcol-rownum {
