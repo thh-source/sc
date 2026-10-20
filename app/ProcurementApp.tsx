@@ -318,36 +318,7 @@ export default function ProcurementApp({
           setProducts(data.products || items0);
           
           const loadedSuppliers: Supplier[] = data.suppliers || suppliers0;
-          const mergedSuppliers = [...loadedSuppliers];
-          const benList = (data.paymentBeneficiaries && data.paymentBeneficiaries.length > 0)
-            ? data.paymentBeneficiaries
-            : [];
-          for (const b of benList) {
-            const match = mergedSuppliers.find(
-              (s) =>
-                s.name.toLowerCase() === b.name.toLowerCase() ||
-                (b.short_name && s.shortName && s.shortName.toLowerCase() === b.short_name.toLowerCase())
-            );
-            if (match) {
-              if (!match.address && b.address) match.address = b.address;
-              if (!match.bankAccount && b.account_no) match.bankAccount = b.account_no;
-              if (!match.bank && b.bank) match.bank = b.bank;
-              if (!match.shortName && b.short_name) match.shortName = b.short_name;
-            } else if (b.name) {
-              mergedSuppliers.push({
-                id: Date.now() + Math.floor(Math.random() * 10000) + b.id,
-                code: `NCC-${String(b.id).padStart(3, "0")}`,
-                name: b.name,
-                shortName: b.short_name || generateShortName(b.name),
-                address: b.address || "",
-                bankAccount: b.account_no || "",
-                bank: b.bank || "",
-                contact: "",
-                phone: "",
-              });
-            }
-          }
-          setSuppliers(mergedSuppliers.map(s => ({
+          setSuppliers(loadedSuppliers.map(s => ({
             ...s,
             shortName: s.shortName || generateShortName(s.name)
           })));

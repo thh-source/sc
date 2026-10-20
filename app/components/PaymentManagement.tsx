@@ -507,12 +507,15 @@ export function PaymentManagement({
           const match = suppliers.find(
             (s) =>
               normName(s.name) === normName(val) ||
-              (s.shortName && normName(s.shortName) === normName(val))
+              (s.shortName && normName(s.shortName) === normName(val)) ||
+              (s.code && normName(s.code) === normName(val))
           );
           if (match) {
-            if (!updated.address && match.address) updated.address = match.address;
-            if (!updated.account_no && match.bankAccount) updated.account_no = match.bankAccount;
-            if (!updated.bank && match.bank) updated.bank = match.bank;
+            updated.payee_name = match.shortName || match.name;
+            updated.beneficiary_id = match.id;
+            if (match.address) updated.address = match.address;
+            if (match.bankAccount) updated.account_no = match.bankAccount;
+            if (match.bank) updated.bank = match.bank;
           }
         }
         if (key === "group_code") {
@@ -1020,16 +1023,25 @@ export function PaymentManagement({
             {r.legacy_stt || r.id}
           </button>
         );
-      case "payee_name":
+      case "payee_name": {
+        const matched = suppliers.find(
+          (s) =>
+            (r.beneficiary_id && s.id === r.beneficiary_id) ||
+            normName(s.name) === normName(r.payee_name) ||
+            (s.shortName && normName(s.shortName) === normName(r.payee_name))
+        );
+        const displayVal = matched?.shortName || r.payee_name || "";
         return (
           <input
             className="cell-editor"
             list="nccDataList"
-            value={r.payee_name || ""}
+            value={displayVal}
             onChange={(e) => handleEditRequest(r.id, "payee_name", e.target.value)}
             placeholder="Chọn hoặc nhập NCC..."
+            title={matched?.name ? `${matched.name} (${displayVal})` : displayVal}
           />
         );
+      }
       case "group_code":
         return (
           <input
@@ -2158,13 +2170,25 @@ export function PaymentManagement({
                   <div className="card-edit-grid-2">
                     <div className="card-edit-field">
                       <label>Nhà cung cấp (Gõ để tìm hoặc chọn NCC):</label>
-                      <input
-                        list="nccDataList"
-                        value={editReq.payee_name || ""}
-                        onChange={(e) => handleEditRequest(editReq.id, "payee_name", e.target.value)}
-                        placeholder="Chọn hoặc nhập tên NCC..."
-                        className="card-edit-input"
-                      />
+                      {(() => {
+                        const matched = suppliers.find(
+                          (s) =>
+                            (editReq.beneficiary_id && s.id === editReq.beneficiary_id) ||
+                            normName(s.name) === normName(editReq.payee_name) ||
+                            (s.shortName && normName(s.shortName) === normName(editReq.payee_name))
+                        );
+                        const displayVal = matched?.shortName || editReq.payee_name || "";
+                        return (
+                          <input
+                            list="nccDataList"
+                            value={displayVal}
+                            onChange={(e) => handleEditRequest(editReq.id, "payee_name", e.target.value)}
+                            placeholder="Chọn hoặc nhập tên NCC..."
+                            className="card-edit-input"
+                            title={matched?.name ? `${matched.name} (${displayVal})` : displayVal}
+                          />
+                        );
+                      })()}
                     </div>
                     <div className="card-edit-field">
                       <label>Địa chỉ NCC:</label>
@@ -3672,13 +3696,13 @@ export function PaymentManagement({
               { description: req.item_name || req.description || "", invoice_no: req.invoice_no || "", invoice_date: req.invoice_date || "", amount: req.amount },
             ];
 
-            const pNameNorm = (req.payee_name || "").trim().toLowerCase();
+            const reqNorm = normName(req.payee_name);
             const matchedSupplier = suppliers?.find(
               (s) =>
-                (s.shortName && s.shortName.trim().toLowerCase() === pNameNorm) ||
-                (s.name && s.name.trim().toLowerCase() === pNameNorm) ||
-                (s.code && s.code.trim().toLowerCase() === pNameNorm) ||
-                (req.beneficiary_id && s.id === req.beneficiary_id)
+                (req.beneficiary_id && s.id === req.beneficiary_id) ||
+                (s.shortName && normName(s.shortName) === reqNorm) ||
+                (s.name && normName(s.name) === reqNorm) ||
+                (s.code && normName(s.code) === reqNorm)
             );
             const fullPayeeName = matchedSupplier?.name || req.payee_name || "";
             const payeeAddress = req.address || matchedSupplier?.address || "";
