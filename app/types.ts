@@ -146,6 +146,19 @@ export type PO = {
   contractNote?: string;
 };
 
+export type ContractPO = PO & {
+  contractNumber?: string;
+  contractDate?: string;
+  isContract?: boolean;
+};
+
+export const isContractPO = (
+  po: { number?: string; contractNote?: string } | null | undefined,
+): boolean => {
+  if (!po) return false;
+  return Boolean(po.number?.startsWith("HĐ-") || po.contractNote);
+};
+
 export type TrashItem = {
   id: string;
   type: "PR" | "PO" | "CONTRACT";

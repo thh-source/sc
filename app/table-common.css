@@ -1,0 +1,124 @@
+/* app/table-common.css - Unified Table Design System for SCMH */
+
+/* Common Container */
+.tablewrap-common {
+  position: relative;
+  width: 100%;
+  overflow-x: auto;
+  overflow-y: auto;
+  background: var(--bg-card, #ffffff);
+  border: 1px solid var(--border-color, #e2e8f0);
+  border-radius: 8px;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
+}
+
+/* Base Table */
+.table-common {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 0.875rem;
+  line-height: 1.4;
+  color: var(--text-color, #1e293b);
+}
+
+/* Common Sticky Header */
+.table-common thead th {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: #f8fafc;
+  color: #475569;
+  font-weight: 600;
+  text-align: left;
+  padding: 8px 10px;
+  border-bottom: 2px solid #cbd5e1;
+  white-space: nowrap;
+  user-select: none;
+}
+
+/* Common Cell */
+.table-common td {
+  padding: 8px 10px;
+  border-bottom: 1px solid #e2e8f0;
+  vertical-align: top;
+}
+
+/* Common Sticky Left Columns */
+.table-common th.is-sticky-left,
+.table-common td.is-sticky-left {
+  position: sticky;
+  z-index: 11;
+  background-color: #ffffff;
+}
+
+.table-common thead th.is-sticky-left {
+  z-index: 12;
+  background-color: #f1f5f9;
+}
+
+.table-common th.is-last-pinned,
+.table-common td.is-last-pinned {
+  border-right: 2px solid #3b82f6 !important;
+}
+
+/* Common Hover Rows */
+.table-common tbody tr:hover {
+  background-color: #f8fafc;
+}
+
+.table-common tbody tr:hover td.is-sticky-left {
+  background-color: #f1f5f9;
+}
+
+/* Common Multiline Cell */
+.table-common .cell-multiline {
+  white-space: pre-wrap;
+  word-break: break-word;
+  line-height: 1.45;
+}
+
+/* Common AutoGrow Textarea in tables */
+.table-common textarea.autogrow-table-input {
+  width: 100%;
+  box-sizing: border-box;
+  font-family: inherit;
+  font-size: inherit;
+  line-height: 1.45;
+  padding: 4px 6px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  resize: none;
+  overflow: hidden;
+  transition: border-color 0.15s, background-color 0.15s;
+}
+
+.table-common textarea.autogrow-table-input:hover {
+  border-color: #cbd5e1;
+  background: #f8fafc;
+}
+
+.table-common textarea.autogrow-table-input:focus {
+  border-color: #3b82f6;
+  background: #ffffff;
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+}
+
+/* Common Column Resizer Handle */
+.table-common .col-resizer-handle {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 6px;
+  cursor: col-resize;
+  user-select: none;
+  z-index: 15;
+}
+
+.table-common .col-resizer-handle:hover,
+.table-common .col-resizer-handle.is-resizing {
+  background-color: #3b82f6;
+}

@@ -6,12 +6,15 @@ import {
   useMemo,
   useRef,
   useState,
+  useDeferredValue,
   lazy,
   Suspense,
 } from "react";
 import type React from "react";
 import DocumentManager from "./components/DocumentManager";
 import SmartTableTools from "./components/SmartTableTools";
+import { ConflictModal } from "./components/ConflictModal";
+import { SupplierPickerModal } from "./components/SupplierPickerModal";
 import "./vat-quote.css";
 
 import { PaymentManagement } from "./components/PaymentManagement";
@@ -57,6 +60,7 @@ export default function ProcurementApp({
     [quotes, setQuotes] = useState(quotes0),
     [quotesByPr, setQuotesByPr] = useState<Record<number, Quote>>({}),
     [search, setSearch] = useState("");
+  const deferredSearch = useDeferredValue(search);
   const [compactCompare, setCompactCompare] = useState(false);
   const [products, setProducts] = useState<Item[]>(items0);
   const [purchaseHistory, setPurchaseHistory] =
@@ -635,13 +639,13 @@ export default function ProcurementApp({
         items.filter((i) =>
           (i.code + i.category + i.name + i.desc)
             .toLowerCase()
-            .includes(search.toLowerCase()),
+            .includes(deferredSearch.toLowerCase()),
         ),
         compareOrder,
         compareFilters,
         compareSort,
       ),
-    [items, search, compareOrder, compareFilters, compareSort],
+    [items, deferredSearch, compareOrder, compareFilters, compareSort],
   );
   const estimated = useMemo(
     () => items.reduce((sum, item) => sum + item.qty * item.estimate, 0),
@@ -2038,136 +2042,31 @@ export default function ProcurementApp({
         </div>
       )}
       {supplierPicker && (
-        <div className="backdrop" onMouseDown={() => setSupplierPicker(false)}>
-          <div className="modal" onMouseDown={(e) => e.stopPropagation()}>
-            <i>▱</i>
-            <h2>Chọn nhà cung cấp</h2>
-            <p>
-              Chọn nhà cung cấp từ danh mục dùng chung để thêm cột Giá và Ghi
-              chú.
-            </p>
-            {(() => {
-              const q = supplierSearch.toLowerCase();
-              const filtered = availableSuppliers.filter(s => s.name.toLowerCase().includes(q) || s.code.toLowerCase().includes(q) || (s.shortName && s.shortName.toLowerCase().includes(q)));
-              const exactMatch = availableSuppliers.find(s => s.name.toLowerCase() === q || (s.shortName && s.shortName.toLowerCase() === q));
-              return (
-                <div style={{display: "flex", flexDirection: "column", gap: "8px", maxHeight: "400px"}}>
-                  <input autoFocus placeholder="Gõ tên nhà cung cấp để tìm hoặc tạo mới..." value={supplierSearch} onChange={e => setSupplierSearch(e.target.value)} style={{padding: "10px", fontSize: "15px"}} />
-                  <div style={{flex: 1, overflowY: "auto", border: "1px solid #ddd", borderRadius: "4px", background: "#fff", minHeight: "150px"}}>
-                    {filtered.map(s => (
-                       <div key={s.id} onClick={() => addQuoteSupplier(s.id)} style={{padding: "12px 10px", cursor: "pointer", borderBottom: "1px solid #eee"}} onMouseEnter={e => (e.currentTarget.style.background = "#e6f2ff")} onMouseLeave={e => (e.currentTarget.style.background = "transparent")}>
-                         <b>{s.shortName || s.name}</b> <small style={{color:"#666"}}>({s.code}) - {s.name}</small>
-                       </div>
-                    ))}
-                    {!exactMatch && supplierSearch.trim() && (
-                       <div onClick={() => {
-                          const newName = supplierSearch.trim();
-                          const newCode = `NCC-${String(suppliers.length + 1).padStart(3, "0")}`;
-                          const newId = makeId();
-                          setSuppliers(all => [...all, { id: newId, code: newCode, name: newName, shortName: generateShortName(newName), bank: "", bankAccount: "", address: "", contact: "", phone: "" }]);
-                          addQuoteSupplier(newId);
-                       }} style={{padding: "12px 10px", cursor: "pointer", background: "#f0fdf4", color: "#166534"}} onMouseEnter={e => (e.currentTarget.style.background = "#dcfce7")} onMouseLeave={e => (e.currentTarget.style.background = "#f0fdf4")}>
-                         + Tạo mới NCC: <b>{supplierSearch}</b>
-                       </div>
-                    )}
-                    {filtered.length === 0 && !supplierSearch.trim() && <div style={{padding: "10px", color: "#999"}}>Tất cả NCC đã có trong bảng.</div>}
-                  </div>
-                </div>
-              );
-            })()}
-            <div>
-              <button
-                className="ghost"
-                onClick={() => setSupplierPicker(false)}
-              >
-                Đóng
-              </button>
-            </div>
-          </div>
-        </div>
+        <SupplierPickerModal
+          availableSuppliers={availableSuppliers}
+          onSelectSupplier={addQuoteSupplier}
+          onCreateAndSelectSupplier={(newSupplier) => {
+            setSuppliers((all) => [...all, newSupplier]);
+            addQuoteSupplier(newSupplier.id);
+          }}
+          onClose={() => setSupplierPicker(false)}
+        />
       )}
       {conflictModal && (
-        <div className="modal" style={{ zIndex: 9999, background: "rgba(15, 23, 42, 0.75)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <div
-            className="modal-card"
-            style={{
-              maxWidth: "540px",
-              width: "90%",
-              padding: "24px",
-              borderRadius: "12px",
-              boxShadow: "0 25px 50px -12px rgba(0,0,0,0.35)",
-              border: "1px solid #fed7aa",
-              background: "#ffffff",
-            }}
-          >
-            <div style={{ display: "flex", alignItems: "center", gap: "14px", marginBottom: "16px" }}>
-              <span style={{ fontSize: "2.2rem", lineHeight: 1 }}>⚠️</span>
-              <div>
-                <h3 style={{ margin: 0, color: "#9a3412", fontSize: "1.2rem", fontWeight: 700 }}>
-                  Xung đột dữ liệu phiên làm việc
-                </h3>
-                <small style={{ color: "#64748b" }}>
-                  Phát hiện lúc {conflictModal.time} (Phiên bản máy chủ: #{conflictModal.serverVersion})
-                </small>
-              </div>
-            </div>
-            <p style={{ fontSize: "0.95rem", lineHeight: "1.6", color: "#334155", margin: "0 0 20px 0" }}>
-              Dữ liệu trên máy chủ đã được lưu bởi một phiên làm việc hoặc thiết bị khác trong khi bạn đang thao tác.
-              Để bảo vệ toàn vẹn dữ liệu, hệ thống đã tạm dừng tự động lưu. Vui lòng chọn cách xử lý:
-            </p>
-            <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-              <button
-                type="button"
-                className="btn primary"
-                style={{
-                  background: "#2563eb",
-                  color: "#fff",
-                  padding: "12px 16px",
-                  borderRadius: "8px",
-                  fontWeight: 600,
-                  fontSize: "0.95rem",
-                  cursor: "pointer",
-                  textAlign: "left",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  border: "none",
-                }}
-                onClick={() => {
-                  setConflictModal(null);
-                  setStorageStatus("Đang tải lại dữ liệu mới nhất...");
-                  setLoadTrigger((t) => t + 1);
-                }}
-              >
-                <span>🔄 Tải lại dữ liệu mới nhất từ máy chủ</span>
-                <span style={{ fontSize: "0.8rem", opacity: 0.85 }}>(Khuyến nghị)</span>
-              </button>
-              <button
-                type="button"
-                className="btn secondary"
-                style={{
-                  background: "#fff",
-                  color: "#b91c1c",
-                  border: "1px solid #fca5a5",
-                  padding: "12px 16px",
-                  borderRadius: "8px",
-                  fontWeight: 600,
-                  fontSize: "0.95rem",
-                  cursor: "pointer",
-                  textAlign: "left",
-                }}
-                onClick={() => {
-                  serverVersionRef.current = conflictModal.serverVersion;
-                  setConflictModal(null);
-                  setStorageStatus("Đang ghi đè dữ liệu lên máy chủ...");
-                  void persistState();
-                }}
-              >
-                ⚡ Ghi đè máy chủ bằng dữ liệu hiện tại trên máy này
-              </button>
-            </div>
-          </div>
-        </div>
+        <ConflictModal
+          conflict={conflictModal}
+          onReload={() => {
+            setConflictModal(null);
+            setStorageStatus("Đang tải lại dữ liệu mới nhất...");
+            setLoadTrigger((t) => t + 1);
+          }}
+          onOverwrite={() => {
+            serverVersionRef.current = conflictModal.serverVersion;
+            setConflictModal(null);
+            setStorageStatus("Đang ghi đè dữ liệu lên máy chủ...");
+            void persistState();
+          }}
+        />
       )}
       {!reportMode && (
         <nav className="mobile-bottom-nav" aria-label="Điều hướng điện thoại">
