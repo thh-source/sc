@@ -211,11 +211,10 @@
 
 /* Grid styling */
 table.payment-grid {
-  width: max-content;
-  min-width: 100%;
   border-collapse: separate;
   border-spacing: 0;
   font-size: 12px;
+  table-layout: fixed;
 }
 
 table.payment-grid th {
@@ -231,6 +230,37 @@ table.payment-grid th {
   white-space: nowrap;
   user-select: none;
   text-align: left;
+  box-sizing: border-box;
+}
+
+/* Column resize handle */
+.col-resize-handle {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 8px;
+  height: 100%;
+  cursor: col-resize;
+  user-select: none;
+  z-index: 10;
+  display: block;
+}
+
+.col-resize-handle::after {
+  content: "";
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  right: 1px;
+  width: 2px;
+  background-color: transparent;
+  transition: background-color 0.15s ease;
+}
+
+.col-resize-handle:hover::after,
+.col-resize-handle.is-resizing::after {
+  background-color: #0284c7;
+  width: 3px;
 }
 
 table.payment-grid td {
@@ -240,6 +270,10 @@ table.payment-grid td {
   background: #ffffff;
   vertical-align: middle;
   height: 38px;
+  box-sizing: border-box;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 table.payment-grid tr:nth-child(even) td {
@@ -274,13 +308,18 @@ table.payment-grid td select {
   font-size: 12px;
   color: #1e293b;
   box-sizing: border-box;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 table.payment-grid td input:focus,
 table.payment-grid td select:focus {
   outline: 2px solid #0284c7;
   outline-offset: -2px;
-  background: #ffffff;
+  background: #ffffff !important;
+  position: relative;
+  z-index: 4;
 }
 
 /* Freeze columns */

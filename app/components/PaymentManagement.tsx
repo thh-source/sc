@@ -126,29 +126,30 @@ export interface ColumnSetting {
   id: ColumnId;
   label: string;
   minWidth: number;
+  width: number;
   visible: boolean;
   pinned: boolean;
 }
 
 export const DEFAULT_COLUMN_SETTINGS: ColumnSetting[] = [
-  { id: "stt", label: "A · STT", minWidth: 55, visible: false, pinned: false },
-  { id: "payee_name", label: "B · NCC", minWidth: 180, visible: true, pinned: true },
-  { id: "group_code", label: "C · Nhóm PO", minWidth: 140, visible: true, pinned: false },
-  { id: "description", label: "D · Nội dung TT", minWidth: 220, visible: true, pinned: false },
-  { id: "item_name", label: "E · Hàng hóa/DV", minWidth: 180, visible: true, pinned: false },
-  { id: "invoice_no", label: "F · Số HĐ", minWidth: 130, visible: true, pinned: false },
-  { id: "invoice_date", label: "Ngày HĐ", minWidth: 125, visible: true, pinned: false },
-  { id: "amount", label: "G · Số tiền", minWidth: 130, visible: true, pinned: false },
-  { id: "currency", label: "Tiền tệ", minWidth: 75, visible: true, pinned: false },
-  { id: "documents", label: "H · Hồ sơ", minWidth: 130, visible: true, pinned: false },
-  { id: "request_date", label: "I · Ngày ĐNTT", minWidth: 125, visible: true, pinned: false },
-  { id: "payment_type", label: "J · Loại TT", minWidth: 125, visible: true, pinned: false },
-  { id: "status", label: "K · Trạng thái", minWidth: 155, visible: true, pinned: false },
-  { id: "doc_supplement", label: "L · Bổ sung HS", minWidth: 135, visible: true, pinned: false },
-  { id: "address", label: "M · Địa chỉ", minWidth: 160, visible: true, pinned: false },
-  { id: "account_no", label: "N · Số TK", minWidth: 130, visible: true, pinned: false },
-  { id: "bank", label: "O · Ngân hàng", minWidth: 160, visible: true, pinned: false },
-  { id: "created_by_name", label: "Người tạo", minWidth: 110, visible: true, pinned: false },
+  { id: "stt", label: "A · STT", minWidth: 50, width: 55, visible: false, pinned: false },
+  { id: "payee_name", label: "B · NCC", minWidth: 160, width: 200, visible: true, pinned: true },
+  { id: "group_code", label: "C · Nhóm PO", minWidth: 120, width: 145, visible: true, pinned: false },
+  { id: "description", label: "D · Nội dung TT", minWidth: 180, width: 240, visible: true, pinned: false },
+  { id: "item_name", label: "E · Hàng hóa/DV", minWidth: 150, width: 190, visible: true, pinned: false },
+  { id: "invoice_no", label: "F · Số HĐ", minWidth: 110, width: 135, visible: true, pinned: false },
+  { id: "invoice_date", label: "Ngày HĐ", minWidth: 110, width: 125, visible: true, pinned: false },
+  { id: "amount", label: "G · Số tiền", minWidth: 120, width: 145, visible: true, pinned: false },
+  { id: "currency", label: "Tiền tệ", minWidth: 65, width: 75, visible: true, pinned: false },
+  { id: "documents", label: "H · Hồ sơ", minWidth: 105, width: 125, visible: true, pinned: false },
+  { id: "request_date", label: "I · Ngày ĐNTT", minWidth: 110, width: 125, visible: true, pinned: false },
+  { id: "payment_type", label: "J · Loại TT", minWidth: 115, width: 130, visible: true, pinned: false },
+  { id: "status", label: "K · Trạng thái", minWidth: 135, width: 160, visible: true, pinned: false },
+  { id: "doc_supplement", label: "L · Bổ sung HS", minWidth: 120, width: 140, visible: true, pinned: false },
+  { id: "address", label: "M · Địa chỉ", minWidth: 150, width: 200, visible: true, pinned: false },
+  { id: "account_no", label: "N · Số TK", minWidth: 115, width: 135, visible: true, pinned: false },
+  { id: "bank", label: "O · Ngân hàng", minWidth: 140, width: 180, visible: true, pinned: false },
+  { id: "created_by_name", label: "Người tạo", minWidth: 100, width: 120, visible: true, pinned: false },
 ];
 
 export interface PaymentManagementProps {
@@ -196,13 +197,27 @@ export function PaymentManagement({
   const [columns, setColumns] = useState<ColumnSetting[]>(() => {
     if (typeof window !== "undefined") {
       try {
-        const saved = localStorage.getItem("scmh_payment_columns_v3");
+        const saved =
+          localStorage.getItem("scmh_payment_columns_v4") ||
+          localStorage.getItem("scmh_payment_columns_v3");
         if (saved) {
           const parsed = JSON.parse(saved);
           if (Array.isArray(parsed) && parsed.length > 0) {
+            const defaultMap = new Map(DEFAULT_COLUMN_SETTINGS.map((d) => [d.id, d]));
             const existingIds = new Set(parsed.map((p: any) => p.id));
+            const merged = parsed.map((p: any) => {
+              const def = defaultMap.get(p.id);
+              return {
+                id: p.id,
+                label: p.label || def?.label || p.id,
+                minWidth: def?.minWidth || 60,
+                width: Number(p.width) || def?.width || def?.minWidth || 130,
+                visible: p.visible !== undefined ? p.visible : (def?.visible ?? true),
+                pinned: p.pinned !== undefined ? p.pinned : (def?.pinned ?? false),
+              };
+            });
             const missing = DEFAULT_COLUMN_SETTINGS.filter((d) => !existingIds.has(d.id));
-            return [...parsed, ...missing];
+            return [...merged, ...missing];
           }
         }
       } catch {}
@@ -214,9 +229,75 @@ export function PaymentManagement({
     setColumns(newCols);
     if (typeof window !== "undefined") {
       try {
-        localStorage.setItem("scmh_payment_columns_v3", JSON.stringify(newCols));
+        localStorage.setItem("scmh_payment_columns_v4", JSON.stringify(newCols));
       } catch {}
     }
+  };
+
+  // Column resizing state & mouse handlers
+  const resizingRef = useRef<{
+    colId: ColumnId;
+    startX: number;
+    startWidth: number;
+  } | null>(null);
+  const [resizingColId, setResizingColId] = useState<ColumnId | null>(null);
+
+  const handleStartResize = (colId: ColumnId, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const targetCol = columns.find((c) => c.id === colId);
+    if (!targetCol) return;
+
+    const startX = e.clientX;
+    const startWidth = targetCol.width || targetCol.minWidth || 120;
+
+    resizingRef.current = { colId, startX, startWidth };
+    setResizingColId(colId);
+
+    const handleMouseMove = (moveEvent: MouseEvent) => {
+      if (!resizingRef.current) return;
+      const delta = moveEvent.clientX - resizingRef.current.startX;
+      const minW = targetCol.minWidth || 50;
+      const nextWidth = Math.max(minW, Math.round(resizingRef.current.startWidth + delta));
+
+      setColumns((prevCols) =>
+        prevCols.map((c) =>
+          c.id === resizingRef.current?.colId ? { ...c, width: nextWidth } : c
+        )
+      );
+    };
+
+    const handleMouseUp = () => {
+      if (resizingRef.current) {
+        setColumns((latestCols) => {
+          saveColumns(latestCols);
+          return latestCols;
+        });
+      }
+      resizingRef.current = null;
+      setResizingColId(null);
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", handleMouseUp);
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+    };
+
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+    window.addEventListener("mousemove", handleMouseMove);
+    window.addEventListener("mouseup", handleMouseUp);
+  };
+
+  const handleDoubleClickResize = (colId: ColumnId, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const def = DEFAULT_COLUMN_SETTINGS.find((d) => d.id === colId);
+    if (!def) return;
+    const next = columns.map((c) =>
+      c.id === colId ? { ...c, width: def.width || def.minWidth } : c
+    );
+    saveColumns(next);
   };
 
   // Selection states
@@ -991,22 +1072,31 @@ export function PaymentManagement({
     }, 150);
   };
 
-  const visibleCols = useMemo(() => columns.filter((c) => c.visible), [columns]);
+  const visibleCols = useMemo(() => {
+    const active = columns.filter((c) => c.visible);
+    // Pinned columns strictly first so they form a contiguous, non-breaking sticky block on the left
+    const pinned = active.filter((c) => c.pinned);
+    const unpinned = active.filter((c) => !c.pinned);
+    return [...pinned, ...unpinned];
+  }, [columns]);
 
-  const { stickyLeftMap, lastPinnedId } = useMemo(() => {
+  const { stickyLeftMap, lastPinnedId, totalTableWidth } = useMemo(() => {
     const map: Record<string, number> = {};
-    let currentLeft = 48; // First column (checkbox + print) is 48px
+    let currentLeft = 48; // First column (checkbox + print) is exactly 48px
     let lastId: string | null = null;
+    let totalW = 48 + 42; // Checkbox/Print (48px) + Delete (42px)
 
     visibleCols.forEach((col) => {
+      const colW = col.width || col.minWidth;
+      totalW += colW;
       if (col.pinned) {
         map[col.id] = currentLeft;
-        currentLeft += col.minWidth;
+        currentLeft += colW;
         lastId = col.id;
       }
     });
 
-    return { stickyLeftMap: map, lastPinnedId: lastId };
+    return { stickyLeftMap: map, lastPinnedId: lastId, totalTableWidth: totalW };
   }, [visibleCols]);
 
   const renderTableCellContent = (colId: ColumnId, r: PaymentRequestEntry) => {
@@ -1121,7 +1211,7 @@ export function PaymentManagement({
                 }
               }}
               placeholder="Số HĐ..."
-              style={{ flex: 1 }}
+              style={{ flex: 1, minWidth: 0, padding: "0 4px" }}
             />
             {lineCount <= 1 && (
               <button
@@ -1778,19 +1868,50 @@ export function PaymentManagement({
             <span>Chọn STT → chọn dòng · Tự lưu sau khi sửa</span>
           </div>
           <div className="payment-table-scroll">
-            <table className="payment-grid">
+            <table
+              className="payment-grid"
+              style={{
+                tableLayout: "fixed",
+                width: `${totalTableWidth}px`,
+                minWidth: "100%",
+              }}
+            >
+              <colgroup>
+                {/* Column 0: Checkbox + Print (48px) */}
+                <col style={{ width: "48px", minWidth: "48px" }} />
+                {/* Configured visible columns */}
+                {visibleCols.map((col) => {
+                  const colW = col.width || col.minWidth;
+                  return (
+                    <col
+                      key={`colgroup-${col.id}`}
+                      style={{
+                        width: `${colW}px`,
+                        minWidth: `${col.minWidth}px`,
+                      }}
+                    />
+                  );
+                })}
+                {/* Column Last: Delete (42px) */}
+                <col style={{ width: "42px", minWidth: "42px" }} />
+              </colgroup>
               <thead>
                 <tr>
                   <th
                     style={{
                       width: "48px",
                       minWidth: "48px",
+                      maxWidth: "48px",
                       textAlign: "center",
                       position: "sticky",
                       left: 0,
-                      zIndex: 15,
+                      top: 0,
+                      zIndex: 25,
                       background: "#f1f5f9",
                       padding: "6px 2px",
+                      borderRight: "1px solid #cbd5e1",
+                      borderBottom: "2px solid #94a3b8",
+                      boxSizing: "border-box",
                     }}
                   >
                     <div style={{ display: "inline-flex", alignItems: "center", gap: "3px", justifyContent: "center" }}>
@@ -1817,47 +1938,84 @@ export function PaymentManagement({
                     const isPinned = col.pinned;
                     const leftPx = stickyLeftMap[col.id];
                     const isLastPinned = col.id === lastPinnedId;
+                    const colW = col.width || col.minWidth;
 
                     const style: React.CSSProperties = {
-                      minWidth: `${col.minWidth}px`,
-                      width: `${col.minWidth}px`,
+                      width: `${colW}px`,
+                      minWidth: `${colW}px`,
+                      maxWidth: `${colW}px`,
                       textAlign: col.id === "amount" ? "right" : col.id === "stt" ? "center" : "left",
                       whiteSpace: "nowrap",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      position: "relative",
+                      top: 0,
+                      boxSizing: "border-box",
                     };
 
                     if (isPinned && leftPx !== undefined) {
                       style.position = "sticky";
                       style.left = `${leftPx}px`;
-                      style.zIndex = 15;
+                      style.zIndex = 20;
                       style.background = "#f1f5f9";
                       if (isLastPinned) {
                         style.borderRight = "2.5px solid #0284c7";
                         style.boxShadow = "3px 0 6px -2px rgba(0,0,0,0.12)";
                       }
+                    } else {
+                      style.position = "sticky";
+                      style.zIndex = 5;
+                      style.background = "#f1f5f9";
                     }
 
                     return (
-                      <th key={col.id} style={style}>
+                      <th key={col.id} style={style} title={`${col.label} (${colW}px)`}>
                         <div
                           style={{
                             display: "flex",
                             alignItems: "center",
                             justifyContent: col.id === "amount" ? "flex-end" : col.id === "stt" ? "center" : "space-between",
                             gap: "4px",
+                            paddingRight: "8px",
+                            overflow: "hidden",
                           }}
                         >
-                          <span>{col.label}</span>
+                          <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                            {col.label}
+                          </span>
                           {isPinned && (
-                            <span title="Cột này đang được cố định" style={{ fontSize: "10.5px", color: "#0284c7" }}>
+                            <span title="Cột này đang được cố định bên trái" style={{ fontSize: "10.5px", color: "#0284c7", flexShrink: 0 }}>
                               📌
                             </span>
                           )}
                         </div>
+
+                        {/* Drag-to-resize handle */}
+                        <div
+                          className={`col-resize-handle ${resizingColId === col.id ? "is-resizing" : ""}`}
+                          onMouseDown={(e) => handleStartResize(col.id, e)}
+                          onDoubleClick={(e) => handleDoubleClickResize(col.id, e)}
+                          title="Kéo sang trái/phải để co dãn cột, nhấp đúp để đặt lại mặc định"
+                        />
                       </th>
                     );
                   })}
 
-                  <th style={{ width: "40px", minWidth: "40px", textAlign: "center", padding: "6px 2px" }}>
+                  <th
+                    style={{
+                      width: "42px",
+                      minWidth: "42px",
+                      maxWidth: "42px",
+                      textAlign: "center",
+                      padding: "6px 2px",
+                      position: "sticky",
+                      top: 0,
+                      zIndex: 5,
+                      background: "#f1f5f9",
+                      borderBottom: "2px solid #94a3b8",
+                      boxSizing: "border-box",
+                    }}
+                  >
                     Xóa
                   </th>
                 </tr>
@@ -1879,12 +2037,14 @@ export function PaymentManagement({
                           textAlign: "center",
                           width: "48px",
                           minWidth: "48px",
+                          maxWidth: "48px",
                           position: "sticky",
                           left: 0,
-                          zIndex: 8,
+                          zIndex: 9,
                           background: bg,
                           padding: "3px 2px",
                           whiteSpace: "nowrap",
+                          boxSizing: "border-box",
                         }}
                       >
                         <div style={{ display: "inline-flex", alignItems: "center", gap: "4px", justifyContent: "center" }}>
@@ -1919,11 +2079,16 @@ export function PaymentManagement({
                         const isPinned = col.pinned;
                         const leftPx = stickyLeftMap[col.id];
                         const isLastPinned = col.id === lastPinnedId;
+                        const colW = col.width || col.minWidth;
 
                         const style: React.CSSProperties = {
-                          minWidth: `${col.minWidth}px`,
-                          width: `${col.minWidth}px`,
+                          width: `${colW}px`,
+                          minWidth: `${colW}px`,
+                          maxWidth: `${colW}px`,
                           textAlign: col.id === "amount" ? "right" : col.id === "stt" ? "center" : "left",
+                          overflow: "hidden",
+                          whiteSpace: "nowrap",
+                          boxSizing: "border-box",
                         };
 
                         if (isPinned && leftPx !== undefined) {
@@ -1945,7 +2110,16 @@ export function PaymentManagement({
                       })}
 
                       {/* Delete action only */}
-                      <td style={{ textAlign: "center", width: "40px", minWidth: "40px", padding: "2px" }}>
+                      <td
+                        style={{
+                          textAlign: "center",
+                          width: "42px",
+                          minWidth: "42px",
+                          maxWidth: "42px",
+                          padding: "2px",
+                          boxSizing: "border-box",
+                        }}
+                      >
                         <button
                           type="button"
                           className="payment-btn btn-danger"
@@ -3360,7 +3534,7 @@ export function PaymentManagement({
                     gap: "8px",
                   }}
                 >
-                  <div style={{ display: "flex", alignItems: "center", gap: "8px", flex: 1 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px", flex: 1, minWidth: 0 }}>
                     <input
                       type="checkbox"
                       checked={col.visible}
@@ -3381,6 +3555,9 @@ export function PaymentManagement({
                         color: col.visible ? "#0f172a" : "#64748b",
                         cursor: "pointer",
                         margin: 0,
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
                       }}
                     >
                       {col.label}
@@ -3390,7 +3567,33 @@ export function PaymentManagement({
                     )}
                   </div>
 
-                  <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "6px", flexShrink: 0 }}>
+                    {/* Width input */}
+                    <div style={{ display: "flex", alignItems: "center", gap: "3px", fontSize: "11px", color: "#64748b" }}>
+                      <input
+                        type="number"
+                        min={50}
+                        max={600}
+                        step={5}
+                        value={col.width || col.minWidth}
+                        onChange={(e) => {
+                          const w = Math.max(50, parseInt(e.target.value, 10) || col.minWidth);
+                          const next = columns.map((c, i) => (i === idx ? { ...c, width: w } : c));
+                          saveColumns(next);
+                        }}
+                        style={{
+                          width: "55px",
+                          padding: "2px 4px",
+                          fontSize: "11.5px",
+                          border: "1px solid #cbd5e1",
+                          borderRadius: "4px",
+                          textAlign: "right",
+                        }}
+                        title="Độ rộng cột (pixel)"
+                      />
+                      <span>px</span>
+                    </div>
+
                     {/* Pin / Freeze Button */}
                     <button
                       type="button"
@@ -3411,7 +3614,7 @@ export function PaymentManagement({
                       }}
                       title={col.pinned ? "Bỏ cố định cột này" : "Cố định cột này khi cuộn ngang"}
                     >
-                      {col.pinned ? "📌 Đã cố định" : "Ghim"}
+                      {col.pinned ? "📌 Ghim" : "Ghim"}
                     </button>
 
                     {/* Move Up */}
