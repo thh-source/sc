@@ -49,16 +49,21 @@ export function SupplierSearchCombobox({
   const filteredSuppliers = useMemo(() => {
     const q = normName(query);
     if (!q) return suppliers.slice(0, 30);
-    return suppliers
-      .filter((s) => {
-        const n = normName(s.name);
-        const sn = normName(s.shortName || "");
-        const c = normName(s.code);
-        const p = normName(s.phone || "");
-        const addr = normName(s.address || "");
-        return n.includes(q) || sn.includes(q) || c.includes(q) || p.includes(q) || addr.includes(q);
-      })
-      .slice(0, 30);
+    const results: Supplier[] = [];
+    for (let i = 0; i < suppliers.length; i++) {
+      if (results.length >= 30) break;
+      const s = suppliers[i];
+      if (
+        normName(s.name).includes(q) ||
+        normName(s.shortName || "").includes(q) ||
+        normName(s.code).includes(q) ||
+        normName(s.phone || "").includes(q) ||
+        normName(s.address || "").includes(q)
+      ) {
+        results.push(s);
+      }
+    }
+    return results;
   }, [query, suppliers]);
 
   // Check if query exactly matches an existing supplier

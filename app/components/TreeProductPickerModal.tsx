@@ -47,9 +47,6 @@ export function TreeProductPickerModal({
     setMounted(true);
   }, []);
 
-  // If not open or not mounted on client, render nothing
-  if (!isOpen || !mounted || typeof document === "undefined") return null;
-
   // Active tab: 'pr' (Cây PR) or 'catalog' (Cây danh mục)
   const [activeTab, setActiveTab] = useState<"pr" | "catalog">(
     selectedPRId ? "pr" : "pr"
@@ -83,25 +80,65 @@ export function TreeProductPickerModal({
     return new Set(existingItemNames.map((n) => normName(n)));
   }, [existingItemNames]);
 
+  // Set of manually collapsed nodes when searching
+  const [collapsedNodes, setCollapsedNodes] = useState<Set<string>>(new Set());
+
+  // Reset search and selection cleanly when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      setSearchTerm("");
+      setCollapsedNodes(new Set());
+      setSelectedMap(new Map());
+      if (selectedPRId) {
+        const prObj = prs.find((p) => String(p.id) === String(selectedPRId));
+        setExpandedNodes((prev) => {
+          const next = new Set(prev);
+          next.add(`pr:${selectedPRId}`);
+          if (prObj?.department) {
+            next.add(`dept:${prObj.department}`);
+          }
+          return next;
+        });
+      }
+    }
+  }, [isOpen, selectedPRId]);
+
+  const q = normName(searchTerm);
+
   // Expand / collapse helper
   const toggleNode = (nodeKey: string) => {
-    setExpandedNodes((prev) => {
-      const next = new Set(prev);
-      if (next.has(nodeKey)) next.delete(nodeKey);
-      else next.add(nodeKey);
-      return next;
-    });
+    if (q) {
+      setCollapsedNodes((prev) => {
+        const next = new Set(prev);
+        if (next.has(nodeKey)) next.delete(nodeKey);
+        else next.add(nodeKey);
+        return next;
+      });
+    } else {
+      setExpandedNodes((prev) => {
+        const next = new Set(prev);
+        if (next.has(nodeKey)) next.delete(nodeKey);
+        else next.add(nodeKey);
+        return next;
+      });
+    }
   };
 
   const expandAll = (allKeys: string[]) => {
-    setExpandedNodes(new Set(allKeys));
+    if (q) {
+      setCollapsedNodes(new Set());
+    } else {
+      setExpandedNodes(new Set(allKeys));
+    }
   };
 
-  const collapseAll = () => {
-    setExpandedNodes(new Set());
+  const collapseAll = (allKeys: string[]) => {
+    if (q) {
+      setCollapsedNodes(new Set(allKeys));
+    } else {
+      setExpandedNodes(new Set());
+    }
   };
-
-  const q = normName(searchTerm);
 
   // -------------------------------------------------------------
   // 1. Process PR Tree Hierarchy (Department -> PR -> Items)
@@ -186,19 +223,7 @@ export function TreeProductPickerModal({
       .filter(Boolean) as typeof prTreeData;
   }, [prTreeData, q]);
 
-  // Auto-expand nodes when searching
-  useEffect(() => {
-    if (q) {
-      const autoKeys: string[] = [];
-      filteredPRTree.forEach((d) => {
-        autoKeys.push(`dept:${d.dept}`);
-        d.prs.forEach((p) => {
-          autoKeys.push(`pr:${p.pr.id}`);
-        });
-      });
-      setExpandedNodes((prev) => new Set([...prev, ...autoKeys]));
-    }
-  }, [q, filteredPRTree]);
+
 
   // Count matching PR items
   const totalMatchingPRItems = useMemo(() => {
@@ -265,16 +290,6 @@ export function TreeProductPickerModal({
       .filter(Boolean) as typeof catalogTreeData;
   }, [catalogTreeData, q]);
 
-  // Auto-expand catalog categories when searching
-  useEffect(() => {
-    if (q) {
-      const autoKeys: string[] = [];
-      filteredCatalogTree.forEach((c) => {
-        autoKeys.push(`cat:${c.cat}`);
-      });
-      setExpandedNodes((prev) => new Set([...prev, ...autoKeys]));
-    }
-  }, [q, filteredCatalogTree]);
 
   const totalMatchingCatalogItems = useMemo(() => {
     return filteredCatalogTree.reduce((sum, c) => sum + c.products.length, 0);
@@ -405,6 +420,8 @@ export function TreeProductPickerModal({
     ]);
     onClose();
   };
+
+  if (!isOpen || !mounted || typeof document === "undefined") return null;
 
   return createPortal(
     <div
@@ -635,7 +652,7 @@ export function TreeProductPickerModal({
             <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
               {filteredPRTree.map((deptGroup) => {
                 const deptKey = `dept:${deptGroup.dept}`;
-                const isDeptExpanded = expandedNodes.has(deptKey);
+                const isDeptExpanded = q ? !collapsedNodes.has(deptKey) : expandedNodes.has(deptKey);
                 const deptItemCount = deptGroup.prs.reduce(
                   (s, p) => s + p.items.length,
                   0
@@ -693,7 +710,7 @@ export function TreeProductPickerModal({
                       <div style={{ padding: "8px 12px", display: "flex", flexDirection: "column", gap: "10px" }}>
                         {deptGroup.prs.map(({ pr, items, isLinked }) => {
                           const prKey = `pr:${pr.id}`;
-                          const isPrExpanded = expandedNodes.has(prKey);
+                          const isPrExpanded = q ? !collapsedNodes.has(prKey) : expandedNodes.has(prKey);
                           const allPrSelected =
                             items.length > 0 &&
                             items.every((it) =>
@@ -914,7 +931,7 @@ export function TreeProductPickerModal({
             <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
               {filteredCatalogTree.map((catGroup) => {
                 const catKey = `cat:${catGroup.cat}`;
-                const isCatExpanded = expandedNodes.has(catKey);
+                const isCatExpanded = q ? !collapsedNodes.has(catKey) : expandedNodes.has(catKey);
                 const allCatSelected =
                   catGroup.products.length > 0 &&
                   catGroup.products.every((p) => selectedMap.has(`prod-${p.id}`));

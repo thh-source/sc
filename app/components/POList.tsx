@@ -101,15 +101,20 @@ export function POList({
       sourcePrId?: number;
       sourcePrNumber?: string;
     }[] = [];
+    const seenNames = new Set<string>();
 
     if (selectedPR && selectedPR.items) {
-      selectedPR.items.forEach((it) => {
+      for (let i = 0; i < selectedPR.items.length; i++) {
+        if (results.length >= 15) break;
+        const it = selectedPR.items[i];
+        const nName = normName(it.name);
         if (
           !q ||
-          normName(it.name).includes(q) ||
+          nName.includes(q) ||
           normName(it.spec || "").includes(q) ||
           normName(it.code || "").includes(q)
         ) {
+          seenNames.add(nName);
           results.push({
             name: it.name,
             spec: it.spec,
@@ -121,31 +126,35 @@ export function POList({
             sourcePrNumber: selectedPR.number,
           });
         }
-      });
+      }
     }
 
-    products.forEach((p) => {
+    for (let i = 0; i < products.length; i++) {
+      if (results.length >= 15) break;
+      const p = products[i];
+      const nName = normName(p.name);
+      if (seenNames.has(nName)) continue;
+
       if (
         !q ||
-        normName(p.name).includes(q) ||
+        nName.includes(q) ||
         normName(p.spec || "").includes(q) ||
         normName(p.code || "").includes(q) ||
         normName(p.category || "").includes(q)
       ) {
-        if (!results.some((r) => normName(r.name) === normName(p.name))) {
-          results.push({
-            name: p.name,
-            spec: p.spec,
-            unit: p.unit || "Cái",
-            qty: 1,
-            price: p.estimate || 0,
-            source: p.category || "Danh mục chung",
-          });
-        }
+        seenNames.add(nName);
+        results.push({
+          name: p.name,
+          spec: p.spec,
+          unit: p.unit || "Cái",
+          qty: 1,
+          price: p.estimate || 0,
+          source: p.category || "Danh mục chung",
+        });
       }
-    });
+    }
 
-    return results.slice(0, 15);
+    return results;
   }, [inlineProductQuery, selectedPR, products]);
 
   const resetDraft = () => {
