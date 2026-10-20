@@ -150,19 +150,29 @@ export function localToday(): string {
   return `${y}-${m}-${d}`;
 }
 
+export function parseMoney(val: number | string | undefined): number {
+  if (val === undefined || val === null || val === "" || val === "0") return 0;
+  if (typeof val === "number") return isFinite(val) ? Math.round(val) : 0;
+  const cleaned = String(val).replace(/[^\d-]/g, "");
+  if (!cleaned || cleaned === "-") return 0;
+  const num = parseInt(cleaned, 10);
+  return isNaN(num) ? 0 : num;
+}
+
 export function fmtMoney(val: number | string | undefined): string {
-  const n = Number(String(val ?? "").replace(/,/g, ""));
+  if (val === undefined || val === null || val === "" || val === 0 || val === "0") return "0";
+  const n = typeof val === "number" ? val : parseMoney(val);
   if (isNaN(n) || !isFinite(n)) return "0";
-  return n.toLocaleString("vi-VN", { maximumFractionDigits: 2 });
+  return n.toLocaleString("en-US");
 }
 
 export function plainAmount(val: string | number): string {
-  return String(val ?? "").replace(/[^\d.-]/g, "");
+  return String(val ?? "").replace(/[^\d-]/g, "");
 }
 
 export function moneyWords(x: { amount: number | string; currency: string }): string {
-  const n = Number(String(x.amount ?? "").replace(/,/g, ""));
-  if (!Number.isFinite(n) || isNaN(n)) return "Chưa có số tiền hợp lệ";
+  const n = typeof x.amount === "number" ? x.amount : parseMoney(x.amount);
+  if (!Number.isFinite(n) || isNaN(n) || n === 0) return "Không đồng";
 
   const digits = ["không", "một", "hai", "ba", "bốn", "năm", "sáu", "bảy", "tám", "chín"];
 

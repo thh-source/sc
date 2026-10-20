@@ -5,7 +5,8 @@ import { Supplier, PO, PaymentGroup, PaymentRequestEntry, Item, PR } from "../ty
 import { fmt, dateVN } from "../utils";
 import VisualTimeline from "../VisualTimeline";
 import DocumentManager from "../DocumentManager";
-import { PAID_STATUSES, fmtMoney } from "../payment-utils";
+import { PAID_STATUSES, fmtMoney, normName } from "../payment-utils";
+import { SupplierSearchCombobox } from "./SupplierSearchCombobox";
 import "../payment.css";
 
 export interface ContractManagementProps {
@@ -24,6 +25,8 @@ export interface ContractManagementProps {
   onCreateContract?: (contractPO: PO, paymentGroup?: PaymentGroup) => void;
   prs?: PR[];
   products?: Item[];
+  onAddSupplier?: (supplier: Supplier) => void;
+  onAddProduct?: (product: Item) => void;
 }
 
 export function ContractManagement({
@@ -42,6 +45,8 @@ export function ContractManagement({
   onCreateContract,
   prs = [],
   products = [],
+  onAddSupplier,
+  onAddProduct,
 }: ContractManagementProps) {
   // Main tab switcher: PO Contracts vs Contract Groups
   const [mainTab, setMainTab] = useState<"pos" | "groups">("pos");
@@ -71,10 +76,12 @@ export function ContractManagement({
   const [cNumber, setCNumber] = useState("");
   const [cTitle, setCTitle] = useState("");
   const [cSupplierId, setCSupplierId] = useState<number | "">("");
+  const [cPrId, setCPrId] = useState<number | "">("");
   const [cSignDate, setCSignDate] = useState("");
   const [cExpectedDate, setCExpectedDate] = useState("");
   const [cNote, setCNote] = useState("");
   const [cCreatePaymentGroup, setCCreatePaymentGroup] = useState(true);
+  const [cCustomProductInput, setCCustomProductInput] = useState("");
   const [cItems, setCItems] = useState<
     Array<{
       id: number;
@@ -86,6 +93,11 @@ export function ContractManagement({
     }>
   >([]);
   const [cError, setCError] = useState("");
+
+  const cSelectedPR = useMemo(() => {
+    if (!cPrId) return null;
+    return prs.find((p) => p.id === Number(cPrId)) || null;
+  }, [cPrId, prs]);
 
   // From PO mode draft
   const [selectedPOIdForContract, setSelectedPOIdForContract] = useState<number | "">("");
@@ -211,6 +223,8 @@ export function ContractManagement({
     setCNumber(`HĐ-${year}-${String(nextNum).padStart(3, "0")}`);
     setCTitle("");
     setCSupplierId(suppliers[0]?.id || "");
+    setCPrId("");
+    setCCustomProductInput("");
     setCSignDate(new Date().toISOString().slice(0, 10));
     setCExpectedDate("");
     setCNote("");
@@ -246,6 +260,83 @@ export function ContractManagement({
 
     setContractCreationMode("direct");
     setShowCreateContractModal(true);
+  };
+
+  const handleContractSelectPR = (prIdVal: string) => {
+    if (!prIdVal) {
+      setCPrId("");
+      return;
+    }
+    const prId = Number(prIdVal);
+    setCPrId(prId);
+    const foundPR = prs.find((p) => p.id === prId);
+    if (foundPR) {
+      if (!cTitle.trim()) {
+        setCTitle(`Hợp đồng thực hiện theo yêu cầu mua sắm ${foundPR.number}`);
+      }
+      const hasOnlyDefault =
+        cItems.length === 0 ||
+        (cItems.length === 1 &&
+          (cItems[0].name === "Gói hợp đồng cung cấp hàng hóa/dịch vụ" || !cItems[0].name.trim()));
+      if (hasOnlyDefault && foundPR.items && foundPR.items.length > 0) {
+        setCItems(
+          foundPR.items.map((it, idx) => ({
+            id: Date.now() + idx,
+            name: it.name,
+            spec: it.spec || "",
+            unit: it.unit || "Cái",
+            qty: it.qty || 1,
+            price: it.estimate || 0,
+          }))
+        );
+      }
+    }
+  };
+
+  const handleContractAddCustomProduct = (nameInput: string) => {
+    const trimmed = nameInput.trim();
+    if (!trimmed) return;
+    const existing = products.find((p) => normName(p.name) === normName(trimmed));
+    if (existing) {
+      setCItems((prev) => [
+        ...prev.filter((x) => x.name.trim() !== "" && x.name !== "Gói hợp đồng cung cấp hàng hóa/dịch vụ"),
+        {
+          id: Date.now() + Math.random(),
+          name: existing.name,
+          spec: existing.spec || "",
+          unit: existing.unit || "Gói",
+          qty: 1,
+          price: existing.estimate || 0,
+        },
+      ]);
+    } else {
+      const newId = Date.now();
+      const nextCode = `VT-${String(products.length + 1).padStart(2, "0")}`;
+      const newProd: Item = {
+        id: newId,
+        code: nextCode,
+        category: "Vật tư",
+        name: trimmed,
+        desc: "",
+        spec: "",
+        unit: "Gói",
+        qty: 1,
+        estimate: 0,
+      };
+      onAddProduct?.(newProd);
+      setCItems((prev) => [
+        ...prev.filter((x) => x.name.trim() !== "" && x.name !== "Gói hợp đồng cung cấp hàng hóa/dịch vụ"),
+        {
+          id: newId,
+          name: trimmed,
+          spec: "",
+          unit: "Gói",
+          qty: 1,
+          price: 0,
+        },
+      ]);
+    }
+    setCCustomProductInput("");
   };
 
   const handleSelectPOForContract = (poIdVal: string) => {
@@ -291,7 +382,7 @@ export function ContractManagement({
       const contractPO: PO = {
         id: Date.now(),
         number: cNumber.trim(),
-        prNumber: "Hợp đồng trực tiếp",
+        prNumber: cSelectedPR ? cSelectedPR.number : "Hợp đồng trực tiếp",
         supplierId: Number(cSupplierId),
         createdDate: cSignDate || new Date().toISOString().slice(0, 10),
         expectedDate: cExpectedDate || "",
@@ -1433,6 +1524,17 @@ export function ContractManagement({
                     </div>
 
                     <div>
+                      <SupplierSearchCombobox
+                        suppliers={suppliers}
+                        selectedSupplierId={cSupplierId}
+                        onSelectSupplier={(id) => setCSupplierId(id)}
+                        onAddSupplier={onAddSupplier}
+                        required
+                        label="Nhà cung cấp / Đối tác"
+                      />
+                    </div>
+
+                    <div>
                       <label
                         style={{
                           display: "block",
@@ -1442,24 +1544,82 @@ export function ContractManagement({
                           marginBottom: 4,
                         }}
                       >
-                        Nhà cung cấp / Đối tác <span style={{ color: "#ef4444" }}>*</span>
+                        Nguồn PR (Tùy chọn)
                       </label>
                       <select
                         className="payment-input"
-                        style={{ width: "100%" }}
-                        value={cSupplierId}
-                        onChange={(e) =>
-                          setCSupplierId(Number(e.target.value) || "")
-                        }
+                        style={{
+                          width: "100%",
+                          borderColor: cSelectedPR ? "#0284c7" : "#cbd5e1",
+                          background: cSelectedPR ? "#f0f9ff" : "#fff",
+                          fontWeight: cSelectedPR ? 600 : 400,
+                        }}
+                        value={cPrId}
+                        onChange={(e) => handleContractSelectPR(e.target.value)}
                       >
-                        <option value="">-- Chọn nhà cung cấp --</option>
-                        {suppliers.map((s) => (
-                          <option key={s.id} value={s.id}>
-                            {s.code} - {s.name}
+                        <option value="">Lập trực tiếp (Không qua PR)</option>
+                        {prs.map((pr) => (
+                          <option key={pr.id} value={pr.id}>
+                            {pr.number} - {pr.department || "PR"} ({pr.items?.length || 0} mặt hàng)
                           </option>
                         ))}
                       </select>
                     </div>
+
+                    {cSelectedPR && (
+                      <div
+                        style={{
+                          gridColumn: "1 / -1",
+                          background: "#f0fdf4",
+                          border: "1px solid #bbf7d0",
+                          borderRadius: "6px",
+                          padding: "8px 12px",
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                          flexWrap: "wrap",
+                          gap: "8px",
+                          fontSize: "12px",
+                        }}
+                      >
+                        <div>
+                          <span style={{ fontWeight: 600, color: "#166534" }}>
+                            🔗 Đã liên kết với {cSelectedPR.number} ({cSelectedPR.department || "PR"}):
+                          </span>{" "}
+                          <span style={{ color: "#334155" }}>
+                            Danh sách chọn mặt hàng bên dưới sẽ lọc theo {cSelectedPR.items?.length || 0} mặt hàng của PR này
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          className="payment-btn"
+                          style={{
+                            padding: "3px 8px",
+                            fontSize: "11px",
+                            background: "#fff",
+                            color: "#166534",
+                            borderColor: "#86efac",
+                            fontWeight: 600,
+                          }}
+                          onClick={() => {
+                            if (cSelectedPR.items && cSelectedPR.items.length > 0) {
+                              setCItems(
+                                cSelectedPR.items.map((it, idx) => ({
+                                  id: Date.now() + Math.random() + idx,
+                                  name: it.name,
+                                  spec: it.spec || "",
+                                  unit: it.unit || "Cái",
+                                  qty: it.qty || 1,
+                                  price: it.estimate || 0,
+                                }))
+                              );
+                            }
+                          }}
+                        >
+                          📥 Nạp nhanh toàn bộ {cSelectedPR.items?.length || 0} mặt hàng từ PR
+                        </button>
+                      </div>
+                    )}
 
                     <div style={{ gridColumn: "1 / -1" }}>
                       <label
@@ -1560,40 +1720,111 @@ export function ContractManagement({
                         gap: 8,
                       }}
                     >
-                      <h4 style={{ margin: 0, fontSize: 14, color: "#1e293b" }}>
-                        Hạng mục / Chi tiết hợp đồng ({cItems.length})
-                      </h4>
-                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                        {products && products.length > 0 && (
+                      <div>
+                        <h4 style={{ margin: 0, fontSize: 14, color: "#1e293b" }}>
+                          Hạng mục / Chi tiết hợp đồng ({cItems.length})
+                        </h4>
+                        {cSelectedPR && (
+                          <span style={{ fontSize: 11.5, color: "#0369a1", fontWeight: 600 }}>
+                            (Chỉ hiển thị mặt hàng & số lượng thuộc PR #{cSelectedPR.number})
+                          </span>
+                        )}
+                      </div>
+                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+                        {cSelectedPR ? (
                           <select
                             className="payment-input"
-                            style={{ fontSize: 12, maxWidth: 220 }}
+                            style={{
+                              fontSize: 12,
+                              maxWidth: 320,
+                              borderColor: "#0284c7",
+                              background: "#f0f9ff",
+                              fontWeight: 600,
+                            }}
                             value=""
                             onChange={(e) => {
-                              const prodId = Number(e.target.value);
-                              const prod = products.find((p) => p.id === prodId);
-                              if (prod) {
+                              const itemId = Number(e.target.value);
+                              const it = cSelectedPR.items?.find((p) => p.id === itemId);
+                              if (it) {
                                 setCItems((prev) => [
-                                  ...prev,
+                                  ...prev.filter((x) => x.name.trim() !== "" && x.name !== "Gói hợp đồng cung cấp hàng hóa/dịch vụ"),
                                   {
                                     id: Date.now() + Math.random(),
-                                    name: prod.name,
-                                    spec: prod.spec || "",
-                                    unit: prod.unit || "Cái",
-                                    qty: 1,
-                                    price: prod.estimate || 0,
+                                    name: it.name,
+                                    spec: it.spec || "",
+                                    unit: it.unit || "Cái",
+                                    qty: it.qty || 1,
+                                    price: it.estimate || 0,
                                   },
                                 ]);
                               }
                             }}
                           >
-                            <option value="">＋ Thêm từ danh mục...</option>
-                            {products.map((p) => (
-                              <option key={p.id} value={p.id}>
-                                {p.code} - {p.name}
+                            <option value="">＋ Chọn mặt hàng từ PR #{cSelectedPR.number}...</option>
+                            {cSelectedPR.items?.map((it) => (
+                              <option key={it.id} value={it.id}>
+                                {it.name} (SL: {it.qty} {it.unit || "cái"})
                               </option>
                             ))}
                           </select>
+                        ) : (
+                          <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+                            {products && products.length > 0 && (
+                              <select
+                                className="payment-input"
+                                style={{ fontSize: 12, maxWidth: 220 }}
+                                value=""
+                                onChange={(e) => {
+                                  const prodId = Number(e.target.value);
+                                  const prod = products.find((p) => p.id === prodId);
+                                  if (prod) {
+                                    setCItems((prev) => [
+                                      ...prev.filter((x) => x.name.trim() !== "" && x.name !== "Gói hợp đồng cung cấp hàng hóa/dịch vụ"),
+                                      {
+                                        id: Date.now() + Math.random(),
+                                        name: prod.name,
+                                        spec: prod.spec || "",
+                                        unit: prod.unit || "Cái",
+                                        qty: 1,
+                                        price: prod.estimate || 0,
+                                      },
+                                    ]);
+                                  }
+                                }}
+                              >
+                                <option value="">＋ Thêm từ danh mục...</option>
+                                {products.map((p) => (
+                                  <option key={p.id} value={p.id}>
+                                    {p.code} - {p.name}
+                                  </option>
+                                ))}
+                              </select>
+                            )}
+                            <div style={{ display: "flex", gap: 4 }}>
+                              <input
+                                type="text"
+                                className="payment-input"
+                                style={{ fontSize: 12, width: 170 }}
+                                placeholder="Gõ tên hàng mới..."
+                                value={cCustomProductInput}
+                                onChange={(e) => setCCustomProductInput(e.target.value)}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter") {
+                                    e.preventDefault();
+                                    handleContractAddCustomProduct();
+                                  }
+                                }}
+                              />
+                              <button
+                                type="button"
+                                className="payment-btn"
+                                style={{ fontSize: 12, padding: "4px 8px" }}
+                                onClick={handleContractAddCustomProduct}
+                              >
+                                ＋ Thêm
+                              </button>
+                            </div>
+                          </div>
                         )}
                         <button
                           type="button"
@@ -1612,7 +1843,7 @@ export function ContractManagement({
                             ])
                           }
                         >
-                          ＋ Thêm hạng mục
+                          ＋ Dòng trống
                         </button>
                       </div>
                     </div>
@@ -1727,17 +1958,77 @@ export function ContractManagement({
                                     required
                                     className="payment-input"
                                     style={{ width: "100%" }}
+                                    list={`contract-item-datalist-${idx}`}
                                     value={it.name}
                                     onChange={(e) => {
                                       const val = e.target.value;
+                                      if (cSelectedPR) {
+                                        const matched = cSelectedPR.items?.find(
+                                          (x) => normName(x.name) === normName(val)
+                                        );
+                                        if (matched) {
+                                          setCItems((prev) =>
+                                            prev.map((item, i) =>
+                                              i === idx
+                                                ? {
+                                                    ...item,
+                                                    name: matched.name,
+                                                    spec: matched.spec || item.spec,
+                                                    unit: matched.unit || item.unit,
+                                                    qty: matched.qty || item.qty,
+                                                    price: matched.estimate || item.price,
+                                                  }
+                                                : item
+                                            )
+                                          );
+                                          return;
+                                        }
+                                      } else {
+                                        const matched = products?.find(
+                                          (p) => normName(p.name) === normName(val)
+                                        );
+                                        if (matched) {
+                                          setCItems((prev) =>
+                                            prev.map((item, i) =>
+                                              i === idx
+                                                ? {
+                                                    ...item,
+                                                    name: matched.name,
+                                                    spec: matched.spec || item.spec,
+                                                    unit: matched.unit || item.unit,
+                                                    price: matched.estimate || item.price,
+                                                  }
+                                                : item
+                                            )
+                                          );
+                                          return;
+                                        }
+                                      }
                                       setCItems((prev) =>
                                         prev.map((x, i) =>
                                           i === idx ? { ...x, name: val } : x
                                         )
                                       );
                                     }}
-                                    placeholder="Tên hạng mục..."
+                                    placeholder={
+                                      cSelectedPR
+                                        ? "Chọn hoặc gõ tên hàng trong PR..."
+                                        : "Tên hạng mục..."
+                                    }
                                   />
+                                  <datalist id={`contract-item-datalist-${idx}`}>
+                                    {cSelectedPR
+                                      ? cSelectedPR.items?.map((p) => (
+                                          <option key={p.id} value={p.name}>
+                                            SL: {p.qty} {p.unit} {p.spec ? `(${p.spec})` : ""}
+                                          </option>
+                                        ))
+                                      : products.map((p) => (
+                                          <option key={p.id} value={p.name}>
+                                            {p.code} - {p.unit}
+                                          </option>
+                                        ))}
+                                  </datalist>
                                 </td>
                                 <td style={{ padding: "4px" }}>
                                   <input

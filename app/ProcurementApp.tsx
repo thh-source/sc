@@ -926,6 +926,22 @@ export default function ProcurementApp({
     ]);
     setSupplierModal(false);
   };
+
+  const handleAddSupplier = (newSupplier: Supplier) => {
+    setSuppliers((current) => {
+      if (current.some((s) => s.id === newSupplier.id || s.code === newSupplier.code)) return current;
+      return [newSupplier, ...current];
+    });
+    setStorageStatus(`Đã thêm mới nhà cung cấp: ${newSupplier.name}`);
+  };
+
+  const handleAddProduct = (newProduct: Item) => {
+    setProducts((current) => {
+      if (current.some((p) => p.id === newProduct.id || p.code === newProduct.code)) return current;
+      return [newProduct, ...current];
+    });
+    setStorageStatus(`Đã thêm mới sản phẩm: ${newProduct.name}`);
+  };
   const addQuoteSupplier = (overrideId?: number) => {
     const id = overrideId || Number(selectedSupplierId);
     if (!id || quoteSupplierIds.includes(id)) return;
@@ -1431,6 +1447,8 @@ export default function ProcurementApp({
             suppliers={suppliers}
             products={products}
             prs={prs}
+            onAddSupplier={handleAddSupplier}
+            onAddProduct={handleAddProduct}
             onCreateContract={(contractPO, paymentGroup) => {
               setPos((list) => [contractPO, ...list]);
               if (paymentGroup) {
@@ -1465,6 +1483,8 @@ export default function ProcurementApp({
             paymentTemplate={paymentTemplate}
             pos={pos}
             suppliers={suppliers}
+            products={products}
+            prs={prs}
             onUpdateState={(patch) => {
               if (patch.paymentRequests !== undefined) setPaymentRequests(patch.paymentRequests);
               if (patch.paymentGroups !== undefined) setPaymentGroups(patch.paymentGroups);
@@ -1565,6 +1585,8 @@ export default function ProcurementApp({
             suppliers={suppliers}
             prs={prs}
             products={products}
+            onAddSupplier={handleAddSupplier}
+            onAddProduct={handleAddProduct}
             onCreatePO={(newPO, openDetail, sourcePrId) => {
               setPos((list) => [newPO, ...list]);
               setCurrentPO(newPO);

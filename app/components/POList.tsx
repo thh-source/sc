@@ -1,6 +1,8 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { Supplier, PO, PR, Item } from "../types";
 import { fmt, dateVN, makeId } from "../utils";
+import { SupplierSearchCombobox } from "./SupplierSearchCombobox";
+import { normName } from "../payment-utils";
 import "../payment.css";
 
 interface DraftPOItem {
@@ -23,6 +25,8 @@ export function POList({
   prs = [],
   products = [],
   onCreatePO,
+  onAddSupplier,
+  onAddProduct,
   readOnly = false,
 }: {
   pos: PO[];
@@ -32,6 +36,8 @@ export function POList({
   prs?: PR[];
   products?: Item[];
   onCreatePO?: (po: PO, openDetail?: boolean, sourcePrId?: number) => void;
+  onAddSupplier?: (supplier: Supplier) => void;
+  onAddProduct?: (product: Item) => void;
   readOnly?: boolean;
 }) {
   const [q, setQ] = useState("");
@@ -47,6 +53,12 @@ export function POList({
   const [draftNote, setDraftNote] = useState("");
   const [draftItems, setDraftItems] = useState<DraftPOItem[]>([]);
   const [itemError, setItemError] = useState("");
+  const [customProductInput, setCustomProductInput] = useState("");
+
+  const selectedPR = useMemo(() => {
+    if (!draftPrId) return null;
+    return prs.find((p) => p.id === Number(draftPrId)) || null;
+  }, [draftPrId, prs]);
 
   const resetDraft = () => {
     const currentYear = new Date().getFullYear();
@@ -58,6 +70,7 @@ export function POList({
     setDraftCreatedDate(new Date().toISOString().slice(0, 10));
     setDraftExpectedDate("");
     setDraftNote("Tạo trực tiếp không qua so sánh báo giá");
+    setCustomProductInput("");
     setDraftItems([
       {
         id: makeId(),
@@ -85,7 +98,9 @@ export function POList({
     const foundPR = prs.find((p) => p.id === prId);
     if (foundPR) {
       setDraftPrNumber(foundPR.number);
-      if (foundPR.items && foundPR.items.length > 0) {
+      // If user had no custom items or just 1 blank item, load items from PR
+      const hasOnlyBlank = draftItems.length === 0 || (draftItems.length === 1 && !draftItems[0].name.trim());
+      if (hasOnlyBlank && foundPR.items && foundPR.items.length > 0) {
         setDraftItems(
           foundPR.items.map((it, idx) => ({
             id: makeId(),
@@ -101,6 +116,58 @@ export function POList({
         );
       }
     }
+  };
+
+  const handleAddCustomProduct = (nameInput: string) => {
+    const trimmed = nameInput.trim();
+    if (!trimmed) return;
+    const existing = products.find((p) => normName(p.name) === normName(trimmed));
+    if (existing) {
+      setDraftItems((prev) => [
+        ...prev.filter((x) => x.name.trim() !== ""),
+        {
+          id: makeId(),
+          code: existing.code || `VT-${String(prev.length + 1).padStart(2, "0")}`,
+          category: existing.category || "Hàng hóa",
+          name: existing.name,
+          desc: existing.desc || "",
+          spec: existing.spec || "",
+          unit: existing.unit || "Cái",
+          qty: 1,
+          price: existing.estimate || 0,
+        },
+      ]);
+    } else {
+      const newId = makeId();
+      const nextCode = `VT-${String(products.length + 1).padStart(2, "0")}`;
+      const newProd: Item = {
+        id: newId,
+        code: nextCode,
+        category: "Vật tư",
+        name: trimmed,
+        desc: "",
+        spec: "",
+        unit: "Cái",
+        qty: 1,
+        estimate: 0,
+      };
+      onAddProduct?.(newProd);
+      setDraftItems((prev) => [
+        ...prev.filter((x) => x.name.trim() !== ""),
+        {
+          id: makeId(),
+          code: nextCode,
+          category: "Vật tư",
+          name: trimmed,
+          desc: "",
+          spec: "",
+          unit: "Cái",
+          qty: 1,
+          price: 0,
+        },
+      ]);
+    }
+    setCustomProductInput("");
   };
 
   const draftTotal = draftItems.reduce(
@@ -478,32 +545,14 @@ export function POList({
                 </div>
 
                 <div>
-                  <label
-                    style={{
-                      display: "block",
-                      fontSize: 12,
-                      fontWeight: 600,
-                      color: "#475569",
-                      marginBottom: 4,
-                    }}
-                  >
-                    Nhà cung cấp <span style={{ color: "#ef4444" }}>*</span>
-                  </label>
-                  <select
-                    className="payment-input"
-                    style={{ width: "100%" }}
-                    value={draftSupplierId}
-                    onChange={(e) =>
-                      setDraftSupplierId(Number(e.target.value) || "")
-                    }
-                  >
-                    <option value="">-- Chọn nhà cung cấp --</option>
-                    {suppliers.map((s) => (
-                      <option key={s.id} value={s.id}>
-                        {s.code} - {s.name}
-                      </option>
-                    ))}
-                  </select>
+                  <SupplierSearchCombobox
+                    suppliers={suppliers}
+                    selectedSupplierId={draftSupplierId}
+                    onSelectSupplier={(id) => setDraftSupplierId(id)}
+                    onAddSupplier={onAddSupplier}
+                    required
+                    label="Nhà cung cấp"
+                  />
                 </div>
 
                 <div>
@@ -520,7 +569,12 @@ export function POList({
                   </label>
                   <select
                     className="payment-input"
-                    style={{ width: "100%" }}
+                    style={{
+                      width: "100%",
+                      borderColor: selectedPR ? "#0284c7" : "#cbd5e1",
+                      background: selectedPR ? "#f0f9ff" : "#fff",
+                      fontWeight: selectedPR ? 600 : 400,
+                    }}
                     value={draftPrId}
                     onChange={(e) => handleSelectPR(e.target.value)}
                   >
@@ -528,11 +582,69 @@ export function POList({
                     {prs.map((pr) => (
                       <option key={pr.id} value={pr.id}>
                         {pr.number} - {pr.department || "PR"} (
-                        {pr.items?.length || 0} mục)
+                        {pr.items?.length || 0} mặt hàng)
                       </option>
                     ))}
                   </select>
                 </div>
+
+                {selectedPR && (
+                  <div
+                    style={{
+                      gridColumn: "1 / -1",
+                      background: "#f0fdf4",
+                      border: "1px solid #bbf7d0",
+                      borderRadius: "6px",
+                      padding: "8px 12px",
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      flexWrap: "wrap",
+                      gap: "8px",
+                      fontSize: "12px",
+                    }}
+                  >
+                    <div>
+                      <span style={{ fontWeight: 600, color: "#166534" }}>
+                        🔗 Đã liên kết với {selectedPR.number} ({selectedPR.department || "PR"}):
+                      </span>{" "}
+                      <span style={{ color: "#334155" }}>
+                        Danh sách chọn mặt hàng bên dưới sẽ lọc theo {selectedPR.items?.length || 0} mặt hàng của PR này
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      className="payment-btn"
+                      style={{
+                        padding: "3px 8px",
+                        fontSize: "11px",
+                        background: "#fff",
+                        color: "#166534",
+                        borderColor: "#86efac",
+                        fontWeight: 600,
+                      }}
+                      onClick={() => {
+                        if (selectedPR.items && selectedPR.items.length > 0) {
+                          setDraftItems(
+                            selectedPR.items.map((it, idx) => ({
+                              id: makeId(),
+                              code: it.code || `VT-${String(idx + 1).padStart(2, "0")}`,
+                              category: it.category || "Vật tư",
+                              name: it.name,
+                              desc: it.desc || "",
+                              spec: it.spec || "",
+                              unit: it.unit || "Cái",
+                              qty: it.qty || 1,
+                              price: it.estimate || 0,
+                            }))
+                          );
+                        }
+                      }}
+                    >
+                      📥 Nạp nhanh toàn bộ {selectedPR.items?.length || 0} mặt hàng từ PR
+                    </button>
+                  </div>
+                )}
 
                 <div>
                   <label
@@ -611,46 +723,114 @@ export function POList({
                     gap: 8,
                   }}
                 >
-                  <h4 style={{ margin: 0, fontSize: 14, color: "#1e293b" }}>
-                    Danh sách mặt hàng ({draftItems.length})
-                  </h4>
-                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                    {products && products.length > 0 && (
+                  <div>
+                    <h4 style={{ margin: 0, fontSize: 14, color: "#1e293b" }}>
+                      Danh sách mặt hàng ({draftItems.length})
+                    </h4>
+                    {selectedPR && (
+                      <span style={{ fontSize: 11.5, color: "#0369a1", fontWeight: 600 }}>
+                        (Chỉ hiển thị mặt hàng & số lượng thuộc PR #{selectedPR.number})
+                      </span>
+                    )}
+                  </div>
+
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+                    {selectedPR ? (
+                      /* PR items dropdown: ONLY shows items and quantities from chosen PR */
                       <select
                         className="payment-input"
-                        style={{ fontSize: 12, maxWidth: 220 }}
+                        style={{
+                          fontSize: 12,
+                          maxWidth: 320,
+                          borderColor: "#0284c7",
+                          background: "#f0f9ff",
+                          fontWeight: 600,
+                        }}
                         value=""
                         onChange={(e) => {
-                          const prodId = Number(e.target.value);
-                          const prod = products.find((p) => p.id === prodId);
-                          if (prod) {
+                          const itemId = Number(e.target.value);
+                          const it = selectedPR.items?.find((p) => p.id === itemId);
+                          if (it) {
                             setDraftItems((prev) => [
-                              ...prev,
+                              ...prev.filter((x) => x.name.trim() !== ""),
                               {
                                 id: makeId(),
-                                code:
-                                  prod.code ||
-                                  `VT-${String(prev.length + 1).padStart(2, "0")}`,
-                                category: prod.category || "Hàng hóa",
-                                name: prod.name,
-                                desc: prod.desc || "",
-                                spec: prod.spec || "",
-                                unit: prod.unit || "Cái",
-                                qty: 1,
-                                price: prod.estimate || 0,
+                                code: it.code || `VT-${String(prev.length + 1).padStart(2, "0")}`,
+                                category: it.category || "Hàng hóa",
+                                name: it.name,
+                                desc: it.desc || "",
+                                spec: it.spec || "",
+                                unit: it.unit || "Cái",
+                                qty: it.qty || 1,
+                                price: it.estimate || 0,
                               },
                             ]);
                           }
                         }}
                       >
-                        <option value="">＋ Thêm từ danh mục vật tư...</option>
-                        {products.map((p) => (
-                          <option key={p.id} value={p.id}>
-                            {p.code} - {p.name} ({p.unit})
-                          </option>
-                        ))}
+                        <option value="">
+                          📦 Chọn mặt hàng từ PR #{selectedPR.number} ({selectedPR.items?.length || 0} mục)...
+                        </option>
+                        {selectedPR.items?.map((it) => {
+                          const isAlready = draftItems.some(
+                            (di) => normName(di.name) === normName(it.name)
+                          );
+                          return (
+                            <option key={it.id} value={it.id}>
+                              {it.name} — SL: {it.qty} {it.unit} {it.spec ? `(${it.spec})` : ""}{" "}
+                              {isAlready ? "✓ (Đã thêm)" : ""}
+                            </option>
+                          );
+                        })}
                       </select>
+                    ) : (
+                      /* When NO PR selected: Search & add from products catalog or add new product */
+                      <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                        <input
+                          type="text"
+                          className="payment-input"
+                          style={{ fontSize: 12, width: 220 }}
+                          placeholder="Gõ tìm hoặc thêm sản phẩm..."
+                          value={customProductInput}
+                          list="po-global-products-list"
+                          onChange={(e) => setCustomProductInput(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" && customProductInput.trim()) {
+                              e.preventDefault();
+                              handleAddCustomProduct(customProductInput.trim());
+                            }
+                          }}
+                        />
+                        <datalist id="po-global-products-list">
+                          {products.map((p) => (
+                            <option key={p.id} value={p.name}>
+                              {p.code} - {p.unit} ({p.estimate} ₫)
+                            </option>
+                          ))}
+                        </datalist>
+                        <button
+                          type="button"
+                          className="payment-btn"
+                          style={{
+                            fontSize: 11,
+                            padding: "4px 8px",
+                            background: "#f0fdf4",
+                            color: "#166534",
+                            borderColor: "#bbf7d0",
+                            fontWeight: 600,
+                          }}
+                          onClick={() => {
+                            if (customProductInput.trim()) {
+                              handleAddCustomProduct(customProductInput.trim());
+                            }
+                          }}
+                          title="Thêm mặt hàng này vào danh sách đơn hàng"
+                        >
+                          ＋ Thêm
+                        </button>
+                      </div>
                     )}
+
                     <button
                       type="button"
                       className="payment-btn"
@@ -787,17 +967,77 @@ export function POList({
                                 required
                                 className="payment-input"
                                 style={{ width: "100%" }}
+                                list={`po-item-datalist-${idx}`}
                                 value={item.name}
                                 onChange={(e) => {
                                   const val = e.target.value;
+                                  if (selectedPR) {
+                                    const matched = selectedPR.items?.find(
+                                      (x) => normName(x.name) === normName(val)
+                                    );
+                                    if (matched) {
+                                      setDraftItems((prev) =>
+                                        prev.map((it, i) =>
+                                          i === idx
+                                            ? {
+                                                ...it,
+                                                name: matched.name,
+                                                spec: matched.spec || it.spec,
+                                                unit: matched.unit || it.unit,
+                                                qty: matched.qty || it.qty,
+                                                price: matched.estimate || it.price,
+                                              }
+                                            : it
+                                        )
+                                      );
+                                      return;
+                                    }
+                                  } else {
+                                    const matched = products?.find(
+                                      (p) => normName(p.name) === normName(val)
+                                    );
+                                    if (matched) {
+                                      setDraftItems((prev) =>
+                                        prev.map((it, i) =>
+                                          i === idx
+                                            ? {
+                                                ...it,
+                                                name: matched.name,
+                                                spec: matched.spec || it.spec,
+                                                unit: matched.unit || it.unit,
+                                                price: matched.estimate || it.price,
+                                              }
+                                            : it
+                                        )
+                                      );
+                                      return;
+                                    }
+                                  }
                                   setDraftItems((prev) =>
                                     prev.map((it, i) =>
                                       i === idx ? { ...it, name: val } : it
                                     )
                                   );
                                 }}
-                                placeholder="Nhập tên mặt hàng..."
+                                placeholder={
+                                  selectedPR
+                                    ? "Chọn hoặc gõ tên hàng trong PR..."
+                                    : "Nhập hoặc chọn tên hàng..."
+                                }
                               />
+                              <datalist id={`po-item-datalist-${idx}`}>
+                                {selectedPR
+                                  ? selectedPR.items?.map((it) => (
+                                      <option key={it.id} value={it.name}>
+                                        SL: {it.qty} {it.unit} {it.spec ? `(${it.spec})` : ""}
+                                      </option>
+                                    ))
+                                  : products.map((p) => (
+                                      <option key={p.id} value={p.name}>
+                                        {p.code} - {p.unit}
+                                      </option>
+                                    ))}
+                              </datalist>
                             </td>
                             <td style={{ padding: "4px" }}>
                               <input

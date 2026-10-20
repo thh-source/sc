@@ -9,6 +9,8 @@ import {
   PaymentGroup,
   PaymentPrintTemplate,
   PaymentDetailLine,
+  Item,
+  PR,
 } from "../types";
 import { dateVN } from "../utils";
 import {
@@ -18,6 +20,7 @@ import {
   PAYMENT_TYPES,
   DEFAULT_DOCS,
   fmtMoney,
+  parseMoney,
   moneyWords,
   normName,
   localToday,
@@ -33,12 +36,129 @@ export const isPOContract = (p: PO): boolean =>
   Boolean(p.contractNote && p.contractNote.trim().length > 0) ||
   Boolean(p.prNumber && p.prNumber.toLowerCase().includes("hợp đồng"));
 
+export interface MoneyInputProps
+  extends Omit<React.InputHTMLAttributes<HTMLInputElement>, "onChange"> {
+  value: number | string;
+  onValueChange: (val: number) => void;
+}
+
+export function MoneyInput({
+  value,
+  onValueChange,
+  className,
+  style,
+  placeholder = "0",
+  ...rest
+}: MoneyInputProps) {
+  const [isFocused, setIsFocused] = useState(false);
+  const [localStr, setLocalStr] = useState<string>("");
+
+  useEffect(() => {
+    if (!isFocused) {
+      const n = parseMoney(value);
+      setLocalStr(n === 0 ? "" : n.toLocaleString("en-US"));
+    }
+  }, [value, isFocused]);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const raw = e.target.value;
+    const cleanDigits = raw.replace(/\D/g, "");
+    if (!cleanDigits) {
+      setLocalStr("");
+      onValueChange(0);
+      return;
+    }
+    const num = parseInt(cleanDigits, 10) || 0;
+    setLocalStr(num.toLocaleString("en-US"));
+    onValueChange(num);
+  };
+
+  return (
+    <input
+      type="text"
+      inputMode="numeric"
+      className={className}
+      style={style}
+      placeholder={placeholder}
+      value={
+        isFocused
+          ? localStr
+          : parseMoney(value) === 0
+          ? ""
+          : parseMoney(value).toLocaleString("en-US")
+      }
+      onFocus={(e) => {
+        setIsFocused(true);
+        const n = parseMoney(value);
+        setLocalStr(n === 0 ? "" : n.toLocaleString("en-US"));
+        e.target.select();
+      }}
+      onBlur={() => {
+        setIsFocused(false);
+      }}
+      onChange={handleChange}
+      {...rest}
+    />
+  );
+}
+
+export type ColumnId =
+  | "stt"
+  | "payee_name"
+  | "group_code"
+  | "description"
+  | "item_name"
+  | "invoice_no"
+  | "invoice_date"
+  | "amount"
+  | "currency"
+  | "documents"
+  | "request_date"
+  | "payment_type"
+  | "status"
+  | "doc_supplement"
+  | "address"
+  | "account_no"
+  | "bank"
+  | "created_by_name";
+
+export interface ColumnSetting {
+  id: ColumnId;
+  label: string;
+  minWidth: number;
+  visible: boolean;
+  pinned: boolean;
+}
+
+export const DEFAULT_COLUMN_SETTINGS: ColumnSetting[] = [
+  { id: "stt", label: "A · STT", minWidth: 55, visible: false, pinned: false },
+  { id: "payee_name", label: "B · NCC", minWidth: 180, visible: true, pinned: true },
+  { id: "group_code", label: "C · Nhóm PO", minWidth: 140, visible: true, pinned: false },
+  { id: "description", label: "D · Nội dung TT", minWidth: 220, visible: true, pinned: false },
+  { id: "item_name", label: "E · Hàng hóa/DV", minWidth: 180, visible: true, pinned: false },
+  { id: "invoice_no", label: "F · Số HĐ", minWidth: 130, visible: true, pinned: false },
+  { id: "invoice_date", label: "Ngày HĐ", minWidth: 125, visible: true, pinned: false },
+  { id: "amount", label: "G · Số tiền", minWidth: 130, visible: true, pinned: false },
+  { id: "currency", label: "Tiền tệ", minWidth: 75, visible: true, pinned: false },
+  { id: "documents", label: "H · Hồ sơ", minWidth: 130, visible: true, pinned: false },
+  { id: "request_date", label: "I · Ngày ĐNTT", minWidth: 125, visible: true, pinned: false },
+  { id: "payment_type", label: "J · Loại TT", minWidth: 125, visible: true, pinned: false },
+  { id: "status", label: "K · Trạng thái", minWidth: 155, visible: true, pinned: false },
+  { id: "doc_supplement", label: "L · Bổ sung HS", minWidth: 135, visible: true, pinned: false },
+  { id: "address", label: "M · Địa chỉ", minWidth: 160, visible: true, pinned: false },
+  { id: "account_no", label: "N · Số TK", minWidth: 130, visible: true, pinned: false },
+  { id: "bank", label: "O · Ngân hàng", minWidth: 160, visible: true, pinned: false },
+  { id: "created_by_name", label: "Người tạo", minWidth: 110, visible: true, pinned: false },
+];
+
 export interface PaymentManagementProps {
   paymentRequests?: PaymentRequestEntry[];
   paymentGroups?: PaymentGroup[];
   paymentTemplate?: PaymentPrintTemplate;
   pos?: PO[];
   suppliers?: Supplier[];
+  products?: Item[];
+  prs?: PR[];
   onUpdateState: (patch: {
     paymentRequests?: PaymentRequestEntry[];
     paymentGroups?: PaymentGroup[];
@@ -53,6 +173,8 @@ export function PaymentManagement({
   paymentTemplate = DEFAULT_PAYMENT_TEMPLATE,
   pos = [],
   suppliers = [],
+  products = [],
+  prs = [],
   onUpdateState,
   readOnly = false,
 }: PaymentManagementProps) {
@@ -66,6 +188,37 @@ export function PaymentManagement({
   // Card view Edit modal state (allows editing on computer in card mode)
   const [editModalReqId, setEditModalReqId] = useState<number | null>(null);
 
+  // Multi-invoice manager modal state
+  const [multiInvoiceModalReqId, setMultiInvoiceModalReqId] = useState<number | null>(null);
+
+  // Column settings modal & persisted column order
+  const [showColumnConfigModal, setShowColumnConfigModal] = useState(false);
+  const [columns, setColumns] = useState<ColumnSetting[]>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const saved = localStorage.getItem("scmh_payment_columns_v3");
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            const existingIds = new Set(parsed.map((p: any) => p.id));
+            const missing = DEFAULT_COLUMN_SETTINGS.filter((d) => !existingIds.has(d.id));
+            return [...parsed, ...missing];
+          }
+        }
+      } catch {}
+    }
+    return DEFAULT_COLUMN_SETTINGS;
+  });
+
+  const saveColumns = (newCols: ColumnSetting[]) => {
+    setColumns(newCols);
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.setItem("scmh_payment_columns_v3", JSON.stringify(newCols));
+      } catch {}
+    }
+  };
+
   // Selection states
   const [checkedIds, setCheckedIds] = useState<Set<number>>(new Set());
   const [activeRequestId, setActiveRequestId] = useState<number | null>(
@@ -76,7 +229,6 @@ export function PaymentManagement({
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [groupFilter, setGroupFilter] = useState("");
-  const [freezeCol, setFreezeCol] = useState(2); // 2: STT, 3: NCC, 4: Group, 7: InvoiceNo, 8: InvoiceDate, 0: None
   const [isWorkspaceExpanded, setIsWorkspaceExpanded] = useState(false);
 
   // Modals state
@@ -248,19 +400,27 @@ export function PaymentManagement({
 
   const itemSuggestions = useMemo(() => {
     const set = new Set<string>();
+    (products || []).forEach((p) => {
+      if (p.name?.trim()) set.add(p.name.trim());
+    });
+    (prs || []).forEach((pr) => {
+      (pr.items || []).forEach((it) => {
+        if (it.name?.trim()) set.add(it.name.trim());
+      });
+    });
+    (pos || []).forEach((p) => {
+      (p.items || []).forEach((it) => {
+        if (it.name?.trim()) set.add(it.name.trim());
+      });
+    });
     paymentRequests.forEach((r) => {
       if (r.item_name?.trim()) set.add(r.item_name.trim());
       (r.lines || []).forEach((l) => {
         if (l.description?.trim()) set.add(l.description.trim());
       });
     });
-    (pos || []).forEach((p) => {
-      (p.items || []).forEach((it) => {
-        if (it.item?.name?.trim()) set.add(it.item.name.trim());
-      });
-    });
     return Array.from(set).filter(Boolean);
-  }, [paymentRequests, pos]);
+  }, [products, prs, pos, paymentRequests]);
 
   const descSuggestions = useMemo(() => {
     const defaults = [
@@ -398,7 +558,14 @@ export function PaymentManagement({
       account_no: "",
       bank: "",
       created_by_name: paymentTemplate.default_requester_name || "Trần Hải Hà",
-      lines: [],
+      lines: [
+        {
+          description: "",
+          invoice_no: "",
+          invoice_date: "",
+          amount: 0,
+        },
+      ],
     };
     const next = [newReq, ...paymentRequests];
     onUpdateState({ paymentRequests: next });
@@ -821,6 +988,341 @@ export function PaymentManagement({
     }, 150);
   };
 
+  const visibleCols = useMemo(() => columns.filter((c) => c.visible), [columns]);
+
+  const { stickyLeftMap, lastPinnedId } = useMemo(() => {
+    const map: Record<string, number> = {};
+    let currentLeft = 48; // First column (checkbox + print) is 48px
+    let lastId: string | null = null;
+
+    visibleCols.forEach((col) => {
+      if (col.pinned) {
+        map[col.id] = currentLeft;
+        currentLeft += col.minWidth;
+        lastId = col.id;
+      }
+    });
+
+    return { stickyLeftMap: map, lastPinnedId: lastId };
+  }, [visibleCols]);
+
+  const renderTableCellContent = (colId: ColumnId, r: PaymentRequestEntry) => {
+    switch (colId) {
+      case "stt":
+        return (
+          <button
+            type="button"
+            className="payment-btn"
+            style={{ width: "100%", padding: "2px 4px", fontSize: "11px", background: "transparent", border: "none", cursor: "pointer" }}
+            onClick={() => setActiveRequestId(r.id)}
+            title="Bấm để kích hoạt dòng"
+          >
+            {r.legacy_stt || r.id}
+          </button>
+        );
+      case "payee_name":
+        return (
+          <input
+            className="cell-editor"
+            list="nccDataList"
+            value={r.payee_name || ""}
+            onChange={(e) => handleEditRequest(r.id, "payee_name", e.target.value)}
+            placeholder="Chọn hoặc nhập NCC..."
+          />
+        );
+      case "group_code":
+        return (
+          <input
+            className="cell-editor"
+            list="groupDataList"
+            value={r.group_code || ""}
+            onChange={(e) => handleEditRequest(r.id, "group_code", e.target.value)}
+            placeholder="Mã nhóm / PO..."
+          />
+        );
+      case "description":
+        return (
+          <input
+            className="cell-editor"
+            list="descDataList"
+            value={r.description || ""}
+            onChange={(e) => handleEditRequest(r.id, "description", e.target.value)}
+            placeholder="Nội dung chuyển tiền..."
+          />
+        );
+      case "item_name":
+        return (
+          <input
+            className="cell-editor"
+            list="itemDataList"
+            value={r.item_name || ""}
+            onChange={(e) => {
+              const val = e.target.value;
+              handleEditRequest(r.id, "item_name", val);
+              if (r.lines && r.lines.length > 0) {
+                const nextLines = [...r.lines];
+                nextLines[0] = { ...nextLines[0], description: val };
+                handleEditRequest(r.id, "lines", nextLines);
+              }
+            }}
+            placeholder="Tên hàng hóa / dịch vụ..."
+          />
+        );
+      case "invoice_no": {
+        const lineCount = r.lines?.length || 0;
+        return (
+          <div style={{ display: "flex", alignItems: "center", width: "100%", height: "100%", gap: "2px" }}>
+            {lineCount > 1 ? (
+              <button
+                type="button"
+                className="payment-btn"
+                style={{
+                  padding: "2px 5px",
+                  fontSize: "11px",
+                  background: "#f0fdf4",
+                  color: "#166534",
+                  borderColor: "#bbf7d0",
+                  fontWeight: 600,
+                  whiteSpace: "nowrap",
+                  lineHeight: 1.2,
+                }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setMultiInvoiceModalReqId(r.id);
+                }}
+                title="Bấm để xem và sửa chi tiết các hóa đơn"
+              >
+                📑 {lineCount} HĐ
+              </button>
+            ) : null}
+            <input
+              className="cell-editor"
+              list="invoiceDataList"
+              value={r.invoice_no || ""}
+              onChange={(e) => {
+                const val = e.target.value;
+                handleEditRequest(r.id, "invoice_no", val);
+                if (r.lines && r.lines.length === 1) {
+                  const nextLines = [...r.lines];
+                  nextLines[0] = { ...nextLines[0], invoice_no: val };
+                  handleEditRequest(r.id, "lines", nextLines);
+                }
+              }}
+              placeholder="Số HĐ..."
+              style={{ flex: 1 }}
+            />
+            {lineCount <= 1 && (
+              <button
+                type="button"
+                className="cell-date-btn"
+                style={{ padding: "0 4px", fontSize: "11px", opacity: 0.7 }}
+                title="Thêm nhiều hóa đơn cho đề nghị này"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setMultiInvoiceModalReqId(r.id);
+                }}
+              >
+                ＋
+              </button>
+            )}
+          </div>
+        );
+      }
+      case "invoice_date":
+        return (
+          <div className="cell-date-wrap">
+            <input
+              className="cell-editor"
+              value={r.invoice_date || ""}
+              placeholder="dd/mm/yyyy"
+              onChange={(e) => {
+                const val = e.target.value;
+                handleEditRequest(r.id, "invoice_date", val);
+                if (r.lines && r.lines.length === 1) {
+                  const nextLines = [...r.lines];
+                  nextLines[0] = { ...nextLines[0], invoice_date: val };
+                  handleEditRequest(r.id, "lines", nextLines);
+                }
+              }}
+              onBlur={(e) => {
+                const parsed = parseFlexibleDate(e.target.value);
+                if (parsed !== e.target.value) {
+                  handleEditRequest(r.id, "invoice_date", parsed);
+                  if (r.lines && r.lines.length === 1) {
+                    const nextLines = [...r.lines];
+                    nextLines[0] = { ...nextLines[0], invoice_date: parsed };
+                    handleEditRequest(r.id, "lines", nextLines);
+                  }
+                }
+              }}
+            />
+            <button
+              type="button"
+              className="cell-date-btn"
+              title="Chọn ngày từ lịch"
+              onClick={() =>
+                openCalendar(r.invoice_date || "", (val) => {
+                  handleEditRequest(r.id, "invoice_date", val);
+                  if (r.lines && r.lines.length === 1) {
+                    const nextLines = [...r.lines];
+                    nextLines[0] = { ...nextLines[0], invoice_date: val };
+                    handleEditRequest(r.id, "lines", nextLines);
+                  }
+                })
+              }
+            >
+              📅
+            </button>
+          </div>
+        );
+      case "amount":
+        return (
+          <MoneyInput
+            className="cell-editor"
+            style={{ textAlign: "right", fontWeight: 600 }}
+            value={r.amount}
+            onValueChange={(val) => {
+              handleEditRequest(r.id, "amount", val);
+              if (r.lines && r.lines.length === 1) {
+                const nextLines = [...r.lines];
+                nextLines[0] = { ...nextLines[0], amount: val };
+                handleEditRequest(r.id, "lines", nextLines);
+              }
+            }}
+          />
+        );
+      case "currency":
+        return (
+          <select
+            className="cell-editor"
+            value={r.currency || "VND"}
+            onChange={(e) => handleEditRequest(r.id, "currency", e.target.value)}
+          >
+            <option value="VND">VND</option>
+            <option value="USD">USD</option>
+            <option value="EUR">EUR</option>
+          </select>
+        );
+      case "documents":
+        return (
+          <button
+            type="button"
+            className="doc-pill-btn"
+            onClick={() => setDocModalReqId(r.id)}
+            title={(r.documents || []).join(", ") || "Chọn hồ sơ..."}
+          >
+            📎 {(r.documents || []).length} hồ sơ ▾
+          </button>
+        );
+      case "request_date":
+        return (
+          <div className="cell-date-wrap">
+            <input
+              className="cell-editor"
+              value={r.request_date || ""}
+              placeholder="dd/mm/yyyy"
+              onChange={(e) => handleEditRequest(r.id, "request_date", e.target.value)}
+              onBlur={(e) => {
+                const parsed = parseFlexibleDate(e.target.value);
+                if (parsed !== e.target.value) {
+                  handleEditRequest(r.id, "request_date", parsed);
+                }
+              }}
+            />
+            <button
+              type="button"
+              className="cell-date-btn"
+              title="Chọn ngày từ lịch"
+              onClick={() =>
+                openCalendar(r.request_date || "", (val) =>
+                  handleEditRequest(r.id, "request_date", val)
+                )
+              }
+            >
+              📅
+            </button>
+          </div>
+        );
+      case "payment_type":
+        return (
+          <select
+            className="cell-editor"
+            value={r.payment_type || "TT trước 100%"}
+            onChange={(e) => handleEditRequest(r.id, "payment_type", e.target.value)}
+          >
+            {PAYMENT_TYPES.map((pt) => (
+              <option key={pt} value={pt}>
+                {pt}
+              </option>
+            ))}
+          </select>
+        );
+      case "status":
+        return (
+          <select
+            className="cell-editor"
+            value={r.status || "Đã giao KT, chờ đi tiền"}
+            onChange={(e) => handleEditRequest(r.id, "status", e.target.value)}
+          >
+            {PAYMENT_STATUSES.map((st) => (
+              <option key={st} value={st}>
+                {st}
+              </option>
+            ))}
+          </select>
+        );
+      case "doc_supplement":
+        return (
+          <input
+            className="cell-editor"
+            list="docSupplementDataList"
+            value={r.doc_supplement || ""}
+            onChange={(e) => handleEditRequest(r.id, "doc_supplement", e.target.value)}
+            placeholder="Ghi chú hồ sơ..."
+          />
+        );
+      case "address":
+        return (
+          <input
+            className="cell-editor"
+            value={r.address || ""}
+            onChange={(e) => handleEditRequest(r.id, "address", e.target.value)}
+            placeholder="Địa chỉ NCC..."
+          />
+        );
+      case "account_no":
+        return (
+          <input
+            className="cell-editor"
+            value={r.account_no || ""}
+            onChange={(e) => handleEditRequest(r.id, "account_no", e.target.value)}
+            placeholder="Số tài khoản..."
+          />
+        );
+      case "bank":
+        return (
+          <input
+            className="cell-editor"
+            list="bankDataList"
+            value={r.bank || ""}
+            onChange={(e) => handleEditRequest(r.id, "bank", e.target.value)}
+            placeholder="Ngân hàng..."
+          />
+        );
+      case "created_by_name":
+        return (
+          <input
+            className="cell-editor"
+            list="requesterDataList"
+            value={r.created_by_name || ""}
+            onChange={(e) => handleEditRequest(r.id, "created_by_name", e.target.value)}
+            placeholder="Người tạo..."
+          />
+        );
+      default:
+        return null;
+    }
+  };
 
   return (
     <section className={`content payment-management ${isWorkspaceExpanded ? "workspace-expanded" : ""}`}>
@@ -956,41 +1458,23 @@ export function PaymentManagement({
         </select>
 
         {!isPhoneScreen && !isCardView && (
-          <div
+          <button
+            type="button"
+            className="payment-btn"
+            onClick={() => setShowColumnConfigModal(true)}
+            title="Tùy chỉnh thứ tự các cột, ẩn hiện cột và chọn các cột cần cố định"
             style={{
+              background: "#f0f4f9",
+              borderColor: "#cbd5e1",
+              fontWeight: 600,
+              color: "#1e3a5f",
               display: "inline-flex",
               alignItems: "center",
               gap: "5px",
-              fontSize: "12px",
-              color: "#1e3a5f",
-              fontWeight: 600,
-              background: "#f0f4f9",
-              padding: "3px 8px",
-              borderRadius: "6px",
-              border: "1px solid #cbd5e1",
             }}
           >
-            <span>📌 Cố định:</span>
-            <select
-              value={freezeCol}
-              onChange={(e) => setFreezeCol(Number(e.target.value))}
-              style={{
-                padding: "3px 6px",
-                borderRadius: "5px",
-                border: "1px solid #cbd5e1",
-                fontSize: "12px",
-                background: "#fff",
-                cursor: "pointer",
-              }}
-            >
-              <option value="2">Cột STT (Mặc định)</option>
-              <option value="3">Đến NCC (Cột B)</option>
-              <option value="4">Đến Nhóm PO (Cột C)</option>
-              <option value="7">Đến Số HĐ (Cột F)</option>
-              <option value="8">Đến Ngày HĐ</option>
-              <option value="0">Không cố định cột</option>
-            </select>
-          </div>
+            <span>⚙️ Cột hiển thị ({columns.filter((c) => c.visible).length}/{columns.length})</span>
+          </button>
         )}
 
         {!isPhoneScreen && (
@@ -1285,426 +1769,171 @@ export function PaymentManagement({
             <table className="payment-grid">
               <thead>
                 <tr>
-                  <th style={{ width: "36px", textAlign: "center" }}>
-                    <input
-                      type="checkbox"
-                      checked={
-                        filteredRequests.length > 0 &&
-                        filteredRequests.every((r) => checkedIds.has(r.id))
-                      }
-                      onChange={(e) => {
-                        if (e.target.checked) {
-                          setCheckedIds(new Set(filteredRequests.map((r) => r.id)));
-                        } else {
-                          setCheckedIds(new Set());
+                  <th
+                    style={{
+                      width: "48px",
+                      minWidth: "48px",
+                      textAlign: "center",
+                      position: "sticky",
+                      left: 0,
+                      zIndex: 15,
+                      background: "#f1f5f9",
+                      padding: "6px 2px",
+                    }}
+                  >
+                    <div style={{ display: "inline-flex", alignItems: "center", gap: "3px", justifyContent: "center" }}>
+                      <input
+                        type="checkbox"
+                        style={{ margin: 0, cursor: "pointer" }}
+                        checked={
+                          filteredRequests.length > 0 &&
+                          filteredRequests.every((r) => checkedIds.has(r.id))
                         }
-                      }}
-                    />
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setCheckedIds(new Set(filteredRequests.map((r) => r.id)));
+                          } else {
+                            setCheckedIds(new Set());
+                          }
+                        }}
+                      />
+                      <span style={{ fontSize: "10px", color: "#64748b", fontWeight: 700 }}>In</span>
+                    </div>
                   </th>
-                  <th
-                    style={{ width: "55px", textAlign: "center" }}
-                    className={freezeCol >= 2 ? "pcol-frozen pcol-rownum" : ""}
-                  >
-                    A · STT
-                  </th>
-                  <th
-                    style={{ minWidth: "180px" }}
-                    className={
-                      freezeCol >= 3
-                        ? `pcol-frozen ${freezeCol === 3 ? "pcol-frozen-last" : ""}`
-                        : ""
+
+                  {visibleCols.map((col) => {
+                    const isPinned = col.pinned;
+                    const leftPx = stickyLeftMap[col.id];
+                    const isLastPinned = col.id === lastPinnedId;
+
+                    const style: React.CSSProperties = {
+                      minWidth: `${col.minWidth}px`,
+                      width: `${col.minWidth}px`,
+                      textAlign: col.id === "amount" ? "right" : col.id === "stt" ? "center" : "left",
+                      whiteSpace: "nowrap",
+                    };
+
+                    if (isPinned && leftPx !== undefined) {
+                      style.position = "sticky";
+                      style.left = `${leftPx}px`;
+                      style.zIndex = 15;
+                      style.background = "#f1f5f9";
+                      if (isLastPinned) {
+                        style.borderRight = "2.5px solid #0284c7";
+                        style.boxShadow = "3px 0 6px -2px rgba(0,0,0,0.12)";
+                      }
                     }
-                  >
-                    B · NCC
+
+                    return (
+                      <th key={col.id} style={style}>
+                        <div
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: col.id === "amount" ? "flex-end" : col.id === "stt" ? "center" : "space-between",
+                            gap: "4px",
+                          }}
+                        >
+                          <span>{col.label}</span>
+                          {isPinned && (
+                            <span title="Cột này đang được cố định" style={{ fontSize: "10.5px", color: "#0284c7" }}>
+                              📌
+                            </span>
+                          )}
+                        </div>
+                      </th>
+                    );
+                  })}
+
+                  <th style={{ width: "40px", minWidth: "40px", textAlign: "center", padding: "6px 2px" }}>
+                    Xóa
                   </th>
-                  <th
-                    style={{ minWidth: "150px" }}
-                    className={
-                      freezeCol >= 4
-                        ? `pcol-frozen ${freezeCol === 4 ? "pcol-frozen-last" : ""}`
-                        : ""
-                    }
-                  >
-                    C · Nhóm PO
-                  </th>
-                  <th style={{ minWidth: "230px" }}>D · Nội dung TT</th>
-                  <th style={{ minWidth: "180px" }}>E · Hàng hóa/DV</th>
-                  <th
-                    style={{ minWidth: "120px" }}
-                    className={
-                      freezeCol >= 7
-                        ? `pcol-frozen ${freezeCol === 7 ? "pcol-frozen-last" : ""}`
-                        : ""
-                    }
-                  >
-                    F · Số HĐ
-                  </th>
-                  <th
-                    style={{ minWidth: "125px" }}
-                    className={
-                      freezeCol >= 8
-                        ? `pcol-frozen ${freezeCol === 8 ? "pcol-frozen-last" : ""}`
-                        : ""
-                    }
-                  >
-                    Ngày HĐ
-                  </th>
-                  <th style={{ minWidth: "130px", textAlign: "right" }}>G · Số tiền</th>
-                  <th style={{ minWidth: "80px" }}>Tiền tệ</th>
-                  <th style={{ minWidth: "140px" }}>H · Hồ sơ</th>
-                  <th style={{ minWidth: "130px" }}>I · Ngày ĐNTT</th>
-                  <th style={{ minWidth: "125px" }}>J · Loại TT</th>
-                  <th style={{ minWidth: "160px" }}>K · Trạng thái</th>
-                  <th style={{ minWidth: "140px" }}>L · Bổ sung HS</th>
-                  <th style={{ minWidth: "170px" }}>M · Địa chỉ</th>
-                  <th style={{ minWidth: "130px" }}>N · Số TK</th>
-                  <th style={{ minWidth: "160px" }}>O · Ngân hàng</th>
-                  <th style={{ minWidth: "110px" }}>Người tạo</th>
-                  <th style={{ width: "80px", textAlign: "center" }}>In/Xóa</th>
                 </tr>
               </thead>
               <tbody onKeyDown={handleTableKeyDown} onPaste={handlePaymentTablePaste}>
                 {filteredRequests.map((r) => {
                   const isChosen = activeRequestId === r.id;
                   const isDone = PAID_STATUSES.includes(r.status);
+                  const bg = isChosen ? "#eff6ff" : isDone ? "#f0fdf4" : "#ffffff";
                   return (
                     <tr
                       key={r.id}
                       className={`${isChosen ? "chosen" : ""} ${isDone ? "row-done" : ""}`}
                       onClick={() => setActiveRequestId(r.id)}
                     >
-                      {/* Checkbox */}
-                      <td style={{ textAlign: "center" }}>
-                        <input
-                          type="checkbox"
-                          checked={checkedIds.has(r.id)}
-                          onChange={(e) => {
-                            const next = new Set(checkedIds);
-                            if (e.target.checked) next.add(r.id);
-                            else next.delete(r.id);
-                            setCheckedIds(next);
-                          }}
-                        />
-                      </td>
-
-                      {/* A · STT */}
+                      {/* Checkbox + In phiếu combined into 1 compact cell */}
                       <td
-                        style={{ textAlign: "center" }}
-                        className={freezeCol >= 2 ? "pcol-frozen pcol-rownum" : ""}
+                        style={{
+                          textAlign: "center",
+                          width: "48px",
+                          minWidth: "48px",
+                          position: "sticky",
+                          left: 0,
+                          zIndex: 8,
+                          background: bg,
+                          padding: "3px 2px",
+                          whiteSpace: "nowrap",
+                        }}
                       >
-                        <button
-                          type="button"
-                          onClick={() => setActiveRequestId(r.id)}
-                          title="Bấm để kích hoạt dòng và xem các hóa đơn chi tiết bên dưới"
-                        >
-                          {r.legacy_stt || r.id}
-                        </button>
-                      </td>
-
-                      {/* B · NCC */}
-                      <td
-                        className={
-                          freezeCol >= 3
-                            ? `pcol-frozen ${freezeCol === 3 ? "pcol-frozen-last" : ""}`
-                            : ""
-                        }
-                      >
-                        <input
-                          className="cell-editor"
-                          list="nccDataList"
-                          value={r.payee_name || ""}
-                          onChange={(e) =>
-                            handleEditRequest(r.id, "payee_name", e.target.value)
-                          }
-                          placeholder="Chọn hoặc nhập NCC..."
-                        />
-                      </td>
-
-                      {/* C · Nhóm PO */}
-                      <td
-                        className={
-                          freezeCol >= 4
-                            ? `pcol-frozen ${freezeCol === 4 ? "pcol-frozen-last" : ""}`
-                            : ""
-                        }
-                      >
-                        <input
-                          className="cell-editor"
-                          list="groupDataList"
-                          value={r.group_code || ""}
-                          onChange={(e) =>
-                            handleEditRequest(r.id, "group_code", e.target.value)
-                          }
-                          placeholder="Mã nhóm / PO..."
-                        />
-                      </td>
-
-                      {/* D · Nội dung TT */}
-                      <td>
-                        <input
-                          className="cell-editor"
-                          list="descDataList"
-                          value={r.description || ""}
-                          onChange={(e) =>
-                            handleEditRequest(r.id, "description", e.target.value)
-                          }
-                          placeholder="Nội dung chuyển tiền..."
-                        />
-                      </td>
-
-                      {/* E · Hàng hóa/DV */}
-                      <td>
-                        <input
-                          className="cell-editor"
-                          list="itemDataList"
-                          value={r.item_name || ""}
-                          onChange={(e) =>
-                            handleEditRequest(r.id, "item_name", e.target.value)
-                          }
-                          placeholder="Tên hàng hóa / dịch vụ..."
-                        />
-                      </td>
-
-                      {/* F · Số HĐ */}
-                      <td
-                        className={
-                          freezeCol >= 7
-                            ? `pcol-frozen ${freezeCol === 7 ? "pcol-frozen-last" : ""}`
-                            : ""
-                        }
-                      >
-                        <input
-                          className="cell-editor"
-                          list="invoiceDataList"
-                          value={r.invoice_no || ""}
-                          onChange={(e) =>
-                            handleEditRequest(r.id, "invoice_no", e.target.value)
-                          }
-                          placeholder="Số HĐ..."
-                        />
-                      </td>
-
-                      {/* Ngày HĐ */}
-                      <td
-                        className={
-                          freezeCol >= 8
-                            ? `pcol-frozen ${freezeCol === 8 ? "pcol-frozen-last" : ""}`
-                            : ""
-                        }
-                      >
-                        <div className="cell-date-wrap">
+                        <div style={{ display: "inline-flex", alignItems: "center", gap: "4px", justifyContent: "center" }}>
                           <input
-                            className="cell-editor"
-                            value={r.invoice_date || ""}
-                            placeholder="dd/mm/yyyy"
-                            onChange={(e) =>
-                              handleEditRequest(r.id, "invoice_date", e.target.value)
-                            }
-                            onBlur={(e) => {
-                              const parsed = parseFlexibleDate(e.target.value);
-                              if (parsed !== e.target.value) {
-                                handleEditRequest(r.id, "invoice_date", parsed);
-                              }
+                            type="checkbox"
+                            style={{ margin: 0, cursor: "pointer" }}
+                            checked={checkedIds.has(r.id)}
+                            onChange={(e) => {
+                              const next = new Set(checkedIds);
+                              if (e.target.checked) next.add(r.id);
+                              else next.delete(r.id);
+                              setCheckedIds(next);
                             }}
                           />
                           <button
                             type="button"
-                            className="cell-date-btn"
-                            title="Chọn ngày từ lịch"
-                            onClick={() =>
-                              openCalendar(r.invoice_date || "", (val) =>
-                                handleEditRequest(r.id, "invoice_date", val)
-                              )
-                            }
-                          >
-                            📅
-                          </button>
-                        </div>
-                      </td>
-
-                      {/* G · Số tiền */}
-                      <td style={{ textAlign: "right" }}>
-                        <input
-                          className="cell-editor"
-                          style={{ textAlign: "right", fontWeight: 600 }}
-                          value={fmtMoney(r.amount)}
-                          onChange={(e) => {
-                            const raw = e.target.value.replace(/,/g, "");
-                            handleEditRequest(r.id, "amount", raw);
-                          }}
-                        />
-                      </td>
-
-                      {/* Tiền tệ */}
-                      <td>
-                        <select
-                          className="cell-editor"
-                          value={r.currency || "VND"}
-                          onChange={(e) =>
-                            handleEditRequest(r.id, "currency", e.target.value)
-                          }
-                        >
-                          <option value="VND">VND</option>
-                          <option value="USD">USD</option>
-                          <option value="EUR">EUR</option>
-                        </select>
-                      </td>
-
-                      {/* H · Hồ sơ */}
-                      <td>
-                        <button
-                          type="button"
-                          className="doc-pill-btn"
-                          onClick={() => setDocModalReqId(r.id)}
-                          title={(r.documents || []).join(", ") || "Chọn hồ sơ..."}
-                        >
-                          📎 {(r.documents || []).length} hồ sơ ▾
-                        </button>
-                      </td>
-
-                      {/* I · Ngày ĐNTT */}
-                      <td>
-                        <div className="cell-date-wrap">
-                          <input
-                            className="cell-editor"
-                            value={r.request_date || ""}
-                            placeholder="dd/mm/yyyy"
-                            onChange={(e) =>
-                              handleEditRequest(r.id, "request_date", e.target.value)
-                            }
-                            onBlur={(e) => {
-                              const parsed = parseFlexibleDate(e.target.value);
-                              if (parsed !== e.target.value) {
-                                handleEditRequest(r.id, "request_date", parsed);
-                              }
+                            className="payment-btn"
+                            style={{ padding: "2px 4px", fontSize: "11px", lineHeight: 1 }}
+                            title="In phiếu này"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handlePrintSingle(r);
                             }}
-                          />
-                          <button
-                            type="button"
-                            className="cell-date-btn"
-                            title="Chọn ngày từ lịch"
-                            onClick={() =>
-                              openCalendar(r.request_date || "", (val) =>
-                                handleEditRequest(r.id, "request_date", val)
-                              )
-                            }
                           >
-                            📅
+                            ⎙
                           </button>
                         </div>
                       </td>
 
-                      {/* J · Loại TT */}
-                      <td>
-                        <select
-                          className="cell-editor"
-                          value={r.payment_type || "TT trước 100%"}
-                          onChange={(e) =>
-                            handleEditRequest(r.id, "payment_type", e.target.value)
-                          }
-                        >
-                          {PAYMENT_TYPES.map((pt) => (
-                            <option key={pt} value={pt}>
-                              {pt}
-                            </option>
-                          ))}
-                        </select>
-                      </td>
+                      {/* Visible configured columns */}
+                      {visibleCols.map((col) => {
+                        const isPinned = col.pinned;
+                        const leftPx = stickyLeftMap[col.id];
+                        const isLastPinned = col.id === lastPinnedId;
 
-                      {/* K · Trạng thái */}
-                      <td>
-                        <select
-                          className="cell-editor"
-                          value={r.status || "Đã giao KT, chờ đi tiền"}
-                          onChange={(e) =>
-                            handleEditRequest(r.id, "status", e.target.value)
-                          }
-                        >
-                          {PAYMENT_STATUSES.map((st) => (
-                            <option key={st} value={st}>
-                              {st}
-                            </option>
-                          ))}
-                        </select>
-                      </td>
+                        const style: React.CSSProperties = {
+                          minWidth: `${col.minWidth}px`,
+                          width: `${col.minWidth}px`,
+                          textAlign: col.id === "amount" ? "right" : col.id === "stt" ? "center" : "left",
+                        };
 
-                      {/* L · Bổ sung HS */}
-                      <td>
-                        <input
-                          className="cell-editor"
-                          list="docSupplementDataList"
-                          value={r.doc_supplement || ""}
-                          onChange={(e) =>
-                            handleEditRequest(r.id, "doc_supplement", e.target.value)
+                        if (isPinned && leftPx !== undefined) {
+                          style.position = "sticky";
+                          style.left = `${leftPx}px`;
+                          style.zIndex = 8;
+                          style.background = bg;
+                          if (isLastPinned) {
+                            style.borderRight = "2.5px solid #0284c7";
+                            style.boxShadow = "3px 0 6px -2px rgba(0,0,0,0.12)";
                           }
-                          placeholder="Ghi chú hồ sơ..."
-                        />
-                      </td>
+                        }
 
-                      {/* M · Địa chỉ */}
-                      <td>
-                        <input
-                          className="cell-editor"
-                          value={r.address || ""}
-                          onChange={(e) =>
-                            handleEditRequest(r.id, "address", e.target.value)
-                          }
-                          placeholder="Địa chỉ NCC..."
-                        />
-                      </td>
+                        return (
+                          <td key={col.id} style={style}>
+                            {renderTableCellContent(col.id, r)}
+                          </td>
+                        );
+                      })}
 
-                      {/* N · Số TK */}
-                      <td>
-                        <input
-                          className="cell-editor"
-                          value={r.account_no || ""}
-                          onChange={(e) =>
-                            handleEditRequest(r.id, "account_no", e.target.value)
-                          }
-                          placeholder="Số tài khoản..."
-                        />
-                      </td>
-
-                      {/* O · Ngân hàng */}
-                      <td>
-                        <input
-                          className="cell-editor"
-                          list="bankDataList"
-                          value={r.bank || ""}
-                          onChange={(e) =>
-                            handleEditRequest(r.id, "bank", e.target.value)
-                          }
-                          placeholder="Ngân hàng..."
-                        />
-                      </td>
-
-                      {/* Người tạo */}
-                      <td>
-                        <input
-                          className="cell-editor"
-                          list="requesterDataList"
-                          value={r.created_by_name || ""}
-                          onChange={(e) =>
-                            handleEditRequest(r.id, "created_by_name", e.target.value)
-                          }
-                          placeholder="Người tạo..."
-                        />
-                      </td>
-
-                      {/* In / Xóa row */}
-                      <td style={{ textAlign: "center", whiteSpace: "nowrap" }}>
-                        <button
-                          type="button"
-                          className="payment-btn"
-                          style={{ padding: "2px 6px", fontSize: "11px", marginRight: "3px" }}
-                          title="In phiếu này"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handlePrintSingle(r);
-                          }}
-                        >
-                          ⎙
-                        </button>
+                      {/* Delete action only */}
+                      <td style={{ textAlign: "center", width: "40px", minWidth: "40px", padding: "2px" }}>
                         <button
                           type="button"
                           className="payment-btn btn-danger"
@@ -1723,7 +1952,7 @@ export function PaymentManagement({
                 })}
                 {filteredRequests.length === 0 && (
                   <tr>
-                    <td colSpan={20} style={{ textAlign: "center", padding: "24px", color: "#64748b" }}>
+                    <td colSpan={visibleCols.length + 2} style={{ textAlign: "center", padding: "24px", color: "#64748b" }}>
                       Không tìm thấy đề nghị thanh toán nào phù hợp
                     </td>
                   </tr>
@@ -1832,7 +2061,7 @@ export function PaymentManagement({
                     📅
                   </button>
                 </div>
-                <input
+                <MoneyInput
                   style={{
                     padding: "6px 8px",
                     border: "1px solid #cbd5e1",
@@ -1841,12 +2070,11 @@ export function PaymentManagement({
                     textAlign: "right",
                     fontWeight: 600,
                   }}
-                  value={fmtMoney(line.amount)}
+                  value={line.amount}
                   placeholder="0"
-                  onChange={(e) => {
-                    const raw = Number(e.target.value.replace(/,/g, "")) || 0;
+                  onValueChange={(val) => {
                     const lines = [...(activeReq.lines || [])];
-                    lines[lIdx] = { ...lines[lIdx], amount: raw };
+                    lines[lIdx] = { ...lines[lIdx], amount: val };
                     const totalAmt = lines.reduce(
                       (sum, it) => sum + (Number(it.amount) || 0),
                       0
@@ -2182,14 +2410,36 @@ export function PaymentManagement({
                       </select>
                     </div>
                     <div className="card-edit-field">
+                      <label>Tên hàng hóa / Dịch vụ chính:</label>
+                      <input
+                        list="itemDataList"
+                        value={editReq.item_name || ""}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          handleEditRequest(editReq.id, "item_name", val);
+                          if (editReq.lines && editReq.lines.length > 0) {
+                            const lines = [...editReq.lines];
+                            lines[0] = { ...lines[0], description: val };
+                            handleEditRequest(editReq.id, "lines", lines);
+                          }
+                        }}
+                        placeholder="Nhập hoặc chọn tên hàng hóa..."
+                        className="card-edit-input"
+                      />
+                    </div>
+                    <div className="card-edit-field">
                       <label>Tổng số tiền:</label>
                       <div style={{ display: "flex", gap: "6px" }}>
-                        <input
-                          value={fmtMoney(editReq.amount)}
+                        <MoneyInput
+                          value={editReq.amount}
                           placeholder="0"
-                          onChange={(e) => {
-                            const raw = e.target.value.replace(/,/g, "");
-                            handleEditRequest(editReq.id, "amount", raw);
+                          onValueChange={(val) => {
+                            handleEditRequest(editReq.id, "amount", val);
+                            if (editReq.lines && editReq.lines.length === 1) {
+                              const lines = [...editReq.lines];
+                              lines[0] = { ...lines[0], amount: val };
+                              handleEditRequest(editReq.id, "lines", lines);
+                            }
                           }}
                           className="card-edit-input"
                           style={{ fontWeight: 700, color: "#0d9488", textAlign: "right" }}
@@ -2330,15 +2580,14 @@ export function PaymentManagement({
                             📅
                           </button>
                         </div>
-                        <input
+                        <MoneyInput
                           className="card-edit-input"
                           style={{ textAlign: "right", fontWeight: 600 }}
-                          value={fmtMoney(line.amount)}
+                          value={line.amount}
                           placeholder="0"
-                          onChange={(e) => {
-                            const raw = Number(e.target.value.replace(/,/g, "")) || 0;
+                          onValueChange={(val) => {
                             const lines = [...(editReq.lines || [])];
-                            lines[lIdx] = { ...lines[lIdx], amount: raw };
+                            lines[lIdx] = { ...lines[lIdx], amount: val };
                             const totalAmt = lines.reduce(
                               (sum, it) => sum + (Number(it.amount) || 0),
                               0
@@ -3049,6 +3298,367 @@ export function PaymentManagement({
           </div>
         </div>
       )}
+
+      {/* MODAL: Tùy chỉnh cột hiển thị & Cố định cột */}
+      {showColumnConfigModal && (
+        <div className="payment-modal-overlay" onClick={() => setShowColumnConfigModal(false)}>
+          <div
+            className="payment-modal-card"
+            style={{ maxWidth: "560px", width: "95%" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="payment-modal-header">
+              <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                <span style={{ fontSize: "20px" }}>⚙️</span>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: "16px" }}>Tùy chỉnh cột hiển thị & Cố định cột</h3>
+                  <div style={{ fontSize: "12px", color: "#64748b" }}>
+                    Bật/tắt cột, sắp xếp thứ tự hiển thị và chọn các cột cần ghim cố định bên trái
+                  </div>
+                </div>
+              </div>
+              <button type="button" onClick={() => setShowColumnConfigModal(false)}>✕</button>
+            </div>
+
+            <div style={{ maxHeight: "60vh", overflowY: "auto", display: "flex", flexDirection: "column", gap: "6px", paddingRight: "4px" }}>
+              {columns.map((col, idx) => (
+                <div
+                  key={col.id}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    padding: "7px 10px",
+                    background: col.visible ? (col.pinned ? "#f0f9ff" : "#f8fafc") : "#f1f5f9",
+                    border: col.pinned ? "1px solid #7dd3fc" : "1px solid #e2e8f0",
+                    borderRadius: "6px",
+                    opacity: col.visible ? 1 : 0.65,
+                    gap: "8px",
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px", flex: 1 }}>
+                    <input
+                      type="checkbox"
+                      checked={col.visible}
+                      onChange={(e) => {
+                        const next = columns.map((c, i) =>
+                          i === idx ? { ...c, visible: e.target.checked } : c
+                        );
+                        saveColumns(next);
+                      }}
+                      id={`col-chk-${col.id}`}
+                      style={{ cursor: "pointer" }}
+                    />
+                    <label
+                      htmlFor={`col-chk-${col.id}`}
+                      style={{
+                        fontSize: "13px",
+                        fontWeight: col.visible ? 600 : 400,
+                        color: col.visible ? "#0f172a" : "#64748b",
+                        cursor: "pointer",
+                        margin: 0,
+                      }}
+                    >
+                      {col.label}
+                    </label>
+                    {col.id === "stt" && (
+                      <span style={{ fontSize: "11px", color: "#94a3b8" }}>(Mặc định ẩn)</span>
+                    )}
+                  </div>
+
+                  <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                    {/* Pin / Freeze Button */}
+                    <button
+                      type="button"
+                      className="payment-btn"
+                      style={{
+                        fontSize: "11px",
+                        padding: "3px 8px",
+                        background: col.pinned ? "#0284c7" : "#fff",
+                        color: col.pinned ? "#fff" : "#475569",
+                        borderColor: col.pinned ? "#0284c7" : "#cbd5e1",
+                        fontWeight: 600,
+                      }}
+                      onClick={() => {
+                        const next = columns.map((c, i) =>
+                          i === idx ? { ...c, pinned: !c.pinned } : c
+                        );
+                        saveColumns(next);
+                      }}
+                      title={col.pinned ? "Bỏ cố định cột này" : "Cố định cột này khi cuộn ngang"}
+                    >
+                      {col.pinned ? "📌 Đã cố định" : "Ghim"}
+                    </button>
+
+                    {/* Move Up */}
+                    <button
+                      type="button"
+                      className="payment-btn"
+                      disabled={idx === 0}
+                      style={{ padding: "2px 7px", fontSize: "12px", opacity: idx === 0 ? 0.3 : 1 }}
+                      onClick={() => {
+                        if (idx === 0) return;
+                        const next = [...columns];
+                        const temp = next[idx - 1];
+                        next[idx - 1] = next[idx];
+                        next[idx] = temp;
+                        saveColumns(next);
+                      }}
+                      title="Di chuyển lên trên"
+                    >
+                      ↑
+                    </button>
+
+                    {/* Move Down */}
+                    <button
+                      type="button"
+                      className="payment-btn"
+                      disabled={idx === columns.length - 1}
+                      style={{ padding: "2px 7px", fontSize: "12px", opacity: idx === columns.length - 1 ? 0.3 : 1 }}
+                      onClick={() => {
+                        if (idx === columns.length - 1) return;
+                        const next = [...columns];
+                        const temp = next[idx + 1];
+                        next[idx + 1] = next[idx];
+                        next[idx] = temp;
+                        saveColumns(next);
+                      }}
+                      title="Di chuyển xuống dưới"
+                    >
+                      ↓
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderTop: "1px solid #e2e8f0", paddingTop: "12px", marginTop: "12px" }}>
+              <button
+                type="button"
+                className="payment-btn"
+                style={{ fontSize: "12px", color: "#64748b" }}
+                onClick={() => saveColumns(DEFAULT_COLUMN_SETTINGS)}
+              >
+                ↺ Khôi phục mặc định
+              </button>
+              <button
+                type="button"
+                className="payment-btn btn-primary"
+                onClick={() => setShowColumnConfigModal(false)}
+              >
+                Hoàn tất
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: Quản lý nhiều hóa đơn cho 1 đề nghị thanh toán */}
+      {(() => {
+        if (multiInvoiceModalReqId === null) return null;
+        const multiReq = paymentRequests.find((r) => r.id === multiInvoiceModalReqId);
+        if (!multiReq) return null;
+
+        return (
+          <div className="payment-modal-overlay" onClick={() => setMultiInvoiceModalReqId(null)}>
+            <div
+              className="payment-modal-card"
+              style={{ maxWidth: "820px", width: "95%" }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="payment-modal-header">
+                <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                  <span style={{ fontSize: "20px" }}>📑</span>
+                  <div>
+                    <h3 style={{ margin: 0, fontSize: "16px" }}>
+                      Danh sách Hóa đơn — {multiReq.payee_name || "Chưa có NCC"}
+                    </h3>
+                    <div style={{ fontSize: "12px", color: "#64748b" }}>
+                      Đề nghị STT {multiReq.legacy_stt || multiReq.id} · Quản lý nhiều hóa đơn các ngày khác nhau cho cùng 1 đề nghị thanh toán
+                    </div>
+                  </div>
+                </div>
+                <button type="button" onClick={() => setMultiInvoiceModalReqId(null)}>✕</button>
+              </div>
+
+              <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span style={{ fontSize: "13px", fontWeight: 600, color: "#334155" }}>
+                    Chi tiết {multiReq.lines?.length || 0} hóa đơn:
+                  </span>
+                  <button
+                    type="button"
+                    className="payment-btn btn-primary"
+                    style={{ fontSize: "12px", padding: "4px 10px" }}
+                    onClick={() => {
+                      const currentLines = multiReq.lines || [];
+                      const nextLines = [
+                        ...currentLines,
+                        { description: multiReq.item_name || "", invoice_no: "", invoice_date: "", amount: 0 },
+                      ];
+                      handleEditRequest(multiReq.id, "lines", nextLines);
+                    }}
+                  >
+                    ＋ Thêm hóa đơn
+                  </button>
+                </div>
+
+                <div style={{ overflowX: "auto", border: "1px solid #e2e8f0", borderRadius: "6px" }}>
+                  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12px" }}>
+                    <thead>
+                      <tr style={{ background: "#f8fafc", borderBottom: "1px solid #e2e8f0" }}>
+                        <th style={{ padding: "8px 6px", textAlign: "center", width: "35px" }}>STT</th>
+                        <th style={{ padding: "8px 6px", textAlign: "left", width: "140px" }}>Số hóa đơn</th>
+                        <th style={{ padding: "8px 6px", textAlign: "left", width: "130px" }}>Ngày hóa đơn</th>
+                        <th style={{ padding: "8px 6px", textAlign: "left" }}>Tên hàng / Dịch vụ</th>
+                        <th style={{ padding: "8px 6px", textAlign: "right", width: "140px" }}>Số tiền (₫)</th>
+                        <th style={{ padding: "8px 6px", textAlign: "center", width: "40px" }}></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(multiReq.lines || []).map((line, lIdx) => (
+                        <tr key={lIdx} style={{ borderBottom: "1px solid #f1f5f9" }}>
+                          <td style={{ textAlign: "center", color: "#64748b" }}>{lIdx + 1}</td>
+                          <td style={{ padding: "4px" }}>
+                            <input
+                              className="payment-input"
+                              style={{ width: "100%" }}
+                              list="invoiceDataList"
+                              value={line.invoice_no || ""}
+                              placeholder="Số HĐ..."
+                              onChange={(e) => {
+                                const lines = [...(multiReq.lines || [])];
+                                lines[lIdx] = { ...lines[lIdx], invoice_no: e.target.value };
+                                handleEditRequest(multiReq.id, "lines", lines);
+                                const allNos = lines.map((x) => x.invoice_no).filter(Boolean).join(", ");
+                                handleEditRequest(multiReq.id, "invoice_no", allNos);
+                              }}
+                            />
+                          </td>
+                          <td style={{ padding: "4px" }}>
+                            <div className="cell-date-wrap">
+                              <input
+                                className="payment-input"
+                                style={{ width: "100%" }}
+                                value={line.invoice_date || ""}
+                                placeholder="dd/mm/yyyy"
+                                onChange={(e) => {
+                                  const lines = [...(multiReq.lines || [])];
+                                  lines[lIdx] = { ...lines[lIdx], invoice_date: e.target.value };
+                                  handleEditRequest(multiReq.id, "lines", lines);
+                                }}
+                                onBlur={(e) => {
+                                  const p = parseFlexibleDate(e.target.value);
+                                  if (p !== e.target.value) {
+                                    const lines = [...(multiReq.lines || [])];
+                                    lines[lIdx] = { ...lines[lIdx], invoice_date: p };
+                                    handleEditRequest(multiReq.id, "lines", lines);
+                                  }
+                                }}
+                              />
+                              <button
+                                type="button"
+                                className="cell-date-btn"
+                                title="Chọn ngày"
+                                onClick={() =>
+                                  openCalendar(line.invoice_date || "", (val) => {
+                                    const lines = [...(multiReq.lines || [])];
+                                    lines[lIdx] = { ...lines[lIdx], invoice_date: val };
+                                    handleEditRequest(multiReq.id, "lines", lines);
+                                  })
+                                }
+                              >
+                                📅
+                              </button>
+                            </div>
+                          </td>
+                          <td style={{ padding: "4px" }}>
+                            <input
+                              className="payment-input"
+                              style={{ width: "100%" }}
+                              list="itemDataList"
+                              value={line.description || ""}
+                              placeholder="Tên hàng..."
+                              onChange={(e) => {
+                                const lines = [...(multiReq.lines || [])];
+                                lines[lIdx] = { ...lines[lIdx], description: e.target.value };
+                                handleEditRequest(multiReq.id, "lines", lines);
+                              }}
+                            />
+                          </td>
+                          <td style={{ padding: "4px", textAlign: "right" }}>
+                            <MoneyInput
+                              className="payment-input"
+                              style={{ width: "100%", textAlign: "right", fontWeight: 600 }}
+                              value={line.amount}
+                              onValueChange={(val) => {
+                                const lines = [...(multiReq.lines || [])];
+                                lines[lIdx] = { ...lines[lIdx], amount: val };
+                                const sumAmt = lines.reduce((s, it) => s + (Number(it.amount) || 0), 0);
+                                handleEditRequest(multiReq.id, "lines", lines);
+                                handleEditRequest(multiReq.id, "amount", sumAmt);
+                              }}
+                            />
+                          </td>
+                          <td style={{ textAlign: "center", padding: "4px" }}>
+                            <button
+                              type="button"
+                              className="payment-btn btn-danger"
+                              style={{ padding: "2px 6px", fontSize: "11px" }}
+                              title="Xóa hóa đơn này"
+                              onClick={() => {
+                                const lines = (multiReq.lines || []).filter((_, i) => i !== lIdx);
+                                const sumAmt = lines.reduce((s, it) => s + (Number(it.amount) || 0), 0);
+                                handleEditRequest(multiReq.id, "lines", lines);
+                                handleEditRequest(multiReq.id, "amount", sumAmt);
+                                const allNos = lines.map((x) => x.invoice_no).filter(Boolean).join(", ");
+                                handleEditRequest(multiReq.id, "invoice_no", allNos);
+                              }}
+                            >
+                              ✕
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                      {(multiReq.lines || []).length === 0 && (
+                        <tr>
+                          <td colSpan={6} style={{ textAlign: "center", padding: "16px", color: "#64748b" }}>
+                            Chưa có hóa đơn nào. Bấm &quot;＋ Thêm hóa đơn&quot; ở trên để bắt đầu nhập.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                    <tfoot>
+                      <tr style={{ background: "#f8fafc", fontWeight: "bold", borderTop: "2px solid #cbd5e1" }}>
+                        <td colSpan={4} style={{ textAlign: "right", padding: "8px" }}>
+                          Tổng cộng tiền ({multiReq.lines?.length || 0} hóa đơn):
+                        </td>
+                        <td style={{ textAlign: "right", padding: "8px", color: "#0d9488", fontSize: "13px" }}>
+                          {fmtMoney(multiReq.amount)} ₫
+                        </td>
+                        <td></td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderTop: "1px solid #e2e8f0", paddingTop: "10px" }}>
+                  <span style={{ fontSize: "12px", color: "#64748b" }}>
+                    Tổng số tiền và danh sách số hóa đơn sẽ tự động cập nhật lên dòng đề nghị thanh toán.
+                  </span>
+                  <button
+                    type="button"
+                    className="payment-btn btn-primary"
+                    onClick={() => setMultiInvoiceModalReqId(null)}
+                  >
+                    Đóng / Hoàn tất
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* PORTAL PRINT CONTAINER - Completely isolated from app */}
       {typeof document !== "undefined" && isPrinting && createPortal(
