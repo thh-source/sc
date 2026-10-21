@@ -1020,28 +1020,25 @@ export function HandoverManagement({
       <div className={`payment-toolbar ${showMobileCards ? "payment-toolbar-mobile" : ""}`}>
         {!showMobileCards ? (
           <>
-            <button className="payment-btn btn-primary" onClick={handleAddHandoverRow}>
+            <button className="btn btn-primary btn-md" onClick={handleAddHandoverRow}>
               ＋ Thêm dòng vật tư
             </button>
             <button
-              className="payment-btn"
-              style={{ background: "#0284c7", color: "#fff", borderColor: "#0369a1" }}
+              className="btn btn-secondary btn-md"
               onClick={openImportDocModal}
               title="Nhập sản phẩm từ PR, PO hoặc Hợp đồng vào danh sách bàn giao"
             >
               📦 Chọn từ PR / PO / Hợp đồng
             </button>
             <button
-              className="payment-btn"
-              style={{ background: "#107c41", color: "#fff", borderColor: "#0b5c30" }}
+              className="btn btn-secondary btn-md"
               onClick={() => setShowPasteModal(true)}
               title="Dán danh sách vật tư từ file Excel (Ctrl+V)"
             >
               📋 Dán từ Excel
             </button>
             <button
-              className="payment-btn"
-              style={{ background: "#0f766e", color: "#fff", borderColor: "#0d5e56" }}
+              className="btn btn-teal btn-md"
               onClick={() => handlePrintHandoverDirect()}
               title="In biên bản bàn giao các vật tư đã chọn"
             >
@@ -1049,15 +1046,7 @@ export function HandoverManagement({
             </button>
             <button
               type="button"
-              className="payment-btn"
-              style={{
-                background: checkedHandovers.size > 0 ? "#4f46e5" : "#6366f1",
-                color: "#fff",
-                borderColor: "#4338ca",
-                fontWeight: 600,
-                opacity: checkedHandovers.size > 0 ? 1 : 0.6,
-                cursor: checkedHandovers.size > 0 ? "pointer" : "not-allowed",
-              }}
+              className="btn btn-accent btn-md"
               onClick={handleCreatePaymentRequestFromSelected}
               title={
                 checkedHandovers.size > 0
@@ -1068,22 +1057,13 @@ export function HandoverManagement({
             >
               💳 Lập ĐNTT {checkedHandovers.size > 0 ? `(${checkedHandovers.size})` : ""}
             </button>
-            <button className="payment-btn btn-danger" onClick={handleDeleteSelectedHandovers}>
+            <button className="btn btn-danger btn-md" onClick={handleDeleteSelectedHandovers}>
               🗑️ Xóa đã chọn
             </button>
 
             <button
               type="button"
-              className="payment-btn"
-              style={{
-                background: "#f0f4f9",
-                borderColor: "#cbd5e1",
-                fontWeight: 600,
-                color: "#1e3a5f",
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "5px",
-              }}
+              className="btn btn-secondary btn-md"
               onClick={() => setShowColumnConfigModal(true)}
               title="Tùy chỉnh thứ tự các cột, ẩn hiện cột và chọn các cột cần cố định"
             >
@@ -1092,7 +1072,7 @@ export function HandoverManagement({
 
             <button
               type="button"
-              className={`btn-workspace-toggle ${isWorkspaceExpanded ? "active" : ""}`}
+              className={`btn btn-secondary btn-md btn-workspace-toggle ${isWorkspaceExpanded ? "active" : ""}`}
               onClick={() => setIsWorkspaceExpanded(!isWorkspaceExpanded)}
               title={isWorkspaceExpanded ? "Thu gọn về giao diện chuẩn" : "Mở rộng không gian làm việc (giống So sánh báo giá)"}
             >
@@ -1103,16 +1083,16 @@ export function HandoverManagement({
         ) : (
           <div style={{ display: "flex", gap: "8px", width: "100%", flexWrap: "wrap" }}>
             <button
-              className="payment-btn"
-              style={{ background: "#0284c7", color: "#fff", borderColor: "#0369a1", flex: 1, justifyContent: "center" }}
+              className="btn btn-secondary btn-md"
+              style={{ flex: 1, justifyContent: "center" }}
               onClick={openImportDocModal}
               title="Nhập sản phẩm từ PR, PO hoặc Hợp đồng vào danh sách bàn giao"
             >
               📦 Chọn từ PR / PO / HĐ
             </button>
             <button
-              className="payment-btn"
-              style={{ background: "#0f766e", color: "#fff", borderColor: "#0d5e56", flex: 1, justifyContent: "center" }}
+              className="btn btn-teal btn-md"
+              style={{ flex: 1, justifyContent: "center" }}
               onClick={() => handlePrintHandoverDirect()}
               title="In biên bản bàn giao các vật tư đã chọn"
             >
@@ -1120,15 +1100,8 @@ export function HandoverManagement({
             </button>
             <button
               type="button"
-              className="payment-btn"
-              style={{
-                background: "#4f46e5",
-                color: "#fff",
-                borderColor: "#4338ca",
-                flex: 1,
-                justifyContent: "center",
-                opacity: checkedHandovers.size > 0 ? 1 : 0.6,
-              }}
+              className="btn btn-accent btn-md"
+              style={{ flex: 1, justifyContent: "center" }}
               onClick={handleCreatePaymentRequestFromSelected}
               disabled={checkedHandovers.size === 0}
               title="Lập ĐNTT cho các vật tư đã chọn"

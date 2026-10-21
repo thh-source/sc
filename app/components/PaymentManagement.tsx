@@ -1544,7 +1544,7 @@ export function PaymentManagement({
           <>
             <button
               type="button"
-              className="payment-btn btn-primary"
+              className="btn btn-primary btn-md"
               onClick={isCardView ? handleAddNewFromCardView : handleAddRequestRow}
               title={isCardView ? "Thêm một đề nghị thanh toán mới và chỉnh sửa" : "Thêm một dòng đề nghị thanh toán mới vào bảng"}
             >
@@ -1553,21 +1553,20 @@ export function PaymentManagement({
 
             <button
               type="button"
-              className="payment-btn"
+              className="btn btn-accent btn-md"
               onClick={() => {
                 setPoFilterType("all");
                 setPoSearch("");
                 setShowPOPickerModal(true);
               }}
               title="Lập đề nghị thanh toán từ đơn đặt hàng PO hoặc Hợp đồng kinh tế"
-              style={{ background: "#f8fafc", borderColor: "#0284c7", color: "#0369a1", fontWeight: 600 }}
             >
               ⚡ Lập từ PO / Hợp đồng
             </button>
 
             <button
               type="button"
-              className={`btn-workspace-toggle ${isWorkspaceExpanded ? "active" : ""}`}
+              className={`btn btn-secondary btn-md btn-workspace-toggle ${isWorkspaceExpanded ? "active" : ""}`}
               onClick={() => setIsWorkspaceExpanded(!isWorkspaceExpanded)}
               title={isWorkspaceExpanded ? "Thu gọn về giao diện chuẩn" : "Mở rộng không gian làm việc (giống So sánh báo giá)"}
             >
@@ -1577,7 +1576,7 @@ export function PaymentManagement({
 
             <button
               type="button"
-              className="payment-btn"
+              className="btn btn-secondary btn-md"
               onClick={() => setUserMobileToggle(!isCardView)}
               title="Chuyển đổi giao diện giữa dạng bảng tính desktop và dạng thẻ trực quan"
             >
@@ -1645,18 +1644,9 @@ export function PaymentManagement({
         {!isPhoneScreen && !isCardView && (
           <button
             type="button"
-            className="payment-btn"
+            className="btn btn-secondary btn-md"
             onClick={() => setShowColumnConfigModal(true)}
             title="Tùy chỉnh thứ tự các cột, ẩn hiện cột và chọn các cột cần cố định"
-            style={{
-              background: "#f0f4f9",
-              borderColor: "#cbd5e1",
-              fontWeight: 600,
-              color: "#1e3a5f",
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "5px",
-            }}
           >
             <span>⚙️ Cột hiển thị ({columns.filter((c) => c.visible).length}/{columns.length})</span>
           </button>
@@ -1666,11 +1656,11 @@ export function PaymentManagement({
           <>
             {!isCardView && (
               <>
-                <button className="payment-btn" onClick={handlePrintChecked}>
+                <button className="btn btn-teal btn-md" onClick={handlePrintChecked}>
                   ⎙ In các dòng đã tích ({checkedIds.size})
                 </button>
                 <button
-                  className="payment-btn btn-danger"
+                  className="btn btn-danger btn-md"
                   onClick={handleDeleteSelectedRequests}
                 >
                   Xóa dòng đã chọn

@@ -845,19 +845,7 @@ export function ContractManagement({
                       {onCreateHandover && (
                         <button
                           type="button"
-                          style={{
-                            background: "#0284c7",
-                            color: "#ffffff",
-                            border: "1px solid #0369a1",
-                            borderRadius: "4px",
-                            padding: "6px 12px",
-                            cursor: "pointer",
-                            fontSize: "12px",
-                            fontWeight: 600,
-                            display: "inline-flex",
-                            alignItems: "center",
-                            gap: "5px",
-                          }}
+                          className="btn btn-primary btn-sm"
                           onClick={() => onCreateHandover(selected)}
                           title="Tạo biên bản bàn giao cho hợp đồng này"
                         >

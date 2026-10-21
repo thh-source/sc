@@ -71,22 +71,7 @@ export function PODetail({
           {onCreateHandover && (
             <button
               type="button"
-              className="action-btn"
-              style={{
-                background: "#0284c7",
-                color: "#ffffff",
-                border: "1px solid #0369a1",
-                borderRadius: "6px",
-                padding: "8px 14px",
-                fontSize: "13px",
-                fontWeight: 600,
-                cursor: "pointer",
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "6px",
-                boxShadow: "0 1px 2px rgba(0,0,0,0.06)",
-                whiteSpace: "nowrap",
-              }}
+              className="btn btn-primary btn-md"
               onClick={() => onCreateHandover(po)}
               title="Tạo biên bản bàn giao cho các mặt hàng trong đơn này"
             >
@@ -189,19 +174,7 @@ export function PODetail({
             {onCreateHandover && (
               <button
                 type="button"
-                style={{
-                  background: "#0284c7",
-                  color: "#ffffff",
-                  border: "1px solid #0369a1",
-                  borderRadius: "5px",
-                  padding: "5px 12px",
-                  fontSize: "12px",
-                  fontWeight: 600,
-                  cursor: "pointer",
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: "5px",
-                }}
+                className="btn btn-primary btn-sm"
                 onClick={() => onCreateHandover(po)}
                 title="Bàn giao các sản phẩm đã nhận"
               >

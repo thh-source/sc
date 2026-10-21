@@ -1,0 +1,428 @@
+/* ==========================================================================
+   SCMH DESIGN SYSTEM v1.0 - Phenikaa Procurement Design Tokens & Core UI
+   Complies with WCAG AA accessibility, tabular figures & Vietnamese typography
+   ========================================================================== */
+
+:root {
+  /* 1. COLOR TOKENS */
+  /* Primary: Phenikaa Blue */
+  --primary-50: #eff6ff;
+  --primary-100: #dbeafe;
+  --primary-200: #bfdbfe;
+  --primary-300: #93c5fd;
+  --primary-400: #60a5fa;
+  --primary-500: #2563eb;
+  --primary-600: #1d4ed8;
+  --primary-700: #1e40af;
+  --primary-800: #1e3a8a;
+  --primary-900: #0f2744;
+
+  /* Accent: Indigo & Teal */
+  --accent-50: #eef2ff;
+  --accent-100: #e0e7ff;
+  --accent-500: #4f46e5;
+  --accent-600: #4338ca;
+  --accent-700: #3730a3;
+
+  --teal-50: #f0fdfa;
+  --teal-100: #ccfbf1;
+  --teal-500: #0d9488;
+  --teal-600: #0f766e;
+  --teal-700: #115e59;
+
+  /* Neutral Slates */
+  --slate-50: #f8fafc;
+  --slate-100: #f1f5f9;
+  --slate-200: #e2e8f0;
+  --slate-300: #cbd5e1;
+  --slate-400: #94a3b8;
+  --slate-500: #64748b;
+  --slate-600: #475569;
+  --slate-700: #334155;
+  --slate-800: #1e293b;
+  --slate-900: #0f172a;
+  --slate-950: #020617;
+
+  /* Status Colors */
+  --success-bg: #ecfdf5;
+  --success-text: #059669;
+  --success-border: #a7f3d0;
+  --success-solid: #10b981;
+
+  --warning-bg: #fffbeb;
+  --warning-text: #b45309;
+  --warning-border: #fde68a;
+  --warning-solid: #f59e0b;
+
+  --danger-bg: #fef2f2;
+  --danger-text: #dc2626;
+  --danger-border: #fecaca;
+  --danger-solid: #ef4444;
+
+  --info-bg: #f0f9ff;
+  --info-text: #0284c7;
+  --info-border: #bae6fd;
+  --info-solid: #0ea5e9;
+
+  /* Semantic UI Surfaces */
+  --bg-app: #f8fafc;
+  --surface-card: #ffffff;
+  --surface-subtle: #f1f5f9;
+  --surface-hover: #f8fafc;
+  --surface-active: #eff6ff;
+
+  --border-subtle: #e2e8f0;
+  --border-strong: #cbd5e1;
+  --border-focus: var(--primary-500);
+
+  --text-main: #0f172a;
+  --text-secondary: #334155;
+  --text-muted: #64748b;
+  --text-disabled: #94a3b8;
+  --text-on-primary: #ffffff;
+
+  /* Legacy Backward-Compatibility Variables */
+  --blue: #2563eb;
+  --navy: #0b1a2d;
+  --ink: #0f172a;
+  --muted: #64748b;
+  --line: #e2e8f0;
+  --green: #059669;
+  --bg: #f8fafc;
+
+  /* 2. ELEVATION & SHADOWS */
+  --shadow-xs: 0 1px 2px 0 rgba(15, 23, 42, 0.05);
+  --shadow-sm: 0 1px 3px 0 rgba(15, 23, 42, 0.08), 0 1px 2px -1px rgba(15, 23, 42, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(15, 23, 42, 0.08), 0 2px 4px -2px rgba(15, 23, 42, 0.04);
+  --shadow-lg: 0 10px 15px -3px rgba(15, 23, 42, 0.09), 0 4px 6px -4px rgba(15, 23, 42, 0.04);
+  --shadow-xl: 0 20px 25px -5px rgba(15, 23, 42, 0.1), 0 8px 10px -6px rgba(15, 23, 42, 0.04);
+  --shadow-spotlight: 0 25px 50px -12px rgba(15, 23, 42, 0.25);
+
+  /* 3. BORDER RADII */
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 10px;
+  --radius-xl: 14px;
+  --radius-full: 9999px;
+
+  /* 4. MICRO-INTERACTION TIMINGS */
+  --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-spring: cubic-bezier(0.16, 1, 0.3, 1);
+  --duration-fast: 150ms;
+  --duration-normal: 200ms;
+  --duration-slow: 250ms;
+}
+
+/* Base resets & Typography optimizations */
+html {
+  font-family: var(--font-geist-sans), "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11", "tnum" 1;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: var(--bg-app);
+  color: var(--text-main);
+}
+
+body {
+  margin: 0;
+  background-color: var(--bg-app);
+  color: var(--text-main);
+  line-height: 1.5;
+  font-size: 14px;
+}
+
+/* ==========================================================================
+   CORE COMPONENT SYSTEM
+   ========================================================================== */
+
+/* 1. BUTTONS */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-family: inherit;
+  font-weight: 600;
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+  text-decoration: none;
+  transition: all var(--duration-fast) var(--ease-standard);
+  box-sizing: border-box;
+}
+
+.btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.25);
+}
+
+.btn:disabled,
+.btn[disabled] {
+  opacity: 0.55;
+  cursor: not-allowed;
+  pointer-events: none;
+  box-shadow: none !important;
+}
+
+/* Button Sizing */
+.btn-sm {
+  height: 30px;
+  padding: 0 10px;
+  font-size: 12px;
+}
+
+.btn-md {
+  height: 36px;
+  padding: 0 14px;
+  font-size: 13px;
+}
+
+.btn-lg {
+  height: 42px;
+  padding: 0 18px;
+  font-size: 14px;
+}
+
+/* Button Variants */
+.btn-primary {
+  background-color: var(--primary-500);
+  color: #ffffff;
+  border-color: var(--primary-600);
+  box-shadow: 0 1px 2px rgba(37, 99, 235, 0.2);
+}
+
+.btn-primary:hover:not(:disabled) {
+  background-color: var(--primary-600);
+  border-color: var(--primary-700);
+  transform: translateY(-0.5px);
+  box-shadow: 0 2px 4px rgba(37, 99, 235, 0.3);
+}
+
+.btn-primary:active:not(:disabled) {
+  background-color: var(--primary-700);
+  transform: translateY(0);
+}
+
+.btn-secondary {
+  background-color: #ffffff;
+  color: var(--slate-700);
+  border-color: var(--slate-300);
+  box-shadow: var(--shadow-xs);
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background-color: var(--slate-50);
+  border-color: var(--slate-400);
+  color: var(--slate-900);
+  transform: translateY(-0.5px);
+}
+
+.btn-secondary:active:not(:disabled) {
+  background-color: var(--slate-100);
+  transform: translateY(0);
+}
+
+.btn-accent {
+  background-color: var(--accent-500);
+  color: #ffffff;
+  border-color: var(--accent-600);
+  box-shadow: 0 1px 2px rgba(79, 70, 229, 0.2);
+}
+
+.btn-accent:hover:not(:disabled) {
+  background-color: var(--accent-600);
+  border-color: var(--accent-700);
+  transform: translateY(-0.5px);
+  box-shadow: 0 2px 4px rgba(79, 70, 229, 0.3);
+}
+
+.btn-accent:active:not(:disabled) {
+  background-color: var(--accent-700);
+  transform: translateY(0);
+}
+
+.btn-teal {
+  background-color: var(--teal-600);
+  color: #ffffff;
+  border-color: var(--teal-700);
+  box-shadow: 0 1px 2px rgba(13, 148, 136, 0.2);
+}
+
+.btn-teal:hover:not(:disabled) {
+  background-color: var(--teal-700);
+  transform: translateY(-0.5px);
+}
+
+.btn-ghost {
+  background-color: transparent;
+  color: var(--slate-600);
+  border-color: transparent;
+}
+
+.btn-ghost:hover:not(:disabled) {
+  background-color: var(--slate-100);
+  color: var(--slate-900);
+}
+
+.btn-outline {
+  background-color: transparent;
+  color: var(--primary-600);
+  border-color: var(--primary-300);
+}
+
+.btn-outline:hover:not(:disabled) {
+  background-color: var(--primary-50);
+  border-color: var(--primary-500);
+  color: var(--primary-700);
+}
+
+.btn-danger {
+  background-color: var(--danger-bg);
+  color: var(--danger-text);
+  border-color: var(--danger-border);
+}
+
+.btn-danger:hover:not(:disabled) {
+  background-color: #fee2e2;
+  border-color: #f87171;
+  color: #b91c1c;
+}
+
+.btn-danger-solid {
+  background-color: var(--danger-text);
+  color: #ffffff;
+  border-color: #b91c1c;
+}
+
+.btn-danger-solid:hover:not(:disabled) {
+  background-color: #b91c1c;
+}
+
+/* 2. FORM INPUTS & CONTROLS */
+.form-input,
+.form-select {
+  height: 36px;
+  padding: 0 12px;
+  background-color: #ffffff;
+  color: var(--text-main);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  font-family: inherit;
+  font-size: 13px;
+  outline: none;
+  box-sizing: border-box;
+  transition: border-color var(--duration-fast), box-shadow var(--duration-fast);
+}
+
+.form-input:focus,
+.form-select:focus {
+  border-color: var(--primary-500);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+}
+
+.form-input::placeholder {
+  color: var(--text-disabled);
+}
+
+.form-textarea {
+  padding: 8px 12px;
+  background-color: #ffffff;
+  color: var(--text-main);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1.45;
+  outline: none;
+  box-sizing: border-box;
+  resize: vertical;
+  transition: border-color var(--duration-fast), box-shadow var(--duration-fast);
+}
+
+.form-textarea:focus {
+  border-color: var(--primary-500);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+}
+
+/* 3. CARDS & PANELS */
+.card-modern {
+  background-color: var(--surface-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  box-sizing: border-box;
+}
+
+.card-interactive {
+  transition: transform var(--duration-fast) var(--ease-standard),
+              box-shadow var(--duration-fast) var(--ease-standard),
+              border-color var(--duration-fast);
+}
+
+.card-interactive:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+  border-color: var(--primary-300);
+}
+
+/* 4. BADGES & STATUS TAGS */
+.badge-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px;
+  border-radius: var(--radius-full);
+  font-size: 11.5px;
+  font-weight: 600;
+  line-height: 1.25;
+  letter-spacing: 0.01em;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+
+.badge-status.success {
+  background-color: var(--success-bg);
+  color: var(--success-text);
+  border-color: var(--success-border);
+}
+
+.badge-status.warning {
+  background-color: var(--warning-bg);
+  color: var(--warning-text);
+  border-color: var(--warning-border);
+}
+
+.badge-status.danger {
+  background-color: var(--danger-bg);
+  color: var(--danger-text);
+  border-color: var(--danger-border);
+}
+
+.badge-status.info {
+  background-color: var(--info-bg);
+  color: var(--info-text);
+  border-color: var(--info-border);
+}
+
+.badge-status.neutral {
+  background-color: var(--slate-100);
+  color: var(--slate-600);
+  border-color: var(--slate-200);
+}
+
+.badge-status.primary {
+  background-color: var(--primary-50);
+  color: var(--primary-700);
+  border-color: var(--primary-200);
+}
+
+/* 5. ACCESSIBLE TOUCH TARGETS FOR MOBILE */
+@media (max-width: 768px) {
+  .touch-target-min {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}

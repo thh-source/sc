@@ -1,5 +1,5 @@
 .dashboard-page {
-  padding-top: 28px;
+  padding-top: 24px;
 }
 .dashboard-welcome {
   display: flex;
@@ -9,125 +9,154 @@
 }
 .dashboard-welcome em {
   font-style: normal;
-  color: var(--blue);
+  color: var(--primary-600);
   font-size: 11px;
-  font-weight: 800;
+  font-weight: 700;
   letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 .dashboard-welcome h1 {
-  font-size: 27px;
-  margin: 5px 0;
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--text-main);
+  margin: 4px 0 6px;
 }
 .dashboard-welcome p {
   margin: 0;
-  color: var(--muted);
+  color: var(--text-muted);
+  font-size: 13.5px;
 }
 .dashboard-kpis {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
   gap: 14px;
-  margin-bottom: 16px;
+  margin-bottom: 18px;
 }
 .dashboard-kpis > button {
-  border: 1px solid var(--line);
-  border-radius: 9px;
-  background: white;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  background: var(--surface-card);
   padding: 16px;
   text-align: left;
   display: flex;
   align-items: center;
-  gap: 13px;
-  box-shadow: 0 2px 7px #18344f08;
+  gap: 14px;
+  box-shadow: var(--shadow-sm);
+  transition: all var(--duration-fast) var(--ease-standard);
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
 }
 .dashboard-kpis > button:hover {
-  border-color: #9bc3fa;
-  transform: translateY(-1px);
+  border-color: var(--primary-300);
+  transform: translateY(-1.5px);
+  box-shadow: var(--shadow-md);
 }
 .dashboard-kpis > button > i {
   width: 44px;
   height: 44px;
-  border-radius: 9px;
+  border-radius: var(--radius-md);
   display: grid;
   place-items: center;
   font-style: normal;
   font-size: 20px;
+  flex-shrink: 0;
 }
 .dashboard-kpis i.blue {
-  background: #eaf3ff;
-  color: #1672f3;
+  background: var(--primary-50);
+  color: var(--primary-600);
 }
 .dashboard-kpis i.purple {
-  background: #f1edff;
-  color: #7653d6;
+  background: var(--accent-50);
+  color: var(--accent-600);
 }
 .dashboard-kpis i.green {
-  background: #e8f7ed;
-  color: #168446;
+  background: var(--success-bg);
+  color: var(--success-text);
 }
 .dashboard-kpis i.orange {
-  background: #fff3df;
-  color: #d27a00;
+  background: var(--warning-bg);
+  color: var(--warning-text);
 }
 .dashboard-kpis span {
   display: flex;
   flex-direction: column;
-  color: var(--muted);
-  font-size: 11px;
+  color: var(--text-muted);
+  font-size: 11.5px;
+  font-weight: 500;
 }
 .dashboard-kpis strong {
-  font-size: 20px;
-  color: var(--ink);
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text-main);
   margin: 3px 0;
+  font-feature-settings: "tnum" 1;
+  letter-spacing: -0.01em;
 }
 .dashboard-kpis small {
-  font-size: 10px;
+  font-size: 10.5px;
+  font-weight: 600;
 }
 .dashboard-grid {
   display: grid;
   grid-template-columns: 1.65fr 1fr;
   gap: 16px;
-  margin-bottom: 16px;
+  margin-bottom: 18px;
 }
 .dashboard-grid.lower {
   grid-template-columns: 1.65fr 1fr;
 }
 .dashboard-panel {
-  background: white;
-  border: 1px solid var(--line);
-  border-radius: 9px;
-  box-shadow: 0 2px 7px #18344f08;
+  background: var(--surface-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
 }
 .panel-title {
-  min-height: 70px;
-  padding: 15px 17px;
-  border-bottom: 1px solid #e7edf3;
+  min-height: 64px;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border-subtle);
   display: flex;
   align-items: center;
   justify-content: space-between;
+  background: #ffffff;
 }
 .panel-title h2 {
-  font-size: 16px;
-  margin: 0 0 4px;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-main);
+  margin: 0 0 3px;
 }
 .panel-title p {
-  font-size: 11px;
-  color: var(--muted);
+  font-size: 11.5px;
+  color: var(--text-muted);
   margin: 0;
 }
 .panel-title > span {
-  padding: 5px 9px;
-  border-radius: 12px;
-  background: #eef5ff;
-  color: var(--blue);
+  padding: 4px 10px;
+  border-radius: var(--radius-full);
+  background: var(--primary-50);
+  color: var(--primary-700);
   font-size: 11px;
-  font-weight: 700;
+  font-weight: 600;
+  border: 1px solid var(--primary-200);
 }
 .panel-title > button {
   border: 0;
   background: none;
-  color: var(--blue);
-  font-size: 11px;
-  font-weight: 700;
+  color: var(--primary-600);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: var(--radius-xs);
+  transition: background var(--duration-fast);
+}
+.panel-title > button:hover {
+  background: var(--primary-50);
+  color: var(--primary-700);
 }
 .priority-list {
   padding: 5px 16px;
