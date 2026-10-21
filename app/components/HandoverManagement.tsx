@@ -77,6 +77,7 @@ export interface HandoverManagementProps {
   prs?: PR[];
   pos?: PO[];
   suppliers?: Supplier[];
+  initialSearchQuery?: string;
 }
 
 export function HandoverManagement({
@@ -87,6 +88,7 @@ export function HandoverManagement({
   prs = [],
   pos = [],
   suppliers = [],
+  initialSearchQuery,
 }: HandoverManagementProps) {
   const triggerUpdateHandovers = (next: PaymentHandoverItem[]) => {
     if (onUpdateHandovers) onUpdateHandovers(next);
@@ -236,7 +238,13 @@ export function HandoverManagement({
   // Selection states
   const [checkedHandovers, setCheckedHandovers] = useState<Set<number>>(new Set());
   const [handoverDeptFilter, setHandoverDeptFilter] = useState("");
-  const [handoverSearch, setHandoverSearch] = useState("");
+  const [handoverSearch, setHandoverSearch] = useState(() => initialSearchQuery || "");
+
+  useEffect(() => {
+    if (initialSearchQuery !== undefined) {
+      setHandoverSearch(initialSearchQuery);
+    }
+  }, [initialSearchQuery]);
   const [isWorkspaceExpanded, setIsWorkspaceExpanded] = useState(false);
 
   // Modals

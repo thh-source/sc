@@ -215,6 +215,8 @@ export interface PaymentManagementProps {
     paymentTemplate?: PaymentPrintTemplate;
   }) => void;
   readOnly?: boolean;
+  initialSearchQuery?: string;
+  initialActiveId?: number;
 }
 
 export function PaymentManagement({
@@ -227,6 +229,8 @@ export function PaymentManagement({
   prs = [],
   onUpdateState,
   readOnly = false,
+  initialSearchQuery,
+  initialActiveId,
 }: PaymentManagementProps) {
   // Mobile / Desktop & Card view detection
   const isAutoMobile = useIsMobile(768);
@@ -357,12 +361,24 @@ export function PaymentManagement({
 
   // Selection states
   const [checkedIds, setCheckedIds] = useState<Set<number>>(new Set());
-  const [activeRequestId, setActiveRequestId] = useState<number | null>(
-    paymentRequests[0]?.id ?? null
+  const [activeRequestId, setActiveRequestId] = useState<number | null>(() =>
+    initialActiveId !== undefined ? initialActiveId : paymentRequests[0]?.id ?? null
   );
 
   // Filter states
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchQuery, setSearchQuery] = useState(() => initialSearchQuery || "");
+
+  useEffect(() => {
+    if (initialSearchQuery !== undefined) {
+      setSearchQuery(initialSearchQuery);
+    }
+  }, [initialSearchQuery]);
+
+  useEffect(() => {
+    if (initialActiveId !== undefined) {
+      setActiveRequestId(initialActiveId);
+    }
+  }, [initialActiveId]);
   const [statusFilter, setStatusFilter] = useState("");
   const [groupFilter, setGroupFilter] = useState("");
   const [isWorkspaceExpanded, setIsWorkspaceExpanded] = useState(false);

@@ -37,6 +37,7 @@ const ContractManagement = lazy(() => import("./components/ContractManagement").
 const HandoverManagement = lazy(() => import("./components/HandoverManagement").then(m => ({ default: m.HandoverManagement })));
 const ProductCatalog = lazy(() => import("./components/ProductCatalog").then(m => ({ default: m.ProductCatalog })));
 const SupplierManagement = lazy(() => import("./components/SupplierManagement").then(m => ({ default: m.SupplierManagement })));
+import { GlobalSpotlightModal } from "./components/GlobalSpotlightModal";
 
 export default function ProcurementApp({
   reportToken,
@@ -117,6 +118,24 @@ export default function ProcurementApp({
       time: string;
     } | null>(null),
     [loadTrigger, setLoadTrigger] = useState(0);
+
+  // Global Spotlight Search (Ctrl + K)
+  const [spotlightOpen, setSpotlightOpen] = useState(false);
+  const [spotlightPaymentSearch, setSpotlightPaymentSearch] = useState<string>("");
+  const [spotlightPaymentActiveId, setSpotlightPaymentActiveId] = useState<number | undefined>(undefined);
+  const [spotlightHandoverSearch, setSpotlightHandoverSearch] = useState<string>("");
+
+  useEffect(() => {
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setSpotlightOpen((prev) => !prev);
+      }
+    };
+    window.addEventListener("keydown", handleGlobalKeyDown);
+    return () => window.removeEventListener("keydown", handleGlobalKeyDown);
+  }, []);
+
   const [workspaceId, setWorkspaceId] = useState(currentUser?.id || ""),
     [workspaceUsers, setWorkspaceUsers] = useState<
       { id: string; displayName: string; username: string; role: string }[]
@@ -737,6 +756,57 @@ export default function ProcurementApp({
     );
     setView("compare");
   };
+
+  const handleSpotlightNavigate = (destination: {
+    view: View;
+    pr?: PR;
+    po?: PO;
+    paymentId?: number;
+    handoverId?: number;
+    query?: string;
+  }) => {
+    setSpotlightOpen(false);
+
+    if (destination.view === "compare" && destination.pr) {
+      openCompare(destination.pr);
+      return;
+    }
+
+    if (destination.view === "po-detail" && destination.po) {
+      setCurrentPO(destination.po);
+      setView("po-detail");
+      return;
+    }
+
+    if (destination.view === "contracts") {
+      if (destination.po) {
+        setCurrentPO(destination.po);
+      }
+      setView("contracts");
+      return;
+    }
+
+    if (destination.view === "payment") {
+      if (destination.query) {
+        setSpotlightPaymentSearch(destination.query);
+      }
+      if (destination.paymentId) {
+        setSpotlightPaymentActiveId(destination.paymentId);
+      }
+      setView("payment");
+      return;
+    }
+
+    if (destination.view === "handover") {
+      if (destination.query) {
+        setSpotlightHandoverSearch(destination.query);
+      }
+      setView("handover");
+      return;
+    }
+
+    setView(destination.view);
+  };
   const updatePRNote = (value: string) => {
     const updated = { ...selectedPR, note: value };
     setSelectedPR(updated);
@@ -1305,6 +1375,16 @@ export default function ProcurementApp({
             <small>{reportMode ? "Báo cáo chỉ xem" : "Procurement"}</small>
           </b>
         </div>
+        <button
+          type="button"
+          className="sidebar-search-btn"
+          onClick={() => setSpotlightOpen(true)}
+          title="Tìm kiếm nhanh toàn hệ thống (Ctrl + K)"
+        >
+          <span className="search-icon">🔍</span>
+          <b className="search-text">Tìm kiếm nhanh...</b>
+          <kbd className="search-kbd">Ctrl K</kbd>
+        </button>
         <nav>
           {visibleNav.map((n) => (
             <button
@@ -1406,6 +1486,14 @@ export default function ProcurementApp({
             ☰
           </button>
           <b>{reportMode ? "Báo cáo chỉ xem" : "Procurement"}</b>
+          <button
+            type="button"
+            className="mobile-search-btn"
+            onClick={() => setSpotlightOpen(true)}
+            title="Tìm kiếm nhanh (Ctrl + K)"
+          >
+            🔍 Tìm kiếm
+          </button>
         </div>
         {reportMode ? (
           <div className="report-banner">
@@ -1483,6 +1571,8 @@ export default function ProcurementApp({
             suppliers={suppliers}
             products={products}
             prs={prs}
+            initialSearchQuery={spotlightPaymentSearch}
+            initialActiveId={spotlightPaymentActiveId}
             onUpdateState={(patch) => {
               if (patch.paymentRequests !== undefined) setPaymentRequests(patch.paymentRequests);
               if (patch.paymentGroups !== undefined) setPaymentGroups(patch.paymentGroups);
@@ -1497,6 +1587,7 @@ export default function ProcurementApp({
             prs={prs}
             pos={pos}
             suppliers={suppliers}
+            initialSearchQuery={spotlightHandoverSearch}
             onUpdateHandovers={(items) => setPaymentHandovers(items)}
             onUpdateState={(patch) => {
               if (patch.paymentHandovers !== undefined) setPaymentHandovers(patch.paymentHandovers);
@@ -2077,6 +2168,19 @@ export default function ProcurementApp({
           <button onClick={() => setCollapsed(false)}><span>☰</span><b>Menu</b></button>
         </nav>
       )}
+
+      {/* Global Spotlight Search Modal (Ctrl + K) */}
+      <GlobalSpotlightModal
+        isOpen={spotlightOpen}
+        onClose={() => setSpotlightOpen(false)}
+        prs={prs}
+        pos={pos}
+        suppliers={suppliers}
+        products={products}
+        paymentRequests={paymentRequests}
+        paymentHandovers={paymentHandovers}
+        onNavigate={handleSpotlightNavigate}
+      />
     </div>
   );
 }
