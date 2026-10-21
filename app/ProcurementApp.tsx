@@ -18,8 +18,8 @@ import { SupplierPickerModal } from "./components/SupplierPickerModal";
 import "./vat-quote.css";
 
 import { PaymentManagement } from "./components/PaymentManagement";
-import { BANK_SUGGESTIONS, DEFAULT_PAYMENT_TEMPLATE } from "./payment-utils";
-import { Item, Supplier, PurchaseHistory, QuoteMode, QuoteEntry, Quote, PR, POItem, POCartLine, ApprovalRow, ApprovalDraft, PODoc, PO, TrashItem, View, ColumnKey, SortState, PaymentRequestEntry, PaymentGroup, PaymentBeneficiary, PaymentHandoverItem, PaymentPrintTemplate, StoredState } from "./types";
+import { BANK_SUGGESTIONS, DEFAULT_PAYMENT_TEMPLATE, localToday } from "./payment-utils";
+import { Item, Supplier, PurchaseHistory, QuoteMode, QuoteEntry, Quote, PR, POItem, POCartLine, ApprovalRow, ApprovalDraft, PODoc, PO, TrashItem, View, ColumnKey, SortState, PaymentRequestEntry, PaymentGroup, PaymentBeneficiary, PaymentHandoverItem, PaymentPrintTemplate, StoredState, isContractPO } from "./types";
 import { BASE_COLUMNS, reorder, applyTools, makeId, emptyItem, fmt, dateVN, DEFAULT_VAT_RATE, quoteDefaults, quoteBeforeVat, quoteAfterVat, quoteComparePrice, mergeHistorySeed, PurchaseHistorySeed, excelNumber, emptyPR, emptyPO, generateShortName } from "./utils";
 import { items0, suppliers0, purchaseHistory0, quotes0, prs0, pos0, HISTORY_SEED_ID } from "./seed";
 import { AdvancedItemsTable } from "./components/AdvancedItemsTable";
@@ -1271,6 +1271,73 @@ export default function ProcurementApp({
     setCurrentPO(po);
     setPos((list) => list.map((x) => (x.id === po.id ? po : x)));
   };
+
+  const handleCreateHandoverFromPO = (po: PO) => {
+    if (!po.items || po.items.length === 0) {
+      alert("PO/Hợp đồng này không có sản phẩm nào để tạo biên bản bàn giao.");
+      return;
+    }
+
+    // Check if items from this PO/Contract already exist in paymentHandovers
+    const existing = paymentHandovers.filter(
+      (h) => h.source_number === po.number || (h.note && h.note.includes(po.number))
+    );
+    if (existing.length > 0) {
+      const proceed = confirm(
+        `Đã có ${existing.length} mặt hàng từ đơn #${po.number} trong danh sách bàn giao.\n\n` +
+        `• Bấm [OK] để tiếp tục tạo thêm đợt bàn giao mới.\n` +
+        `• Bấm [Hủy] để xem danh sách bàn giao hiện có.`
+      );
+      if (!proceed) {
+        setSpotlightHandoverSearch(po.number);
+        setView("handover");
+        return;
+      }
+    }
+
+    const maxId = Math.max(0, ...paymentHandovers.map((h) => Number(h.id) || 0)) + 1;
+    let curId = maxId;
+
+    const supplier = suppliers.find((s) => s.id === po.supplierId);
+    const suppPart = supplier?.name ? ` - NCC: ${supplier.name}` : "";
+    const linkedPR = prs.find((p) => p.number === po.prNumber);
+    const defaultDept = linkedPR?.department || "Phòng Cung ứng";
+    const docTypeLabel = isContractPO(po) ? "Hợp đồng" : "PO";
+
+    const newHandovers: PaymentHandoverItem[] = po.items.map((it) => {
+      const delivered = it.deliveredQty > 0 ? it.deliveredQty : it.qty;
+      const specPart = it.spec ? ` (${it.spec})` : "";
+      return {
+        id: curId++,
+        department: defaultDept,
+        item_name: it.name,
+        unit: it.unit || "Cái",
+        quantity_doc: String(it.qty),
+        quantity_pass: String(delivered),
+        quantity_fail: "",
+        note: `Nhận từ ${docTypeLabel} #${po.number}${suppPart}${specPart}`,
+        handover_date: localToday(),
+        sender_name: "Trần Hải Hà",
+        sender_dept: "Phòng Cung ứng",
+        receiver_name: "",
+        source_type: docTypeLabel,
+        source_number: po.number,
+      };
+    });
+
+    setPaymentHandovers((prev) => [...newHandovers, ...prev]);
+    setSpotlightHandoverSearch(po.number);
+    setView("handover");
+    setStorageStatus(`Đã tạo ${newHandovers.length} dòng bàn giao từ ${docTypeLabel} #${po.number}`);
+  };
+
+  const handleCreatePaymentRequestFromHandover = (newReq: PaymentRequestEntry) => {
+    setPaymentRequests((prev) => [newReq, ...prev]);
+    setSpotlightPaymentActiveId(newReq.id);
+    setSpotlightPaymentSearch("");
+    setView("payment");
+    setStorageStatus(`Đã tạo Đề nghị thanh toán #${newReq.legacy_stt} từ ${newReq.lines?.length || 0} vật tư bàn giao!`);
+  };
   const activeContracts = pos.filter((po) => !hiddenContractIds.includes(po.id));
   useEffect(() => {
     if (!storageReady) return;
@@ -1560,6 +1627,7 @@ export default function ProcurementApp({
             onNavigateToPayment={(_filterGroupId) => {
               setView("payment");
             }}
+            onCreateHandover={handleCreateHandoverFromPO}
           />
         )}
         {view === "payment" && (
@@ -1587,11 +1655,13 @@ export default function ProcurementApp({
             prs={prs}
             pos={pos}
             suppliers={suppliers}
+            paymentRequests={paymentRequests}
             initialSearchQuery={spotlightHandoverSearch}
             onUpdateHandovers={(items) => setPaymentHandovers(items)}
             onUpdateState={(patch) => {
               if (patch.paymentHandovers !== undefined) setPaymentHandovers(patch.paymentHandovers);
             }}
+            onNavigateToPayment={handleCreatePaymentRequestFromHandover}
             readOnly={reportMode}
           />
         )}
@@ -1698,6 +1768,7 @@ export default function ProcurementApp({
               setView("po-detail");
             }}
             onDelete={reportMode ? undefined : (po) => requestDelete("PO", po)}
+            onCreateHandover={handleCreateHandoverFromPO}
             readOnly={reportMode}
           />
         )}
@@ -1714,6 +1785,7 @@ export default function ProcurementApp({
             workspaceId={workspaceId}
             readOnly={reportMode}
             onStatus={setStorageStatus}
+            onCreateHandover={handleCreateHandoverFromPO}
           />
         )}
         {view === "compare" && (

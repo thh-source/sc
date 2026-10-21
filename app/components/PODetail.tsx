@@ -1,5 +1,5 @@
 import React from "react";
-import { Supplier, PO, POItem, PODoc, Payment } from "../types";
+import { Supplier, PO, POItem, PODoc, Payment, isContractPO } from "../types";
 import { fmt, dateVN, makeId } from "../utils";
 import VisualTimeline from "./VisualTimeline";
 import DocumentManager from "./DocumentManager";
@@ -13,6 +13,7 @@ export function PODetail({
   workspaceId,
   readOnly = false,
   onStatus,
+  onCreateHandover,
 }: {
   po: PO;
   suppliers: Supplier[];
@@ -22,6 +23,7 @@ export function PODetail({
   workspaceId: string;
   readOnly?: boolean;
   onStatus?: (message: string) => void;
+  onCreateHandover?: (po: PO) => void;
 }) {
   const supplier = suppliers.find((s) => s.id === po.supplierId)!;
   const total = po.items.reduce((s, i) => s + i.qty * i.price, 0);
@@ -59,16 +61,43 @@ export function PODetail({
           <button className="back-link" onClick={onBack}>
             ← Quản lý PO
           </button>
-          <em>ĐƠN MUA HÀNG · {po.number}</em>
+          <em>{isContractPO(po) ? "HỢP ĐỒNG MUA HÀNG" : "ĐƠN MUA HÀNG"} · {po.number}</em>
           <h1>{supplier?.name}</h1>
           <p>
-            Từ {po.prNumber} · Tạo ngày {dateVN(po.createdDate)}
+            {po.prNumber ? `Từ ${po.prNumber} · ` : ""}Tạo ngày {dateVN(po.createdDate)}
           </p>
         </div>
-        <div className="po-total">
-          <span>Giá trị PO</span>
-          <b>{fmt(total)} ₫</b>
-          <i>{po.status}</i>
+        <div style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
+          {onCreateHandover && (
+            <button
+              type="button"
+              className="action-btn"
+              style={{
+                background: "#0284c7",
+                color: "#ffffff",
+                border: "1px solid #0369a1",
+                borderRadius: "6px",
+                padding: "8px 14px",
+                fontSize: "13px",
+                fontWeight: 600,
+                cursor: "pointer",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "6px",
+                boxShadow: "0 1px 2px rgba(0,0,0,0.06)",
+                whiteSpace: "nowrap",
+              }}
+              onClick={() => onCreateHandover(po)}
+              title="Tạo biên bản bàn giao cho các mặt hàng trong đơn này"
+            >
+              🚚 Tạo biên bản bàn giao
+            </button>
+          )}
+          <div className="po-total">
+            <span>Giá trị PO</span>
+            <b>{fmt(total)} ₫</b>
+            <i>{po.status}</i>
+          </div>
         </div>
       </div>
       <section className="common-note-card po-common-note">
@@ -156,16 +185,40 @@ export function PODetail({
             <span>▰</span>
             <h2>Tiến độ giao hàng theo sản phẩm</h2>
           </div>
-          <label>
-            Ngày dự kiến giao chung
-            <input
-              type="date"
-              value={po.expectedDate}
-              onChange={(e) =>
-                onUpdate({ ...po, expectedDate: e.target.value })
-              }
-            />
-          </label>
+          <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
+            {onCreateHandover && (
+              <button
+                type="button"
+                style={{
+                  background: "#0284c7",
+                  color: "#ffffff",
+                  border: "1px solid #0369a1",
+                  borderRadius: "5px",
+                  padding: "5px 12px",
+                  fontSize: "12px",
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "5px",
+                }}
+                onClick={() => onCreateHandover(po)}
+                title="Bàn giao các sản phẩm đã nhận"
+              >
+                🚚 Bàn giao hàng hóa
+              </button>
+            )}
+            <label>
+              Ngày dự kiến giao chung
+              <input
+                type="date"
+                value={po.expectedDate}
+                onChange={(e) =>
+                  onUpdate({ ...po, expectedDate: e.target.value })
+                }
+              />
+            </label>
+          </div>
         </div>
         <div className="delivery-table">
           <div className="mobile-record-list">

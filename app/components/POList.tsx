@@ -28,6 +28,7 @@ export function POList({
   onCreatePO,
   onAddSupplier,
   onAddProduct,
+  onCreateHandover,
   readOnly = false,
 }: {
   pos: PO[];
@@ -39,6 +40,7 @@ export function POList({
   onCreatePO?: (po: PO, openDetail?: boolean, sourcePrId?: number) => void;
   onAddSupplier?: (supplier: Supplier) => void;
   onAddProduct?: (product: Item) => void;
+  onCreateHandover?: (po: PO) => void;
   readOnly?: boolean;
 }) {
   const [q, setQ] = useState("");
@@ -469,6 +471,17 @@ export function POList({
                   <button className="row-action" onClick={() => onOpen(po)}>
                     Quản lý PO
                   </button>
+                  {onCreateHandover && (
+                    <button
+                      type="button"
+                      className="row-action"
+                      style={{ color: "#0284c7", fontWeight: 600 }}
+                      onClick={() => onCreateHandover(po)}
+                      title="Tạo biên bản bàn giao"
+                    >
+                      🚚 Bàn giao
+                    </button>
+                  )}
                   {onDelete && (
                     <button className="delete-action" onClick={() => onDelete(po)}>
                       Xóa
@@ -565,6 +578,17 @@ export function POList({
                         <button className="row-action" onClick={() => onOpen(po)}>
                           Quản lý →
                         </button>
+                        {onCreateHandover && (
+                          <button
+                            type="button"
+                            className="row-action"
+                            style={{ color: "#0284c7", fontWeight: 600 }}
+                            onClick={() => onCreateHandover(po)}
+                            title="Tạo biên bản bàn giao cho PO này"
+                          >
+                            🚚 Bàn giao
+                          </button>
+                        )}
                         {onDelete && (
                           <button
                             className="delete-action"

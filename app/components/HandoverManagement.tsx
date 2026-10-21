@@ -2,7 +2,7 @@
 
 import React, { useState, useMemo, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
-import { PaymentHandoverItem, PR, PO, Supplier } from "../types";
+import { PaymentHandoverItem, PR, PO, Supplier, PaymentRequestEntry } from "../types";
 import {
   normName,
   localToday,
@@ -78,6 +78,8 @@ export interface HandoverManagementProps {
   pos?: PO[];
   suppliers?: Supplier[];
   initialSearchQuery?: string;
+  paymentRequests?: PaymentRequestEntry[];
+  onNavigateToPayment?: (req: PaymentRequestEntry) => void;
 }
 
 export function HandoverManagement({
@@ -89,6 +91,8 @@ export function HandoverManagement({
   pos = [],
   suppliers = [],
   initialSearchQuery,
+  paymentRequests = [],
+  onNavigateToPayment,
 }: HandoverManagementProps) {
   const triggerUpdateHandovers = (next: PaymentHandoverItem[]) => {
     if (onUpdateHandovers) onUpdateHandovers(next);
@@ -702,6 +706,92 @@ export function HandoverManagement({
     );
   };
 
+  // Create Payment Request (ĐNTT) from selected handover items
+  const handleCreatePaymentRequestFromSelected = () => {
+    if (readOnly) return;
+    if (checkedHandovers.size === 0) {
+      alert("Vui lòng tích chọn ít nhất 1 vật tư bàn giao để lập đề nghị thanh toán.");
+      return;
+    }
+    const chosen = paymentHandovers.filter((h) => checkedHandovers.has(h.id));
+    if (chosen.length === 0) return;
+
+    // Detect primary source and supplier
+    const firstSourceNumber = chosen[0]?.source_number;
+    const firstSourceType = chosen[0]?.source_type || "PO";
+    const matchedPO = firstSourceNumber ? pos.find((p) => p.number === firstSourceNumber) : undefined;
+
+    let matchedSupplier = matchedPO ? suppliers.find((s) => s.id === matchedPO.supplierId) : undefined;
+    if (!matchedSupplier) {
+      for (const supp of suppliers) {
+        if (chosen.some((c) => c.note && c.note.toLowerCase().includes(supp.name.toLowerCase()))) {
+          matchedSupplier = supp;
+          break;
+        }
+      }
+    }
+
+    // Build lines with prices from matched PO if available
+    const lines = chosen.map((c) => {
+      const poItem = matchedPO?.items?.find(
+        (it) => it.name.trim().toLowerCase() === c.item_name.trim().toLowerCase()
+      );
+      const qty = Number(c.quantity_pass) || Number(c.quantity_doc) || 1;
+      const unitPrice = poItem ? Number(poItem.price) || 0 : 0;
+      const amount = unitPrice > 0 ? unitPrice * qty : 0;
+      const noteParts = [
+        `ĐVT: ${c.unit || "Cái"}`,
+        `SL giao: ${qty}`,
+        c.handover_date ? `Ngày BG: ${c.handover_date}` : "",
+        c.department ? `Bộ phận: ${c.department}` : "",
+      ].filter(Boolean);
+
+      return {
+        description: `${c.item_name}${c.unit ? ` (${qty} ${c.unit})` : ""}`,
+        invoice_no: "",
+        invoice_date: "",
+        amount: amount,
+        note: noteParts.join(" · "),
+      };
+    });
+
+    const totalAmount = lines.reduce((acc, l) => acc + (Number(l.amount) || 0), 0);
+    const existingRequests = paymentRequests || [];
+    const maxId = Math.max(0, ...existingRequests.map((r) => Number(r.id) || 0)) + 1;
+    const maxStt = Math.max(0, ...existingRequests.map((r) => Number(r.legacy_stt) || 0)) + 1;
+
+    const sourceDesc = firstSourceNumber
+      ? `${firstSourceType} #${firstSourceNumber}`
+      : `Biên bản BG (${chosen.length} vật tư)`;
+
+    const newReq: PaymentRequestEntry = {
+      id: maxId,
+      legacy_stt: String(maxStt).padStart(2, "0"),
+      payee_name: matchedSupplier ? matchedSupplier.name : "",
+      group_code: "",
+      description: `Thanh toán theo ${sourceDesc}`,
+      item_name: chosen.map((c) => c.item_name).filter(Boolean).join(", "),
+      invoice_no: "",
+      invoice_date: "",
+      amount: totalAmount > 0 ? totalAmount : "0",
+      currency: "VND",
+      documents: ["ĐNTT", "Biên bản bàn giao", "Hóa đơn điện tử GTGT"],
+      request_date: localToday(),
+      payment_type: "Chuyển khoản",
+      status: "Đã giao KT, chờ đi tiền",
+      address: matchedSupplier?.address || "",
+      account_no: matchedSupplier?.bankAccount || "",
+      bank: matchedSupplier?.bankName || "",
+      beneficiary_id: matchedSupplier?.id,
+      created_by_name: chosen[0]?.sender_name || "Trần Hải Hà",
+      lines: lines,
+    };
+
+    if (onNavigateToPayment) {
+      onNavigateToPayment(newReq);
+    }
+  };
+
   // Print Handover Direct (2 copies) via Portal
   const handlePrintHandoverDirect = (customItems?: PaymentHandoverItem[]) => {
     const items = customItems || (
@@ -957,6 +1047,27 @@ export function HandoverManagement({
             >
               🖨️ In biên bản {checkedHandovers.size > 0 ? `(${checkedHandovers.size})` : ""}
             </button>
+            <button
+              type="button"
+              className="payment-btn"
+              style={{
+                background: checkedHandovers.size > 0 ? "#4f46e5" : "#6366f1",
+                color: "#fff",
+                borderColor: "#4338ca",
+                fontWeight: 600,
+                opacity: checkedHandovers.size > 0 ? 1 : 0.6,
+                cursor: checkedHandovers.size > 0 ? "pointer" : "not-allowed",
+              }}
+              onClick={handleCreatePaymentRequestFromSelected}
+              title={
+                checkedHandovers.size > 0
+                  ? `Lập Đề nghị thanh toán (ĐNTT) cho ${checkedHandovers.size} vật tư đã chọn`
+                  : "Tích chọn ít nhất 1 vật tư để lập ĐNTT"
+              }
+              disabled={checkedHandovers.size === 0}
+            >
+              💳 Lập ĐNTT {checkedHandovers.size > 0 ? `(${checkedHandovers.size})` : ""}
+            </button>
             <button className="payment-btn btn-danger" onClick={handleDeleteSelectedHandovers}>
               🗑️ Xóa đã chọn
             </button>
@@ -1006,6 +1117,23 @@ export function HandoverManagement({
               title="In biên bản bàn giao các vật tư đã chọn"
             >
               🖨️ In biên bản {checkedHandovers.size > 0 ? `(${checkedHandovers.size})` : ""}
+            </button>
+            <button
+              type="button"
+              className="payment-btn"
+              style={{
+                background: "#4f46e5",
+                color: "#fff",
+                borderColor: "#4338ca",
+                flex: 1,
+                justifyContent: "center",
+                opacity: checkedHandovers.size > 0 ? 1 : 0.6,
+              }}
+              onClick={handleCreatePaymentRequestFromSelected}
+              disabled={checkedHandovers.size === 0}
+              title="Lập ĐNTT cho các vật tư đã chọn"
+            >
+              💳 Lập ĐNTT {checkedHandovers.size > 0 ? `(${checkedHandovers.size})` : ""}
             </button>
           </div>
         )}
@@ -1138,7 +1266,7 @@ export function HandoverManagement({
                       }}
                       style={{ width: "18px", height: "18px" }}
                     />
-                    <span>{isChecked ? "✓ Đã chọn để in biên bản" : "Chọn vật tư này để in"}</span>
+                    <span>{isChecked ? "✓ Đã chọn để in / lập ĐNTT" : "Chọn vật tư này để in hoặc lập ĐNTT"}</span>
                   </label>
                 </div>
               </div>
@@ -1153,7 +1281,7 @@ export function HandoverManagement({
         <div className="payment-table-container" onPaste={handleHandoverTablePaste}>
         <div className="payment-table-header">
           <span>BIÊN BẢN BÀN GIAO, NGHIỆM THU VẬT TƯ (KHÔNG QUA KHO) · HỖ TRỢ DÁN CTRL+V TỪ EXCEL</span>
-          <span>{checkedHandovers.size > 0 ? `Đang chọn ${checkedHandovers.size} vật tư để in hoặc xóa` : "Tích chọn các vật tư muốn in biên bản"}</span>
+          <span>{checkedHandovers.size > 0 ? `Đang chọn ${checkedHandovers.size} vật tư để in, lập ĐNTT hoặc xóa` : "Tích chọn các vật tư muốn in biên bản hoặc lập ĐNTT"}</span>
         </div>
         <div className="payment-table-scroll">
           <table

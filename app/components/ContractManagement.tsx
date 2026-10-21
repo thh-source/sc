@@ -28,6 +28,7 @@ export interface ContractManagementProps {
   products?: Item[];
   onAddSupplier?: (supplier: Supplier) => void;
   onAddProduct?: (product: Item) => void;
+  onCreateHandover?: (po: PO) => void;
 }
 
 export function ContractManagement({
@@ -48,6 +49,7 @@ export function ContractManagement({
   products = [],
   onAddSupplier,
   onAddProduct,
+  onCreateHandover,
 }: ContractManagementProps) {
   // Main tab switcher: PO Contracts vs Contract Groups
   const [mainTab, setMainTab] = useState<"pos" | "groups">("pos");
@@ -836,10 +838,32 @@ export function ContractManagement({
                         {supplier?.code} · {supplier?.name}
                       </p>
                     </div>
-                    <div>
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
                       <button onClick={() => onOpenPO(selected)}>
                         Mở PO liên kết ↗
                       </button>
+                      {onCreateHandover && (
+                        <button
+                          type="button"
+                          style={{
+                            background: "#0284c7",
+                            color: "#ffffff",
+                            border: "1px solid #0369a1",
+                            borderRadius: "4px",
+                            padding: "6px 12px",
+                            cursor: "pointer",
+                            fontSize: "12px",
+                            fontWeight: 600,
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: "5px",
+                          }}
+                          onClick={() => onCreateHandover(selected)}
+                          title="Tạo biên bản bàn giao cho hợp đồng này"
+                        >
+                          🚚 Tạo bàn giao
+                        </button>
+                      )}
                       <strong>{fmt(total)} ₫</strong>
                       <small>
                         {selected.expectedDate
