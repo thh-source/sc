@@ -38,8 +38,9 @@ const HandoverManagement = lazy(() => import("./components/HandoverManagement").
 const ProductCatalog = lazy(() => import("./components/ProductCatalog").then(m => ({ default: m.ProductCatalog })));
 const SupplierManagement = lazy(() => import("./components/SupplierManagement").then(m => ({ default: m.SupplierManagement })));
 import { GlobalSpotlightModal } from "./components/GlobalSpotlightModal";
+import { I18nProvider, useTranslation, LanguageSwitcher } from "./i18n";
 
-export default function ProcurementApp({
+function ProcurementAppInner({
   reportToken,
   currentUser,
 }: {
@@ -51,6 +52,7 @@ export default function ProcurementApp({
     role: "master" | "admin" | "user";
   };
 }) {
+  const { t } = useTranslation();
   const [view, setView] = useState<View>("dashboard"),
     [collapsed, setCollapsed] = useState(false),
     [prs, setPrs] = useState(prs0),
@@ -1386,26 +1388,43 @@ export default function ProcurementApp({
     }
   }, [view, selectedPR?.id, currentPO?.id, storageReady]);
 
+  const isNavActive = (id: string) => {
+    if (view === "dashboard" && id === "dashboard") return true;
+    if (view === "compare" && id === "compare") return true;
+    if ((view === "prs" || view === "create") && id === "prs") return true;
+    if ((view === "po-list" || view === "po-detail") && id === "po-list") return true;
+    if (view === "contracts" && id === "contracts") return true;
+    if (view === "payment" && id === "payment") return true;
+    if (view === "handover" && id === "handover") return true;
+    if (view === "products" && id === "products") return true;
+    if (view === "suppliers" && id === "suppliers") return true;
+    if (view === "trash" && id === "trash") return true;
+    if ((view === "settings" || view === "print-templates") && id === "settings") return true;
+    return false;
+  };
+
   const nav = [
-    { icon: "▦", name: "Tổng quan", action: () => setView("dashboard") },
-    { icon: "▣", name: "Danh sách PR", action: () => setView("prs") },
-    { icon: "⚖", name: "So sánh báo giá", action: () => setView("compare") },
-    { icon: "▰", name: "Quản lý PO", action: () => setView("po-list") },
-    { icon: "▧", name: "Hợp đồng", action: () => setView("contracts") },
-    { icon: "💳", name: "Thanh toán", action: () => setView("payment") },
-    { icon: "📦", name: "Bàn giao nội bộ", action: () => setView("handover") },
-    { icon: "▱", name: "Nhà cung cấp", action: () => setView("suppliers") },
-    { icon: "◇", name: "Hàng hóa", action: () => setView("products") },
+    { id: "dashboard", icon: "▦", name: t("nav.dashboard"), action: () => setView("dashboard") },
+    { id: "prs", icon: "▣", name: t("nav.prs"), action: () => setView("prs") },
+    { id: "compare", icon: "⚖", name: t("nav.compare"), action: () => setView("compare") },
+    { id: "po-list", icon: "▰", name: t("nav.po_list"), action: () => setView("po-list") },
+    { id: "contracts", icon: "▧", name: t("nav.contracts"), action: () => setView("contracts") },
+    { id: "payment", icon: "💳", name: t("nav.payment"), action: () => setView("payment") },
+    { id: "handover", icon: "📦", name: t("nav.handover"), action: () => setView("handover") },
+    { id: "suppliers", icon: "▱", name: t("nav.suppliers"), action: () => setView("suppliers") },
+    { id: "products", icon: "◇", name: t("nav.products"), action: () => setView("products") },
     {
+      id: "trash",
       icon: "♲",
-      name: `Thùng rác${trash.length ? ` (${trash.length})` : ""}`,
+      name: `${t("nav.trash")}${trash.length ? ` (${trash.length})` : ""}`,
       action: () => setView("trash"),
     },
     ...(currentUser?.role === "master" || currentUser?.role === "admin"
       ? [
           {
+            id: "settings",
             icon: "⚙",
-            name: "Cài đặt",
+            name: t("nav.settings"),
             action: () => setView("settings" as View),
           },
         ]
@@ -1414,14 +1433,14 @@ export default function ProcurementApp({
   const visibleNav = reportMode
     ? nav.filter((n) =>
         [
-          "Tổng quan",
-          "Danh sách PR",
-          "So sánh báo giá",
-          "Quản lý PO",
-          "Hợp đồng",
-          "Thanh toán",
-          "Bàn giao nội bộ",
-        ].includes(n.name),
+          "dashboard",
+          "prs",
+          "compare",
+          "po-list",
+          "contracts",
+          "payment",
+          "handover",
+        ].includes(n.id),
       )
     : nav;
 
@@ -1439,17 +1458,17 @@ export default function ProcurementApp({
           </span>
           <b>
             <strong>PHENIKAA</strong>
-            <small>{reportMode ? "Báo cáo chỉ xem" : "Procurement"}</small>
+            <small>{reportMode ? t("header.report_mode") : "Procurement"}</small>
           </b>
         </div>
         <button
           type="button"
           className="sidebar-search-btn"
           onClick={() => setSpotlightOpen(true)}
-          title="Tìm kiếm nhanh toàn hệ thống (Ctrl + K)"
+          title={t("header.search_placeholder")}
         >
           <span className="search-icon">🔍</span>
-          <b className="search-text">Tìm kiếm nhanh...</b>
+          <b className="search-text">{t("header.search_placeholder")}</b>
           <kbd className="search-kbd">Ctrl K</kbd>
         </button>
         <nav>
@@ -1461,25 +1480,8 @@ export default function ProcurementApp({
                   setCollapsed(true);
                 }
               }}
-              className={
-                (view === "dashboard" && n.name === "Tổng quan") ||
-                (view === "compare" && n.name === "So sánh báo giá") ||
-                ((view === "prs" || view === "create") &&
-                  n.name === "Danh sách PR") ||
-                ((view === "po-list" || view === "po-detail") &&
-                  n.name === "Quản lý PO") ||
-                (view === "contracts" && n.name === "Hợp đồng") ||
-                (view === "payment" && n.name === "Thanh toán") ||
-                (view === "handover" && n.name === "Bàn giao nội bộ") ||
-                (view === "products" && n.name === "Hàng hóa") ||
-                (view === "suppliers" && n.name === "Nhà cung cấp") ||
-                (view === "trash" && n.name.startsWith("Thùng rác")) ||
-                ((view === "settings" || view === "print-templates") &&
-                  n.name === "Cài đặt")
-                  ? "active"
-                  : ""
-              }
-              key={n.name}
+              className={isNavActive(n.id) ? "active" : ""}
+              key={n.id}
             >
               <span>{n.icon}</span>
               <b>{n.name}</b>
@@ -1487,6 +1489,10 @@ export default function ProcurementApp({
           ))}
         </nav>
         <div className="sidebar-bottom-actions">
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "6px", marginBottom: "6px" }}>
+            <span style={{ fontSize: "11px", color: "#94a3b8", fontWeight: 600 }}>{t("header.language")}</span>
+            <LanguageSwitcher variant="compact" />
+          </div>
           {!reportMode && workspaceUsers.length > 0 && (
             <label className="workspace-picker">
               <span>Môi trường</span>
@@ -1532,12 +1538,12 @@ export default function ProcurementApp({
               onClick={logout}
               title="Đăng xuất tài khoản"
             >
-              <span>↪</span> Đăng xuất
+              <span>↪</span> {t("header.logout")}
             </button>
           )}
         </div>
-        <button className="collapse" onClick={() => setCollapsed(!collapsed)}>
-          « <b>Thu gọn</b>
+        <button className="collapse" onClick={() => setCollapsed(!collapsed)} title={collapsed ? t("nav.expand") : t("nav.collapse")}>
+          « <b>{collapsed ? t("nav.expand") : t("nav.collapse")}</b>
         </button>
       </aside>
       {!collapsed && (
@@ -1552,15 +1558,18 @@ export default function ProcurementApp({
           <button className="hamb" onClick={() => setCollapsed(!collapsed)}>
             ☰
           </button>
-          <b>{reportMode ? "Báo cáo chỉ xem" : "Procurement"}</b>
-          <button
-            type="button"
-            className="mobile-search-btn"
-            onClick={() => setSpotlightOpen(true)}
-            title="Tìm kiếm nhanh (Ctrl + K)"
-          >
-            🔍 Tìm kiếm
-          </button>
+          <b>{reportMode ? t("header.report_mode") : "Procurement"}</b>
+          <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: "6px" }}>
+            <LanguageSwitcher variant="compact" />
+            <button
+              type="button"
+              className="mobile-search-btn"
+              onClick={() => setSpotlightOpen(true)}
+              title={t("header.search_placeholder")}
+            >
+              🔍
+            </button>
+          </div>
         </div>
         {reportMode ? (
           <div className="report-banner">
@@ -2233,9 +2242,9 @@ export default function ProcurementApp({
       )}
       {!reportMode && (
         <nav className="mobile-bottom-nav" aria-label="Điều hướng điện thoại">
-          <button className={view === "dashboard" ? "active" : ""} onClick={() => setView("dashboard")}><span>▦</span><b>Tổng quan</b></button>
+          <button className={view === "dashboard" ? "active" : ""} onClick={() => setView("dashboard")}><span>▦</span><b>{t("nav.dashboard")}</b></button>
           <button className={view === "prs" || view === "create" ? "active" : ""} onClick={() => setView("prs")}><span>▣</span><b>PR</b></button>
-          <button className={view === "payment" ? "active" : ""} onClick={() => setView("payment")}><span>💳</span><b>Thanh toán</b></button>
+          <button className={view === "payment" ? "active" : ""} onClick={() => setView("payment")}><span>💳</span><b>{t("nav.payment")}</b></button>
           <button className={view === "po-list" || view === "po-detail" ? "active" : ""} onClick={() => setView("po-list")}><span>▰</span><b>PO</b></button>
           <button onClick={() => setCollapsed(false)}><span>☰</span><b>Menu</b></button>
         </nav>
@@ -2254,6 +2263,22 @@ export default function ProcurementApp({
         onNavigate={handleSpotlightNavigate}
       />
     </div>
+  );
+}
+
+export default function ProcurementApp(props: {
+  reportToken?: string;
+  currentUser?: {
+    id: string;
+    username: string;
+    displayName: string;
+    role: "master" | "admin" | "user";
+  };
+}) {
+  return (
+    <I18nProvider>
+      <ProcurementAppInner {...props} />
+    </I18nProvider>
   );
 }
 

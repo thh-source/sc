@@ -124,6 +124,21 @@ html {
   color: var(--text-main);
 }
 
+/* Chinese (zh-CN) Typography Optimization */
+:lang(zh),
+:lang(zh-CN),
+html[lang="zh"],
+html[lang="zh-CN"] {
+  font-family: var(--font-geist-sans), "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "WenQuanYi Micro Hei", sans-serif;
+  letter-spacing: 0.015em;
+}
+
+:lang(zh) .money,
+:lang(zh) .num,
+:lang(zh) td {
+  font-feature-settings: "tnum" 1;
+}
+
 body {
   margin: 0;
   background-color: var(--bg-app);
