@@ -585,18 +585,26 @@ export function PaymentManagement({
     return Array.from(set).filter(Boolean);
   }, [paymentGroups, pos, paymentRequests]);
 
-  // Request edits
-  const handleEditRequest = (id: number, key: keyof PaymentRequestEntry, val: any) => {
+  // Request edits (supports single key-value or patch object for atomic updates)
+  const handleEditRequest = (
+    id: number,
+    patchOrKey: keyof PaymentRequestEntry | Partial<PaymentRequestEntry>,
+    val?: any
+  ) => {
     if (readOnly) return;
+    const patch: Partial<PaymentRequestEntry> =
+      typeof patchOrKey === "string" ? { [patchOrKey]: val } : patchOrKey;
+
     const next = paymentRequests.map((r) => {
       if (r.id === id) {
-        const updated = { ...r, [key]: val };
-        if (key === "payee_name") {
+        const updated = { ...r, ...patch };
+        if ("payee_name" in patch && patch.payee_name) {
+          const valName = patch.payee_name;
           const match = suppliers.find(
             (s) =>
-              normName(s.name) === normName(val) ||
-              (s.shortName && normName(s.shortName) === normName(val)) ||
-              (s.code && normName(s.code) === normName(val))
+              normName(s.name) === normName(valName) ||
+              (s.shortName && normName(s.shortName) === normName(valName)) ||
+              (s.code && normName(s.code) === normName(valName))
           );
           if (match) {
             updated.payee_name = match.shortName || match.name;
@@ -606,9 +614,10 @@ export function PaymentManagement({
             if (match.bank) updated.bank = match.bank;
           }
         }
-        if (key === "group_code") {
+        if ("group_code" in patch && patch.group_code) {
+          const valCode = patch.group_code;
           const g = paymentGroups.find(
-            (x) => normName(x.code) === normName(val) || normName(x.name) === normName(val)
+            (x) => normName(x.code) === normName(valCode) || normName(x.name) === normName(valCode)
           );
           if (g) updated.group_id = g.id;
         }
@@ -1162,12 +1171,13 @@ export function PaymentManagement({
             className="cell-editor cell-editor-textarea"
             value={r.item_name || ""}
             onChange={(val) => {
-              handleEditRequest(r.id, "item_name", val);
+              const patch: Partial<PaymentRequestEntry> = { item_name: val };
               if (r.lines && r.lines.length > 0) {
                 const nextLines = [...r.lines];
                 nextLines[0] = { ...nextLines[0], description: val };
-                handleEditRequest(r.id, "lines", nextLines);
+                patch.lines = nextLines;
               }
+              handleEditRequest(r.id, patch);
             }}
             placeholder="Tên hàng hóa / dịch vụ..."
             title={r.item_name || "Tên hàng hóa / dịch vụ..."}
@@ -1206,12 +1216,13 @@ export function PaymentManagement({
               value={r.invoice_no || ""}
               onChange={(e) => {
                 const val = e.target.value;
-                handleEditRequest(r.id, "invoice_no", val);
+                const patch: Partial<PaymentRequestEntry> = { invoice_no: val };
                 if (r.lines && r.lines.length === 1) {
                   const nextLines = [...r.lines];
                   nextLines[0] = { ...nextLines[0], invoice_no: val };
-                  handleEditRequest(r.id, "lines", nextLines);
+                  patch.lines = nextLines;
                 }
+                handleEditRequest(r.id, patch);
               }}
               placeholder="Số HĐ..."
               style={{ flex: 1, minWidth: 0, padding: "0 4px" }}
@@ -1242,22 +1253,24 @@ export function PaymentManagement({
               placeholder="dd/mm/yyyy"
               onChange={(e) => {
                 const val = e.target.value;
-                handleEditRequest(r.id, "invoice_date", val);
+                const patch: Partial<PaymentRequestEntry> = { invoice_date: val };
                 if (r.lines && r.lines.length === 1) {
                   const nextLines = [...r.lines];
                   nextLines[0] = { ...nextLines[0], invoice_date: val };
-                  handleEditRequest(r.id, "lines", nextLines);
+                  patch.lines = nextLines;
                 }
+                handleEditRequest(r.id, patch);
               }}
               onBlur={(e) => {
                 const parsed = parseFlexibleDate(e.target.value);
                 if (parsed !== e.target.value) {
-                  handleEditRequest(r.id, "invoice_date", parsed);
+                  const patch: Partial<PaymentRequestEntry> = { invoice_date: parsed };
                   if (r.lines && r.lines.length === 1) {
                     const nextLines = [...r.lines];
                     nextLines[0] = { ...nextLines[0], invoice_date: parsed };
-                    handleEditRequest(r.id, "lines", nextLines);
+                    patch.lines = nextLines;
                   }
+                  handleEditRequest(r.id, patch);
                 }
               }}
             />
@@ -1267,12 +1280,13 @@ export function PaymentManagement({
               title="Chọn ngày từ lịch"
               onClick={() =>
                 openCalendar(r.invoice_date || "", (val) => {
-                  handleEditRequest(r.id, "invoice_date", val);
+                  const patch: Partial<PaymentRequestEntry> = { invoice_date: val };
                   if (r.lines && r.lines.length === 1) {
                     const nextLines = [...r.lines];
                     nextLines[0] = { ...nextLines[0], invoice_date: val };
-                    handleEditRequest(r.id, "lines", nextLines);
+                    patch.lines = nextLines;
                   }
+                  handleEditRequest(r.id, patch);
                 })
               }
             >
@@ -1287,12 +1301,13 @@ export function PaymentManagement({
             style={{ textAlign: "right", fontWeight: 600 }}
             value={r.amount}
             onValueChange={(val) => {
-              handleEditRequest(r.id, "amount", val);
+              const patch: Partial<PaymentRequestEntry> = { amount: val };
               if (r.lines && r.lines.length === 1) {
                 const nextLines = [...r.lines];
                 nextLines[0] = { ...nextLines[0], amount: val };
-                handleEditRequest(r.id, "lines", nextLines);
+                patch.lines = nextLines;
               }
+              handleEditRequest(r.id, patch);
             }}
           />
         );
@@ -2185,8 +2200,9 @@ export function PaymentManagement({
                   onChange={(val) => {
                     const lines = [...(activeReq.lines || [])];
                     lines[lIdx] = { ...lines[lIdx], description: val };
-                    handleEditRequest(activeReq.id, "lines", lines);
-                    if (lIdx === 0) handleEditRequest(activeReq.id, "item_name", val);
+                    const patch: Partial<PaymentRequestEntry> = { lines };
+                    if (lIdx === 0) patch.item_name = val;
+                    handleEditRequest(activeReq.id, patch);
                   }}
                 />
                 <input
@@ -2197,8 +2213,9 @@ export function PaymentManagement({
                   onChange={(e) => {
                     const lines = [...(activeReq.lines || [])];
                     lines[lIdx] = { ...lines[lIdx], invoice_no: e.target.value };
-                    handleEditRequest(activeReq.id, "lines", lines);
-                    if (lIdx === 0) handleEditRequest(activeReq.id, "invoice_no", e.target.value);
+                    const patch: Partial<PaymentRequestEntry> = { lines };
+                    if (lIdx === 0) patch.invoice_no = e.target.value;
+                    handleEditRequest(activeReq.id, patch);
                   }}
                 />
                 <div className="cell-date-wrap">
@@ -2209,15 +2226,18 @@ export function PaymentManagement({
                     onChange={(e) => {
                       const lines = [...(activeReq.lines || [])];
                       lines[lIdx] = { ...lines[lIdx], invoice_date: e.target.value };
-                      handleEditRequest(activeReq.id, "lines", lines);
+                      const patch: Partial<PaymentRequestEntry> = { lines };
+                      if (lIdx === 0) patch.invoice_date = e.target.value;
+                      handleEditRequest(activeReq.id, patch);
                     }}
                     onBlur={(e) => {
                       const parsed = parseFlexibleDate(e.target.value);
                       if (parsed !== e.target.value) {
                         const lines = [...(activeReq.lines || [])];
                         lines[lIdx] = { ...lines[lIdx], invoice_date: parsed };
-                        handleEditRequest(activeReq.id, "lines", lines);
-                        if (lIdx === 0) handleEditRequest(activeReq.id, "invoice_date", parsed);
+                        const patch: Partial<PaymentRequestEntry> = { lines };
+                        if (lIdx === 0) patch.invoice_date = parsed;
+                        handleEditRequest(activeReq.id, patch);
                       }
                     }}
                   />
@@ -2229,8 +2249,9 @@ export function PaymentManagement({
                       openCalendar(line.invoice_date || "", (val) => {
                         const lines = [...(activeReq.lines || [])];
                         lines[lIdx] = { ...lines[lIdx], invoice_date: val };
-                        handleEditRequest(activeReq.id, "lines", lines);
-                        if (lIdx === 0) handleEditRequest(activeReq.id, "invoice_date", val);
+                        const patch: Partial<PaymentRequestEntry> = { lines };
+                        if (lIdx === 0) patch.invoice_date = val;
+                        handleEditRequest(activeReq.id, patch);
                       })
                     }
                   >
@@ -2255,8 +2276,7 @@ export function PaymentManagement({
                       (sum, it) => sum + (Number(it.amount) || 0),
                       0
                     );
-                    handleEditRequest(activeReq.id, "lines", lines);
-                    handleEditRequest(activeReq.id, "amount", totalAmt);
+                    handleEditRequest(activeReq.id, { lines, amount: totalAmt });
                   }}
                 />
                 <button
@@ -2604,12 +2624,13 @@ export function PaymentManagement({
                         value={editReq.item_name || ""}
                         onChange={(e) => {
                           const val = e.target.value;
-                          handleEditRequest(editReq.id, "item_name", val);
+                          const patch: Partial<PaymentRequestEntry> = { item_name: val };
                           if (editReq.lines && editReq.lines.length > 0) {
                             const lines = [...editReq.lines];
                             lines[0] = { ...lines[0], description: val };
-                            handleEditRequest(editReq.id, "lines", lines);
+                            patch.lines = lines;
                           }
+                          handleEditRequest(editReq.id, patch);
                         }}
                         placeholder="Nhập hoặc chọn tên hàng hóa..."
                         className="card-edit-input"
@@ -2622,12 +2643,13 @@ export function PaymentManagement({
                           value={editReq.amount}
                           placeholder="0"
                           onValueChange={(val) => {
-                            handleEditRequest(editReq.id, "amount", val);
+                            const patch: Partial<PaymentRequestEntry> = { amount: val };
                             if (editReq.lines && editReq.lines.length === 1) {
                               const lines = [...editReq.lines];
                               lines[0] = { ...lines[0], amount: val };
-                              handleEditRequest(editReq.id, "lines", lines);
+                              patch.lines = lines;
                             }
+                            handleEditRequest(editReq.id, patch);
                           }}
                           className="card-edit-input"
                           style={{ fontWeight: 700, color: "#0d9488", textAlign: "right" }}
@@ -2716,8 +2738,9 @@ export function PaymentManagement({
                           onChange={(e) => {
                             const lines = [...(editReq.lines || [])];
                             lines[lIdx] = { ...lines[lIdx], description: e.target.value };
-                            handleEditRequest(editReq.id, "lines", lines);
-                            if (lIdx === 0) handleEditRequest(editReq.id, "item_name", e.target.value);
+                            const patch: Partial<PaymentRequestEntry> = { lines };
+                            if (lIdx === 0) patch.item_name = e.target.value;
+                            handleEditRequest(editReq.id, patch);
                           }}
                         />
                         <input
@@ -2728,8 +2751,9 @@ export function PaymentManagement({
                           onChange={(e) => {
                             const lines = [...(editReq.lines || [])];
                             lines[lIdx] = { ...lines[lIdx], invoice_no: e.target.value };
-                            handleEditRequest(editReq.id, "lines", lines);
-                            if (lIdx === 0) handleEditRequest(editReq.id, "invoice_no", e.target.value);
+                            const patch: Partial<PaymentRequestEntry> = { lines };
+                            if (lIdx === 0) patch.invoice_no = e.target.value;
+                            handleEditRequest(editReq.id, patch);
                           }}
                         />
                         <div className="cell-date-wrap">
@@ -2740,15 +2764,18 @@ export function PaymentManagement({
                             onChange={(e) => {
                               const lines = [...(editReq.lines || [])];
                               lines[lIdx] = { ...lines[lIdx], invoice_date: e.target.value };
-                              handleEditRequest(editReq.id, "lines", lines);
+                              const patch: Partial<PaymentRequestEntry> = { lines };
+                              if (lIdx === 0) patch.invoice_date = e.target.value;
+                              handleEditRequest(editReq.id, patch);
                             }}
                             onBlur={(e) => {
                               const parsed = parseFlexibleDate(e.target.value);
                               if (parsed !== e.target.value) {
                                 const lines = [...(editReq.lines || [])];
                                 lines[lIdx] = { ...lines[lIdx], invoice_date: parsed };
-                                handleEditRequest(editReq.id, "lines", lines);
-                                if (lIdx === 0) handleEditRequest(editReq.id, "invoice_date", parsed);
+                                const patch: Partial<PaymentRequestEntry> = { lines };
+                                if (lIdx === 0) patch.invoice_date = parsed;
+                                handleEditRequest(editReq.id, patch);
                               }
                             }}
                           />
@@ -2760,8 +2787,9 @@ export function PaymentManagement({
                               openCalendar(line.invoice_date || "", (val) => {
                                 const lines = [...(editReq.lines || [])];
                                 lines[lIdx] = { ...lines[lIdx], invoice_date: val };
-                                handleEditRequest(editReq.id, "lines", lines);
-                                if (lIdx === 0) handleEditRequest(editReq.id, "invoice_date", val);
+                                const patch: Partial<PaymentRequestEntry> = { lines };
+                                if (lIdx === 0) patch.invoice_date = val;
+                                handleEditRequest(editReq.id, patch);
                               })
                             }
                           >
@@ -2780,8 +2808,7 @@ export function PaymentManagement({
                               (sum, it) => sum + (Number(it.amount) || 0),
                               0
                             );
-                            handleEditRequest(editReq.id, "lines", lines);
-                            handleEditRequest(editReq.id, "amount", totalAmt);
+                            handleEditRequest(editReq.id, { lines, amount: totalAmt });
                           }}
                         />
                         <button
@@ -2795,8 +2822,7 @@ export function PaymentManagement({
                               (sum, it) => sum + (Number(it.amount) || 0),
                               0
                             );
-                            handleEditRequest(editReq.id, "lines", lines);
-                            if (lines.length > 0) handleEditRequest(editReq.id, "amount", totalAmt);
+                            handleEditRequest(editReq.id, { lines, ...(lines.length > 0 ? { amount: totalAmt } : {}) });
                           }}
                         >
                           ✕
@@ -3746,9 +3772,8 @@ export function PaymentManagement({
                               onChange={(e) => {
                                 const lines = [...(multiReq.lines || [])];
                                 lines[lIdx] = { ...lines[lIdx], invoice_no: e.target.value };
-                                handleEditRequest(multiReq.id, "lines", lines);
                                 const allNos = lines.map((x) => x.invoice_no).filter(Boolean).join(", ");
-                                handleEditRequest(multiReq.id, "invoice_no", allNos);
+                                handleEditRequest(multiReq.id, { lines, invoice_no: allNos });
                               }}
                             />
                           </td>
@@ -3812,8 +3837,7 @@ export function PaymentManagement({
                                 const lines = [...(multiReq.lines || [])];
                                 lines[lIdx] = { ...lines[lIdx], amount: val };
                                 const sumAmt = lines.reduce((s, it) => s + (Number(it.amount) || 0), 0);
-                                handleEditRequest(multiReq.id, "lines", lines);
-                                handleEditRequest(multiReq.id, "amount", sumAmt);
+                                handleEditRequest(multiReq.id, { lines, amount: sumAmt });
                               }}
                             />
                           </td>
@@ -3826,10 +3850,8 @@ export function PaymentManagement({
                               onClick={() => {
                                 const lines = (multiReq.lines || []).filter((_, i) => i !== lIdx);
                                 const sumAmt = lines.reduce((s, it) => s + (Number(it.amount) || 0), 0);
-                                handleEditRequest(multiReq.id, "lines", lines);
-                                handleEditRequest(multiReq.id, "amount", sumAmt);
                                 const allNos = lines.map((x) => x.invoice_no).filter(Boolean).join(", ");
-                                handleEditRequest(multiReq.id, "invoice_no", allNos);
+                                handleEditRequest(multiReq.id, { lines, amount: sumAmt, invoice_no: allNos });
                               }}
                             >
                               ✕
