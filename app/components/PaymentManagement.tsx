@@ -52,52 +52,100 @@ export function MoneyInput({
   ...rest
 }: MoneyInputProps) {
   const [isFocused, setIsFocused] = useState(false);
-  const [localStr, setLocalStr] = useState<string>("");
+  const [rawStr, setRawStr] = useState<string>(() => {
+    const n = parseMoney(value);
+    return n === 0 ? "" : String(n);
+  });
+  const inputRef = useRef<HTMLInputElement>(null);
+  const debounceTimerRef = useRef<any>(null);
+  const lastCommittedRef = useRef<number>(parseMoney(value));
 
+  // Sync with value prop when not focused
   useEffect(() => {
     if (!isFocused) {
       const n = parseMoney(value);
-      setLocalStr(n === 0 ? "" : n.toLocaleString("en-US"));
+      setRawStr(n === 0 ? "" : String(n));
+      lastCommittedRef.current = n;
     }
   }, [value, isFocused]);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const raw = e.target.value;
-    const cleanDigits = raw.replace(/\D/g, "");
-    if (!cleanDigits) {
-      setLocalStr("");
-      onValueChange(0);
-      return;
+  // Clean up timer on unmount
+  useEffect(() => {
+    return () => {
+      if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+    };
+  }, []);
+
+  const commitValue = (valStr: string) => {
+    const num = parseInt(valStr.replace(/\D/g, ""), 10) || 0;
+    if (num !== lastCommittedRef.current) {
+      lastCommittedRef.current = num;
+      onValueChange(num);
     }
-    const num = parseInt(cleanDigits, 10) || 0;
-    setLocalStr(num.toLocaleString("en-US"));
-    onValueChange(num);
   };
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    // Only keep clean digits while user is typing (prevents Unikey repeating keys & caret jumps)
+    const digits = e.target.value.replace(/\D/g, "");
+    setRawStr(digits);
+
+    // Debounce commit to parent state (400ms) so active typing is buttery smooth
+    if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+    debounceTimerRef.current = setTimeout(() => {
+      commitValue(digits);
+    }, 400);
+  };
+
+  const handleFocus = (e: React.FocusEvent<HTMLInputElement>) => {
+    setIsFocused(true);
+    const n = parseMoney(value);
+    setRawStr(n === 0 ? "" : String(n));
+    // Select all on focus so user can immediately type a replacement
+    setTimeout(() => {
+      if (inputRef.current) {
+        inputRef.current.select();
+      }
+    }, 0);
+  };
+
+  const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
+    if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+    commitValue(rawStr);
+    setIsFocused(false);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+      commitValue(rawStr);
+      e.currentTarget.blur();
+    }
+    if (rest.onKeyDown) {
+      rest.onKeyDown(e);
+    }
+  };
+
+  // When focused: display raw unformatted digits (prevents Unikey repeating keys & caret jumps)
+  // When blurred: display formatted money with comma thousand separators
+  const displayVal = isFocused
+    ? rawStr
+    : parseMoney(value) === 0
+    ? ""
+    : parseMoney(value).toLocaleString("en-US");
 
   return (
     <input
+      ref={inputRef}
       type="text"
       inputMode="numeric"
       className={className}
       style={style}
       placeholder={placeholder}
-      value={
-        isFocused
-          ? localStr
-          : parseMoney(value) === 0
-          ? ""
-          : parseMoney(value).toLocaleString("en-US")
-      }
-      onFocus={(e) => {
-        setIsFocused(true);
-        const n = parseMoney(value);
-        setLocalStr(n === 0 ? "" : n.toLocaleString("en-US"));
-        e.target.select();
-      }}
-      onBlur={() => {
-        setIsFocused(false);
-      }}
+      value={displayVal}
+      onFocus={handleFocus}
+      onBlur={handleBlur}
       onChange={handleChange}
+      onKeyDown={handleKeyDown}
       {...rest}
     />
   );
