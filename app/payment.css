@@ -348,7 +348,9 @@ table.payment-table tr.chosen td {
 }
 
 table.payment-grid td input,
-table.payment-grid td select {
+table.payment-grid td select,
+table.payment-table td input,
+table.payment-table td select {
   width: 100%;
   height: 100%;
   min-height: 38px;
@@ -364,8 +366,20 @@ table.payment-grid td select {
   white-space: nowrap;
 }
 
+table.payment-grid td select,
+table.payment-table td select {
+  cursor: pointer;
+}
+
+table.payment-grid td select:hover,
+table.payment-table td select:hover {
+  background: rgba(241, 245, 249, 0.7);
+}
+
 table.payment-grid td input:focus,
-table.payment-grid td select:focus {
+table.payment-grid td select:focus,
+table.payment-table td input:focus,
+table.payment-table td select:focus {
   outline: 2px solid #0284c7;
   outline-offset: -2px;
   background: #ffffff !important;

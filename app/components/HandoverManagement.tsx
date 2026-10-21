@@ -263,15 +263,35 @@ export function HandoverManagement({
   const calendarPickerRef = useRef<HTMLInputElement>(null);
   const calendarCbRef = useRef<((dateVal: string) => void) | null>(null);
 
-  // Departments list
+  // Departments list (standard departments + from existing handovers and PRs)
   const handoverDepts = useMemo(() => {
-    const set = new Set<string>();
+    const defaultDepts = [
+      "RD",
+      "QC",
+      "QA",
+      "Sản xuất",
+      "Kho",
+      "Bảo trì",
+      "Kế toán",
+      "Phòng Cung ứng",
+      "Mua hàng",
+      "Hành chính",
+      "Kỹ thuật",
+      "IT",
+      "R&D",
+      "Ban Giám đốc",
+    ];
+    const set = new Set<string>(defaultDepts);
     for (const h of paymentHandovers) {
       const d = String(h.department || "").trim();
       if (d) set.add(d);
     }
-    return Array.from(set).sort();
-  }, [paymentHandovers]);
+    for (const p of prs) {
+      const d = String(p.department || "").trim();
+      if (d) set.add(d);
+    }
+    return Array.from(set).filter(Boolean).sort((a, b) => a.localeCompare(b, "vi"));
+  }, [paymentHandovers, prs]);
 
   const handoverItemSuggestions = useMemo(() => {
     const set = new Set<string>();
@@ -705,16 +725,45 @@ export function HandoverManagement({
             {h.id}
           </span>
         );
-      case "department":
+      case "department": {
+        const currentDept = String(h.department || "").trim();
+        const deptList = currentDept && !handoverDepts.includes(currentDept)
+          ? [currentDept, ...handoverDepts]
+          : handoverDepts;
+
         return (
-          <AutoGrowTextarea
-            className="cell-editor cell-editor-textarea"
-            value={h.department || ""}
-            onChange={(val) => handleEditHandover(h.id, "department", val)}
-            placeholder="Phòng ban nhận..."
-            title={h.department || "Phòng ban nhận..."}
-          />
+          <select
+            className="cell-editor cell-editor-select"
+            value={currentDept}
+            onChange={(e) => {
+              const val = e.target.value;
+              if (val === "__custom__") {
+                const custom = window.prompt("Nhập tên bộ phận / phòng ban nhận mới:", "");
+                if (custom && custom.trim()) {
+                  handleEditHandover(h.id, "department", custom.trim());
+                }
+              } else {
+                handleEditHandover(h.id, "department", val);
+              }
+            }}
+            title={currentDept || "Chọn bộ phận nhận..."}
+            style={{
+              cursor: "pointer",
+              color: currentDept ? "#1e293b" : "#94a3b8",
+            }}
+          >
+            <option value="">-- Chọn bộ phận --</option>
+            {deptList.map((d) => (
+              <option key={d} value={d}>
+                {d}
+              </option>
+            ))}
+            <option value="__custom__" style={{ color: "#2563eb", fontWeight: 600 }}>
+              + Nhập bộ phận khác...
+            </option>
+          </select>
         );
+      }
       case "item_name":
         return (
           <AutoGrowTextarea
@@ -1257,7 +1306,7 @@ export function HandoverManagement({
                       const leftPx = stickyLeftMap[col.id];
                       const isLastPinned = col.id === lastPinnedId;
                       const colW = col.width || col.minWidth;
-                      const isMultilineCol = ["item_name", "note", "department", "sender_name", "receiver_name"].includes(col.id);
+                      const isMultilineCol = ["item_name", "note", "sender_name", "receiver_name"].includes(col.id);
 
                       const style: React.CSSProperties = {
                         width: `${colW}px`,
