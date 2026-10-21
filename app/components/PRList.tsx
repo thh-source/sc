@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { PR } from "../types";
 import { fmt, dateVN } from "../utils";
+import { useTranslation } from "../i18n";
 
 export function PRList({
   prs,
@@ -13,6 +14,7 @@ export function PRList({
   onOpen: (pr: PR) => void;
   onDelete?: (pr: PR) => void;
 }) {
+  const { t } = useTranslation();
   const [q, setQ] = useState("");
   const shown = prs.filter((p) =>
     (p.number + p.department + p.purpose)
@@ -23,31 +25,31 @@ export function PRList({
     <section className="content pr-page">
       <div className="heading">
         <div>
-          <em>QUẢN LÝ ĐỀ NGHỊ MUA HÀNG</em>
-          <h1>Danh sách PR</h1>
-          <p>Theo dõi yêu cầu mua hàng và chuyển sang bước lấy báo giá.</p>
+          <em>{t("pr.badge")}</em>
+          <h1>{t("pr.title")}</h1>
+          <p>{t("pr.desc")}</p>
         </div>
         <button className="primary" onClick={onCreate}>
-          ＋ Tạo PR mới
+          {t("pr.create_btn")}
         </button>
       </div>
       <div className="pr-stats">
         <article>
-          <span>Tổng số PR</span>
+          <span>{t("pr.stat_total")}</span>
           <strong>{prs.length}</strong>
-          <small>Trong danh sách hiện tại</small>
+          <small>{t("pr.stat_total_sub")}</small>
         </article>
         <article>
-          <span>Chờ xử lý</span>
+          <span>{t("pr.stat_pending")}</span>
           <strong>{prs.filter((p) => p.status === "Chờ xử lý").length}</strong>
-          <small>Cần tiếp tục thực hiện</small>
+          <small>{t("pr.stat_pending_sub")}</small>
         </article>
         <article>
-          <span>Đang lấy báo giá</span>
+          <span>{t("pr.stat_quoting")}</span>
           <strong>
             {prs.filter((p) => p.status === "Đang lấy báo giá").length}
           </strong>
-          <small>Đang so sánh nhà cung cấp</small>
+          <small>{t("pr.stat_quoting_sub")}</small>
         </article>
       </div>
       <div className="pr-panel">
@@ -57,10 +59,10 @@ export function PRList({
             <input
               value={q}
               onChange={(e) => setQ(e.target.value)}
-              placeholder="Tìm số PR, đơn vị, mục đích..."
+              placeholder={t("pr.search_placeholder")}
             />
           </label>
-          <span>{shown.length} yêu cầu mua hàng</span>
+          <span>{t("pr.requests_count", { count: shown.length })}</span>
         </div>
         <div className="mobile-record-list">
           {shown.map((pr) => (
@@ -87,13 +89,13 @@ export function PRList({
             </colgroup>
             <thead>
               <tr>
-                <th>Số PR</th>
-                <th>Ngày PR</th>
-                <th>Đơn vị</th>
-                <th>Mục đích sử dụng</th>
-                <th>Số mặt hàng</th>
-                <th>Giá trị dự kiến</th>
-                <th>Trạng thái</th>
+                <th>{t("table.pr_number")}</th>
+                <th>{t("table.pr_date")}</th>
+                <th>{t("table.department")}</th>
+                <th>{t("table.purpose")}</th>
+                <th>{t("table.items_count")}</th>
+                <th>{t("table.est_amount")}</th>
+                <th>{t("table.status")}</th>
                 <th></th>
               </tr>
             </thead>

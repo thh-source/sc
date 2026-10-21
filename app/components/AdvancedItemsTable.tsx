@@ -2,6 +2,7 @@ import React, { useState, useMemo } from "react";
 import { Item, Supplier, PurchaseHistory, Quote, ColumnKey, SortState, QuoteEntry, QuoteMode } from "../types";
 import { fmt, priceStats, reorder, BASE_COLUMNS, valueOf, quoteDefaults, quoteBeforeVat, quoteAfterVat } from "../utils";
 import { AutoGrowTextarea } from "./AutoGrowTextarea";
+import { useTranslation } from "../i18n";
 
 export function AdvancedItemsTable({
   items,
@@ -59,7 +60,24 @@ export function AdvancedItemsTable({
   customColumns?: string[];
   setCustomColumns?: (cols: string[]) => void;
 }) {
+  const { t } = useTranslation();
   const [dragged, setDragged] = useState<ColumnKey | null>(null);
+
+  const getColLabel = (key: ColumnKey, fallback: string) => {
+    switch (key) {
+      case "stt": return t("table.stt");
+      case "code": return t("table.item_code");
+      case "category": return t("table.category");
+      case "name": return t("table.item_name");
+      case "desc": return t("table.spec_desc");
+      case "spec": return t("table.specification");
+      case "unit": return t("table.unit");
+      case "qty": return t("table.quantity");
+      case "estimate": return t("table.est_price");
+      case "amount": return t("table.est_amount");
+      default: return fallback;
+    }
+  };
   const filterValues = useMemo(
     () =>
       Object.fromEntries(
@@ -113,7 +131,7 @@ export function AdvancedItemsTable({
             className={key === "category" ? "category-input" : ""}
             value={String(item[inputKey])}
             onChange={(value) => itemChange(item.id, inputKey, value)}
-            placeholder={key === "category" ? "Chọn nhóm..." : ""}
+            placeholder={key === "category" ? t("table.select_category") : ""}
           />
         ) : (
           <input
@@ -140,7 +158,7 @@ export function AdvancedItemsTable({
         <thead>
           <tr>
             <th rowSpan={2} className="po-check-head">
-              Lên PO
+              {t("nav.po_list")}
             </th>
             {order.map((col) => {
               const meta = BASE_COLUMNS.find((c) => c.key === col)!;
@@ -160,7 +178,7 @@ export function AdvancedItemsTable({
                 >
                   <div className="head-label">
                     <button onClick={() => toggleSort(col)}>
-                      {meta.label}{" "}
+                      {getColLabel(col, meta.label)}{" "}
                       <small>
                         {sort?.key === col
                           ? sort.direction === "asc"
@@ -187,7 +205,7 @@ export function AdvancedItemsTable({
                       className="filter-popover"
                       onClick={(e) => e.stopPropagation()}
                     >
-                      <strong>Lọc {meta.label}</strong>
+                      <strong>{t("table.filter_col", { col: getColLabel(col, meta.label) })}</strong>
                       <div className="filter-options">
                         {values.map((v) => (
                           <label key={v}>
@@ -206,10 +224,10 @@ export function AdvancedItemsTable({
                             setFilters((f) => ({ ...f, [col]: [] }))
                           }
                         >
-                          Xóa lọc
+                          {t("table.clear_filter")}
                         </button>
                         <button onClick={() => setFilterOpen(null)}>
-                          Xong
+                          {t("table.done")}
                         </button>
                       </div>
                     </div>
@@ -229,13 +247,13 @@ export function AdvancedItemsTable({
             ))}
             <th colSpan={2} className="choice">
               <div style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px'}}>
-                <span>Lựa chọn tự động</span>
+                <span>{t("table.auto_choice")}</span>
               </div>
             </th>
           </tr>
           <tr>
             {suppliers.flatMap((s) => [
-              <th key={s.id + "p"}>Giá NCC</th>,
+              <th key={s.id + "p"}>{t("table.vendor_price")}</th>,
               ...(customColumns || []).map((col, idx) => (
                  <th key={s.id + "cc" + idx}>
                    <div style={{display: 'flex', justifyContent: 'space-between'}}>
@@ -265,8 +283,8 @@ export function AdvancedItemsTable({
                  </th>
               )),
             ])}
-            <th>Giá tốt nhất</th>
-            <th>Nhà cung cấp</th>
+            <th>{t("compare.best_price")}</th>
+            <th>{t("table.supplier")}</th>
           </tr>
         </thead>
         <tbody>

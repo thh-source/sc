@@ -2,6 +2,7 @@ import React, { useState, useMemo, Fragment } from "react";
 import { Supplier, PurchaseHistory } from "../types";
 import { fmt, dateVN, priceStats } from "../utils";
 import { BANK_SUGGESTIONS } from "../payment-utils";
+import { useTranslation } from "../i18n";
 
 export function SupplierManagement({
   suppliers,
@@ -14,6 +15,7 @@ export function SupplierManagement({
   onAdd: () => void;
   purchaseHistory: PurchaseHistory[];
 }) {
+  const { t } = useTranslation();
   const [supplierQuery, setSupplierQuery] = useState("");
   const [selectedSupplierId, setSelectedSupplierId] = useState<number | null>(
     null,
@@ -90,14 +92,14 @@ export function SupplierManagement({
     <section className="content supplier-page">
       <div className="heading">
         <div>
-          <em>DANH MỤC DÙNG CHUNG</em>
-          <h1>Danh sách nhà cung cấp</h1>
+          <em>{t("supplier.badge")}</em>
+          <h1>{t("supplier.title")}</h1>
           <p>
-            Thông tin tại đây được đồng bộ sang PO và các nghiệp vụ mua hàng.
+            {t("supplier.desc")}
           </p>
         </div>
         <button className="primary" onClick={onAdd}>
-          ＋ Thêm nhà cung cấp
+          {t("supplier.create_btn")}
         </button>
       </div>
       <div className="supplier-summary">
@@ -120,7 +122,7 @@ export function SupplierManagement({
           <input
             value={supplierQuery}
             onChange={(e) => setSupplierQuery(e.target.value)}
-            placeholder="Tìm nhanh mã, tên NCC, người liên hệ, SĐT..."
+            placeholder={t("supplier.search_placeholder")}
           />
         </label>
         <span>{shownSuppliers.length} / {suppliers.length} nhà cung cấp</span>
@@ -252,14 +254,14 @@ export function SupplierManagement({
           </colgroup>
           <thead>
             <tr>
-              <th>Mã NCC</th>
-              <th>Tên nhà cung cấp</th>
-              <th>Tên viết tắt</th>
-              <th>Người liên hệ</th>
-              <th>Điện thoại</th>
-              <th>Giá trị T1-T7</th>
-              <th>Lượt mua</th>
-              <th>Mã hàng</th>
+              <th>{t("table.item_code")}</th>
+              <th>{t("table.supplier_name")}</th>
+              <th>{t("table.short_name")}</th>
+              <th>{t("table.contact")}</th>
+              <th>{t("table.phone")}</th>
+              <th>{t("table.po_value")}</th>
+              <th>{t("product.stat_times")}</th>
+              <th>{t("table.items_count")}</th>
             </tr>
           </thead>
           <tbody>
@@ -440,7 +442,7 @@ export function SupplierManagement({
             <tr>
               <th>Ngày mua</th>
               <th>Chứng từ / PO</th>
-              <th>Mã hàng</th>
+              <th>{t("table.items_count")}</th>
               <th>Tên hàng hóa</th>
               <th>Số lượng</th>
               <th>Đơn giá</th>

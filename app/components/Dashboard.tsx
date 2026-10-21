@@ -1,6 +1,7 @@
 import React from "react";
 import { Supplier, PurchaseHistory, PR, PO } from "../types";
 import { fmt } from "../utils";
+import { useTranslation } from "../i18n";
 
 export function Dashboard({
   prs,
@@ -19,6 +20,7 @@ export function Dashboard({
   onPO: () => void;
   onCompare: () => void;
 }) {
+  const { t } = useTranslation();
   const poValue = pos.reduce(
       (n, p) => n + p.items.reduce((s, i) => s + i.qty * i.price, 0),
       0,
@@ -85,14 +87,14 @@ export function Dashboard({
     <section className="content dashboard-page">
       <div className="dashboard-welcome">
         <div>
-          <em>TỔNG QUAN MUA HÀNG</em>
-          <h1>Tổng quan hoạt động mua hàng</h1>
+          <em>{t("dashboard.welcome_badge")}</em>
+          <h1>{t("dashboard.welcome_title")}</h1>
           <p>
-            Theo dõi toàn bộ tiến độ PR, báo giá, PO và thanh toán tại một nơi.
+            {t("dashboard.welcome_subtitle")}
           </p>
         </div>
         <button className="primary" onClick={onPR}>
-          ＋ Tạo PR mới
+          {t("pr.create_btn")}
         </button>
       </div>
       <div className="dashboard-kpis">

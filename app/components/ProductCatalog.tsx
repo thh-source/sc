@@ -1,6 +1,7 @@
 import React, { useState, Fragment } from "react";
 import { Item, Supplier, PurchaseHistory, PO } from "../types";
 import { fmt, dateVN, emptyItem } from "../utils";
+import { useTranslation } from "../i18n";
 
 export function ProductCatalog({
   products,
@@ -17,6 +18,7 @@ export function ProductCatalog({
   purchaseHistory: PurchaseHistory[];
   onCreatePR: () => void;
 }) {
+  const { t } = useTranslation();
   const [query, setQuery] = useState(""),
     [category, setCategory] = useState("Tất cả"),
     [expanded, setExpanded] = useState<number | null>(products[0]?.id || null);
@@ -59,9 +61,9 @@ export function ProductCatalog({
     <section className="content product-page">
       <div className="heading">
         <div>
-          <em>DANH MỤC DÙNG CHUNG · LỊCH SỬ MUA</em>
-          <h1>Danh sách hàng hóa</h1>
-          <p>Tra cứu thông tin vật tư và giá mua theo nhà cung cấp, PO.</p>
+          <em>{t("product.badge")}</em>
+          <h1>{t("product.title")}</h1>
+          <p>{t("product.desc")}</p>
         </div>
         <div className="actions">
           <button
@@ -73,7 +75,7 @@ export function ProductCatalog({
               ])
             }
           >
-            ＋ Thêm hàng hóa
+            {t("product.create_btn")}
           </button>
           <button className="primary" onClick={onCreatePR}>
             Tạo PR từ danh mục
@@ -121,7 +123,7 @@ export function ProductCatalog({
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Tìm mã, tên hàng hóa, quy cách..."
+            placeholder={t("product.search_placeholder")}
           />
         </label>
         <select value={category} onChange={(e) => setCategory(e.target.value)}>
@@ -224,14 +226,14 @@ export function ProductCatalog({
           </colgroup>
           <thead>
             <tr>
-              <th>Mã hàng</th>
-              <th>Tên hàng hóa</th>
-              <th>Phân loại</th>
-              <th>Quy cách</th>
-              <th>ĐVT</th>
-              <th>Giá dự kiến</th>
-              <th>Lần mua gần nhất</th>
-              <th>Biến động giá</th>
+              <th>{t("table.item_code")}</th>
+              <th>{t("table.item_name")}</th>
+              <th>{t("table.category")}</th>
+              <th>{t("table.specification")}</th>
+              <th>{t("table.unit")}</th>
+              <th>{t("table.est_price")}</th>
+              <th>{t("table.last_purchase")}</th>
+              <th>{t("table.price_trend")}</th>
               <th></th>
             </tr>
           </thead>

@@ -4,6 +4,7 @@ import { fmt, dateVN, makeId } from "../utils";
 import { SupplierSearchCombobox } from "./SupplierSearchCombobox";
 import { TreeProductPickerModal, SelectedItemData } from "./TreeProductPickerModal";
 import { normName } from "../payment-utils";
+import { useTranslation } from "../i18n";
 import "../payment.css";
 
 interface DraftPOItem {
@@ -43,6 +44,7 @@ export function POList({
   onCreateHandover?: (po: PO) => void;
   readOnly?: boolean;
 }) {
+  const { t } = useTranslation();
   const [q, setQ] = useState("");
 
   // Create Direct PO Modal State
@@ -377,9 +379,9 @@ export function POList({
     <section className="content po-list-page">
       <div className="heading">
         <div>
-          <em>THEO DÕI ĐƠN MUA HÀNG</em>
-          <h1>Quản lý PO</h1>
-          <p>Kiểm soát giao hàng, hồ sơ và thanh toán theo từng đơn mua.</p>
+          <em>{t("po.badge")}</em>
+          <h1>{t("po.title")}</h1>
+          <p>{t("po.desc")}</p>
         </div>
         {!readOnly && onCreatePO && (
           <div className="actions">
@@ -390,7 +392,7 @@ export function POList({
                 setShowCreateModal(true);
               }}
             >
-              ＋ Tạo đơn PO mới
+              {t("po.create_direct")}
             </button>
           </div>
         )}
@@ -434,7 +436,7 @@ export function POList({
             <input
               value={q}
               onChange={(e) => setQ(e.target.value)}
-              placeholder="Tìm số PO, PR hoặc nhà cung cấp..."
+              placeholder={t("po.search_placeholder")}
             />
           </label>
           <span>{shown.length} đơn mua hàng</span>
@@ -509,15 +511,15 @@ export function POList({
             </colgroup>
             <thead>
               <tr>
-                <th>Số PO</th>
-                <th>PR nguồn</th>
-                <th>Nhà cung cấp</th>
-                <th>Ngày tạo</th>
-                <th>Ngày dự kiến giao</th>
-                <th>Giá trị PO</th>
-                <th>Giao hàng</th>
-                <th>Hồ sơ</th>
-                <th>Thanh toán</th>
+                <th>{t("table.po_number")}</th>
+                <th>{t("table.source_pr")}</th>
+                <th>{t("table.supplier")}</th>
+                <th>{t("table.created_date")}</th>
+                <th>{t("table.expected_delivery")}</th>
+                <th>{t("table.po_value")}</th>
+                <th>{t("table.delivery_progress")}</th>
+                <th>{t("table.documents")}</th>
+                <th>{t("table.payment")}</th>
                 <th></th>
               </tr>
             </thead>

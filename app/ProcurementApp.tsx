@@ -1803,47 +1803,46 @@ function ProcurementAppInner({
               <>
                 <div className="heading">
                   <div>
-                    <em>YÊU CẦU MUA HÀNG · {selectedPR.number}</em>
-                    <h1>Bảng tổng hợp mua hàng</h1>
+                    <em>{t("compare.pr_breadcrumb")} · {selectedPR.number}</em>
+                    <h1>{t("compare.title")}</h1>
                     <p>{selectedPR.purpose}</p>
                   </div>
                   <div className="actions">
                     <button className="ghost" onClick={() => setView("prs")}>
-                      ← Danh sách PR
+                      ← {t("compare.back_pr_list")}
                     </button>
-
                   </div>
                 </div>
                 <div className="cards">
                   <article>
                     <i>◇</i>
                     <strong>{items.length}</strong>
-                    <span>Mặt hàng</span>
+                    <span>{t("compare.items_count")}</span>
                   </article>
                   <article>
                     <i>♙</i>
                     <strong>{suppliers.length}</strong>
-                    <span>Nhà cung cấp</span>
+                    <span>{t("compare.suppliers_count")}</span>
                   </article>
                   <article className="good">
                     <i>✓</i>
                     <div>
-                      <strong>Giá tốt nhất</strong>
-                      <span>Tự động xác định theo giá thấp nhất</span>
+                      <strong>{t("compare.best_price")}</strong>
+                      <span>{t("compare.best_price_desc")}</span>
                     </div>
                   </article>
                   <article className="total">
-                    <span>Giá trị dự kiến</span>
+                    <span>{t("compare.estimated_total")}</span>
                     <strong>{fmt(estimated)} ₫</strong>
                   </article>
                 </div>
                 <section className="common-note-card">
                   <label>
-                    <span>✎ Ghi chú chung PR</span>
+                    <span>✎ {t("compare.general_note")}</span>
                     <textarea
                       rows={3}
                       value={selectedPR.note || ""}
-                      placeholder="Diễn giải tự do cho toàn bộ PR..."
+                      placeholder={t("compare.general_note_placeholder")}
                       onChange={(e) => updatePRNote(e.target.value)}
                     />
                   </label>
@@ -1856,27 +1855,27 @@ function ProcurementAppInner({
                 <input
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Tìm mã hàng, phân loại, tên vật tư..."
+                  placeholder={t("compare.search_placeholder")}
                 />
               </label>
               <div className="vat-compare-toolbar" style={{ margin: 0, padding: 0, border: "none", background: "none" }}>
-                <span>So sánh giá theo:</span>
+                <span>{t("compare.price_mode")}</span>
                 <button
                   className={quoteCompareMode === "before-vat" ? "active" : ""}
                   onClick={() => setQuoteCompareMode("before-vat")}
                 >
-                  Giá chưa VAT
+                  {t("compare.before_vat")}
                 </button>
                 <button
                   className={quoteCompareMode === "after-vat" ? "active" : ""}
                   onClick={() => setQuoteCompareMode("after-vat")}
                 >
-                  Giá có VAT
+                  {t("compare.after_vat")}
                 </button>
               </div>
               <p>
-                <span>↔ Kéo tiêu đề để đổi cột</span>
-                <span>▾ Bấm để lọc nhiều giá trị</span>
+                <span>{t("compare.drag_hint")}</span>
+                <span>{t("compare.filter_hint")}</span>
               </p>
               <div style={{ display: "flex", gap: "8px", marginLeft: "auto" }}>
                 {!reportMode && (
@@ -1886,7 +1885,7 @@ function ProcurementAppInner({
                       style={{ border: "1px solid var(--line)", background: "#fff", padding: "6px 12px", borderRadius: "6px", fontSize: "0.85rem", fontWeight: 500, color: "#3f3f46", boxShadow: "0 1px 2px rgba(0,0,0,0.05)", cursor: "pointer" }}
                       onClick={() => setItems((x) => [...x, emptyItem(x.length)])}
                     >
-                      ＋ Thêm mặt hàng
+                      {t("compare.add_item")}
                     </button>
                     <button
                       className="ghost"
@@ -1901,7 +1900,7 @@ function ProcurementAppInner({
                         }
                       }}
                     >
-                      ＋ Cột NCC
+                      {t("compare.add_vendor_col")}
                     </button>
                     <button
                       className="primary"
@@ -1912,7 +1911,7 @@ function ProcurementAppInner({
                         setSupplierPicker(true);
                       }}
                     >
-                      ＋ Chọn nhà cung cấp
+                      {t("compare.choose_supplier")}
                     </button>
                     <button
                       className="po-create-btn"
@@ -1920,7 +1919,7 @@ function ProcurementAppInner({
                       onClick={() => setPoCartOpen(true)}
                       style={{ padding: "6px 12px", borderRadius: "6px", fontSize: "0.85rem", fontWeight: 500, boxShadow: "0 1px 2px rgba(0,0,0,0.05)", cursor: "pointer" }}
                     >
-                      Giỏ PO ({poCart.length})
+                      {t("compare.po_cart_btn", { count: poCart.length })}
                     </button>
                   </>
                 )}
@@ -1941,7 +1940,7 @@ function ProcurementAppInner({
                     boxShadow: "0 1px 2px rgba(0,0,0,0.05)"
                   }}
                 >
-                  {compactCompare ? "Mở rộng giao diện" : "Thu gọn giao diện"}
+                  {compactCompare ? t("btn.expand_workspace") : t("btn.collapse_workspace")}
                 </button>
               </div>
             </div>
@@ -1953,8 +1952,8 @@ function ProcurementAppInner({
                   {" · "}<b>{suppliers.find((s) => s.id === poCart[0].supplierId)?.name}</b>
                 </span>
                 <div>
-                  <button onClick={() => setPoCartOpen(true)}>Xem giỏ / Tạo PO</button>
-                  <button onClick={() => { setPoCart([]); setPoSelections([]); }}>Làm trống</button>
+                  <button onClick={() => setPoCartOpen(true)}>{t("compare.view_cart")}</button>
+                  <button onClick={() => { setPoCart([]); setPoSelections([]); }}>{t("compare.clear_cart")}</button>
                 </div>
               </div>
             )}
@@ -2013,8 +2012,8 @@ function ProcurementAppInner({
           <div className="po-cart-modal" onMouseDown={(e) => e.stopPropagation()}>
             <header>
               <div>
-                <em>GIỎ TẠO PO LIÊN PR</em>
-                <h2>Tạo PO từ nhiều đề nghị mua hàng</h2>
+                <em>{t("compare.po_cart_modal_badge")}</em>
+                <h2>{t("compare.po_cart_modal_title")}</h2>
                 <p>
                   {suppliers.find((s) => s.id === poCart[0]?.supplierId)?.name} ·{" "}
                   {new Set(poCart.map((line) => line.allocation.prId)).size} PR
@@ -2025,7 +2024,17 @@ function ProcurementAppInner({
             <div className="po-cart-table">
               <table>
                 <thead>
-                  <tr><th>PR nguồn</th><th>Mã hàng</th><th>Tên hàng</th><th>SL yêu cầu</th><th>Đã đặt</th><th>Đặt lần này</th><th>Còn lại</th><th>Đơn giá</th><th></th></tr>
+                  <tr>
+                    <th>{t("compare.po_cart_col_src_pr")}</th>
+                    <th>{t("table.item_code")}</th>
+                    <th>{t("table.item_name")}</th>
+                    <th>{t("compare.po_cart_col_req_qty")}</th>
+                    <th>{t("compare.po_cart_col_ordered")}</th>
+                    <th>{t("compare.po_cart_col_this_order")}</th>
+                    <th>{t("compare.po_cart_col_remaining")}</th>
+                    <th>{t("compare.po_cart_col_price")}</th>
+                    <th></th>
+                  </tr>
                 </thead>
                 <tbody>
                   {poCart.map((line) => {
@@ -2059,7 +2068,7 @@ function ProcurementAppInner({
                         </td>
                         <td className="num">{after}</td>
                         <td className="money">{fmt(line.price)} ₫</td>
-                        <td><button className="delete-action" onClick={() => { setPoCart((cart) => cart.filter((item) => item.id !== line.id)); if (line.allocation.prId === selectedPR.id) setPoSelections((ids) => ids.filter((id) => id !== line.allocation.prItemId)); }}>Bỏ</button></td>
+                        <td><button className="delete-action" onClick={() => { setPoCart((cart) => cart.filter((item) => item.id !== line.id)); if (line.allocation.prId === selectedPR.id) setPoSelections((ids) => ids.filter((id) => id !== line.allocation.prItemId)); }}>{t("btn.remove")}</button></td>
                       </tr>
                     );
                   })}
@@ -2068,12 +2077,12 @@ function ProcurementAppInner({
             </div>
             <footer>
               <div>
-                <span>Tổng giá trị PO</span>
+                <span>{t("compare.po_cart_total")}</span>
                 <b>{fmt(poCart.reduce((sum, line) => sum + line.allocation.qty * line.price, 0))} ₫</b>
               </div>
               <div>
-                <button className="ghost" onClick={() => setPoCartOpen(false)}>Tiếp tục chọn PR khác</button>
-                <button className="po-create-btn" disabled={!poCart.length || poCart.some((line) => line.allocation.qty <= 0)} onClick={openApproval}>Lập phê duyệt</button>
+                <button className="ghost" onClick={() => setPoCartOpen(false)}>{t("compare.continue_pr")}</button>
+                <button className="po-create-btn" disabled={!poCart.length || poCart.some((line) => line.allocation.qty <= 0)} onClick={openApproval}>{t("compare.create_approval")}</button>
               </div>
             </footer>
           </div>

@@ -13,6 +13,7 @@ import {
   PR,
 } from "../types";
 import { dateVN } from "../utils";
+import { useTranslation } from "../i18n";
 import {
   DEFAULT_PAYMENT_TEMPLATE,
   PAID_STATUSES,
@@ -236,6 +237,28 @@ export function PaymentManagement({
   const isAutoMobile = useIsMobile(768);
   const [userMobileToggle, setUserMobileToggle] = useState<boolean | null>(null);
   const isPhoneScreen = isAutoMobile;
+  const { t } = useTranslation();
+
+  const getPaymentColLabel = (id: string, fallback: string) => {
+    switch (id) {
+      case "stt": return t("table.stt");
+      case "payee_name": return t("table.supplier");
+      case "group_code": return t("table.contract_no");
+      case "description": return t("table.payment_content");
+      case "item_name": return t("table.item_name");
+      case "invoice_no": return t("table.invoice_no");
+      case "invoice_date": return t("table.invoice_date");
+      case "amount": return t("table.amount");
+      case "currency": return t("table.unit");
+      case "documents": return t("table.documents");
+      case "request_date": return t("table.request_date");
+      case "payment_type": return t("table.payment_type");
+      case "status": return t("table.status");
+      case "address": return t("table.address");
+      default: return fallback;
+    }
+  };
+
   const isCardView = userMobileToggle !== null ? userMobileToggle : isAutoMobile;
   const showMobileCards = isCardView;
 
@@ -1526,8 +1549,8 @@ export function PaymentManagement({
       {/* Top Heading */}
       <div className={`heading ${isWorkspaceExpanded ? "payment-heading-desc" : ""}`}>
         <div>
-          <em>QUẢN LÝ TÀI CHÍNH · THANH TOÁN</em>
-          <h1>Đề nghị thanh toán (Mẫu 01 – TT)</h1>
+          <em>{t("payment.badge")}</em>
+          <h1>{t("payment.title")}</h1>
           <p>
             {isPhoneScreen
               ? "Giao diện di động: Chỉ xem thông tin và đánh dấu đã thanh toán."
@@ -1621,7 +1644,7 @@ export function PaymentManagement({
           onChange={(e) => setStatusFilter(e.target.value)}
           style={{ width: isPhoneScreen ? "100%" : "auto" }}
         >
-          <option value="">Tất cả trạng thái</option>
+          <option value="">{t("status.all")}</option>
           {PAYMENT_STATUSES.map((st) => (
             <option key={st} value={st}>
               {st}
@@ -2041,7 +2064,7 @@ export function PaymentManagement({
                           }}
                         >
                           <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                            {col.label}
+                            {getPaymentColLabel(col.id, col.label)}
                           </span>
                           {isPinned && (
                             <span title="Cột này đang được cố định bên trái" style={{ fontSize: "10.5px", color: "#0284c7", flexShrink: 0 }}>

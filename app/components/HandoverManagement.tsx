@@ -14,6 +14,7 @@ import {
 import "../payment.css";
 import { useIsMobile } from "../useIsMobile";
 import { AutoGrowTextarea } from "./AutoGrowTextarea";
+import { useTranslation } from "../i18n";
 
 const PHENIKAA_LOGO_SRC = PHENIKAA_PHARMA_LOGO_BASE64;
 
@@ -94,6 +95,23 @@ export function HandoverManagement({
   paymentRequests = [],
   onNavigateToPayment,
 }: HandoverManagementProps) {
+  const { t } = useTranslation();
+
+  const getHandoverColLabel = (id: string, fallback: string) => {
+    switch (id) {
+      case "stt": return t("table.stt");
+      case "department": return t("table.receiver_dept");
+      case "item_name": return t("table.item_name");
+      case "unit": return t("table.unit");
+      case "quantity_doc": return t("table.quantity");
+      case "quantity_pass": return t("status.delivered");
+      case "note": return t("table.notes");
+      case "handover_date": return t("table.handover_date");
+      case "sender_name": return t("table.sender");
+      default: return fallback;
+    }
+  };
+
   const triggerUpdateHandovers = (next: PaymentHandoverItem[]) => {
     if (onUpdateHandovers) onUpdateHandovers(next);
     if (onUpdateState) onUpdateState({ paymentHandovers: next });
@@ -997,8 +1015,8 @@ export function HandoverManagement({
       {/* Top Heading */}
       <div className={`heading ${isWorkspaceExpanded ? "payment-heading-desc" : ""}`}>
         <div>
-          <em>QUẢN LÝ VẬT TƯ · BÀN GIAO NỘI BỘ</em>
-          <h1>Biên bản bàn giao, nghiệm thu vật tư (Không qua kho)</h1>
+          <em>{t("handover.badge")}</em>
+          <h1>{t("handover.title")}</h1>
           <p>
             {showMobileCards
               ? "Giao diện di động: Tra cứu vật tư bàn giao và chọn in biên bản."
@@ -1341,7 +1359,7 @@ export function HandoverManagement({
                         }}
                       >
                         <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                          {col.label}
+                          {getHandoverColLabel(col.id, col.label)}
                         </span>
                       </div>
                       <div

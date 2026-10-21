@@ -8,6 +8,7 @@ import DocumentManager from "./DocumentManager";
 import { PAID_STATUSES, fmtMoney, normName } from "../payment-utils";
 import { SupplierSearchCombobox } from "./SupplierSearchCombobox";
 import { TreeProductPickerModal, SelectedItemData } from "./TreeProductPickerModal";
+import { useTranslation } from "../i18n";
 import "../payment.css";
 
 export interface ContractManagementProps {
@@ -51,6 +52,7 @@ export function ContractManagement({
   onAddProduct,
   onCreateHandover,
 }: ContractManagementProps) {
+  const { t } = useTranslation();
   // Main tab switcher: PO Contracts vs Contract Groups
   const [mainTab, setMainTab] = useState<"pos" | "groups">("pos");
 
@@ -1136,18 +1138,18 @@ export function ContractManagement({
                 </colgroup>
                 <thead>
                   <tr>
-                    <th style={{ width: 50, textAlign: "center", position: "sticky", left: 0, zIndex: 20, background: "#f1f5f9" }}>STT</th>
-                    <th style={{ width: 135 }}>Mã nhóm / HĐ</th>
-                    <th>Tên nhóm hợp đồng / Gói thầu</th>
-                    <th>Đối tác / NCC</th>
-                    <th style={{ width: 130, textAlign: "right" }}>Giá trị HĐ</th>
-                    <th style={{ width: 125, textAlign: "right" }}>Đã giải ngân</th>
-                    <th style={{ width: 120, textAlign: "right" }}>Đang xử lý</th>
-                    <th style={{ width: 125, textAlign: "right" }}>Còn lại</th>
-                    <th style={{ width: 110, textAlign: "center" }}>Tiến độ</th>
-                    <th style={{ width: 110, textAlign: "center" }}>Phiếu TT</th>
-                    <th>Ghi chú</th>
-                    {!readOnly && <th style={{ width: 85, textAlign: "center" }}>Thao tác</th>}
+                    <th style={{ width: 50, textAlign: "center", position: "sticky", left: 0, zIndex: 20, background: "#f1f5f9" }}>{t("table.stt")}</th>
+                    <th style={{ width: 135 }}>{t("table.contract_no")}</th>
+                    <th>{t("table.contract_title")}</th>
+                    <th>{t("table.partner_supplier")}</th>
+                    <th style={{ width: 130, textAlign: "right" }}>{t("table.contract_val")}</th>
+                    <th style={{ width: 125, textAlign: "right" }}>{t("table.disbursed")}</th>
+                    <th style={{ width: 120, textAlign: "right" }}>{t("table.processing")}</th>
+                    <th style={{ width: 125, textAlign: "right" }}>{t("table.remaining_qty")}</th>
+                    <th style={{ width: 110, textAlign: "center" }}>{t("table.progress")}</th>
+                    <th style={{ width: 110, textAlign: "center" }}>{t("table.payment_vouchers")}</th>
+                    <th>{t("table.notes")}</th>
+                    {!readOnly && <th style={{ width: 85, textAlign: "center" }}>{t("table.actions")}</th>}
                   </tr>
                 </thead>
                 <tbody>
