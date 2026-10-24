@@ -200,7 +200,7 @@ export function GlobalSpotlightModal({
             badgeBg: "#ede9fe",
             badgeColor: "#6d28d9",
             target: {
-              view: "contracts",
+              view: "po-detail",
               po,
               query: po.number,
             },

@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from "react";
-import { Supplier, PO, PR, Item } from "../types";
+import { Supplier, PO, PR, Item, getPOContractInfo } from "../types";
 import { fmt, dateVN, makeId } from "../utils";
 import { SupplierSearchCombobox } from "./SupplierSearchCombobox";
 import { TreeProductPickerModal, SelectedItemData } from "./TreeProductPickerModal";
@@ -504,6 +504,7 @@ export function POList({
                 const items = po.items || [];
                 const docs = po.docs || [];
                 const payments = po.payments || [];
+                const contractInfo = getPOContractInfo(po);
                 const delivered = items.filter(
                   (i) => i.deliveryStatus === "Đã giao"
                 ).length;
@@ -518,6 +519,25 @@ export function POList({
                       <button className="pr-link" onClick={() => onOpen(po)}>
                         {po.number}
                       </button>
+                      {contractInfo.hasContract && (
+                        <div style={{ marginTop: "3px" }}>
+                          <span
+                            style={{
+                              display: "inline-block",
+                              fontSize: "10.5px",
+                              fontWeight: 600,
+                              color: "#6d28d9",
+                              background: "#f3e8ff",
+                              border: "1px solid #d8b4fe",
+                              padding: "1px 6px",
+                              borderRadius: "4px",
+                            }}
+                            title={`Hợp đồng số: ${contractInfo.contractNumber || "Chưa nhập số"} · Ngày: ${dateVN(contractInfo.contractDate)}`}
+                          >
+                            📑 HĐ: {contractInfo.contractNumber || "Có HĐ"}
+                          </span>
+                        </div>
+                      )}
                     </td>
                     <td style={{ whiteSpace: "nowrap" }}>{po.prNumber}</td>
                     <td>

@@ -724,13 +724,57 @@ export function PODetail({
                     }}
                     onClick={() => {
                       if (confirm("Bạn có chắc muốn xóa toàn bộ danh sách hồ sơ của PO này không?")) {
-                        onUpdate({ ...po, docs: [] });
+                        onUpdate({
+                          ...po,
+                          contractNumber: undefined,
+                          contractDate: undefined,
+                          docs: [],
+                        });
                       }
                     }}
                   >
                     🗑 Xóa hết
                   </button>
                 )}
+                <button
+                  type="button"
+                  style={{
+                    cursor: "pointer",
+                    fontWeight: 600,
+                    background: "#f5f3ff",
+                    borderColor: "#c4b5fd",
+                    color: "#6d28d9",
+                  }}
+                  onClick={() => {
+                    const existingContract = (po.docs || []).find(
+                      (x) => x.isContract || x.name?.trim().toLowerCase() === "hợp đồng"
+                    );
+                    if (existingContract) {
+                      alert("PO này đã có mục hồ sơ Hợp đồng. Bạn có thể nhập Số hợp đồng và Ngày hợp đồng ngay bên dưới.");
+                      return;
+                    }
+                    const defaultDate = po.contractDate || po.createdDate || new Date().toISOString().slice(0, 10);
+                    onUpdate({
+                      ...po,
+                      contractDate: defaultDate,
+                      docs: [
+                        {
+                          id: makeId(),
+                          name: "Hợp đồng",
+                          status: "Đã đủ",
+                          note: "",
+                          isContract: true,
+                          contractNumber: po.contractNumber || "",
+                          contractDate: defaultDate,
+                          contractValue: total,
+                        },
+                        ...(po.docs || []),
+                      ],
+                    });
+                  }}
+                >
+                  📑 ＋ Thêm hợp đồng
+                </button>
                 <button
                   type="button"
                   style={{ cursor: "pointer", fontWeight: 600 }}
@@ -769,8 +813,49 @@ export function PODetail({
               }}
             >
               <span style={{ color: "#64748b", fontWeight: 600 }}>Thêm nhanh:</span>
+              <button
+                type="button"
+                className="po-preset-pill"
+                style={{
+                  padding: "3px 9px",
+                  fontSize: "11.5px",
+                  background: "#f5f3ff",
+                  borderColor: "#c4b5fd",
+                  color: "#6d28d9",
+                  fontWeight: 600,
+                }}
+                onClick={() => {
+                  const existingContract = (po.docs || []).find(
+                    (x) => x.isContract || x.name?.trim().toLowerCase() === "hợp đồng"
+                  );
+                  if (existingContract) {
+                    alert("PO này đã có mục hồ sơ Hợp đồng ở bên dưới.");
+                    return;
+                  }
+                  const defaultDate = po.contractDate || po.createdDate || new Date().toISOString().slice(0, 10);
+                  onUpdate({
+                    ...po,
+                    contractDate: defaultDate,
+                    docs: [
+                      {
+                        id: makeId(),
+                        name: "Hợp đồng",
+                        status: "Đã đủ",
+                        note: "",
+                        isContract: true,
+                        contractNumber: po.contractNumber || "",
+                        contractDate: defaultDate,
+                        contractValue: total,
+                      },
+                      ...(po.docs || []),
+                    ],
+                  });
+                }}
+              >
+                📑 ＋ Hợp đồng
+              </button>
               {[
-                "Hợp đồng / PO xác nhận",
+                "PO xác nhận",
                 "Hóa đơn VAT",
                 "Biên bản giao nhận",
                 "CO / CQ",
@@ -817,92 +902,305 @@ export function PODetail({
                   margin: "8px 0",
                 }}
               >
-                Chưa có hồ sơ nào được yêu cầu cho PO này. Bấm <b>"＋ Thêm hồ sơ"</b> hoặc chọn nhanh ở trên nếu cần theo dõi.
+                Chưa có hồ sơ nào cho PO này. Bấm <b>"📑 ＋ Thêm hợp đồng"</b> (nếu PO có hợp đồng) hoặc <b>"＋ Thêm hồ sơ"</b> ở trên để bổ sung.
               </div>
             ) : (
-              (po.docs || []).map((d) => (
-                <div
-                  key={d.id}
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: readOnly ? "1.2fr 115px 1fr" : "1.2fr 115px 1fr 34px",
-                    gap: "7px",
-                    alignItems: "center",
-                    padding: "8px 0",
-                    borderBottom: "1px solid #edf1f5",
-                  }}
-                >
-                  <input
-                    value={d.name || ""}
-                    placeholder="Tên loại hồ sơ..."
-                    onChange={(e) =>
-                      onUpdate({
-                        ...po,
-                        docs: (po.docs || []).map((x) =>
-                          x.id === d.id ? { ...x, name: e.target.value } : x,
-                        ),
-                      })
-                    }
-                  />
-                  <select
-                    value={d.status || "Còn thiếu"}
-                    onChange={(e) =>
-                      onUpdate({
-                        ...po,
-                        docs: (po.docs || []).map((x) =>
-                          x.id === d.id
-                            ? { ...x, status: e.target.value as PODoc["status"] }
-                            : x,
-                        ),
-                      })
-                    }
+              (po.docs || []).map((d) => {
+                const isContractDoc = Boolean(
+                  d.isContract || d.name?.trim().toLowerCase() === "hợp đồng"
+                );
+                if (isContractDoc) {
+                  return (
+                    <div
+                      key={d.id}
+                      style={{
+                        display: "block",
+                        background: "#faf5ff",
+                        border: "1px solid #d8b4fe",
+                        borderRadius: "8px",
+                        padding: "12px",
+                        margin: "8px 0",
+                      }}
+                    >
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          gap: "8px",
+                          marginBottom: "10px",
+                          flexWrap: "wrap",
+                        }}
+                      >
+                        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                          <span
+                            style={{
+                              background: "#7c3aed",
+                              color: "#fff",
+                              fontSize: "11.5px",
+                              fontWeight: 700,
+                              padding: "3px 8px",
+                              borderRadius: "4px",
+                            }}
+                          >
+                            📑 HỢP ĐỒNG
+                          </span>
+                          <span style={{ fontSize: "12px", color: "#5b21b6", fontWeight: 600 }}>
+                            Thông tin hợp đồng đi kèm PO (dùng tự động khi tạo Đề nghị thanh toán)
+                          </span>
+                        </div>
+                        <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                          <select
+                            value={d.status || "Đã đủ"}
+                            style={{ height: "32px", fontSize: "12px", fontWeight: 600 }}
+                            onChange={(e) =>
+                              onUpdate({
+                                ...po,
+                                docs: (po.docs || []).map((x) =>
+                                  x.id === d.id
+                                    ? { ...x, status: e.target.value as PODoc["status"] }
+                                    : x
+                                ),
+                              })
+                            }
+                          >
+                            <option>Đã đủ</option>
+                            <option>Còn thiếu</option>
+                            <option>Chờ bổ sung</option>
+                          </select>
+                          {!readOnly && (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                onUpdate({
+                                  ...po,
+                                  contractNumber: undefined,
+                                  contractDate: undefined,
+                                  docs: (po.docs || []).filter((x) => x.id !== d.id),
+                                })
+                              }
+                              style={{
+                                height: "32px",
+                                width: "32px",
+                                display: "inline-flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                background: "#fff5f5",
+                                border: "1px solid #fca5a5",
+                                borderRadius: "5px",
+                                color: "#dc2626",
+                                cursor: "pointer",
+                                fontSize: "14px",
+                                padding: 0,
+                              }}
+                              title="Xóa hợp đồng khỏi PO"
+                            >
+                              🗑
+                            </button>
+                          )}
+                        </div>
+                      </div>
+
+                      <div
+                        style={{
+                          display: "grid",
+                          gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))",
+                          gap: "10px",
+                          alignItems: "end",
+                        }}
+                      >
+                        <div>
+                          <label
+                            style={{
+                              display: "block",
+                              fontSize: "11.5px",
+                              fontWeight: 600,
+                              color: "#4c1d95",
+                              marginBottom: "4px",
+                            }}
+                          >
+                            Số hợp đồng <span style={{ color: "#dc2626" }}>*</span>
+                          </label>
+                          <input
+                            value={d.contractNumber ?? po.contractNumber ?? ""}
+                            placeholder="Nhập số HĐ (VD: 01/2026/HĐKT)..."
+                            style={{ width: "100%", background: "#fff", fontWeight: 600 }}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              onUpdate({
+                                ...po,
+                                contractNumber: val,
+                                docs: (po.docs || []).map((x) =>
+                                  x.id === d.id
+                                    ? { ...x, isContract: true, contractNumber: val }
+                                    : x
+                                ),
+                              });
+                            }}
+                          />
+                        </div>
+
+                        <div>
+                          <label
+                            style={{
+                              display: "block",
+                              fontSize: "11.5px",
+                              fontWeight: 600,
+                              color: "#4c1d95",
+                              marginBottom: "4px",
+                            }}
+                          >
+                            Ngày hợp đồng <span style={{ color: "#dc2626" }}>*</span>
+                          </label>
+                          <input
+                            type="date"
+                            value={d.contractDate ?? po.contractDate ?? po.createdDate ?? ""}
+                            style={{ width: "100%", background: "#fff" }}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              onUpdate({
+                                ...po,
+                                contractDate: val,
+                                docs: (po.docs || []).map((x) =>
+                                  x.id === d.id
+                                    ? { ...x, isContract: true, contractDate: val }
+                                    : x
+                                ),
+                              });
+                            }}
+                          />
+                        </div>
+
+                        <div>
+                          <label
+                            style={{
+                              display: "block",
+                              fontSize: "11.5px",
+                              fontWeight: 600,
+                              color: "#4c1d95",
+                              marginBottom: "4px",
+                            }}
+                          >
+                            Giá trị hợp đồng (= Giá trị PO)
+                          </label>
+                          <input
+                            readOnly
+                            value={`${fmt(total)} ₫`}
+                            style={{
+                              width: "100%",
+                              background: "#f3e8ff",
+                              color: "#4c1d95",
+                              fontWeight: 700,
+                              cursor: "default",
+                            }}
+                            title="Giá trị hợp đồng tự động bằng giá trị PO"
+                          />
+                        </div>
+                      </div>
+
+                      <div style={{ marginTop: "8px" }}>
+                        <input
+                          placeholder="Ghi chú hợp đồng (nếu có)..."
+                          value={d.note || ""}
+                          style={{ width: "100%", background: "#fff", fontSize: "12px" }}
+                          onChange={(e) =>
+                            onUpdate({
+                              ...po,
+                              docs: (po.docs || []).map((x) =>
+                                x.id === d.id ? { ...x, note: e.target.value } : x
+                              ),
+                            })
+                          }
+                        />
+                      </div>
+                    </div>
+                  );
+                }
+
+                return (
+                  <div
+                    key={d.id}
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: readOnly ? "1.2fr 115px 1fr" : "1.2fr 115px 1fr 34px",
+                      gap: "7px",
+                      alignItems: "center",
+                      padding: "8px 0",
+                      borderBottom: "1px solid #edf1f5",
+                    }}
                   >
-                    <option>Đã đủ</option>
-                    <option>Còn thiếu</option>
-                    <option>Chờ bổ sung</option>
-                  </select>
-                  <input
-                    placeholder="Ghi chú"
-                    value={d.note || ""}
-                    onChange={(e) =>
-                      onUpdate({
-                        ...po,
-                        docs: (po.docs || []).map((x) =>
-                          x.id === d.id ? { ...x, note: e.target.value } : x,
-                        ),
-                      })
-                    }
-                  />
-                  {!readOnly && (
-                    <button
-                      type="button"
-                      onClick={() =>
+                    <input
+                      value={d.name || ""}
+                      placeholder="Tên loại hồ sơ..."
+                      onChange={(e) =>
                         onUpdate({
                           ...po,
-                          docs: (po.docs || []).filter((x) => x.id !== d.id),
+                          docs: (po.docs || []).map((x) =>
+                            x.id === d.id ? { ...x, name: e.target.value } : x,
+                          ),
                         })
                       }
-                      style={{
-                        height: "34px",
-                        width: "34px",
-                        display: "inline-flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        background: "#fff5f5",
-                        border: "1px solid #fca5a5",
-                        borderRadius: "5px",
-                        color: "#dc2626",
-                        cursor: "pointer",
-                        fontSize: "14px",
-                        padding: 0,
-                      }}
-                      title={`Xóa hồ sơ "${d.name}"`}
+                    />
+                    <select
+                      value={d.status || "Còn thiếu"}
+                      onChange={(e) =>
+                        onUpdate({
+                          ...po,
+                          docs: (po.docs || []).map((x) =>
+                            x.id === d.id
+                              ? { ...x, status: e.target.value as PODoc["status"] }
+                              : x,
+                          ),
+                        })
+                      }
                     >
-                      🗑
-                    </button>
-                  )}
-                </div>
-              ))
+                      <option>Đã đủ</option>
+                      <option>Còn thiếu</option>
+                      <option>Chờ bổ sung</option>
+                    </select>
+                    <input
+                      placeholder="Ghi chú"
+                      value={d.note || ""}
+                      onChange={(e) =>
+                        onUpdate({
+                          ...po,
+                          docs: (po.docs || []).map((x) =>
+                            x.id === d.id ? { ...x, note: e.target.value } : x,
+                          ),
+                        })
+                      }
+                    />
+                    {!readOnly && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          onUpdate({
+                            ...po,
+                            docs: (po.docs || []).filter((x) => x.id !== d.id),
+                          })
+                        }
+                        style={{
+                          height: "34px",
+                          width: "34px",
+                          display: "inline-flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          background: "#fff5f5",
+                          border: "1px solid #fca5a5",
+                          borderRadius: "5px",
+                          color: "#dc2626",
+                          cursor: "pointer",
+                          fontSize: "14px",
+                          padding: 0,
+                        }}
+                        title={`Xóa hồ sơ "${d.name}"`}
+                      >
+                        🗑
+                      </button>
+                    )}
+                  </div>
+                );
+              })
             )}
           </div>
           {!readOnly && (

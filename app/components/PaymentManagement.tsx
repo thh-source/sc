@@ -4,6 +4,7 @@ import React, { useState, useMemo, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import {
   PO,
+  Payment,
   Supplier,
   PaymentRequestEntry,
   PaymentGroup,
@@ -11,6 +12,8 @@ import {
   PaymentDetailLine,
   Item,
   PR,
+  getPOContractInfo,
+  buildPOPaymentDescription,
 } from "../types";
 import { dateVN } from "../utils";
 import { useTranslation } from "../i18n";
@@ -977,10 +980,8 @@ export function PaymentManagement({
     if (readOnly) return;
     const s = suppliers.find((x) => x.id === po.supplierId);
     const poTotal = po.items.reduce((sum, item) => sum + item.qty * item.price, 0);
-    const isContract =
-      po.number.startsWith("HĐ-") ||
-      (po.contractNote && po.contractNote.trim().length > 0) ||
-      (po.prNumber && po.prNumber.toLowerCase().includes("hợp đồng"));
+    const contractInfo = getPOContractInfo(po);
+    const isContract = contractInfo.hasContract;
     const docTypeLabel = isContract ? "Hợp đồng" : "Đơn hàng PO";
 
     const maxId = Math.max(0, ...paymentRequests.map((r) => Number(r.id) || 0)) + 1;
@@ -988,9 +989,10 @@ export function PaymentManagement({
 
     let amountToPay = poTotal;
     let phaseText = "";
+    let matchedPayment: Payment | undefined = undefined;
 
     if (selectedPaymentPhase) {
-      const matchedPayment = po.payments?.find(
+      matchedPayment = po.payments?.find(
         (p) => String(p.id) === selectedPaymentPhase || p.phase === selectedPaymentPhase
       );
       if (matchedPayment) {
@@ -1001,11 +1003,9 @@ export function PaymentManagement({
       amountToPay = customAmount;
     }
 
+    const customPct = poTotal > 0 ? Math.round((amountToPay / poTotal) * 100) : 100;
     const itemNames = po.items.map((i) => i.name).slice(0, 3).join(", ");
-
-    const description = phaseText
-      ? `Thanh toán ${phaseText} theo ${docTypeLabel} ${po.number} (Tổng giá trị: ${fmtMoney(poTotal)} ₫)`
-      : `Thanh toán theo ${docTypeLabel} ${po.number} (Tổng giá trị: ${fmtMoney(poTotal)} ₫)`;
+    const description = buildPOPaymentDescription(po, matchedPayment, customPct);
 
     const newReq: PaymentRequestEntry = {
       id: maxId,
@@ -1064,17 +1064,16 @@ export function PaymentManagement({
     if (readOnly) return;
     const s = suppliers.find((x) => x.id === po.supplierId);
     const poTotal = po.items.reduce((sum, item) => sum + item.qty * item.price, 0);
-    const isContract =
-      po.number.startsWith("HĐ-") ||
-      (po.contractNote && po.contractNote.trim().length > 0) ||
-      (po.prNumber && po.prNumber.toLowerCase().includes("hợp đồng"));
+    const contractInfo = getPOContractInfo(po);
+    const isContract = contractInfo.hasContract;
     const docTypeLabel = isContract ? "Hợp đồng" : "Đơn hàng PO";
 
     let amountToPay = poTotal;
     let phaseText = "";
+    let matchedPayment: Payment | undefined = undefined;
 
     if (selectedPaymentPhase) {
-      const matchedPayment = po.payments?.find(
+      matchedPayment = po.payments?.find(
         (p) => String(p.id) === selectedPaymentPhase || p.phase === selectedPaymentPhase
       );
       if (matchedPayment) {
@@ -1083,9 +1082,8 @@ export function PaymentManagement({
       }
     }
 
-    const description = phaseText
-      ? `Thanh toán ${phaseText} theo ${docTypeLabel} ${po.number} (Tổng giá trị: ${fmtMoney(poTotal)} ₫)`
-      : `Thanh toán theo ${docTypeLabel} ${po.number} (Tổng giá trị: ${fmtMoney(poTotal)} ₫)`;
+    const customPct = poTotal > 0 ? Math.round((amountToPay / poTotal) * 100) : 100;
+    const description = buildPOPaymentDescription(po, matchedPayment, customPct);
 
     const nextGroups = [...paymentGroups];
     let targetGroupId: number | undefined = undefined;

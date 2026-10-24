@@ -120,6 +120,10 @@ export type PODoc = {
   name: string;
   status: "Đã đủ" | "Còn thiếu" | "Chờ bổ sung";
   note: string;
+  isContract?: boolean;
+  contractNumber?: string;
+  contractDate?: string;
+  contractValue?: number;
 };
 
 export type Payment = {
@@ -149,6 +153,8 @@ export type PO = {
   payments: Payment[];
   note: string;
   contractNote?: string;
+  contractNumber?: string;
+  contractDate?: string;
 };
 
 export type ContractPO = PO & {
@@ -157,11 +163,101 @@ export type ContractPO = PO & {
   isContract?: boolean;
 };
 
+export const getPOContractInfo = (
+  po: PO | null | undefined,
+): {
+  hasContract: boolean;
+  contractNumber: string;
+  contractDate: string;
+  contractValue: number;
+  contractDoc?: PODoc;
+} => {
+  if (!po) {
+    return { hasContract: false, contractNumber: "", contractDate: "", contractValue: 0 };
+  }
+  const poTotal = (po.items || []).reduce((sum, item) => sum + (Number(item.qty) || 0) * (Number(item.price) || 0), 0);
+  const contractDoc = (po.docs || []).find(
+    (d) =>
+      d.isContract === true ||
+      d.name?.trim().toLowerCase() === "hợp đồng" ||
+      d.name?.trim().toLowerCase() === "hợp đồng mua bán"
+  );
+  if (contractDoc) {
+    return {
+      hasContract: true,
+      contractNumber: (contractDoc.contractNumber || po.contractNumber || "").trim(),
+      contractDate: (contractDoc.contractDate || po.contractDate || po.createdDate || "").trim(),
+      contractValue: poTotal,
+      contractDoc,
+    };
+  }
+  if (po.contractNumber && po.contractNumber.trim()) {
+    return {
+      hasContract: true,
+      contractNumber: po.contractNumber.trim(),
+      contractDate: (po.contractDate || po.createdDate || "").trim(),
+      contractValue: poTotal,
+    };
+  }
+  return {
+    hasContract: false,
+    contractNumber: "",
+    contractDate: "",
+    contractValue: poTotal,
+  };
+};
+
+export const formatContractDateVN = (dateStr?: string): string => {
+  if (!dateStr) return "...";
+  const s = dateStr.trim();
+  const isoMatch = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (isoMatch) {
+    return `${isoMatch[3]}/${isoMatch[2]}/${isoMatch[1]}`;
+  }
+  return s || "...";
+};
+
+export const buildPOPaymentDescription = (
+  po: PO,
+  payment?: Payment | null,
+  customPercent?: number,
+): string => {
+  const poTotal = (po.items || []).reduce((sum, item) => sum + (Number(item.qty) || 0) * (Number(item.price) || 0), 0);
+  let stageNum = 1;
+  let pct = customPercent ?? 100;
+
+  if (payment) {
+    const phaseMatch = (payment.phase || "").match(/đợt\s*(\d+)/i);
+    if (phaseMatch) {
+      stageNum = Number(phaseMatch[1]) || 1;
+    } else if (po.payments && po.payments.length > 0) {
+      const idx = po.payments.findIndex((p) => p.id === payment.id);
+      if (idx >= 0) stageNum = idx + 1;
+    }
+    if (payment.percent !== undefined && payment.percent > 0) {
+      pct = payment.percent;
+    } else if (poTotal > 0 && payment.amount > 0) {
+      pct = Math.round((payment.amount / poTotal) * 100);
+    }
+  }
+
+  const contractInfo = getPOContractInfo(po);
+  if (contractInfo.hasContract) {
+    const cNo = contractInfo.contractNumber || po.number || "...";
+    const cDate = formatContractDateVN(contractInfo.contractDate || po.createdDate);
+    return `Thanh toán đợt ${stageNum} ${pct}% hợp đồng số ${cNo} ngày ${cDate}`;
+  }
+  return `Thanh toán đợt ${stageNum} ${pct}% tiền vật tư hàng hóa`;
+};
+
 export const isContractPO = (
-  po: { number?: string; contractNote?: string } | null | undefined,
+  po: { number?: string; contractNote?: string; contractNumber?: string; docs?: PODoc[] } | null | undefined,
 ): boolean => {
   if (!po) return false;
-  return Boolean(po.number?.startsWith("HĐ-") || po.contractNote);
+  if (po.docs && po.docs.some((d) => d.isContract || d.name?.trim().toLowerCase() === "hợp đồng")) {
+    return true;
+  }
+  return Boolean(po.contractNumber || po.number?.startsWith("HĐ-") || po.contractNote);
 };
 
 export type TrashItem = {

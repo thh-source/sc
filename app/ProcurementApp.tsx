@@ -19,7 +19,7 @@ import "./vat-quote.css";
 
 import { PaymentManagement } from "./components/PaymentManagement";
 import { BANK_SUGGESTIONS, DEFAULT_PAYMENT_TEMPLATE, localToday } from "./payment-utils";
-import { Item, Supplier, PurchaseHistory, QuoteMode, QuoteEntry, Quote, PR, POItem, POCartLine, ApprovalRow, ApprovalDraft, ApprovalRequest, PODoc, Payment, PO, TrashItem, View, ColumnKey, SortState, PaymentDetailLine, PaymentRequestEntry, PaymentGroup, PaymentBeneficiary, PaymentHandoverItem, PaymentPrintTemplate, StoredState, isContractPO } from "./types";
+import { Item, Supplier, PurchaseHistory, QuoteMode, QuoteEntry, Quote, PR, POItem, POCartLine, ApprovalRow, ApprovalDraft, ApprovalRequest, PODoc, Payment, PO, TrashItem, View, ColumnKey, SortState, PaymentDetailLine, PaymentRequestEntry, PaymentGroup, PaymentBeneficiary, PaymentHandoverItem, PaymentPrintTemplate, StoredState, isContractPO, buildPOPaymentDescription } from "./types";
 import { BASE_COLUMNS, reorder, applyTools, makeId, emptyItem, fmt, dateVN, DEFAULT_VAT_RATE, quoteDefaults, quoteBeforeVat, quoteAfterVat, quoteComparePrice, mergeHistorySeed, PurchaseHistorySeed, excelNumber, emptyPR, emptyPO, generateShortName } from "./utils";
 import { items0, suppliers0, purchaseHistory0, quotes0, prs0, pos0, HISTORY_SEED_ID } from "./seed";
 import { AdvancedItemsTable } from "./components/AdvancedItemsTable";
@@ -1516,7 +1516,7 @@ function ProcurementAppInner({
       beneficiary_id: supplier?.id,
       payee_name: supplier?.name || "Chưa xác định",
       group_code: po.number,
-      description: `Thanh toán ${payment.phase} (${payment.percent}% - ${docTypeLabel} #${po.number}) - NCC: ${supplier?.name || "Chưa rõ"}`,
+      description: buildPOPaymentDescription(po, payment),
       item_name: po.items?.map((i) => i.name).slice(0, 3).join(", ") + (po.items?.length > 3 ? "..." : "") || payment.phase,
       invoice_no: "",
       invoice_date: "",
@@ -1564,7 +1564,8 @@ function ProcurementAppInner({
       const params = new URLSearchParams(hash);
       const prParam = params.get("pr");
       const poParam = params.get("po");
-      const viewParam = params.get("view") as View;
+      const rawViewParam = params.get("view") as View;
+      const viewParam = rawViewParam === "contracts" ? "po-list" : rawViewParam;
       
       let didSetPR = false;
       if (prParam) {
@@ -1609,8 +1610,7 @@ function ProcurementAppInner({
     if (view === "compare" && id === "compare") return true;
     if (view === "approval" && id === "approval") return true;
     if ((view === "prs" || view === "create") && id === "prs") return true;
-    if ((view === "po-list" || view === "po-detail") && id === "po-list") return true;
-    if (view === "contracts" && id === "contracts") return true;
+    if ((view === "po-list" || view === "po-detail" || view === "contracts") && id === "po-list") return true;
     if (view === "payment" && id === "payment") return true;
     if (view === "handover" && id === "handover") return true;
     if (view === "products" && id === "products") return true;
@@ -1626,7 +1626,6 @@ function ProcurementAppInner({
     { id: "compare", icon: "⚖", name: t("nav.compare"), action: () => setView("compare") },
     { id: "approval", icon: "✓", name: t("nav.approval"), action: () => { setActiveApprovalId(null); setView("approval"); } },
     { id: "po-list", icon: "▰", name: t("nav.po_list"), action: () => setView("po-list") },
-    { id: "contracts", icon: "▧", name: t("nav.contracts"), action: () => setView("contracts") },
     { id: "payment", icon: "💳", name: t("nav.payment"), action: () => setView("payment") },
     { id: "handover", icon: "📦", name: t("nav.handover"), action: () => setView("handover") },
     { id: "suppliers", icon: "▱", name: t("nav.suppliers"), action: () => setView("suppliers") },
@@ -1656,7 +1655,6 @@ function ProcurementAppInner({
           "compare",
           "approval",
           "po-list",
-          "contracts",
           "payment",
           "handover",
         ].includes(n.id),
