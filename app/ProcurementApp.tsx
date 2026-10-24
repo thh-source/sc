@@ -39,6 +39,7 @@ const ProductCatalog = lazy(() => import("./components/ProductCatalog").then(m =
 const SupplierManagement = lazy(() => import("./components/SupplierManagement").then(m => ({ default: m.SupplierManagement })));
 import { GlobalSpotlightModal } from "./components/GlobalSpotlightModal";
 import { I18nProvider, useTranslation, LanguageSwitcher } from "./i18n";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 
 function ProcurementAppInner({
   reportToken,
@@ -1712,40 +1713,42 @@ function ProcurementAppInner({
           />
         )}
         {view === "contracts" && (
-          <ContractManagement
-            pos={activeContracts}
-            suppliers={suppliers}
-            products={products}
-            prs={prs}
-            onAddSupplier={handleAddSupplier}
-            onAddProduct={handleAddProduct}
-            onCreateContract={(contractPO, paymentGroup) => {
-              setPos((list) => [contractPO, ...list]);
-              if (paymentGroup) {
-                setPaymentGroups((groups) => [paymentGroup, ...groups]);
-              }
-              setCurrentPO(contractPO);
-              setStorageStatus(`Đã tạo hợp đồng ${contractPO.number}`);
-            }}
-            onOpenPO={(po) => {
-              setCurrentPO(po);
-              setView("po-detail");
-            }}
-            onUpdate={updatePO}
-            onDelete={reportMode ? undefined : (po) => requestDelete("CONTRACT", po)}
-            workspaceId={workspaceId}
-            readOnly={reportMode}
-            onStatus={setStorageStatus}
-            paymentGroups={paymentGroups}
-            paymentRequests={paymentRequests}
-            onUpdateState={(patch) => {
-              if (patch.paymentGroups !== undefined) setPaymentGroups(patch.paymentGroups);
-            }}
-            onNavigateToPayment={(_filterGroupId) => {
-              setView("payment");
-            }}
-            onCreateHandover={handleCreateHandoverFromPO}
-          />
+          <ErrorBoundary key="contracts" fallbackTitle="Lỗi hiển thị quản lý Hợp đồng" onReset={() => setView("dashboard")}>
+            <ContractManagement
+              pos={activeContracts}
+              suppliers={suppliers}
+              products={products}
+              prs={prs}
+              onAddSupplier={handleAddSupplier}
+              onAddProduct={handleAddProduct}
+              onCreateContract={(contractPO, paymentGroup) => {
+                setPos((list) => [contractPO, ...list]);
+                if (paymentGroup) {
+                  setPaymentGroups((groups) => [paymentGroup, ...groups]);
+                }
+                setCurrentPO(contractPO);
+                setStorageStatus(`Đã tạo hợp đồng ${contractPO.number}`);
+              }}
+              onOpenPO={(po) => {
+                setCurrentPO(po);
+                setView("po-detail");
+              }}
+              onUpdate={updatePO}
+              onDelete={reportMode ? undefined : (po) => requestDelete("CONTRACT", po)}
+              workspaceId={workspaceId}
+              readOnly={reportMode}
+              onStatus={setStorageStatus}
+              paymentGroups={paymentGroups}
+              paymentRequests={paymentRequests}
+              onUpdateState={(patch) => {
+                if (patch.paymentGroups !== undefined) setPaymentGroups(patch.paymentGroups);
+              }}
+              onNavigateToPayment={(_filterGroupId) => {
+                setView("payment");
+              }}
+              onCreateHandover={handleCreateHandoverFromPO}
+            />
+          </ErrorBoundary>
         )}
         {view === "payment" && (
           <PaymentManagement
@@ -1856,59 +1859,63 @@ function ProcurementAppInner({
           />
         )}
         {view === "po-list" && (
-          <POList
-            pos={pos}
-            suppliers={suppliers}
-            prs={prs}
-            products={products}
-            onAddSupplier={handleAddSupplier}
-            onAddProduct={handleAddProduct}
-            onCreatePO={(newPO, openDetail, sourcePrId) => {
-              setPos((list) => [newPO, ...list]);
-              setCurrentPO(newPO);
-              if (sourcePrId) {
-                setPrs((list) =>
-                  list.map((pr) =>
-                    pr.id === sourcePrId
-                      ? { ...pr, status: "Đã tạo đủ PO" }
-                      : pr
-                  )
-                );
-              }
-              setStorageStatus(`Đã tạo đơn PO ${newPO.number}`);
-              if (openDetail) {
+          <ErrorBoundary key="po-list" fallbackTitle="Lỗi hiển thị danh sách Đơn mua hàng (PO)" onReset={() => setView("dashboard")}>
+            <POList
+              pos={pos}
+              suppliers={suppliers}
+              prs={prs}
+              products={products}
+              onAddSupplier={handleAddSupplier}
+              onAddProduct={handleAddProduct}
+              onCreatePO={(newPO, openDetail, sourcePrId) => {
+                setPos((list) => [newPO, ...list]);
+                setCurrentPO(newPO);
+                if (sourcePrId) {
+                  setPrs((list) =>
+                    list.map((pr) =>
+                      pr.id === sourcePrId
+                        ? { ...pr, status: "Đã tạo đủ PO" }
+                        : pr
+                    )
+                  );
+                }
+                setStorageStatus(`Đã tạo đơn PO ${newPO.number}`);
+                if (openDetail) {
+                  setView("po-detail");
+                }
+              }}
+              onOpen={(po) => {
+                setCurrentPO(po);
                 setView("po-detail");
-              }
-            }}
-            onOpen={(po) => {
-              setCurrentPO(po);
-              setView("po-detail");
-            }}
-            onDelete={reportMode ? undefined : (po) => requestDelete("PO", po)}
-            onCreateHandover={handleCreateHandoverFromPO}
-            readOnly={reportMode}
-          />
+              }}
+              onDelete={reportMode ? undefined : (po) => requestDelete("PO", po)}
+              onCreateHandover={handleCreateHandoverFromPO}
+              readOnly={reportMode}
+            />
+          </ErrorBoundary>
         )}
         {view === "trash" && (
           <TrashPage entries={trash} onRestore={restoreTrash} />
         )}
         {view === "po-detail" && (
-          <PODetail
-            po={currentPO}
-            suppliers={suppliers}
-            setSuppliers={setSuppliers}
-            onUpdate={updatePO}
-            onBack={() => setView("po-list")}
-            workspaceId={workspaceId}
-            readOnly={reportMode}
-            onStatus={setStorageStatus}
-            onCreateHandover={handleCreateHandoverFromPO}
-            onCreatePaymentRequest={handleCreatePaymentRequestFromPOPayment}
-            onNavigateToPayment={(reqId) => {
-              if (reqId) setSpotlightPaymentActiveId(reqId);
-              setView("payment");
-            }}
-          />
+          <ErrorBoundary key="po-detail" fallbackTitle="Lỗi hiển thị chi tiết Đơn mua hàng (PO)" onReset={() => setView("po-list")}>
+            <PODetail
+              po={currentPO?.id ? currentPO : ((pos && pos.length > 0) ? pos[0] : emptyPO)}
+              suppliers={suppliers}
+              setSuppliers={setSuppliers}
+              onUpdate={updatePO}
+              onBack={() => setView("po-list")}
+              workspaceId={workspaceId}
+              readOnly={reportMode}
+              onStatus={setStorageStatus}
+              onCreateHandover={handleCreateHandoverFromPO}
+              onCreatePaymentRequest={handleCreatePaymentRequestFromPOPayment}
+              onNavigateToPayment={(reqId) => {
+                if (reqId) setSpotlightPaymentActiveId(reqId);
+                setView("payment");
+              }}
+            />
+          </ErrorBoundary>
         )}
         {view === "compare" && (
           <section className="content">
@@ -2398,9 +2405,11 @@ export default function ProcurementApp(props: {
   };
 }) {
   return (
-    <I18nProvider>
-      <ProcurementAppInner {...props} />
-    </I18nProvider>
+    <ErrorBoundary fallbackTitle="Đã xảy ra sự cố với ứng dụng SCMH">
+      <I18nProvider>
+        <ProcurementAppInner {...props} />
+      </I18nProvider>
+    </ErrorBoundary>
   );
 }
 

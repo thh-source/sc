@@ -55,8 +55,8 @@ export async function GET(request: Request) {
     }
   }
 
-  // RECOVERY MIGRATION: If app_state is missing `prs` (due to diff bug), load from legacy tables
-  if (!data.prs || data.prs.length === 0) {
+  // RECOVERY MIGRATION: If app_state is missing `prs` or `pos`, load from relational/legacy tables
+  if (!data.prs || data.prs.length === 0 || !data.pos || data.pos.length === 0) {
     try {
       const [dbSuppliers, dbProducts, dbPrs, dbPrItems, dbPos, dbPoItems, dbPoAllocations, dbPoDocs, dbPoPayments, dbQuotes, dbHistory, dbTrash] = await Promise.all([
           drizzleDb.select().from(suppliers).where(eq(suppliers.workspaceId, workspaceId)),
@@ -73,32 +73,16 @@ export async function GET(request: Request) {
           drizzleDb.select().from(trashItems).where(eq(trashItems.workspaceId, workspaceId))
       ]);
   
-      if (dbPrs.length > 0) {
+      let stateChanged = false;
+
+      if ((!data.prs || data.prs.length === 0) && dbPrs.length > 0) {
           const prIds = new Set(dbPrs.map(pr => pr.id));
-          const poIds = new Set(dbPos.map(po => po.id));
-  
           const filteredPrItems = dbPrItems.filter(i => prIds.has(i.prId));
-          const filteredPoItems = dbPoItems.filter(i => poIds.has(i.poId));
-          const poItemIds = new Set(filteredPoItems.map(i => i.id));
-          
-          const filteredPoAllocations = dbPoAllocations.filter(a => poItemIds.has(a.poItemId));
-          const filteredPoDocs = dbPoDocs.filter(d => poIds.has(d.poId));
-          const filteredPoPayments = dbPoPayments.filter(p => poIds.has(p.poId));
           const filteredQuotes = dbQuotes.filter(q => prIds.has(q.prId));
   
           data.prs = dbPrs.map(pr => ({
               ...pr,
               items: filteredPrItems.filter(i => i.prId === pr.id).map(i => ({ ...i, id: i.originalId }))
-          }));
-          data.pos = dbPos.map(po => ({
-              ...po,
-              items: filteredPoItems.filter(i => i.poId === po.id).map(i => ({
-                  ...i,
-                  id: i.originalId,
-                  allocations: filteredPoAllocations.filter(a => a.poItemId === i.id)
-              })),
-              docs: filteredPoDocs.filter(d => d.poId === po.id),
-              payments: filteredPoPayments.filter(p => p.poId === po.id)
           }));
           
           if (!data.quotes) data.quotes = {};
@@ -111,9 +95,60 @@ export async function GET(request: Request) {
           if (!data.products || data.products.length === 0) data.products = dbProducts;
           if (!data.purchaseHistory || data.purchaseHistory.length === 0) data.purchaseHistory = dbHistory;
           if (!data.trash || data.trash.length === 0) data.trash = dbTrash.map(t => ({ ...t, data: t.data ? JSON.parse(t.data) : null }));
+          stateChanged = true;
+      }
+
+      if (!data.pos || data.pos.length === 0) {
+          const currentPos: any[] = [];
+          if (dbPos.length > 0) {
+              const poIds = new Set(dbPos.map(po => po.id));
+              const filteredPoItems = dbPoItems.filter(i => poIds.has(i.poId));
+              const poItemIds = new Set(filteredPoItems.map(i => i.id));
+              const filteredPoAllocations = dbPoAllocations.filter(a => poItemIds.has(a.poItemId));
+              const filteredPoDocs = dbPoDocs.filter(d => poIds.has(d.poId));
+              const filteredPoPayments = dbPoPayments.filter(p => poIds.has(p.poId));
+
+              const mappedPos = dbPos.map(po => ({
+                  ...po,
+                  items: filteredPoItems.filter(i => i.poId === po.id).map(i => ({
+                      ...i,
+                      id: i.originalId,
+                      allocations: filteredPoAllocations.filter(a => a.poItemId === i.id)
+                  })),
+                  docs: filteredPoDocs.filter(d => d.poId === po.id),
+                  payments: filteredPoPayments.filter(p => p.poId === po.id)
+              }));
+              currentPos.push(...mappedPos);
+          }
+
+          // Restore contract if archived in trash
+          if (Array.isArray(data.trash)) {
+              const contractTrashIdx = data.trash.findIndex((t: any) => t.label === "HĐ-2026-001" || t.data?.number === "HĐ-2026-001");
+              if (contractTrashIdx >= 0 && data.trash[contractTrashIdx]?.data) {
+                  const contractPO = data.trash[contractTrashIdx].data;
+                  if (!currentPos.some((p: any) => p.id === contractPO.id || p.number === contractPO.number)) {
+                      currentPos.push(contractPO);
+                  }
+                  data.trash.splice(contractTrashIdx, 1);
+                  if (Array.isArray(data.hiddenContractIds)) {
+                      data.hiddenContractIds = data.hiddenContractIds.filter((id: number) => id !== contractPO.id);
+                  }
+              }
+          }
+
+          data.pos = currentPos;
+          stateChanged = true;
+      }
+
+      // Persist recovered data back to app_state row to ensure consistency
+      if (stateChanged && row) {
+          await drizzleDb.update(appState).set({
+              payload: JSON.stringify(data),
+              updatedAt: new Date().toISOString()
+          }).where(eq(appState.id, mainId));
       }
     } catch (e) {
-      console.error("Lỗi phục hồi dữ liệu PR cũ:", e);
+      console.error("Lỗi phục hồi dữ liệu PR/PO cũ:", e);
     }
   }
 

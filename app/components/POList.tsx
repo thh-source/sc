@@ -372,9 +372,10 @@ export function POList({
     setShowCreateModal(false);
   };
 
-  const shown = pos.filter((po) => {
+  const shown = (pos || []).filter((po) => {
+    if (!po) return false;
     const s = suppliers.find((x) => x.id === po.supplierId);
-    return (po.number + po.prNumber + (s?.name || ""))
+    return ((po.number || "") + (po.prNumber || "") + (s?.name || ""))
       .toLowerCase()
       .includes(q.toLowerCase());
   });
@@ -405,17 +406,17 @@ export function POList({
       <div className="po-kpis">
         <article>
           <span>Tổng PO</span>
-          <b>{pos.length}</b>
+          <b>{(pos || []).length}</b>
         </article>
         <article>
           <span>Đang giao hàng</span>
-          <b>{pos.filter((p) => p.status.includes("giao")).length}</b>
+          <b>{(pos || []).filter((p) => (p?.status || "").includes("giao")).length}</b>
         </article>
         <article>
           <span>Hồ sơ còn thiếu</span>
           <b>
-            {pos.reduce(
-              (n, p) => n + p.docs.filter((d) => d.status !== "Đã đủ").length,
+            {(pos || []).reduce(
+              (n, p) => n + (p?.docs || []).filter((d) => d?.status !== "Đã đủ").length,
               0
             )}
           </b>
@@ -423,10 +424,10 @@ export function POList({
         <article>
           <span>Chờ thanh toán</span>
           <b>
-            {pos.reduce(
+            {(pos || []).reduce(
               (n, p) =>
                 n +
-                p.payments.filter((x) => x.status !== "Đã thanh toán").length,
+                (p?.payments || []).filter((x) => x?.status !== "Đã thanh toán").length,
               0
             )}
           </b>
@@ -448,9 +449,10 @@ export function POList({
 
         <div className="mobile-record-list">
           {shown.map((po) => {
-            const supplier = suppliers.find((s) => s.id === po.supplierId),
-              total = po.items.reduce((sum, item) => sum + item.qty * item.price, 0),
-              delivered = po.items.filter((item) => item.deliveryStatus === "Đã giao").length;
+            const supplier = suppliers.find((s) => s.id === po.supplierId);
+            const items = po.items || [];
+            const total = items.reduce((sum, item) => sum + (Number(item.qty) || 0) * (Number(item.price) || 0), 0);
+            const delivered = items.filter((item) => item.deliveryStatus === "Đã giao").length;
             return (
               <article key={po.id}>
                 <header>
@@ -469,7 +471,7 @@ export function POList({
                   <div>
                     <dt>Giao hàng</dt>
                     <dd>
-                      {delivered}/{po.items.length}
+                      {delivered}/{items.length}
                     </dd>
                   </div>
                 </dl>
@@ -517,15 +519,18 @@ export function POList({
             </thead>
             <tbody>
               {shown.map((po) => {
-                const s = suppliers.find((x) => x.id === po.supplierId),
-                  delivered = po.items.filter(
-                    (i) => i.deliveryStatus === "Đã giao"
-                  ).length,
-                  docs = po.docs.filter((d) => d.status === "Đã đủ").length,
-                  paid = po.payments
-                    .filter((p) => p.status === "Đã thanh toán")
-                    .reduce((n, p) => n + p.amount, 0),
-                  total = po.items.reduce((n, i) => n + i.qty * i.price, 0);
+                const s = suppliers.find((x) => x.id === po.supplierId);
+                const items = po.items || [];
+                const docs = po.docs || [];
+                const payments = po.payments || [];
+                const delivered = items.filter(
+                  (i) => i.deliveryStatus === "Đã giao"
+                ).length;
+                const docsCount = docs.filter((d) => d.status === "Đã đủ").length;
+                const paid = payments
+                  .filter((p) => p.status === "Đã thanh toán")
+                  .reduce((n, p) => n + (Number(p.amount) || 0), 0);
+                const total = items.reduce((n, i) => n + (Number(i.qty) || 0) * (Number(i.price) || 0), 0);
                 return (
                   <tr key={po.id}>
                     <td style={{ whiteSpace: "nowrap" }}>
@@ -535,8 +540,8 @@ export function POList({
                     </td>
                     <td style={{ whiteSpace: "nowrap" }}>{po.prNumber}</td>
                     <td>
-                      <b>{s?.name}</b>
-                      <small className="supplier-code">{s?.code}</small>
+                      <b>{s?.name || "Chưa có NCC"}</b>
+                      {s?.code && <small className="supplier-code">{s.code}</small>}
                     </td>
                     <td style={{ whiteSpace: "nowrap" }}>{dateVN(po.createdDate)}</td>
                     <td style={{ whiteSpace: "nowrap" }}>{dateVN(po.expectedDate)}</td>
@@ -545,23 +550,23 @@ export function POList({
                       <span className="mini-progress" style={{ margin: "0 auto 4px" }}>
                         <i
                           style={{
-                            width: `${po.items.length ? (delivered / po.items.length) * 100 : 0}%`,
+                            width: `${items.length ? (delivered / items.length) * 100 : 0}%`,
                           }}
                         />
                       </span>
                       <small>
-                        {delivered}/{po.items.length} mặt hàng
+                        {delivered}/{items.length} mặt hàng
                       </small>
                     </td>
                     <td style={{ textAlign: "center" }}>
                       <span
                         className={
-                          docs === po.docs.length
+                          docsCount === docs.length && docs.length > 0
                             ? "status done"
                             : "status waiting"
                         }
                       >
-                        {docs}/{po.docs.length} đủ
+                        {docsCount}/{docs.length} đủ
                       </span>
                     </td>
                     <td style={{ textAlign: "center" }}>

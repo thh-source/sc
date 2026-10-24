@@ -27,16 +27,19 @@ export function PODetail({
   onCreatePaymentRequest?: (po: PO, payment: Payment) => void;
   onNavigateToPayment?: (reqId?: number) => void;
 }) {
-  const supplier = suppliers.find((s) => s.id === po.supplierId)!;
-  const total = po.items.reduce((s, i) => s + i.qty * i.price, 0);
-  const supplierUpdate = (key: keyof Supplier, value: string) =>
+  const supplier = suppliers.find((s) => s.id === po.supplierId);
+  const items = po.items || [];
+  const total = items.reduce((s, i) => s + (Number(i.qty) || 0) * (Number(i.price) || 0), 0);
+  const supplierUpdate = (key: keyof Supplier, value: string) => {
+    if (!supplier) return;
     setSuppliers((list) =>
       list.map((s) => (s.id === supplier.id ? { ...s, [key]: value } : s)),
     );
+  };
   const itemUpdate = (id: number, key: keyof POItem, value: string | number) =>
     onUpdate({
       ...po,
-      items: po.items.map((i) => (i.id === id ? { ...i, [key]: value } : i)),
+      items: items.map((i) => (i.id === id ? { ...i, [key]: value } : i)),
     });
 
   const payments = po.payments || [];
@@ -216,12 +219,12 @@ export function PODetail({
   };
 
   const events = [
-    ...po.items
+    ...items
       .filter((i) => i.deliveryDate)
       .map((i) => ({
         date: i.deliveryDate,
         title: `Giao hàng: ${i.name}`,
-        note: `${i.deliveredQty}/${i.qty} ${i.unit} · ${i.deliveryStatus}`,
+        note: `${i.deliveredQty || 0}/${i.qty} ${i.unit} · ${i.deliveryStatus || ""}`,
         kind: "delivery",
       })),
     ...(po.payments || [])
@@ -229,10 +232,10 @@ export function PODetail({
       .map((p) => ({
         date: p.date,
         title: `Thanh toán: ${p.phase}`,
-        note: `${fmt(p.amount)} ₫ · ${p.status}`,
+        note: `${fmt(p.amount || 0)} ₫ · ${p.status}`,
         kind: "payment",
       })),
-  ].sort((a, b) => a.date.localeCompare(b.date));
+  ].sort((a, b) => (a.date || "").localeCompare(b.date || ""));
   return (
     <section className="content po-detail">
       <div className="heading">
@@ -241,7 +244,7 @@ export function PODetail({
             ← Quản lý PO
           </button>
           <em>{isContractPO(po) ? "HỢP ĐỒNG MUA HÀNG" : "ĐƠN MUA HÀNG"} · {po.number}</em>
-          <h1>{supplier?.name}</h1>
+          <h1>{supplier?.name || "Đơn hàng mới"}</h1>
           <p>
             {po.prNumber ? `Từ ${po.prNumber} · ` : ""}Tạo ngày {dateVN(po.createdDate)}
           </p>
@@ -288,17 +291,18 @@ export function PODetail({
             <span>▱</span>
             <h2>Thông tin nhà cung cấp</h2>
           </div>
-          <small>Đồng bộ từ danh sách nhà cung cấp · {supplier.code}</small>
+          <small>Đồng bộ từ danh sách nhà cung cấp · {supplier?.code || "Chưa có mã NCC"}</small>
         </div>
         <div className="po-supplier-form">
           <label>
             Nhà cung cấp
             <select
-              value={po.supplierId}
+              value={po.supplierId || ""}
               onChange={(e) =>
                 onUpdate({ ...po, supplierId: Number(e.target.value) })
               }
             >
+              <option value="">-- Chọn nhà cung cấp --</option>
               {suppliers.map((s) => (
                 <option value={s.id} key={s.id}>
                   {s.code} · {s.name}
@@ -309,35 +313,35 @@ export function PODetail({
           <label>
             Số tài khoản
             <input
-              value={supplier.bankAccount}
+              value={supplier?.bankAccount || ""}
               onChange={(e) => supplierUpdate("bankAccount", e.target.value)}
             />
           </label>
           <label>
             Ngân hàng
             <input
-              value={supplier.bank}
+              value={supplier?.bank || ""}
               onChange={(e) => supplierUpdate("bank", e.target.value)}
             />
           </label>
           <label>
             Người liên hệ
             <input
-              value={supplier.contact}
+              value={supplier?.contact || ""}
               onChange={(e) => supplierUpdate("contact", e.target.value)}
             />
           </label>
           <label>
             Điện thoại
             <input
-              value={supplier.phone}
+              value={supplier?.phone || ""}
               onChange={(e) => supplierUpdate("phone", e.target.value)}
             />
           </label>
           <label className="wide-field">
             Địa chỉ
             <input
-              value={supplier.address}
+              value={supplier?.address || ""}
               onChange={(e) => supplierUpdate("address", e.target.value)}
             />
           </label>
@@ -546,14 +550,14 @@ export function PODetail({
             </button>
           </div>
           <div className="checklist">
-            {po.docs.map((d) => (
+            {(po.docs || []).map((d) => (
               <div key={d.id}>
                 <input
                   value={d.name}
                   onChange={(e) =>
                     onUpdate({
                       ...po,
-                      docs: po.docs.map((x) =>
+                      docs: (po.docs || []).map((x) =>
                         x.id === d.id ? { ...x, name: e.target.value } : x,
                       ),
                     })
@@ -564,7 +568,7 @@ export function PODetail({
                   onChange={(e) =>
                     onUpdate({
                       ...po,
-                      docs: po.docs.map((x) =>
+                      docs: (po.docs || []).map((x) =>
                         x.id === d.id
                           ? { ...x, status: e.target.value as PODoc["status"] }
                           : x,
@@ -582,7 +586,7 @@ export function PODetail({
                   onChange={(e) =>
                     onUpdate({
                       ...po,
-                      docs: po.docs.map((x) =>
+                      docs: (po.docs || []).map((x) =>
                         x.id === d.id ? { ...x, note: e.target.value } : x,
                       ),
                     })
