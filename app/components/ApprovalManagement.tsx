@@ -734,67 +734,71 @@ export default function ApprovalManagement({
     (activeRequest.supplierColumns.length >= 3 || subColCountPerSupplier >= 3);
 
   /**
-   * Tính toán tỉ lệ phần trăm độ rộng (<colgroup>) cho từng cột để bảng luôn vừa khít 100% trang A4
-   * và ép các cột văn bản dài (Hàng hóa, Mặt hàng NCC báo) tự động xuống dòng!
+   * Tính toán tỉ lệ phần trăm độ rộng (<colgroup> & <th>) cho từng cột:
+   * - Các cột co gọn được (STT, Số lượng, ĐVT, Đơn giá, Thành tiền) được ép gọn tối đa với tiêu đề 2 dòng.
+   * - Đảm bảo tổng độ rộng 100% trang A4 cả trên màn hình làm việc lẫn khi in.
    */
-  const renderTableColGroup = () => {
-    if (!activeRequest) return null;
-    const numSups = Math.max(1, activeRequest.supplierColumns.length);
-    // 4 cột cố định bên trái chiếm ~23% tổng bề ngang bảng:
-    // STT: 3%, Hàng hóa: 13%, Số lượng: 3.5%, ĐVT: 3.5%
-    const sttPct = 3.0;
-    const itemPct = numSups >= 3 ? 12.5 : 15.0;
-    const qtyPct = 3.6;
-    const unitPct = 3.4;
+  const colWidths = useMemo(() => {
+    const numSups = Math.max(1, activeRequest?.supplierColumns.length || 1);
+    const sttPct = 2.4;
+    const itemPct = numSups >= 3 ? 13.0 : 16.0;
+    const qtyPct = 2.8;
+    const unitPct = 2.8;
     const remainingPct = 100 - (sttPct + itemPct + qtyPct + unitPct);
     const perSupPct = remainingPct / numSups;
 
+    let specPct = 0;
+    let pricePct = 0;
+    let supQtyPct = 0;
+    let amtPct = 0;
+
+    if (hasQuotedProduct && hasSupplierQty) {
+      specPct = perSupPct * 0.38;
+      pricePct = perSupPct * 0.24;
+      supQtyPct = perSupPct * 0.11;
+      amtPct = perSupPct * 0.27;
+    } else if (hasQuotedProduct && !hasSupplierQty) {
+      specPct = perSupPct * 0.44;
+      pricePct = perSupPct * 0.27;
+      amtPct = perSupPct * 0.29;
+    } else if (!hasQuotedProduct && hasSupplierQty) {
+      pricePct = perSupPct * 0.42;
+      supQtyPct = perSupPct * 0.14;
+      amtPct = perSupPct * 0.44;
+    } else {
+      pricePct = perSupPct * 0.48;
+      amtPct = perSupPct * 0.52;
+    }
+
+    return {
+      stt: `${sttPct}%`,
+      item: `${itemPct}%`,
+      qty: `${qtyPct}%`,
+      unit: `${unitPct}%`,
+      perSup: `${perSupPct.toFixed(2)}%`,
+      spec: `${specPct.toFixed(2)}%`,
+      price: `${pricePct.toFixed(2)}%`,
+      supQty: `${supQtyPct.toFixed(2)}%`,
+      amt: `${amtPct.toFixed(2)}%`,
+    };
+  }, [activeRequest?.supplierColumns.length, hasQuotedProduct, hasSupplierQty]);
+
+  const renderTableColGroup = () => {
+    if (!activeRequest) return null;
     return (
       <colgroup>
-        <col style={{ width: `${sttPct}%` }} />
-        <col style={{ width: `${itemPct}%` }} />
-        <col style={{ width: `${qtyPct}%` }} />
-        <col style={{ width: `${unitPct}%` }} />
-        {activeRequest.supplierColumns.map((sc) => {
-          if (hasQuotedProduct && hasSupplierQty) {
-            // 4 cột con/NCC: Mặt hàng NCC (35%), Đơn giá (24%), SL (14%), Thành tiền (27%)
-            return (
-              <React.Fragment key={`colg_${sc.colId}`}>
-                <col style={{ width: `${(perSupPct * 0.35).toFixed(2)}%` }} />
-                <col style={{ width: `${(perSupPct * 0.24).toFixed(2)}%` }} />
-                <col style={{ width: `${(perSupPct * 0.14).toFixed(2)}%` }} />
-                <col style={{ width: `${(perSupPct * 0.27).toFixed(2)}%` }} />
-              </React.Fragment>
-            );
-          }
-          if (hasQuotedProduct && !hasSupplierQty) {
-            // 3 cột con/NCC: Mặt hàng NCC (44%), Đơn giá (27%), Thành tiền (29%)
-            return (
-              <React.Fragment key={`colg_${sc.colId}`}>
-                <col style={{ width: `${(perSupPct * 0.44).toFixed(2)}%` }} />
-                <col style={{ width: `${(perSupPct * 0.27).toFixed(2)}%` }} />
-                <col style={{ width: `${(perSupPct * 0.29).toFixed(2)}%` }} />
-              </React.Fragment>
-            );
-          }
-          if (!hasQuotedProduct && hasSupplierQty) {
-            // 3 cột con/NCC: Đơn giá (40%), SL (20%), Thành tiền (40%)
-            return (
-              <React.Fragment key={`colg_${sc.colId}`}>
-                <col style={{ width: `${(perSupPct * 0.4).toFixed(2)}%` }} />
-                <col style={{ width: `${(perSupPct * 0.2).toFixed(2)}%` }} />
-                <col style={{ width: `${(perSupPct * 0.4).toFixed(2)}%` }} />
-              </React.Fragment>
-            );
-          }
-          // 2 cột con/NCC: Đơn giá (48%), Thành tiền (52%)
-          return (
-            <React.Fragment key={`colg_${sc.colId}`}>
-              <col style={{ width: `${(perSupPct * 0.48).toFixed(2)}%` }} />
-              <col style={{ width: `${(perSupPct * 0.52).toFixed(2)}%` }} />
-            </React.Fragment>
-          );
-        })}
+        <col style={{ width: colWidths.stt }} />
+        <col style={{ width: colWidths.item }} />
+        <col style={{ width: colWidths.qty }} />
+        <col style={{ width: colWidths.unit }} />
+        {activeRequest.supplierColumns.map((sc) => (
+          <React.Fragment key={`colg_${sc.colId}`}>
+            {hasQuotedProduct && <col style={{ width: colWidths.spec }} />}
+            <col style={{ width: colWidths.price }} />
+            {hasSupplierQty && <col style={{ width: colWidths.supQty }} />}
+            <col style={{ width: colWidths.amt }} />
+          </React.Fragment>
+        ))}
       </colgroup>
     );
   };
@@ -1445,16 +1449,16 @@ export default function ApprovalManagement({
           </tbody>
         </table>
 
-        {/* 2. KHUNG META GÓC PHẢI (SỐ PR, NGÀY, ĐƠN VỊ LẬP, GHI CHÚ) */}
+        {/* 2. KHUNG META BÊN TRÁI CÙNG (SỐ PR, NGÀY, ĐƠN VỊ LẬP, GHI CHÚ) */}
         <div className="phenikaa-meta-wrapper">
           <table className="phenikaa-meta-table">
             <tbody>
               <tr>
-                <td className="meta-lbl">Số PR:</td>
-                <td className="meta-val">
+                <td className="meta-single-cell">
+                  <span className="meta-lbl">Số PR:</span>
                   <input
                     type="text"
-                    className="sheet-inline-input"
+                    className="sheet-inline-input meta-inline-input"
                     value={activeRequest.prNumber}
                     readOnly={isReportMode}
                     onChange={(e) =>
@@ -1468,11 +1472,11 @@ export default function ApprovalManagement({
                 </td>
               </tr>
               <tr>
-                <td className="meta-lbl">Ngày:</td>
-                <td className="meta-val">
+                <td className="meta-single-cell">
+                  <span className="meta-lbl">Ngày:</span>
                   <input
                     type="text"
-                    className="sheet-inline-input"
+                    className="sheet-inline-input meta-inline-input"
                     value={activeRequest.createdDate}
                     readOnly={isReportMode}
                     onChange={(e) =>
@@ -1485,11 +1489,11 @@ export default function ApprovalManagement({
                 </td>
               </tr>
               <tr>
-                <td className="meta-lbl">Đơn vị lập biểu mẫu:</td>
-                <td className="meta-val">
+                <td className="meta-single-cell">
+                  <span className="meta-lbl">Đơn vị lập biểu mẫu:</span>
                   <input
                     type="text"
-                    className="sheet-inline-input"
+                    className="sheet-inline-input meta-inline-input"
                     value={activeRequest.department}
                     readOnly={isReportMode}
                     onChange={(e) =>
@@ -1502,11 +1506,11 @@ export default function ApprovalManagement({
                 </td>
               </tr>
               <tr>
-                <td className="meta-lbl">Ghi chú: Căn cứ theo PR số:</td>
-                <td className="meta-val">
+                <td className="meta-single-cell">
+                  <span className="meta-lbl">Ghi chú: Căn cứ theo PR số:</span>
                   <input
                     type="text"
-                    className="sheet-inline-input"
+                    className="sheet-inline-input meta-inline-input"
                     value={activeRequest.noteRef}
                     readOnly={isReportMode}
                     onChange={(e) =>
@@ -1547,22 +1551,41 @@ export default function ApprovalManagement({
               {renderTableColGroup()}
               <thead>
                 <tr>
-                  <th rowSpan={2} className="col-stt">
+                  <th
+                    rowSpan={2}
+                    className="col-stt"
+                    style={{ width: colWidths.stt }}
+                  >
                     STT
                   </th>
-                  <th rowSpan={2} className="col-item-name">
+                  <th
+                    rowSpan={2}
+                    className="col-item-name"
+                    style={{ width: colWidths.item }}
+                  >
                     Hàng hóa
                   </th>
-                  <th rowSpan={2} className="col-qty">
-                    Số lượng
+                  <th
+                    rowSpan={2}
+                    className="col-qty"
+                    style={{ width: colWidths.qty }}
+                  >
+                    Số
+                    <br />
+                    lượng
                   </th>
-                  <th rowSpan={2} className="col-unit">
+                  <th
+                    rowSpan={2}
+                    className="col-unit"
+                    style={{ width: colWidths.unit }}
+                  >
                     ĐVT
                   </th>
                   {activeRequest.supplierColumns.map((sc) => (
                     <th
                       key={sc.colId}
                       colSpan={subColCountPerSupplier}
+                      style={{ width: colWidths.perSup }}
                       className={`col-supplier-group ${
                         sc.isSelected ? "selected-supplier-th" : ""
                       }`}
@@ -1671,7 +1694,10 @@ export default function ApprovalManagement({
                   {activeRequest.supplierColumns.map((sc) => (
                     <React.Fragment key={`sub_${sc.colId}`}>
                       {hasQuotedProduct && (
-                        <th className="col-sub-spec">
+                        <th
+                          className="col-sub-spec"
+                          style={{ width: colWidths.spec }}
+                        >
                           <div className="subcol-th-wrap">
                             <span>{quotedProductTitle}</span>
                             {!isReportMode && (
@@ -1687,11 +1713,25 @@ export default function ApprovalManagement({
                           </div>
                         </th>
                       )}
-                      <th className="col-sub-price">Đơn giá (VNĐ)</th>
+                      <th
+                        className="col-sub-price"
+                        style={{ width: colWidths.price }}
+                      >
+                        Đơn giá
+                        <br />
+                        (VNĐ)
+                      </th>
                       {hasSupplierQty && (
-                        <th className="col-sub-qty">
+                        <th
+                          className="col-sub-qty"
+                          style={{ width: colWidths.supQty }}
+                        >
                           <div className="subcol-th-wrap">
-                            <span>Số lượng</span>
+                            <span>
+                              Số
+                              <br />
+                              lượng
+                            </span>
                             {!isReportMode && (
                               <button
                                 type="button"
@@ -1705,7 +1745,14 @@ export default function ApprovalManagement({
                           </div>
                         </th>
                       )}
-                      <th className="col-sub-amount">Thành tiền</th>
+                      <th
+                        className="col-sub-amount"
+                        style={{ width: colWidths.amt }}
+                      >
+                        Thành
+                        <br />
+                        tiền
+                      </th>
                     </React.Fragment>
                   ))}
                 </tr>
@@ -2510,6 +2557,7 @@ export default function ApprovalManagement({
                 #approvalPrintPortal {
                   display: block !important;
                   width: 100% !important;
+                  min-width: 0 !important;
                   max-width: 100% !important;
                   margin: 0 !important;
                   padding: 0 !important;
@@ -2518,6 +2566,47 @@ export default function ApprovalManagement({
                   font-family: "Times New Roman", Times, serif !important;
                   font-size: 11.5pt !important;
                   line-height: 1.35 !important;
+                }
+                /* Ghi đè triệt để rule global table { min-width: max-content } và th, td { white-space: nowrap } từ globals.css */
+                #approvalPrintPortal table,
+                #approvalPrintPortal .phenikaa-print-grid,
+                #approvalPrintPortal .phenikaa-header-table,
+                #approvalPrintPortal .phenikaa-sign-table {
+                  width: 100% !important;
+                  min-width: 0 !important;
+                  max-width: 100% !important;
+                  table-layout: fixed !important;
+                  border-collapse: collapse !important;
+                }
+                #approvalPrintPortal .phenikaa-meta-table {
+                  width: auto !important;
+                  min-width: 300px !important;
+                  max-width: 100% !important;
+                  table-layout: auto !important;
+                  border-collapse: collapse !important;
+                }
+                #approvalPrintPortal th,
+                #approvalPrintPortal td {
+                  min-width: 0 !important;
+                  height: auto !important;
+                  position: static !important;
+                  white-space: pre-wrap !important;
+                  word-break: break-word !important;
+                  overflow-wrap: break-word !important;
+                  box-sizing: border-box !important;
+                  vertical-align: middle !important;
+                  color: #000000 !important;
+                  background: transparent !important;
+                }
+                #approvalPrintPortal .phenikaa-print-grid th,
+                #approvalPrintPortal .phenikaa-print-grid td {
+                  border: 1px solid #000000 !important;
+                  padding: 3px 4px !important;
+                  line-height: 1.28 !important;
+                }
+                #approvalPrintPortal .phenikaa-sign-table td {
+                  border: none !important;
+                  vertical-align: top !important;
                 }
               }
             `}</style>
@@ -2541,25 +2630,35 @@ export default function ApprovalManagement({
                 </tbody>
               </table>
 
-              {/* 2. Khung Meta góc phải */}
+              {/* 2. Khung Meta bên trái cùng */}
               <div className="phenikaa-meta-wrapper">
                 <table className="phenikaa-meta-table">
                   <tbody>
                     <tr>
-                      <td className="meta-lbl">Số PR:</td>
-                      <td className="meta-val">{activeRequest.prNumber}</td>
+                      <td className="meta-single-cell">
+                        <span className="meta-lbl">Số PR:</span>{" "}
+                        <span>{activeRequest.prNumber}</span>
+                      </td>
                     </tr>
                     <tr>
-                      <td className="meta-lbl">Ngày:</td>
-                      <td className="meta-val">{activeRequest.createdDate}</td>
+                      <td className="meta-single-cell">
+                        <span className="meta-lbl">Ngày:</span>{" "}
+                        <span>{activeRequest.createdDate}</span>
+                      </td>
                     </tr>
                     <tr>
-                      <td className="meta-lbl">Đơn vị lập biểu mẫu:</td>
-                      <td className="meta-val">{activeRequest.department}</td>
+                      <td className="meta-single-cell">
+                        <span className="meta-lbl">Đơn vị lập biểu mẫu:</span>{" "}
+                        <span>{activeRequest.department}</span>
+                      </td>
                     </tr>
                     <tr>
-                      <td className="meta-lbl">Ghi chú: Căn cứ theo PR số:</td>
-                      <td className="meta-val">{activeRequest.noteRef}</td>
+                      <td className="meta-single-cell">
+                        <span className="meta-lbl">
+                          Ghi chú: Căn cứ theo PR số:
+                        </span>{" "}
+                        <span>{activeRequest.noteRef}</span>
+                      </td>
                     </tr>
                   </tbody>
                 </table>
@@ -2581,14 +2680,25 @@ export default function ApprovalManagement({
                   {renderTableColGroup()}
                   <thead>
                     <tr>
-                      <th rowSpan={2}>STT</th>
-                      <th rowSpan={2}>Hàng hóa</th>
-                      <th rowSpan={2}>Số lượng</th>
-                      <th rowSpan={2}>ĐVT</th>
+                      <th rowSpan={2} style={{ width: colWidths.stt }}>
+                        STT
+                      </th>
+                      <th rowSpan={2} style={{ width: colWidths.item }}>
+                        Hàng hóa
+                      </th>
+                      <th rowSpan={2} style={{ width: colWidths.qty }}>
+                        Số
+                        <br />
+                        lượng
+                      </th>
+                      <th rowSpan={2} style={{ width: colWidths.unit }}>
+                        ĐVT
+                      </th>
                       {activeRequest.supplierColumns.map((sc) => (
                         <th
                           key={`p_head_${sc.colId}`}
                           colSpan={subColCountPerSupplier}
+                          style={{ width: colWidths.perSup }}
                         >
                           {sc.isSelected
                             ? `NCC lựa chọn: ${sc.shortName || sc.supplierName}`
@@ -2599,10 +2709,28 @@ export default function ApprovalManagement({
                     <tr>
                       {activeRequest.supplierColumns.map((sc) => (
                         <React.Fragment key={`p_sub_${sc.colId}`}>
-                          {hasQuotedProduct && <th>{quotedProductTitle}</th>}
-                          <th>Đơn giá (VNĐ)</th>
-                          {hasSupplierQty && <th>Số lượng</th>}
-                          <th>Thành tiền</th>
+                          {hasQuotedProduct && (
+                            <th style={{ width: colWidths.spec }}>
+                              {quotedProductTitle}
+                            </th>
+                          )}
+                          <th style={{ width: colWidths.price }}>
+                            Đơn giá
+                            <br />
+                            (VNĐ)
+                          </th>
+                          {hasSupplierQty && (
+                            <th style={{ width: colWidths.supQty }}>
+                              Số
+                              <br />
+                              lượng
+                            </th>
+                          )}
+                          <th style={{ width: colWidths.amt }}>
+                            Thành
+                            <br />
+                            tiền
+                          </th>
                         </React.Fragment>
                       ))}
                     </tr>

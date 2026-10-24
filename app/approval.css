@@ -342,14 +342,19 @@
 
 /* 1. Header Công ty + Quốc hiệu Biểu mẫu */
 .phenikaa-header-table {
-  width: 100%;
-  border-collapse: collapse;
-  margin-bottom: 12px;
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  table-layout: fixed !important;
+  border-collapse: collapse !important;
+  margin-bottom: 10px;
 }
 
 .phenikaa-header-table td {
   border: 1px solid #000000;
   vertical-align: middle;
+  height: auto !important;
+  white-space: normal !important;
 }
 
 .phenikaa-logo-box {
@@ -374,17 +379,17 @@
   padding: 12px 14px;
 }
 
-/* 2. Khung Meta góc phải (Số PR, Ngày, Đơn vị lập, Ghi chú) */
+/* 2. Khung Meta bên trái cùng (Số PR, Ngày, Đơn vị lập, Ghi chú) */
 .phenikaa-meta-wrapper {
   display: flex;
-  justify-content: flex-end;
-  margin-bottom: 14px;
+  justify-content: flex-start !important;
+  margin-bottom: 12px;
 }
 
 .phenikaa-meta-table {
-  width: min(58%, 540px);
-  min-width: 320px;
-  border-collapse: collapse;
+  width: min(460px, 100%) !important;
+  min-width: 280px !important;
+  border-collapse: collapse !important;
   border: 1px solid #000000;
 }
 
@@ -392,19 +397,29 @@
   border-top: 1px dotted #000000;
 }
 
-.phenikaa-meta-table td {
-  padding: 5px 10px;
+.phenikaa-meta-table td.meta-single-cell {
+  padding: 4px 8px !important;
   font-size: 12.5pt;
+  height: auto !important;
+  text-align: left !important;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border-right: none !important;
+  border-bottom: none !important;
 }
 
 .phenikaa-meta-table .meta-lbl {
   font-weight: 700;
-  width: 44%;
   white-space: nowrap;
+  flex-shrink: 0;
 }
 
-.phenikaa-meta-table .meta-val {
-  width: 56%;
+.phenikaa-meta-table .meta-inline-input {
+  flex: 1;
+  min-width: 0 !important;
+  text-align: left !important;
 }
 
 /* Input ẩn viền trên tờ giấy */
@@ -453,8 +468,10 @@
 
 /* Bảng phê duyệt động (.phenikaa-approval-grid) */
 .phenikaa-approval-grid {
-  width: 100%;
-  border-collapse: collapse;
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  border-collapse: collapse !important;
   table-layout: fixed !important;
   font-size: 12pt;
 }
@@ -465,39 +482,40 @@
 
 .phenikaa-approval-grid th,
 .phenikaa-approval-grid td {
-  border: 1px solid #000000;
-  padding: 6px 6px;
+  border: 1px solid #000000 !important;
+  padding: 4px 4px !important;
+  height: auto !important;
+  min-width: 0 !important;
+  position: static !important;
   vertical-align: middle;
   box-sizing: border-box;
-  white-space: pre-wrap;
-  word-break: break-word;
-  overflow-wrap: break-word;
+  white-space: pre-wrap !important;
+  word-break: break-word !important;
+  overflow-wrap: break-word !important;
+  line-height: 1.3;
 }
 
 .phenikaa-approval-grid thead th {
   font-weight: 700;
   text-align: center;
   background: #f8fafc;
+  color: #000000;
 }
 
 .phenikaa-approval-grid thead th.selected-supplier-th {
   background: #eff6ff;
 }
 
-.col-stt {
-  width: 42px;
-}
-
-.col-item-name {
-  width: 18%;
-}
-
-.col-qty {
-  width: 56px;
-}
-
-.col-unit {
-  width: 54px;
+.col-stt,
+.col-qty,
+.col-unit,
+.col-sub-qty,
+.cell-stt,
+.cell-qty,
+.cell-unit,
+.cell-sub-qty {
+  padding-left: 2px !important;
+  padding-right: 2px !important;
 }
 
 .subcol-th-wrap {
@@ -819,8 +837,11 @@
 
 /* Khu vực Chữ ký 3 cột */
 .phenikaa-sign-table {
-  width: 100%;
-  border-collapse: collapse;
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  table-layout: fixed !important;
+  border-collapse: collapse !important;
   margin-top: 18px;
   page-break-inside: avoid;
 }
@@ -829,7 +850,9 @@
   width: 33.33%;
   text-align: center;
   vertical-align: top;
-  border: none;
+  border: none !important;
+  height: auto !important;
+  white-space: normal !important;
 }
 
 .sign-title {
@@ -881,15 +904,19 @@
 
 .phenikaa-print-grid {
   width: 100% !important;
+  min-width: 0 !important;
   max-width: 100% !important;
-  border-collapse: collapse;
+  border-collapse: collapse !important;
   table-layout: fixed !important;
 }
 
 .phenikaa-print-grid th,
 .phenikaa-print-grid td {
-  border: 1px solid #000000;
-  padding: 4px 5px;
+  border: 1px solid #000000 !important;
+  padding: 3px 4px !important;
+  height: auto !important;
+  min-width: 0 !important;
+  position: static !important;
   vertical-align: middle;
   color: #000000;
   white-space: pre-wrap !important;
@@ -918,6 +945,7 @@
   #approvalPrintPortal {
     display: block !important;
     width: 100% !important;
+    min-width: 0 !important;
     max-width: 100% !important;
     margin: 0 !important;
     padding: 0 !important;
@@ -926,6 +954,7 @@
 
   #approvalPrintPortal .phenikaa-print-grid {
     width: 100% !important;
+    min-width: 0 !important;
     max-width: 100% !important;
     border-collapse: collapse !important;
     table-layout: fixed !important;
@@ -936,7 +965,10 @@
     border: 1px solid #000000 !important;
     background: transparent !important;
     color: #000000 !important;
-    padding: 4px 5px !important;
+    padding: 3px 4px !important;
+    height: auto !important;
+    min-width: 0 !important;
+    position: static !important;
     white-space: pre-wrap !important;
     word-break: break-word !important;
     overflow-wrap: break-word !important;
