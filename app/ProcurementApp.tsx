@@ -19,12 +19,17 @@ import "./vat-quote.css";
 
 import { PaymentManagement } from "./components/PaymentManagement";
 import { BANK_SUGGESTIONS, DEFAULT_PAYMENT_TEMPLATE, localToday } from "./payment-utils";
-import { Item, Supplier, PurchaseHistory, QuoteMode, QuoteEntry, Quote, PR, POItem, POCartLine, ApprovalRow, ApprovalDraft, PODoc, Payment, PO, TrashItem, View, ColumnKey, SortState, PaymentDetailLine, PaymentRequestEntry, PaymentGroup, PaymentBeneficiary, PaymentHandoverItem, PaymentPrintTemplate, StoredState, isContractPO } from "./types";
+import { Item, Supplier, PurchaseHistory, QuoteMode, QuoteEntry, Quote, PR, POItem, POCartLine, ApprovalRow, ApprovalDraft, ApprovalRequest, PODoc, Payment, PO, TrashItem, View, ColumnKey, SortState, PaymentDetailLine, PaymentRequestEntry, PaymentGroup, PaymentBeneficiary, PaymentHandoverItem, PaymentPrintTemplate, StoredState, isContractPO } from "./types";
 import { BASE_COLUMNS, reorder, applyTools, makeId, emptyItem, fmt, dateVN, DEFAULT_VAT_RATE, quoteDefaults, quoteBeforeVat, quoteAfterVat, quoteComparePrice, mergeHistorySeed, PurchaseHistorySeed, excelNumber, emptyPR, emptyPO, generateShortName } from "./utils";
 import { items0, suppliers0, purchaseHistory0, quotes0, prs0, pos0, HISTORY_SEED_ID } from "./seed";
 import { AdvancedItemsTable } from "./components/AdvancedItemsTable";
 import { CreatePRCatalog } from "./components/CreatePRCatalog";
 import { ApprovalSheet } from "./components/ApprovalSheet";
+import ApprovalManagement from "./components/ApprovalManagement";
+import {
+  createApprovalFromCompare,
+  SAMPLE_PHENIKAA_APPROVALS,
+} from "./utils/approvalSamples";
 
 import { Dashboard } from "./components/Dashboard";
 import { POList } from "./components/POList";
@@ -100,6 +105,12 @@ function ProcurementAppInner({
   const [poCart, setPoCart] = useState<POCartLine[]>([]),
     [poCartOpen, setPoCartOpen] = useState(false);
   const [approvalDraft, setApprovalDraft] = useState<ApprovalDraft | null>(null);
+  const [approvalRequests, setApprovalRequests] = useState<ApprovalRequest[]>(
+      SAMPLE_PHENIKAA_APPROVALS,
+    ),
+    [activeApprovalId, setActiveApprovalId] = useState<number | null>(
+      SAMPLE_PHENIKAA_APPROVALS[0]?.id ?? null,
+    );
   const [trash, setTrash] = useState<TrashItem[]>([]),
     [hiddenContractIds, setHiddenContractIds] = useState<number[]>([]),
     [deleteTarget, setDeleteTarget] = useState<{
@@ -202,6 +213,7 @@ function ProcurementAppInner({
         paymentBeneficiaries,
         paymentHandovers,
         paymentTemplate,
+        approvalRequests,
       },
     });
   const persistState = useCallback(async (keepalive = false) => {
@@ -303,9 +315,10 @@ function ProcurementAppInner({
         paymentBeneficiaries,
         paymentHandovers,
         paymentTemplate,
+        approvalRequests,
       },
     };
-  }, [hiddenContractIds, items, paymentBeneficiaries, paymentGroups, paymentHandovers, paymentRequests, paymentTemplate, poCart, pos, products, prs, purchaseHistory, purchaseHistoryImportIds, quoteCompareMode, quoteSupplierIds, quoteSupplierIdsByPr, quotes, quotesByPr, suppliers, trash, workspaceId]);
+  }, [approvalRequests, hiddenContractIds, items, paymentBeneficiaries, paymentGroups, paymentHandovers, paymentRequests, paymentTemplate, poCart, pos, products, prs, purchaseHistory, purchaseHistoryImportIds, quoteCompareMode, quoteSupplierIds, quoteSupplierIdsByPr, quotes, quotesByPr, suppliers, trash, workspaceId]);
   useEffect(() => {
     if (
       reportMode ||
@@ -405,6 +418,13 @@ function ProcurementAppInner({
               })
               .catch((err) => console.error("Không thể tải payment seed:", err));
           }
+          if (data.approvalRequests && data.approvalRequests.length > 0) {
+            setApprovalRequests(data.approvalRequests);
+            setActiveApprovalId(data.approvalRequests[0]?.id ?? null);
+          } else {
+            setApprovalRequests(SAMPLE_PHENIKAA_APPROVALS);
+            setActiveApprovalId(SAMPLE_PHENIKAA_APPROVALS[0]?.id ?? null);
+          }
           if (data.prs?.length) setSelectedPR(data.prs[0]);
           if (data.pos?.length) setCurrentPO(data.pos[0]);
         } else {
@@ -428,6 +448,8 @@ function ProcurementAppInner({
           setPaymentBeneficiaries([]);
           setPaymentHandovers([]);
           setPaymentTemplate(DEFAULT_PAYMENT_TEMPLATE);
+          setApprovalRequests(SAMPLE_PHENIKAA_APPROVALS);
+          setActiveApprovalId(SAMPLE_PHENIKAA_APPROVALS[0]?.id ?? null);
           setSelectedPR(emptyPR);
           setCurrentPO(emptyPO);
 
@@ -480,6 +502,7 @@ function ProcurementAppInner({
     paymentBeneficiaries,
     paymentHandovers,
     paymentTemplate,
+    approvalRequests,
     workspaceId,
     persistState,
   ]);
@@ -1099,60 +1122,188 @@ function ProcurementAppInner({
     setPoSelections((selected) => [...selected, id]);
   };
   const openApproval = () => {
-    if (!poCart.length) return;
-    const sourcePRs = [...new Set(poCart.map((line) => line.allocation.prNumber))],
-      supplierIds = [
-        ...new Set(
-          poCart.flatMap((line) => {
-            const prQuotes =
-                quotesByPr[line.allocation.prId] ||
-                (line.allocation.prId === selectedPR.id ? quotes : {}),
-              prSupplierIds =
-                quoteSupplierIdsByPr[line.allocation.prId] ||
-                (line.allocation.prId === selectedPR.id ? quoteSupplierIds : []);
-            return [
-              ...prSupplierIds.filter(
-                (id) => quoteBeforeVat(prQuotes[line.item.id]?.[id]) > 0,
-              ),
-              line.supplierId,
-            ];
-          }),
-        ),
-      ],
-      rows: ApprovalRow[] = poCart.map((line) => {
-        const prices: Record<number, number> = {},
-          prQuotes =
-            quotesByPr[line.allocation.prId] ||
-            (line.allocation.prId === selectedPR.id ? quotes : {});
-        supplierIds.forEach((supplierId) => {
-          prices[supplierId] = quoteBeforeVat(
-            prQuotes[line.item.id]?.[supplierId],
-          );
-        });
-        return {
-          id: line.id,
-          prNumber: line.allocation.prNumber,
-          code: line.item.code,
-          name: line.item.name,
-          qty: line.allocation.qty,
-          unit: line.item.unit,
-          selectedSupplierId: line.supplierId,
-          prices,
-        };
-      });
-    setApprovalDraft({
-      number: selectedPR.number || sourcePRs.join(", "),
-      date: new Date().toISOString().slice(0, 10),
-      department: selectedPR.department || "Phòng Cung Ứng",
-      prNumbers: sourcePRs.join(", "),
-      purpose: selectedPR.purpose || "phục vụ hoạt động mua hàng của công ty",
-      intro: `Theo yêu cầu mua hàng phục vụ ${selectedPR.purpose || "công việc của các bộ phận"}. Phòng Cung Ứng đã tìm kiếm, đánh giá và đề xuất phương án như sau:`,
-      rows,
-      supplierIds,
-      note: "",
-    });
+    const activePr: PR =
+      selectedPR && selectedPR.id
+        ? { ...selectedPR, items }
+        : prs[0] || emptyPR;
+    const prQuotes =
+      quotesByPr[activePr.id] && Object.keys(quotesByPr[activePr.id]).length > 0
+        ? quotesByPr[activePr.id]
+        : quotes;
+    const prSupIds =
+      quoteSupplierIdsByPr[activePr.id] &&
+      quoteSupplierIdsByPr[activePr.id].length > 0
+        ? quoteSupplierIdsByPr[activePr.id]
+        : quoteSupplierIds;
+
+    const newReq = createApprovalFromCompare(
+      activePr,
+      prQuotes,
+      prSupIds,
+      suppliers,
+      approvalRequests.length,
+    );
+
+    // Nếu người dùng đã chọn mặt hàng trong poCart thì ưu tiên đánh dấu NCC trong poCart
+    if (poCart.length > 0) {
+      const preferredSupId = poCart[0].supplierId;
+      const hasPreferred = newReq.supplierColumns.some(
+        (c) => c.supplierId === preferredSupId,
+      );
+      if (hasPreferred) {
+        newReq.supplierColumns = newReq.supplierColumns.map((c) => ({
+          ...c,
+          isSelected: c.supplierId === preferredSupId,
+        }));
+        const chosen = newReq.supplierColumns.find((c) => c.isSelected);
+        if (chosen) {
+          newReq.recommendedSupplierName = chosen.supplierName;
+        }
+      }
+    }
+
+    setApprovalRequests((prev) => [newReq, ...prev]);
+    setActiveApprovalId(newReq.id);
     setPoCartOpen(false);
     setView("approval");
+  };
+
+  const handleCreatePOFromApproval = (req: ApprovalRequest) => {
+    const selectedCol =
+      req.supplierColumns.find((c) => c.isSelected) || req.supplierColumns[0];
+    if (!selectedCol) return;
+
+    // Tìm hoặc tạo mới NCC trong danh mục suppliers
+    let targetSupplier =
+      (selectedCol.supplierId !== undefined
+        ? suppliers.find((s) => s.id === selectedCol.supplierId)
+        : undefined) ||
+      suppliers.find(
+        (s) =>
+          s.name.trim().toLowerCase() ===
+            req.recommendedSupplierName.trim().toLowerCase() ||
+          s.name.trim().toLowerCase() ===
+            selectedCol.supplierName.trim().toLowerCase(),
+      );
+
+    if (!targetSupplier) {
+      const newSup: Supplier = {
+        id: makeId(),
+        code: `NCC-${String(suppliers.length + 1).padStart(3, "0")}`,
+        name:
+          req.recommendedSupplierName ||
+          selectedCol.supplierName ||
+          "Nhà cung cấp được phê duyệt",
+        shortName:
+          selectedCol.shortName ||
+          generateShortName(
+            req.recommendedSupplierName || selectedCol.supplierName,
+          ),
+        bankAccount: "",
+        bank: "",
+        address: "",
+        contact: "",
+        phone: "",
+      };
+      setSuppliers((prev) => [...prev, newSup]);
+      targetSupplier = newSup;
+    }
+
+    const poItems: POItem[] = [];
+    req.rows.forEach((row, rIdx) => {
+      const lines = row.supplierQuotes[selectedCol.colId] || [];
+      if (lines.length === 0) return;
+
+      lines.forEach((line, lIdx) => {
+        const effQty =
+          req.columnMode === "extended"
+            ? Number(line.qty) || Number(row.qty) || 1
+            : Number(row.qty) || 1;
+        const unitPrice = Number(line.unitPrice) || 0;
+        // Nếu tách nhiều dòng con và dòng con đó đơn giá = 0 thì bỏ qua
+        if (lines.length > 1 && unitPrice <= 0) return;
+
+        const itemName =
+          req.columnMode === "extended" && line.quotedProduct?.trim()
+            ? line.quotedProduct.trim()
+            : row.itemName || `Hàng hóa #${rIdx + 1}`;
+
+        poItems.push({
+          id: makeId() + rIdx * 10 + lIdx,
+          code:
+            row.itemCode ||
+            `VT-${String(poItems.length + 1).padStart(2, "0")}`,
+          category: "Vật tư / Thiết bị",
+          name: itemName,
+          desc: line.origin || "",
+          spec: row.spec || "",
+          unit: row.unit || "Cái",
+          qty: effQty,
+          estimate: unitPrice,
+          price: unitPrice,
+          deliveryStatus: "Chưa giao",
+          deliveredQty: 0,
+          deliveryDate: "",
+        });
+      });
+    });
+
+    const totalBeforeVat = poItems.reduce(
+      (sum, it) => sum + (Number(it.qty) || 0) * (Number(it.price) || 0),
+      0,
+    );
+    const totalWithVat = Math.round(totalBeforeVat * 1.08);
+    const isAdvance = req.paymentTerms.toLowerCase().includes("trước");
+
+    const newPO: PO = {
+      id: makeId(),
+      number: `PO-${new Date().getFullYear()}-${String(pos.length + 1).padStart(4, "0")}`,
+      prNumber: req.prNumber || req.requestNumber,
+      supplierId: targetSupplier.id,
+      createdDate: new Date().toISOString().slice(0, 10),
+      expectedDate: "",
+      status: "Đang xử lý",
+      items: poItems,
+      docs: [],
+      payments: [
+        {
+          id: 1,
+          phase: "Đợt 1 (100%)",
+          condition: isAdvance ? "advance" : "post",
+          percent: 100,
+          amount: totalWithVat,
+          status: "Chưa thanh toán",
+          date: "",
+          note: req.paymentTerms || "",
+        },
+      ],
+      note: [
+        req.paymentTerms ? `Điều khoản TT: ${req.paymentTerms}` : "",
+        req.deliveryTerms ? `Giao hàng: ${req.deliveryTerms}` : "",
+        `Căn cứ Đề nghị phê duyệt số: ${req.prNumber || req.requestNumber}`,
+      ]
+        .filter(Boolean)
+        .join(" · "),
+    };
+
+    setPos((prev) => [newPO, ...prev]);
+    setCurrentPO(newPO);
+    setApprovalRequests((prev) =>
+      prev.map((r) =>
+        r.id === req.id
+          ? {
+              ...r,
+              status: "Đã tạo PO",
+              linkedPoId: newPO.id,
+              linkedPoNumber: newPO.number,
+            }
+          : r,
+      ),
+    );
+    setStorageStatus(
+      `Đã phát hành đơn PO ${newPO.number} từ phiếu Đề nghị phê duyệt ${req.prNumber}`,
+    );
+    setView("po-detail");
   };
   const createPO = () => {
     if (!poCart.length) return;
@@ -1475,6 +1626,7 @@ function ProcurementAppInner({
   const isNavActive = (id: string) => {
     if (view === "dashboard" && id === "dashboard") return true;
     if (view === "compare" && id === "compare") return true;
+    if (view === "approval" && id === "approval") return true;
     if ((view === "prs" || view === "create") && id === "prs") return true;
     if ((view === "po-list" || view === "po-detail") && id === "po-list") return true;
     if (view === "contracts" && id === "contracts") return true;
@@ -1491,6 +1643,7 @@ function ProcurementAppInner({
     { id: "dashboard", icon: "▦", name: t("nav.dashboard"), action: () => setView("dashboard") },
     { id: "prs", icon: "▣", name: t("nav.prs"), action: () => setView("prs") },
     { id: "compare", icon: "⚖", name: t("nav.compare"), action: () => setView("compare") },
+    { id: "approval", icon: "✓", name: t("nav.approval"), action: () => setView("approval") },
     { id: "po-list", icon: "▰", name: t("nav.po_list"), action: () => setView("po-list") },
     { id: "contracts", icon: "▧", name: t("nav.contracts"), action: () => setView("contracts") },
     { id: "payment", icon: "💳", name: t("nav.payment"), action: () => setView("payment") },
@@ -1520,6 +1673,7 @@ function ProcurementAppInner({
           "dashboard",
           "prs",
           "compare",
+          "approval",
           "po-list",
           "contracts",
           "payment",
@@ -1760,14 +1914,57 @@ function ProcurementAppInner({
             readOnly={reportMode}
           />
         )}
-        {view === "approval" && approvalDraft && !reportMode && (
-          <ApprovalSheet
-            draft={approvalDraft}
-            setDraft={setApprovalDraft}
-            suppliers={suppliers}
-            onBack={() => setView("compare")}
-            onCreatePO={createPO}
-          />
+        {view === "approval" && (
+          <ErrorBoundary
+            key="approval"
+            fallbackTitle="Lỗi hiển thị Đề nghị Phê duyệt Lựa chọn Nhà Cung Cấp"
+            onReset={() => setView("dashboard")}
+          >
+            <ApprovalManagement
+              approvalRequests={approvalRequests}
+              activeApprovalId={activeApprovalId}
+              setActiveApprovalId={setActiveApprovalId}
+              onSaveApproval={(updatedReq) => {
+                setApprovalRequests((prev) => {
+                  const exists = prev.some((r) => r.id === updatedReq.id);
+                  if (exists) {
+                    return prev.map((r) =>
+                      r.id === updatedReq.id ? updatedReq : r,
+                    );
+                  }
+                  return [updatedReq, ...prev];
+                });
+              }}
+              onDeleteApproval={(delId) => {
+                setApprovalRequests((prev) => {
+                  const remaining = prev.filter((r) => r.id !== delId);
+                  if (activeApprovalId === delId) {
+                    setActiveApprovalId(remaining[0]?.id ?? null);
+                  }
+                  return remaining;
+                });
+              }}
+              onRestoreSamples={() => {
+                setApprovalRequests((prev) => {
+                  const existingIds = new Set(prev.map((r) => r.id));
+                  const missing = SAMPLE_PHENIKAA_APPROVALS.filter(
+                    (s) => !existingIds.has(s.id),
+                  );
+                  const merged =
+                    missing.length > 0 ? [...missing, ...prev] : prev;
+                  if (merged.length > 0) setActiveApprovalId(merged[0].id);
+                  return merged;
+                });
+              }}
+              onCreatePOFromApproval={handleCreatePOFromApproval}
+              prs={prs}
+              suppliers={suppliers}
+              quotesByPr={quotesByPr}
+              quoteSupplierIdsByPr={quoteSupplierIdsByPr}
+              isReportMode={reportMode}
+              onBackToCompare={() => setView("compare")}
+            />
+          </ErrorBoundary>
         )}
         {view === "products" && (
           <ProductCatalog
@@ -2014,6 +2211,14 @@ function ProcurementAppInner({
                       }}
                     >
                       {t("compare.choose_supplier")}
+                    </button>
+                    <button
+                      className="primary"
+                      style={{ padding: "6px 12px", borderRadius: "6px", fontSize: "0.85rem", fontWeight: 600, background: "#0f2b5b", color: "#fff", boxShadow: "0 1px 2px rgba(0,0,0,0.05)", cursor: "pointer" }}
+                      onClick={openApproval}
+                      title="Kế thừa danh sách hàng hóa, NCC và đơn giá của PR này sang Đề nghị Phê duyệt Lựa chọn NCC"
+                    >
+                      ✓ Lập Đề nghị Phê duyệt
                     </button>
                     <button
                       className="po-create-btn"

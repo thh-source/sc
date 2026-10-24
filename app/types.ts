@@ -315,6 +315,65 @@ export type PaymentPrintTemplate = {
   draft_warning: string;
 };
 
+export type ApprovalColumnMode = "basic" | "origin" | "extended";
+
+export type ApprovalSupplierColumn = {
+  colId: string;
+  supplierId?: number;
+  supplierName: string;
+  shortName: string;
+  isSelected: boolean;
+  deliveryTime?: string;
+};
+
+export type ApprovalSupplierQuoteLine = {
+  lineId: string;
+  quotedProduct?: string;
+  origin?: string;
+  unitPrice: number;
+  qty: number;
+  amount: number;
+  note?: string;
+};
+
+export type ApprovalItemRow = {
+  rowId: string;
+  stt: number;
+  itemCode?: string;
+  itemName: string;
+  spec?: string;
+  qty: number;
+  unit: string;
+  supplierQuotes: Record<string, ApprovalSupplierQuoteLine[]>;
+};
+
+export type ApprovalRequest = {
+  id: number;
+  requestNumber: string;
+  sourceType: "compare" | "pr" | "manual";
+  prId?: number;
+  prNumber: string;
+  createdDate: string;
+  department: string;
+  noteRef: string;
+  section1Title: string;
+  columnMode: ApprovalColumnMode;
+  showDeliveryTimeRow: boolean;
+  printOrientation: "portrait" | "landscape";
+  supplierColumns: ApprovalSupplierColumn[];
+  rows: ApprovalItemRow[];
+  recommendedSupplierName: string;
+  deliveryTerms: string;
+  paymentTerms: string;
+  reasons: string[];
+  approverLeader: string;
+  approverDeptHead: string;
+  requesterName: string;
+  status: "Nháp" | "Chờ phê duyệt" | "Đã phê duyệt" | "Đã tạo PO";
+  linkedPoId?: number;
+  linkedPoNumber?: string;
+};
+
 export type StoredState = {
   prs: PR[];
   products: Item[];
@@ -337,4 +396,5 @@ export type StoredState = {
   paymentBeneficiaries?: PaymentBeneficiary[];
   paymentHandovers?: PaymentHandoverItem[];
   paymentTemplate?: PaymentPrintTemplate;
+  approvalRequests?: ApprovalRequest[];
 };

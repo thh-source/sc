@@ -1,3 +1,928 @@
-.approval-page{padding-top:22px}.approval-toolbar{display:flex;align-items:flex-end;justify-content:space-between;gap:14px;margin-bottom:14px}.approval-toolbar em{font-style:normal;color:var(--blue);font-size:10px;font-weight:800;letter-spacing:.08em}.approval-toolbar h1{margin:4px 0;font-size:24px}.approval-toolbar p{margin:0;color:var(--muted);font-size:12px}.approval-toolbar>div:last-child{display:flex;gap:8px;flex-wrap:wrap}.approval-sheet-wrap{overflow:auto;border:1px solid var(--line);border-radius:8px;background:#e8edf4;padding:18px}.approval-sheet{width:794px;min-height:1123px;margin:auto;background:white;color:#000;padding:14px 16px 28px;box-shadow:0 10px 30px #10243a22;font-family:"Times New Roman",Times,serif;font-size:11px;line-height:1.2}.approval-sheet header{display:grid;grid-template-columns:190px 1fr;border:1px solid #000;height:70px;margin-bottom:10px}.approval-logo{display:flex;align-items:center;justify-content:center;border-right:1px solid #000;padding:4px 10px}.approval-logo img{max-width:150px;max-height:58px;object-fit:contain}.approval-sheet h2{display:flex;align-items:center;justify-content:center;text-align:center;margin:0;font-size:14px;font-weight:800}.approval-meta{width:245px;margin:0 0 4px 35px}.approval-meta label{height:18px;display:flex;align-items:center;border:1px dotted #555;border-bottom:0;font-size:10px;font-weight:700;padding:0 3px}.approval-meta label:last-child{border-bottom:1px dotted #555}.approval-meta input{flex:1;min-width:0;border:0;background:transparent;font:inherit;padding:0 2px;height:15px}.approval-recipient{text-align:center;font-weight:800;text-decoration:underline;margin:0 0 2px;outline:0}.approval-intro{width:100%;height:31px;min-height:31px;border:0;resize:none;overflow:hidden;font:inherit;line-height:1.15;padding:0;background:transparent;outline:0}.approval-section-title{font-weight:800;margin:3px 0 2px}.approval-table-wrap{overflow:visible}.approval-table{width:100%;min-width:0;border-collapse:collapse;border-spacing:0;table-layout:fixed;font-size:10px}.approval-table th,.approval-table td{border:1px solid #000;height:20px;min-height:20px;padding:2px 3px;white-space:normal;vertical-align:middle;color:#000}.approval-table th{position:static;background:white;text-align:center;font-weight:800}.approval-table th:nth-child(1){width:36px}.approval-table th:nth-child(2){width:165px}.approval-table th:nth-child(3){width:36px}.approval-table th:nth-child(4){width:34px}.approval-table td[contenteditable="true"]{outline:0}.approval-table td[contenteditable="true"]:focus,.approval-recipient:focus,.approval-note p:focus,.approval-sign span:focus,.approval-table tfoot td[contenteditable="true"]:focus{background:#fff8d8;box-shadow:inset 0 0 0 1px #d6a500}.approval-table .center{text-align:center}.approval-table .money{text-align:right;font-variant-numeric:tabular-nums}.approval-table .selected-supplier{font-weight:800}.approval-table tfoot td{position:static;background:white;font-weight:800}.approval-row-action{text-align:center}.approval-row-action button{width:20px;height:20px;border:0;border-radius:3px;background:#fff0f0;color:#c93838}.approval-add-row{margin-top:6px;height:28px;border:1px dashed #7daee9;border-radius:4px;background:#f5faff;color:#0a61c9;font-size:11px;font-weight:700}.approval-overflow-note{margin:5px 0;color:#a45a00;font-size:10px}.approval-note{margin-top:4px}.approval-note b{display:block;margin:2px 0;font-weight:800}.approval-note p{margin:1px 0;min-height:14px;outline:0}.approval-note textarea{width:100%;min-height:32px;border:1px dotted #777;padding:3px;font:inherit;resize:vertical;margin-top:3px}.approval-thanks{margin:7px 0 0 35px;outline:0}.approval-sign{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;margin-top:12px;text-align:center}.approval-sign div{min-height:104px}.approval-sign b{display:block;margin-bottom:78px}.approval-sign span{display:block;min-height:18px;outline:0}.approval-sheet input,.approval-sheet textarea{color:#000}@media(max-width:900px){.approval-toolbar{align-items:flex-start;flex-direction:column}.approval-toolbar>div:last-child{width:100%}.approval-toolbar button{flex:1}.approval-sheet-wrap{padding:10px}.approval-sheet{transform-origin:top left}}@media print{body{background:white}.app{display:block}.app>aside,main>header,.cloud-status,.report-banner,.approval-toolbar{display:none!important}.content.approval-page{padding:0;max-width:none}.approval-sheet-wrap{border:0;background:white;padding:0;overflow:visible}.approval-sheet{width:auto;min-height:0;padding:0;box-shadow:none}.approval-row-action,.approval-add-row,.approval-overflow-note{display:none!important}.approval-table th,.approval-table td{break-inside:avoid}.approval-note textarea{border:0;min-height:28px}.approval-meta input{border:0}.approval-sign span{border:0}@page{size:A4 portrait;margin:8mm}}
+/* ==========================================================================
+   MODULE: ĐỀ NGHỊ PHÊ DUYỆT LỰA CHỌN NHÀ CUNG CẤP (PHENIKAA PHARMA STANDARD)
+   ========================================================================== */
 
-@media print{html,body{width:210mm!important;min-width:210mm!important;margin:0!important;padding:0!important;background:#fff!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}.app{display:block!important;width:210mm!important;min-width:210mm!important}.app>aside,main>header,.cloud-status,.report-banner,.approval-toolbar,.smart-table-tools,.smart-table-launch,.smart-table-panel{display:none!important}.content.approval-page{display:block!important;width:210mm!important;max-width:210mm!important;margin:0!important;padding:0!important}.approval-sheet-wrap{display:block!important;width:210mm!important;max-width:210mm!important;margin:0!important;padding:0!important;border:0!important;background:#fff!important;overflow:visible!important}.approval-sheet{display:block!important;width:194mm!important;min-width:194mm!important;max-width:194mm!important;min-height:281mm!important;margin:0 auto!important;padding:0!important;box-shadow:none!important;box-sizing:border-box!important;overflow:visible!important;font-size:9.5px!important;line-height:1.15!important}.approval-sheet header{display:grid!important;grid-template-columns:43mm 1fr!important;width:100%!important;height:18mm!important;margin-bottom:3mm!important;box-sizing:border-box!important}.approval-logo{height:18mm!important;padding:1mm 3mm!important;box-sizing:border-box!important}.approval-logo img{max-width:36mm!important;max-height:15mm!important}.approval-sheet h2{font-size:12px!important;line-height:1.15!important;white-space:normal!important}.approval-meta{width:62mm!important;margin:0 0 1.5mm 9mm!important}.approval-meta label{height:4.6mm!important;font-size:8.5px!important}.approval-recipient{font-size:9.5px!important;margin:0!important}.approval-intro{height:8mm!important;min-height:8mm!important;font-size:9px!important;line-height:1.12!important}.approval-section-title{margin:1mm 0 .8mm!important}.approval-table{width:100%!important;min-width:0!important;table-layout:fixed!important;font-size:8.2px!important}.approval-table th,.approval-table td{height:5.3mm!important;min-height:5.3mm!important;padding:.7mm .8mm!important;line-height:1.08!important;overflow:hidden!important}.approval-table th:nth-child(1){width:8mm!important}.approval-table th:nth-child(2){width:38mm!important}.approval-table th:nth-child(3){width:11mm!important}.approval-table th:nth-child(4){width:9mm!important}.approval-table th:last-child,.approval-table td:last-child{display:none!important}.approval-row-action,.approval-add-row,.approval-overflow-note{display:none!important}.approval-note{margin-top:1.2mm!important}.approval-note b,.approval-note p{font-size:9px!important;margin:.4mm 0!important;min-height:auto!important}.approval-note textarea{border:0!important;min-height:7mm!important;height:7mm!important;font-size:9px!important;resize:none!important;overflow:hidden!important}.approval-thanks{margin:2mm 0 0 9mm!important;font-size:9px!important}.approval-sign{margin-top:3mm!important;gap:8mm!important}.approval-sign div{min-height:30mm!important}.approval-sign b{margin-bottom:22mm!important;font-size:9px!important}.approval-sign span{font-size:9px!important;border:0!important}.approval-sheet input{border:0!important}.approval-table td[contenteditable="true"]:focus,.approval-recipient:focus,.approval-note p:focus,.approval-sign span:focus{box-shadow:none!important;background:transparent!important}@page{size:A4 portrait;margin:8mm}}
+.approval-mgmt-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding-bottom: 40px;
+}
+
+.approval-toast {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 9999;
+  background: #0f2b5b;
+  color: #ffffff;
+  padding: 12px 20px;
+  border-radius: 10px;
+  font-weight: 600;
+  font-size: 14px;
+  box-shadow: 0 12px 28px rgba(15, 43, 91, 0.28);
+  animation: fadeInToast 0.2s ease-out;
+}
+
+@keyframes fadeInToast {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Top Management Panel */
+.approval-top-panel {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 16px 20px;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
+}
+
+.approval-top-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+
+.approval-page-title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 800;
+  color: #0f2b5b;
+}
+
+.approval-page-subtitle {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: #64748b;
+}
+
+.approval-source-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.approval-source-btn {
+  font-weight: 700 !important;
+  border-radius: 8px !important;
+  font-size: 13px !important;
+}
+
+.approval-source-btn.source-compare {
+  background: #eff6ff !important;
+  color: #1d4ed8 !important;
+  border: 1px solid #bfdbfe !important;
+}
+
+.approval-source-btn.source-pr {
+  background: #f0fdf4 !important;
+  color: #15803d !important;
+  border: 1px solid #bbf7d0 !important;
+}
+
+.approval-source-btn.source-manual {
+  background: #fff7ed !important;
+  color: #c2410c !important;
+  border: 1px solid #fed7aa !important;
+}
+
+/* Filter & Request Switcher Bar */
+.approval-list-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 12px;
+  border-top: 1px solid #f1f5f9;
+}
+
+.approval-list-filters {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.approval-search-input {
+  flex: 1;
+  min-width: 220px;
+  max-width: 360px;
+  padding: 7px 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font-size: 13px;
+}
+
+.approval-filter-select,
+.approval-status-select {
+  padding: 7px 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font-size: 13px;
+  background: #ffffff;
+  color: #1e293b;
+  font-weight: 600;
+}
+
+.approval-tabs-scroll {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+
+.approval-tab-chip {
+  min-width: 210px;
+  max-width: 280px;
+  padding: 9px 12px;
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+
+.approval-tab-chip:hover {
+  border-color: #94a3b8;
+  background: #f1f5f9;
+}
+
+.approval-tab-chip.active {
+  background: #eff6ff;
+  border-color: #2563eb;
+  box-shadow: 0 2px 6px rgba(37, 99, 235, 0.12);
+}
+
+.chip-main {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.chip-code {
+  font-weight: 800;
+  font-size: 13px;
+  color: #0f2b5b;
+}
+
+.chip-status {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 99px;
+}
+
+.chip-status.st-draft {
+  background: #e2e8f0;
+  color: #475569;
+}
+
+.chip-status.st-pending {
+  background: #fef3c7;
+  color: #b45309;
+}
+
+.chip-status.st-approved {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.chip-status.st-po {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.chip-sub {
+  font-size: 12px;
+  color: #64748b;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Config Toolbar */
+.approval-config-bar {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 12px 16px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.config-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.config-label {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #334155;
+}
+
+.segmented-pills {
+  display: inline-flex;
+  background: #f1f5f9;
+  padding: 3px;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+}
+
+.seg-pill {
+  border: none;
+  background: transparent;
+  padding: 5px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #475569;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.seg-pill.active {
+  background: #0f2b5b;
+  color: #ffffff;
+  box-shadow: 0 1px 3px rgba(15, 43, 91, 0.2);
+}
+
+.checkbox-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #334155;
+  cursor: pointer;
+}
+
+.landscape-hint-btn {
+  background: #fffbeb;
+  color: #b45309;
+  border: 1px solid #fde68a;
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.config-actions-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.btn-approve-status {
+  background: #16a34a !important;
+  color: #ffffff !important;
+  border-color: #15803d !important;
+  font-weight: 700 !important;
+}
+
+.btn-create-po-from-approval {
+  background: #ea580c !important;
+  color: #ffffff !important;
+  border-color: #c2410c !important;
+  font-weight: 700 !important;
+}
+
+.btn-create-po-from-approval:disabled {
+  background: #e2e8f0 !important;
+  color: #94a3b8 !important;
+  border-color: #cbd5e1 !important;
+  cursor: not-allowed;
+}
+
+.approval-excel-tip {
+  background: #f8fafc;
+  border: 1px dashed #cbd5e1;
+  border-radius: 10px;
+  padding: 9px 14px;
+  font-size: 12.5px;
+  color: #334155;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.linked-po-badge {
+  background: #dbeafe;
+  color: #1e40af;
+  padding: 3px 10px;
+  border-radius: 99px;
+  font-size: 12px;
+}
+
+.approval-empty-state {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 48px 24px;
+  text-align: center;
+}
+
+/* ==========================================================================
+   BIỂU MẪU CHUẨN A4 PHENIKAA PHARMA (.approval-a4-sheet)
+   ========================================================================== */
+
+.approval-a4-sheet {
+  background: #ffffff;
+  color: #000000;
+  font-family: "Times New Roman", Times, serif;
+  font-size: 12pt;
+  line-height: 1.35;
+  margin: 0 auto;
+  padding: 16mm 14mm;
+  box-shadow: 0 8px 28px rgba(15, 23, 42, 0.1);
+  border: 1px solid #cbd5e1;
+  box-sizing: border-box;
+  width: 100%;
+}
+
+.approval-a4-sheet.orient-portrait {
+  max-width: 215mm;
+}
+
+.approval-a4-sheet.orient-landscape {
+  max-width: 310mm;
+}
+
+/* Ẩn phần tử chỉ dành cho bản in khi đang ở màn hình */
+.print-only-header-text,
+.print-only-cell-text,
+.print-only-eval-val {
+  display: none;
+}
+
+/* 1. Header Công ty + Quốc hiệu Biểu mẫu */
+.phenikaa-header-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 10px;
+}
+
+.phenikaa-header-table td {
+  border: 1px solid #000000;
+  vertical-align: middle;
+}
+
+.phenikaa-logo-box {
+  width: 28%;
+  padding: 8px 12px;
+  text-align: center;
+}
+
+.phenikaa-logo-img {
+  max-width: 175px;
+  max-height: 54px;
+  object-fit: contain;
+  display: inline-block;
+}
+
+.phenikaa-title-box {
+  width: 72%;
+  text-align: center;
+  font-weight: 700;
+  font-size: 15pt;
+  letter-spacing: 0.2px;
+  padding: 10px 12px;
+}
+
+/* 2. Khung Meta góc phải (Số PR, Ngày, Đơn vị lập, Ghi chú) */
+.phenikaa-meta-wrapper {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 12px;
+}
+
+.phenikaa-meta-table {
+  width: 58%;
+  min-width: 340px;
+  border-collapse: collapse;
+  border: 1px solid #000000;
+}
+
+.phenikaa-meta-table tr + tr td {
+  border-top: 1px dotted #000000;
+}
+
+.phenikaa-meta-table td {
+  padding: 4px 8px;
+  font-size: 11pt;
+}
+
+.phenikaa-meta-table .meta-lbl {
+  font-weight: 700;
+  width: 44%;
+  white-space: nowrap;
+}
+
+.phenikaa-meta-table .meta-val {
+  width: 56%;
+}
+
+/* Input ẩn viền trên tờ giấy */
+.sheet-inline-input {
+  width: 100%;
+  border: none;
+  border-bottom: 1px dashed transparent;
+  background: transparent;
+  font-family: inherit;
+  font-size: inherit;
+  color: #000000;
+  padding: 1px 3px;
+  outline: none;
+}
+
+.sheet-inline-input:hover,
+.sheet-inline-input:focus {
+  border-bottom-color: #94a3b8;
+  background: rgba(241, 245, 249, 0.6);
+}
+
+.sheet-inline-input.bold-input {
+  font-weight: 700;
+}
+
+.sheet-inline-input.center {
+  text-align: center;
+}
+
+/* 3. Khối Phần I, II, III */
+.phenikaa-section-block {
+  margin-bottom: 12px;
+}
+
+.phenikaa-section-heading {
+  font-weight: 700;
+  font-size: 12pt;
+  margin-bottom: 4px;
+}
+
+.phenikaa-section-subline {
+  margin-bottom: 8px;
+}
+
+/* Bảng phê duyệt động (.phenikaa-approval-grid) */
+.phenikaa-approval-grid {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: auto;
+  font-size: 10.5pt;
+}
+
+.approval-a4-sheet.density-compact .phenikaa-approval-grid {
+  font-size: 9.5pt;
+}
+
+.phenikaa-approval-grid th,
+.phenikaa-approval-grid td {
+  border: 1px solid #000000;
+  padding: 4px 5px;
+  vertical-align: middle;
+}
+
+.phenikaa-approval-grid thead th {
+  font-weight: 700;
+  text-align: center;
+  background: #f8fafc;
+}
+
+.phenikaa-approval-grid thead th.selected-supplier-th {
+  background: #eff6ff;
+}
+
+.col-stt {
+  width: 34px;
+}
+
+.col-item-name {
+  min-width: 150px;
+}
+
+.col-qty {
+  width: 52px;
+}
+
+.col-unit {
+  width: 50px;
+}
+
+.col-sub-spec {
+  min-width: 120px;
+}
+
+.col-sub-price {
+  width: 86px;
+}
+
+.col-sub-qty {
+  width: 50px;
+}
+
+.col-sub-amount {
+  width: 94px;
+}
+
+/* Header điều khiển cột NCC trên màn hình */
+.screen-supplier-header {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  text-align: left;
+}
+
+.sup-header-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 4px;
+}
+
+.sup-select-radio {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #0f2b5b;
+  cursor: pointer;
+}
+
+.sup-remove-btn {
+  border: none;
+  background: transparent;
+  color: #dc2626;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  line-height: 1;
+  padding: 0 3px;
+}
+
+.sup-short-input {
+  width: 100%;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  padding: 2px 5px;
+  font-size: 12px;
+  font-weight: 700;
+  text-align: center;
+  background: #ffffff;
+}
+
+.sup-fullname-input {
+  width: 100%;
+  border: 1px dashed #cbd5e1;
+  border-radius: 4px;
+  padding: 2px 5px;
+  font-size: 10.5px;
+  color: #334155;
+  background: #ffffff;
+}
+
+/* Ô dữ liệu trong bảng */
+.cell-center {
+  text-align: center;
+}
+
+.cell-left {
+  text-align: left;
+}
+
+.cell-right {
+  text-align: right;
+}
+
+.cell-stt {
+  position: relative;
+}
+
+.row-del-btn {
+  border: none;
+  background: #fee2e2;
+  color: #dc2626;
+  border-radius: 4px;
+  font-size: 11px;
+  padding: 0 4px;
+  cursor: pointer;
+  margin-left: 3px;
+}
+
+.cell-textarea {
+  width: 100%;
+  border: 1px solid transparent;
+  background: transparent;
+  font-family: inherit;
+  font-size: inherit;
+  color: #000000;
+  resize: vertical;
+  padding: 2px;
+  line-height: 1.3;
+  box-sizing: border-box;
+}
+
+.cell-textarea:hover,
+.cell-textarea:focus {
+  border-color: #94a3b8;
+  background: #ffffff;
+  outline: none;
+}
+
+.cell-input {
+  width: 100%;
+  border: 1px solid transparent;
+  background: transparent;
+  font-family: inherit;
+  font-size: inherit;
+  color: #000000;
+  padding: 2px 3px;
+  box-sizing: border-box;
+}
+
+.cell-input:hover,
+.cell-input:focus {
+  border-color: #94a3b8;
+  background: #ffffff;
+  outline: none;
+}
+
+.cell-input.center {
+  text-align: center;
+}
+
+.cell-input.right {
+  text-align: right;
+}
+
+.subrow-tools {
+  display: flex;
+  gap: 6px;
+  margin-top: 2px;
+}
+
+.split-line-btn {
+  border: 1px dashed #94a3b8;
+  background: #f8fafc;
+  color: #0f2b5b;
+  font-size: 10px;
+  padding: 1px 5px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.split-line-btn:hover {
+  background: #e2e8f0;
+}
+
+.remove-subline-btn {
+  border: none;
+  background: #fee2e2;
+  color: #dc2626;
+  font-size: 10px;
+  padding: 1px 5px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.bold-cell {
+  font-weight: 700;
+}
+
+.total-footer-row td {
+  font-weight: 700;
+  background: #fafafa;
+}
+
+.table-bottom-actions {
+  margin-top: 8px;
+}
+
+/* Phần II & Phần III */
+.eval-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.eval-label {
+  font-weight: 400;
+  white-space: nowrap;
+  min-width: 175px;
+}
+
+.eval-field-wrap {
+  flex: 1;
+}
+
+.bold-text {
+  font-weight: 700;
+}
+
+.preset-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 3px;
+}
+
+.preset-chip {
+  border: 1px solid #cbd5e1;
+  background: #f8fafc;
+  color: #334155;
+  border-radius: 99px;
+  padding: 2px 8px;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.preset-chip:hover {
+  background: #e2e8f0;
+  color: #0f2b5b;
+}
+
+.reasons-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.reason-item-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.reason-index {
+  min-width: 18px;
+}
+
+.reason-del-btn {
+  border: none;
+  background: #fee2e2;
+  color: #dc2626;
+  border-radius: 4px;
+  padding: 1px 6px;
+  cursor: pointer;
+}
+
+.reasons-toolbar {
+  margin-top: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: flex-start;
+}
+
+/* Khu vực Chữ ký 3 cột */
+.phenikaa-sign-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 16px;
+  page-break-inside: avoid;
+}
+
+.phenikaa-sign-table .sign-col {
+  width: 33.33%;
+  text-align: center;
+  vertical-align: top;
+  border: none;
+}
+
+.sign-title {
+  font-weight: 700;
+  font-size: 12pt;
+}
+
+.sign-space {
+  height: 75px;
+}
+
+.sign-name {
+  font-weight: 700;
+  font-size: 12pt;
+}
+
+/* Modal Chọn PR & Paste Excel */
+.pr-source-pick-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #f8fafc;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.pr-source-pick-card:hover {
+  border-color: #2563eb;
+  background: #eff6ff;
+}
+
+.excel-modal-textarea {
+  width: 100%;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 10px;
+  font-family: monospace;
+  font-size: 12.5px;
+  box-sizing: border-box;
+}
+
+/* ==========================================================================
+   PRINT ENGINE AUTO-FIT (@media print)
+   ========================================================================== */
+
+@media print {
+  body,
+  html {
+    background: #ffffff !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+
+  .approval-mgmt-wrapper {
+    padding: 0 !important;
+    margin: 0 !important;
+    display: block !important;
+  }
+
+  .approval-a4-sheet,
+  .approval-a4-sheet.orient-portrait,
+  .approval-a4-sheet.orient-landscape {
+    max-width: 100% !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: none !important;
+    box-shadow: none !important;
+  }
+
+  /* Hiển thị văn bản thuần cho bản in, không bị cắt chữ */
+  .print-only-header-text,
+  .print-only-cell-text {
+    display: block !important;
+    white-space: pre-wrap !important;
+    word-break: break-word !important;
+    overflow-wrap: anywhere !important;
+  }
+
+  .print-only-eval-val {
+    display: inline !important;
+    white-space: pre-wrap !important;
+    word-break: break-word !important;
+  }
+
+  .phenikaa-approval-grid {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    table-layout: auto !important;
+  }
+
+  .phenikaa-approval-grid th,
+  .phenikaa-approval-grid td {
+    border: 1px solid #000000 !important;
+    background: transparent !important;
+    color: #000000 !important;
+    padding: 3px 4px !important;
+  }
+
+  .phenikaa-approval-grid tr {
+    page-break-inside: avoid;
+  }
+
+  .phenikaa-sign-table {
+    page-break-inside: avoid;
+  }
+}
