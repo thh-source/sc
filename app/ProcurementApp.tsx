@@ -108,9 +108,7 @@ function ProcurementAppInner({
   const [approvalRequests, setApprovalRequests] = useState<ApprovalRequest[]>(
       SAMPLE_PHENIKAA_APPROVALS,
     ),
-    [activeApprovalId, setActiveApprovalId] = useState<number | null>(
-      SAMPLE_PHENIKAA_APPROVALS[0]?.id ?? null,
-    );
+    [activeApprovalId, setActiveApprovalId] = useState<number | null>(null);
   const [trash, setTrash] = useState<TrashItem[]>([]),
     [hiddenContractIds, setHiddenContractIds] = useState<number[]>([]),
     [deleteTarget, setDeleteTarget] = useState<{
@@ -420,10 +418,8 @@ function ProcurementAppInner({
           }
           if (data.approvalRequests && data.approvalRequests.length > 0) {
             setApprovalRequests(data.approvalRequests);
-            setActiveApprovalId(data.approvalRequests[0]?.id ?? null);
           } else {
             setApprovalRequests(SAMPLE_PHENIKAA_APPROVALS);
-            setActiveApprovalId(SAMPLE_PHENIKAA_APPROVALS[0]?.id ?? null);
           }
           if (data.prs?.length) setSelectedPR(data.prs[0]);
           if (data.pos?.length) setCurrentPO(data.pos[0]);
@@ -449,7 +445,6 @@ function ProcurementAppInner({
           setPaymentHandovers([]);
           setPaymentTemplate(DEFAULT_PAYMENT_TEMPLATE);
           setApprovalRequests(SAMPLE_PHENIKAA_APPROVALS);
-          setActiveApprovalId(SAMPLE_PHENIKAA_APPROVALS[0]?.id ?? null);
           setSelectedPR(emptyPR);
           setCurrentPO(emptyPO);
 
@@ -1210,22 +1205,29 @@ function ProcurementAppInner({
     }
 
     const poItems: POItem[] = [];
+    const useSupQty =
+      req.showSupplierQty !== undefined
+        ? req.showSupplierQty
+        : req.columnMode === "extended";
+    const useQuotedProd =
+      req.showQuotedProduct !== undefined
+        ? req.showQuotedProduct
+        : req.columnMode === "extended";
+
     req.rows.forEach((row, rIdx) => {
       const lines = row.supplierQuotes[selectedCol.colId] || [];
       if (lines.length === 0) return;
 
       lines.forEach((line, lIdx) => {
-        const effQty =
-          req.columnMode === "extended"
-            ? Number(line.qty) || Number(row.qty) || 1
-            : Number(row.qty) || 1;
+        const effQty = useSupQty
+          ? Number(line.qty) || Number(row.qty) || 1
+          : Number(row.qty) || 1;
         const unitPrice = Number(line.unitPrice) || 0;
-        // Nếu tách nhiều dòng con và dòng con đó đơn giá = 0 thì bỏ qua
         if (lines.length > 1 && unitPrice <= 0) return;
 
         const itemName =
-          req.columnMode === "extended" && line.quotedProduct?.trim()
-            ? line.quotedProduct.trim()
+          useQuotedProd && (line.quotedProduct?.trim() || line.origin?.trim())
+            ? (line.quotedProduct?.trim() || line.origin?.trim() || row.itemName)
             : row.itemName || `Hàng hóa #${rIdx + 1}`;
 
         poItems.push({
@@ -1643,7 +1645,7 @@ function ProcurementAppInner({
     { id: "dashboard", icon: "▦", name: t("nav.dashboard"), action: () => setView("dashboard") },
     { id: "prs", icon: "▣", name: t("nav.prs"), action: () => setView("prs") },
     { id: "compare", icon: "⚖", name: t("nav.compare"), action: () => setView("compare") },
-    { id: "approval", icon: "✓", name: t("nav.approval"), action: () => setView("approval") },
+    { id: "approval", icon: "✓", name: t("nav.approval"), action: () => { setActiveApprovalId(null); setView("approval"); } },
     { id: "po-list", icon: "▰", name: t("nav.po_list"), action: () => setView("po-list") },
     { id: "contracts", icon: "▧", name: t("nav.contracts"), action: () => setView("contracts") },
     { id: "payment", icon: "💳", name: t("nav.payment"), action: () => setView("payment") },

@@ -469,6 +469,9 @@ export const SAMPLE_PHENIKAA_APPROVALS: ApprovalRequest[] = [
     section1Title:
       "Phê duyệt nhà cung cấp (vật tư phòng cơ điện) với thông tin báo giá như sau:",
     columnMode: "extended",
+    showQuotedProduct: true,
+    quotedProductHeader: "Sản phẩm",
+    showSupplierQty: true,
     showDeliveryTimeRow: false,
     printOrientation: "landscape",
     supplierColumns: [
@@ -1128,6 +1131,9 @@ export const SAMPLE_PHENIKAA_APPROVALS: ApprovalRequest[] = [
     section1Title:
       "Phê duyệt nhà cung cấp (Kính hiển vi soi nổi) với thông tin báo giá như sau:",
     columnMode: "origin",
+    showQuotedProduct: true,
+    quotedProductHeader: "Hãng/ Xuất xứ",
+    showSupplierQty: false,
     showDeliveryTimeRow: true,
     printOrientation: "landscape",
     supplierColumns: [

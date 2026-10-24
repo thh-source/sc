@@ -35,37 +35,7 @@
   }
 }
 
-/* Top Management Panel */
-.approval-top-panel {
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 14px;
-  padding: 16px 20px;
-  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
-}
-
-.approval-top-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 16px;
-  flex-wrap: wrap;
-  margin-bottom: 14px;
-}
-
-.approval-page-title {
-  margin: 0;
-  font-size: 20px;
-  font-weight: 800;
-  color: #0f2b5b;
-}
-
-.approval-page-subtitle {
-  margin: 4px 0 0;
-  font-size: 13px;
-  color: #64748b;
-}
-
+/* Nút nguồn tạo phiếu trên trang Danh sách */
 .approval-source-actions {
   display: flex;
   flex-wrap: wrap;
@@ -77,6 +47,8 @@
   font-weight: 700 !important;
   border-radius: 8px !important;
   font-size: 13px !important;
+  padding: 8px 14px !important;
+  cursor: pointer;
 }
 
 .approval-source-btn.source-compare {
@@ -91,97 +63,67 @@
   border: 1px solid #bbf7d0 !important;
 }
 
-.approval-source-btn.source-manual {
-  background: #fff7ed !important;
-  color: #c2410c !important;
-  border: 1px solid #fed7aa !important;
-}
-
-/* Filter & Request Switcher Bar */
-.approval-list-bar {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  padding-top: 12px;
-  border-top: 1px solid #f1f5f9;
-}
-
-.approval-list-filters {
-  display: flex;
-  gap: 10px;
-  align-items: center;
-  flex-wrap: wrap;
-}
-
-.approval-search-input {
-  flex: 1;
-  min-width: 220px;
-  max-width: 360px;
-  padding: 7px 12px;
-  border: 1px solid #cbd5e1;
-  border-radius: 8px;
-  font-size: 13px;
-}
-
-.approval-filter-select,
-.approval-status-select {
-  padding: 7px 10px;
-  border: 1px solid #cbd5e1;
-  border-radius: 8px;
-  font-size: 13px;
-  background: #ffffff;
-  color: #1e293b;
+.scale-pill {
+  display: inline-block;
+  background: #f1f5f9;
+  color: #334155;
+  border: 1px solid #e2e8f0;
+  border-radius: 99px;
+  padding: 3px 10px;
+  font-size: 12px;
   font-weight: 600;
 }
 
-.approval-tabs-scroll {
-  display: flex;
-  gap: 10px;
-  overflow-x: auto;
-  padding-bottom: 4px;
-}
-
-.approval-tab-chip {
-  min-width: 210px;
-  max-width: 280px;
-  padding: 9px 12px;
-  border-radius: 10px;
+/* Detail Topbar (Quay lại danh sách & Thao tác chính) */
+.approval-detail-topbar {
+  background: #ffffff;
   border: 1px solid #e2e8f0;
-  background: #f8fafc;
-  cursor: pointer;
-  transition: all 0.15s ease;
-  flex-shrink: 0;
-}
-
-.approval-tab-chip:hover {
-  border-color: #94a3b8;
-  background: #f1f5f9;
-}
-
-.approval-tab-chip.active {
-  background: #eff6ff;
-  border-color: #2563eb;
-  box-shadow: 0 2px 6px rgba(37, 99, 235, 0.12);
-}
-
-.chip-main {
+  border-radius: 12px;
+  padding: 12px 16px;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 6px;
-  margin-bottom: 4px;
+  gap: 12px;
+  flex-wrap: wrap;
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.04);
 }
 
-.chip-code {
+.detail-topbar-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.btn-back-list {
+  background: #f8fafc !important;
+  border: 1px solid #cbd5e1 !important;
+  color: #0f2b5b !important;
+  font-weight: 700 !important;
+}
+
+.btn-back-list:hover {
+  background: #eff6ff !important;
+  border-color: #2563eb !important;
+}
+
+.detail-breadcrumb {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding-left: 6px;
+}
+
+.crumb-code {
   font-weight: 800;
-  font-size: 13px;
+  font-size: 15px;
   color: #0f2b5b;
 }
 
 .chip-status {
-  font-size: 11px;
+  font-size: 11.5px;
   font-weight: 700;
-  padding: 2px 7px;
+  padding: 3px 9px;
   border-radius: 99px;
 }
 
@@ -205,15 +147,18 @@
   color: #1d4ed8;
 }
 
-.chip-sub {
-  font-size: 12px;
-  color: #64748b;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+.approval-filter-select,
+.approval-status-select {
+  padding: 7px 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font-size: 13px;
+  background: #ffffff;
+  color: #1e293b;
+  font-weight: 600;
 }
 
-/* Config Toolbar */
+/* Thanh cấu hình Cột con của Nhà Cung Cấp */
 .approval-config-bar {
   background: #ffffff;
   border: 1px solid #e2e8f0;
@@ -237,6 +182,46 @@
   font-size: 12.5px;
   font-weight: 700;
   color: #334155;
+}
+
+/* Nút bật/tắt cột con của NCC */
+.col-toggle-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1px solid #cbd5e1;
+  background: #f8fafc;
+  color: #334155;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.col-toggle-pill:hover {
+  border-color: #2563eb;
+  background: #eff6ff;
+}
+
+.col-toggle-pill.active {
+  background: #eff6ff;
+  border-color: #2563eb;
+  color: #1d4ed8;
+  font-weight: 700;
+}
+
+.subcol-title-input {
+  padding: 5px 9px;
+  border: 1px solid #93c5fd;
+  border-radius: 6px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #0f2b5b;
+  background: #ffffff;
+  width: 155px;
 }
 
 .segmented-pills {
@@ -263,16 +248,6 @@
   background: #0f2b5b;
   color: #ffffff;
   box-shadow: 0 1px 3px rgba(15, 43, 91, 0.2);
-}
-
-.checkbox-inline {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 12.5px;
-  font-weight: 600;
-  color: #334155;
-  cursor: pointer;
 }
 
 .landscape-hint-btn {
@@ -314,38 +289,18 @@
   cursor: not-allowed;
 }
 
-.approval-excel-tip {
-  background: #f8fafc;
-  border: 1px dashed #cbd5e1;
-  border-radius: 10px;
-  padding: 9px 14px;
-  font-size: 12.5px;
-  color: #334155;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-
 .linked-po-badge {
   background: #dbeafe;
   color: #1e40af;
   padding: 3px 10px;
   border-radius: 99px;
   font-size: 12px;
-}
-
-.approval-empty-state {
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 14px;
-  padding: 48px 24px;
-  text-align: center;
+  font-weight: 700;
 }
 
 /* ==========================================================================
    BIỂU MẪU CHUẨN A4 PHENIKAA PHARMA (.approval-a4-sheet)
+   Trên màn hình làm việc: mở rộng 100% chiều ngang vùng làm việc, không bao giờ bị tràn bảng!
    ========================================================================== */
 
 .approval-a4-sheet {
@@ -355,19 +310,20 @@
   font-size: 12pt;
   line-height: 1.35;
   margin: 0 auto;
-  padding: 16mm 14mm;
-  box-shadow: 0 8px 28px rgba(15, 23, 42, 0.1);
+  padding: 20px 24px;
+  box-shadow: 0 4px 20px rgba(15, 23, 42, 0.08);
   border: 1px solid #cbd5e1;
+  border-radius: 10px;
   box-sizing: border-box;
   width: 100%;
+  max-width: 100%;
+  overflow: hidden;
 }
 
-.approval-a4-sheet.orient-portrait {
-  max-width: 215mm;
-}
-
-.approval-a4-sheet.orient-landscape {
-  max-width: 310mm;
+.approval-grid-scroll-wrap {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
 }
 
 /* Ẩn phần tử chỉ dành cho bản in khi đang ở màn hình */
@@ -390,7 +346,7 @@
 }
 
 .phenikaa-logo-box {
-  width: 28%;
+  width: 26%;
   padding: 8px 12px;
   text-align: center;
 }
@@ -403,7 +359,7 @@
 }
 
 .phenikaa-title-box {
-  width: 72%;
+  width: 74%;
   text-align: center;
   font-weight: 700;
   font-size: 15pt;
@@ -419,8 +375,8 @@
 }
 
 .phenikaa-meta-table {
-  width: 58%;
-  min-width: 340px;
+  width: min(56%, 520px);
+  min-width: 300px;
   border-collapse: collapse;
   border: 1px solid #000000;
 }
@@ -447,6 +403,7 @@
 /* Input ẩn viền trên tờ giấy */
 .sheet-inline-input {
   width: 100%;
+  min-width: 0 !important;
   border: none;
   border-bottom: 1px dashed transparent;
   background: transparent;
@@ -455,6 +412,7 @@
   color: #000000;
   padding: 1px 3px;
   outline: none;
+  box-sizing: border-box;
 }
 
 .sheet-inline-input:hover,
@@ -473,7 +431,7 @@
 
 /* 3. Khối Phần I, II, III */
 .phenikaa-section-block {
-  margin-bottom: 12px;
+  margin-bottom: 14px;
 }
 
 .phenikaa-section-heading {
@@ -490,7 +448,7 @@
 .phenikaa-approval-grid {
   width: 100%;
   border-collapse: collapse;
-  table-layout: auto;
+  table-layout: fixed;
   font-size: 10.5pt;
 }
 
@@ -503,6 +461,8 @@
   border: 1px solid #000000;
   padding: 4px 5px;
   vertical-align: middle;
+  box-sizing: border-box;
+  overflow-wrap: break-word;
 }
 
 .phenikaa-approval-grid thead th {
@@ -516,43 +476,46 @@
 }
 
 .col-stt {
-  width: 34px;
+  width: 42px;
 }
 
 .col-item-name {
-  min-width: 150px;
+  width: 18%;
 }
 
 .col-qty {
-  width: 52px;
+  width: 56px;
 }
 
 .col-unit {
-  width: 50px;
+  width: 54px;
 }
 
-.col-sub-spec {
-  min-width: 120px;
+.subcol-th-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
 }
 
-.col-sub-price {
-  width: 86px;
-}
-
-.col-sub-qty {
-  width: 50px;
-}
-
-.col-sub-amount {
-  width: 94px;
+.hide-subcol-x {
+  border: none;
+  background: #fee2e2;
+  color: #dc2626;
+  border-radius: 4px;
+  font-size: 11px;
+  line-height: 1;
+  padding: 1px 4px;
+  cursor: pointer;
 }
 
 /* Header điều khiển cột NCC trên màn hình */
 .screen-supplier-header {
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 4px;
   text-align: left;
+  min-width: 0;
 }
 
 .sup-header-top {
@@ -566,7 +529,7 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  font-size: 11px;
+  font-size: 11.5px;
   font-weight: 700;
   color: #0f2b5b;
   cursor: pointer;
@@ -585,23 +548,50 @@
 
 .sup-short-input {
   width: 100%;
+  min-width: 0 !important;
   border: 1px solid #cbd5e1;
   border-radius: 4px;
-  padding: 2px 5px;
+  padding: 3px 5px;
   font-size: 12px;
   font-weight: 700;
   text-align: center;
   background: #ffffff;
+  box-sizing: border-box;
 }
 
 .sup-fullname-input {
   width: 100%;
+  min-width: 0 !important;
   border: 1px dashed #cbd5e1;
   border-radius: 4px;
   padding: 2px 5px;
-  font-size: 10.5px;
+  font-size: 11px;
   color: #334155;
   background: #ffffff;
+  box-sizing: border-box;
+}
+
+.sup-quick-add-cols {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  justify-content: center;
+  margin-top: 2px;
+}
+
+.quick-subcol-btn {
+  border: 1px dashed #3b82f6;
+  background: #ffffff;
+  color: #1d4ed8;
+  border-radius: 4px;
+  font-size: 10.5px;
+  font-weight: 600;
+  padding: 2px 6px;
+  cursor: pointer;
+}
+
+.quick-subcol-btn:hover {
+  background: #dbeafe;
 }
 
 /* Ô dữ liệu trong bảng */
@@ -634,6 +624,8 @@
 
 .cell-textarea {
   width: 100%;
+  min-width: 0 !important;
+  max-width: 100%;
   border: 1px solid transparent;
   background: transparent;
   font-family: inherit;
@@ -654,6 +646,8 @@
 
 .cell-input {
   width: 100%;
+  min-width: 0 !important;
+  max-width: 100%;
   border: 1px solid transparent;
   background: transparent;
   font-family: inherit;
@@ -682,6 +676,7 @@
   display: flex;
   gap: 6px;
   margin-top: 2px;
+  flex-wrap: wrap;
 }
 
 .split-line-btn {
@@ -719,6 +714,17 @@
 
 .table-bottom-actions {
   margin-top: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.paste-hint-inline {
+  font-family: system-ui, -apple-system, sans-serif;
+  font-size: 12px;
+  color: #64748b;
 }
 
 /* Phần II & Phần III */
@@ -737,6 +743,7 @@
 
 .eval-field-wrap {
   flex: 1;
+  min-width: 0;
 }
 
 .bold-text {
@@ -887,6 +894,11 @@
     padding: 0 !important;
     border: none !important;
     box-shadow: none !important;
+    overflow: visible !important;
+  }
+
+  .approval-grid-scroll-wrap {
+    overflow: visible !important;
   }
 
   /* Hiển thị văn bản thuần cho bản in, không bị cắt chữ */

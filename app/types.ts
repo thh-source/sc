@@ -358,6 +358,9 @@ export type ApprovalRequest = {
   noteRef: string;
   section1Title: string;
   columnMode: ApprovalColumnMode;
+  showQuotedProduct?: boolean;
+  quotedProductHeader?: string;
+  showSupplierQty?: boolean;
   showDeliveryTimeRow: boolean;
   printOrientation: "portrait" | "landscape";
   supplierColumns: ApprovalSupplierColumn[];
