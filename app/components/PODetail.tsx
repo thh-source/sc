@@ -14,6 +14,8 @@ export function PODetail({
   readOnly = false,
   onStatus,
   onCreateHandover,
+  onCreatePaymentRequest,
+  onNavigateToPayment,
 }: {
   po: PO;
   suppliers: Supplier[];
@@ -378,7 +380,7 @@ export function PODetail({
         </div>
         <div className="delivery-table">
           <div className="mobile-record-list">
-            {po.items.map((i) => (
+            {items.map((i) => (
               <article key={i.id}>
                 <header>
                   <b>{i.name}</b>
@@ -452,7 +454,7 @@ export function PODetail({
               </tr>
             </thead>
             <tbody>
-              {po.items.map((i) => (
+              {items.map((i) => (
                 <tr key={i.id}>
                   <td>{i.code}</td>
                   <td>
@@ -535,7 +537,7 @@ export function PODetail({
                 onUpdate({
                   ...po,
                   docs: [
-                    ...po.docs,
+                    ...(po.docs || []),
                     {
                       id: makeId(),
                       name: "Hồ sơ mới",

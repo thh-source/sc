@@ -19,7 +19,7 @@ import "./vat-quote.css";
 
 import { PaymentManagement } from "./components/PaymentManagement";
 import { BANK_SUGGESTIONS, DEFAULT_PAYMENT_TEMPLATE, localToday } from "./payment-utils";
-import { Item, Supplier, PurchaseHistory, QuoteMode, QuoteEntry, Quote, PR, POItem, POCartLine, ApprovalRow, ApprovalDraft, PODoc, PO, TrashItem, View, ColumnKey, SortState, PaymentRequestEntry, PaymentGroup, PaymentBeneficiary, PaymentHandoverItem, PaymentPrintTemplate, StoredState, isContractPO } from "./types";
+import { Item, Supplier, PurchaseHistory, QuoteMode, QuoteEntry, Quote, PR, POItem, POCartLine, ApprovalRow, ApprovalDraft, PODoc, Payment, PO, TrashItem, View, ColumnKey, SortState, PaymentDetailLine, PaymentRequestEntry, PaymentGroup, PaymentBeneficiary, PaymentHandoverItem, PaymentPrintTemplate, StoredState, isContractPO } from "./types";
 import { BASE_COLUMNS, reorder, applyTools, makeId, emptyItem, fmt, dateVN, DEFAULT_VAT_RATE, quoteDefaults, quoteBeforeVat, quoteAfterVat, quoteComparePrice, mergeHistorySeed, PurchaseHistorySeed, excelNumber, emptyPR, emptyPO, generateShortName } from "./utils";
 import { items0, suppliers0, purchaseHistory0, quotes0, prs0, pos0, HISTORY_SEED_ID } from "./seed";
 import { AdvancedItemsTable } from "./components/AdvancedItemsTable";
@@ -1422,14 +1422,14 @@ function ProcurementAppInner({
       doc_supplement: docSupplement,
       address: supplier?.address || "",
       account_no: supplier?.bankAccount || "",
-      bank: supplier?.bankName || "",
+      bank: supplier?.bank || "",
       created_by_name: "Phòng Cung ứng",
       due_date: payment.date || todayStr,
       lines: lines,
     };
 
     // Update PO payment stage with the new paymentRequestId
-    const updatedPayments = po.payments.map((p) =>
+    const updatedPayments = (po.payments || []).map((p) =>
       p.id === payment.id ? { ...p, paymentRequestId: maxId, status: "Đang xử lý" as const } : p
     );
     const updatedPO = { ...po, payments: updatedPayments };
