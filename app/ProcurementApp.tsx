@@ -1907,6 +1907,8 @@ function ProcurementAppInner({
                 if (reqId) setSpotlightPaymentActiveId(reqId);
                 setView("payment");
               }}
+              onSave={() => persistState()}
+              onAddSupplier={handleAddSupplier}
             />
           </ErrorBoundary>
         )}

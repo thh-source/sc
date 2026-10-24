@@ -165,7 +165,7 @@ export function POList({
     const currentYear = new Date().getFullYear();
     const poNum = `PO-${currentYear}-${String(pos.length + 1).padStart(4, "0")}`;
     setDraftNumber(poNum);
-    setDraftSupplierId(suppliers[0]?.id || "");
+    setDraftSupplierId("");
     setDraftPrId("");
     setDraftPrNumber("Mua trực tiếp");
     setDraftCreatedDate(new Date().toISOString().slice(0, 10));
@@ -374,7 +374,7 @@ export function POList({
 
   const shown = (pos || []).filter((po) => {
     if (!po) return false;
-    const s = suppliers.find((x) => x.id === po.supplierId);
+    const s = suppliers.find((x) => Number(x.id) === Number(po.supplierId));
     return ((po.number || "") + (po.prNumber || "") + (s?.name || ""))
       .toLowerCase()
       .includes(q.toLowerCase());
@@ -449,7 +449,7 @@ export function POList({
 
         <div className="mobile-record-list">
           {shown.map((po) => {
-            const supplier = suppliers.find((s) => s.id === po.supplierId);
+            const supplier = suppliers.find((s) => Number(s.id) === Number(po.supplierId));
             const items = po.items || [];
             const total = items.reduce((sum, item) => sum + (Number(item.qty) || 0) * (Number(item.price) || 0), 0);
             const delivered = items.filter((item) => item.deliveryStatus === "Đã giao").length;
@@ -519,7 +519,7 @@ export function POList({
             </thead>
             <tbody>
               {shown.map((po) => {
-                const s = suppliers.find((x) => x.id === po.supplierId);
+                const s = suppliers.find((x) => Number(x.id) === Number(po.supplierId));
                 const items = po.items || [];
                 const docs = po.docs || [];
                 const payments = po.payments || [];

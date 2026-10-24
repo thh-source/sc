@@ -1,6 +1,8 @@
-import React from "react";
+import React, { useState, useMemo } from "react";
 import { Supplier, PO, POItem, PODoc, Payment, isContractPO } from "../types";
-import { fmt, dateVN, makeId } from "../utils";
+import { fmt, dateVN, makeId, generateShortName } from "../utils";
+import { BANK_SUGGESTIONS } from "../payment-utils";
+import { SupplierSearchCombobox } from "./SupplierSearchCombobox";
 import VisualTimeline from "./VisualTimeline";
 import DocumentManager from "./DocumentManager";
 
@@ -16,6 +18,8 @@ export function PODetail({
   onCreateHandover,
   onCreatePaymentRequest,
   onNavigateToPayment,
+  onSave,
+  onAddSupplier,
 }: {
   po: PO;
   suppliers: Supplier[];
@@ -28,14 +32,62 @@ export function PODetail({
   onCreateHandover?: (po: PO) => void;
   onCreatePaymentRequest?: (po: PO, payment: Payment) => void;
   onNavigateToPayment?: (reqId?: number) => void;
+  onSave?: () => Promise<void> | void;
+  onAddSupplier?: (supplier: Supplier) => void;
 }) {
-  const supplier = suppliers.find((s) => s.id === po.supplierId);
+  const [saving, setSaving] = useState(false);
+  const [savedNotice, setSavedNotice] = useState(false);
+
+  const supplier = suppliers.find((s) => Number(s.id) === Number(po.supplierId));
   const items = po.items || [];
   const total = items.reduce((s, i) => s + (Number(i.qty) || 0) * (Number(i.price) || 0), 0);
+
+  const bankOptions = useMemo(() => {
+    const set = new Set<string>(BANK_SUGGESTIONS);
+    suppliers.forEach((s) => {
+      if (s.bank?.trim()) set.add(s.bank.trim());
+    });
+    return Array.from(set).filter(Boolean);
+  }, [suppliers]);
+
+  const handleManualSave = async (andGoBack = false) => {
+    setSaving(true);
+    try {
+      if (onSave) {
+        await onSave();
+      }
+      setSavedNotice(true);
+      onStatus?.(`✓ Đã lưu thông tin ${po.number}`);
+      setTimeout(() => setSavedNotice(false), 3000);
+      if (andGoBack) {
+        onBack();
+      }
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const supplierUpdate = (key: keyof Supplier, value: string) => {
-    if (!supplier) return;
+    if (!supplier) {
+      const newId = makeId();
+      const nextCode = `NCC-${String(suppliers.length + 1).padStart(3, "0")}`;
+      const newSupp: Supplier = {
+        id: newId,
+        code: key === "code" ? value : nextCode,
+        name: key === "name" ? value : "Nhà cung cấp mới",
+        shortName: key === "shortName" ? value : "",
+        bankAccount: key === "bankAccount" ? value : "",
+        bank: key === "bank" ? value : "",
+        address: key === "address" ? value : "",
+        contact: key === "contact" ? value : "",
+        phone: key === "phone" ? value : "",
+      };
+      setSuppliers((list) => [newSupp, ...list]);
+      onUpdate({ ...po, supplierId: newId });
+      return;
+    }
     setSuppliers((list) =>
-      list.map((s) => (s.id === supplier.id ? { ...s, [key]: value } : s)),
+      list.map((s) => (Number(s.id) === Number(supplier.id) ? { ...s, [key]: value } : s)),
     );
   };
   const itemUpdate = (id: number, key: keyof POItem, value: string | number) =>
@@ -246,12 +298,34 @@ export function PODetail({
             ← Quản lý PO
           </button>
           <em>{isContractPO(po) ? "HỢP ĐỒNG MUA HÀNG" : "ĐƠN MUA HÀNG"} · {po.number}</em>
-          <h1>{supplier?.name || "Đơn hàng mới"}</h1>
+          <h1>{supplier?.name || "Chưa chọn nhà cung cấp"}</h1>
           <p>
             {po.prNumber ? `Từ ${po.prNumber} · ` : ""}Tạo ngày {dateVN(po.createdDate)}
           </p>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
+          {!readOnly && (
+            <>
+              <button
+                type="button"
+                className="po-save-btn"
+                disabled={saving}
+                onClick={() => void handleManualSave(false)}
+                title="Lưu toàn bộ thông tin đơn hàng PO này"
+              >
+                {saving ? "⏳ Đang lưu..." : savedNotice ? "✓ Đã lưu thành công!" : "💾 Lưu đơn PO"}
+              </button>
+              <button
+                type="button"
+                className="po-save-back-btn"
+                disabled={saving}
+                onClick={() => void handleManualSave(true)}
+                title="Lưu thông tin và quay lại danh sách PO"
+              >
+                ✓ Lưu & Quay lại
+              </button>
+            </>
+          )}
           {onCreateHandover && (
             <button
               type="button"
@@ -280,12 +354,32 @@ export function PODetail({
           />
         </label>
       </section>
-      <div className="po-tabs">
-        <a href="#supplier">Thông tin NCC</a>
-        <a href="#delivery">Giao hàng</a>
-        <a href="#documents">Hồ sơ</a>
-        <a href="#payments">Thanh toán</a>
-        <a href="#timeline">Timeline</a>
+      <div className="po-tabs" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "8px" }}>
+        <div style={{ display: "flex", gap: "4px", overflowX: "auto" }}>
+          <a href="#supplier">Thông tin NCC</a>
+          <a href="#delivery">Giao hàng</a>
+          <a href="#documents">Hồ sơ</a>
+          <a href="#payments">Thanh toán</a>
+          <a href="#timeline">Timeline</a>
+        </div>
+        {!readOnly && (
+          <div style={{ display: "flex", alignItems: "center", gap: "8px", paddingRight: "4px" }}>
+            {savedNotice && (
+              <span style={{ fontSize: "12px", fontWeight: 600, color: "#168446" }}>
+                ✓ Đã lưu lúc {new Date().toLocaleTimeString("vi-VN")}
+              </span>
+            )}
+            <button
+              type="button"
+              className="po-save-btn"
+              style={{ height: "32px", padding: "0 12px", fontSize: "12px" }}
+              disabled={saving}
+              onClick={() => void handleManualSave(false)}
+            >
+              {saving ? "⏳ Đang lưu..." : "💾 Lưu thay đổi"}
+            </button>
+          </div>
+        )}
       </div>
       <section id="supplier" className="po-section">
         <div className="section-heading">
@@ -293,43 +387,107 @@ export function PODetail({
             <span>▱</span>
             <h2>Thông tin nhà cung cấp</h2>
           </div>
-          <small>Đồng bộ từ danh sách nhà cung cấp · {supplier?.code || "Chưa có mã NCC"}</small>
+          <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
+            <small>
+              Đồng bộ từ danh sách nhà cung cấp ·{" "}
+              <b style={{ color: supplier?.code ? "#0284c7" : "#64748b" }}>
+                {supplier?.code || "Chưa có mã NCC"}
+              </b>
+            </small>
+            {!readOnly && (
+              <button
+                type="button"
+                onClick={() => void handleManualSave(false)}
+                style={{
+                  height: "30px",
+                  padding: "0 12px",
+                  background: "#f0fdf4",
+                  borderColor: "#86efac",
+                  color: "#166534",
+                  fontWeight: 600,
+                  cursor: "pointer",
+                }}
+              >
+                ✓ Lưu thông tin NCC
+              </button>
+            )}
+          </div>
         </div>
         <div className="po-supplier-form">
+          <div className="full-field" style={{ marginBottom: "2px" }}>
+            <SupplierSearchCombobox
+              suppliers={suppliers}
+              selectedSupplierId={po.supplierId || ""}
+              onSelectSupplier={(id) => onUpdate({ ...po, supplierId: Number(id) || 0 })}
+              onAddSupplier={(newSupp) => {
+                if (onAddSupplier) {
+                  onAddSupplier(newSupp);
+                } else {
+                  setSuppliers((prev) => [newSupp, ...prev]);
+                }
+                onUpdate({ ...po, supplierId: newSupp.id });
+              }}
+              label="Chọn hoặc tìm kiếm Nhà cung cấp cho đơn hàng"
+            />
+          </div>
+          <label className="wide-field">
+            Tên đầy đủ nhà cung cấp
+            <input
+              value={supplier?.name || ""}
+              placeholder="Nhập tên công ty / nhà cung cấp..."
+              onChange={(e) => {
+                const val = e.target.value;
+                supplierUpdate("name", val);
+                if (supplier && (!supplier.shortName || supplier.shortName === generateShortName(supplier.name))) {
+                  supplierUpdate("shortName", generateShortName(val));
+                }
+              }}
+            />
+          </label>
           <label>
-            Nhà cung cấp
-            <select
-              value={po.supplierId || ""}
-              onChange={(e) =>
-                onUpdate({ ...po, supplierId: Number(e.target.value) })
-              }
-            >
-              <option value="">-- Chọn nhà cung cấp --</option>
-              {suppliers.map((s) => (
-                <option value={s.id} key={s.id}>
-                  {s.code} · {s.name}
-                </option>
-              ))}
-            </select>
+            Mã NCC / Tên viết tắt
+            <div style={{ display: "grid", gridTemplateColumns: "110px 1fr", gap: "6px" }}>
+              <input
+                value={supplier?.code || ""}
+                placeholder="Mã NCC"
+                title="Mã nhà cung cấp"
+                onChange={(e) => supplierUpdate("code", e.target.value)}
+              />
+              <input
+                value={supplier?.shortName || ""}
+                placeholder="Tên viết tắt"
+                title="Tên viết tắt"
+                onChange={(e) => supplierUpdate("shortName", e.target.value)}
+              />
+            </div>
           </label>
           <label>
             Số tài khoản
             <input
               value={supplier?.bankAccount || ""}
+              placeholder="Nhập số tài khoản ngân hàng..."
               onChange={(e) => supplierUpdate("bankAccount", e.target.value)}
             />
           </label>
           <label>
             Ngân hàng
             <input
+              list="poDetailBankList"
               value={supplier?.bank || ""}
+              placeholder="Chọn hoặc nhập tên ngân hàng..."
               onChange={(e) => supplierUpdate("bank", e.target.value)}
             />
+            <datalist id="poDetailBankList">
+              {bankOptions.map((bn) => (
+                <option key={bn} value={bn} />
+              ))}
+            </datalist>
           </label>
           <label>
             Người liên hệ
             <input
               value={supplier?.contact || ""}
+              placeholder="Tên người liên hệ..."
               onChange={(e) => supplierUpdate("contact", e.target.value)}
             />
           </label>
@@ -337,6 +495,7 @@ export function PODetail({
             Điện thoại
             <input
               value={supplier?.phone || ""}
+              placeholder="Số điện thoại liên hệ..."
               onChange={(e) => supplierUpdate("phone", e.target.value)}
             />
           </label>
@@ -344,6 +503,7 @@ export function PODetail({
             Địa chỉ
             <input
               value={supplier?.address || ""}
+              placeholder="Địa chỉ xuất hóa đơn / giao dịch của nhà cung cấp..."
               onChange={(e) => supplierUpdate("address", e.target.value)}
             />
           </label>
@@ -1009,6 +1169,51 @@ export function PODetail({
           />
         </div>
       </section>
+
+      {!readOnly && (
+        <div className="po-footer-actions">
+          <button
+            type="button"
+            className="btn btn-outline btn-md"
+            onClick={onBack}
+            style={{
+              height: "38px",
+              padding: "0 16px",
+              borderRadius: "6px",
+              border: "1px solid #cbd5e1",
+              background: "#ffffff",
+              color: "#334155",
+              fontWeight: 600,
+              cursor: "pointer",
+            }}
+          >
+            ← Quay lại danh sách PO
+          </button>
+          <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
+            {savedNotice && (
+              <span style={{ fontSize: "13px", fontWeight: 600, color: "#168446" }}>
+                ✓ Đã lưu thành công!
+              </span>
+            )}
+            <button
+              type="button"
+              className="po-save-btn"
+              disabled={saving}
+              onClick={() => void handleManualSave(false)}
+            >
+              {saving ? "⏳ Đang lưu..." : "💾 Lưu thông tin PO"}
+            </button>
+            <button
+              type="button"
+              className="po-save-back-btn"
+              disabled={saving}
+              onClick={() => void handleManualSave(true)}
+            >
+              ✓ Lưu & Quay lại danh sách
+            </button>
+          </div>
+        </div>
+      )}
     </section>
   );
 }

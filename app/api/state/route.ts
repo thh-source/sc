@@ -55,8 +55,11 @@ export async function GET(request: Request) {
     }
   }
 
-  // RECOVERY MIGRATION: If app_state is missing `prs` or `pos`, load from relational/legacy tables
-  if (!data.prs || data.prs.length === 0 || !data.pos || data.pos.length === 0) {
+  // RECOVERY MIGRATION: If app_state is missing `prs`, `pos`, or any PO's supplier is missing from `data.suppliers`, load from relational/legacy tables
+  const existingSuppIds = new Set((data.suppliers || []).map((s: any) => Number(s.id)));
+  const hasMissingPoSupplier = (data.pos || []).some((p: any) => p?.supplierId && !existingSuppIds.has(Number(p.supplierId)));
+
+  if (!data.prs || data.prs.length === 0 || !data.pos || data.pos.length === 0 || hasMissingPoSupplier) {
     try {
       const [dbSuppliers, dbProducts, dbPrs, dbPrItems, dbPos, dbPoItems, dbPoAllocations, dbPoDocs, dbPoPayments, dbQuotes, dbHistory, dbTrash] = await Promise.all([
           drizzleDb.select().from(suppliers).where(eq(suppliers.workspaceId, workspaceId)),
@@ -74,6 +77,32 @@ export async function GET(request: Request) {
       ]);
   
       let stateChanged = false;
+
+      if (dbSuppliers.length > 0) {
+          const currentSuppliers = Array.isArray(data.suppliers) ? [...data.suppliers] : [];
+          const seenIds = new Set(currentSuppliers.map((s: any) => Number(s.id)));
+          let addedSupp = false;
+          for (const s of dbSuppliers) {
+              if (!seenIds.has(Number(s.id))) {
+                  currentSuppliers.push({
+                      id: Number(s.id),
+                      code: s.code || "",
+                      name: s.name || "",
+                      bankAccount: s.bankAccount || "",
+                      bank: s.bank || "",
+                      address: s.address || "",
+                      contact: s.contact || "",
+                      phone: s.phone || "",
+                  });
+                  seenIds.add(Number(s.id));
+                  addedSupp = true;
+              }
+          }
+          if (addedSupp) {
+              data.suppliers = currentSuppliers;
+              stateChanged = true;
+          }
+      }
 
       if ((!data.prs || data.prs.length === 0) && dbPrs.length > 0) {
           const prIds = new Set(dbPrs.map(pr => pr.id));
