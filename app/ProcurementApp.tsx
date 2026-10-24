@@ -1391,14 +1391,6 @@ function ProcurementAppInner({
           },
         ];
 
-    const docs: string[] = [
-      `${docTypeLabel} #${po.number}`,
-      ...(condition === "advance"
-        ? ["Giấy đề nghị tạm ứng", "Hợp đồng / Đơn mua hàng đã ký"]
-        : ["Biên bản giao nhận / Nghiệm thu", "Hồ sơ đề nghị thanh toán"]),
-      ...(payment.invoiceNo ? [`Hóa đơn GTGT số ${payment.invoiceNo}`] : []),
-    ];
-
     const docSupplement =
       condition === "advance"
         ? "Yêu cầu NCC bổ sung hóa đơn VAT đầy đủ sau khi giao hàng"
@@ -1409,13 +1401,14 @@ function ProcurementAppInner({
       legacy_stt: maxId,
       beneficiary_id: supplier?.id,
       payee_name: supplier?.name || "Chưa xác định",
+      group_code: po.number,
       description: `Thanh toán ${payment.phase} (${payment.percent}% - ${docTypeLabel} #${po.number}) - NCC: ${supplier?.name || "Chưa rõ"}`,
       item_name: po.items?.map((i) => i.name).slice(0, 3).join(", ") + (po.items?.length > 3 ? "..." : "") || payment.phase,
       invoice_no: payment.invoiceNo || "",
       invoice_date: payment.invoiceDate || "",
       amount: payment.amount,
       currency: "VND",
-      documents: docs,
+      documents: [],
       request_date: payment.date || todayStr,
       payment_type: condition === "advance" ? "Tạm ứng" : "Thanh toán công nợ",
       status: "Chờ duyệt",

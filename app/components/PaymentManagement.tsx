@@ -1024,7 +1024,7 @@ export function PaymentManagement({
       invoice_date: "",
       amount: amountToPay,
       currency: "VND",
-      documents: ["ĐNTT", "Hóa đơn", "Hợp đồng", "BB nghiệm thu"],
+      documents: [],
       request_date: localToday(),
       payment_type: phaseText || "TT trước 100%",
       status: "Đã giao KT, chờ đi tiền",
