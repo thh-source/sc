@@ -1056,8 +1056,8 @@ table.payment-table td .smart-cell-textarea:focus {
 @media print {
   html,
   body {
-    width: 210mm !important;
-    min-width: 210mm !important;
+    width: 100% !important;
+    min-width: 0 !important;
     margin: 0 !important;
     padding: 0 !important;
     background: #ffffff !important;
@@ -1099,11 +1099,6 @@ table.payment-table td .smart-cell-textarea:focus {
   #paymentPrintPortal .paper:last-child {
     break-after: auto;
     page-break-after: auto;
-  }
-
-  @page {
-    size: A4 portrait;
-    margin: 10mm 12mm 10mm 12mm;
   }
 }
 

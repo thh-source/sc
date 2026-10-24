@@ -102,6 +102,19 @@ export function computeSupplierTotal(
   return sum;
 }
 
+/**
+ * Tự động tính số dòng hiển thị (rows) cho textarea dựa trên độ dài chuỗi và ký tự xuống dòng
+ */
+function calcTextareaRows(text: string | undefined, charsPerLine = 22): number {
+  if (!text) return 2;
+  const lines = String(text).split("\n");
+  let totalLines = 0;
+  for (const line of lines) {
+    totalLines += Math.max(1, Math.ceil(line.length / charsPerLine));
+  }
+  return Math.max(2, Math.min(8, totalLines));
+}
+
 export default function ApprovalManagement({
   approvalRequests,
   activeApprovalId,
@@ -249,7 +262,9 @@ export default function ApprovalManagement({
         ...prev,
         supplierColumns: nextCols,
         recommendedSupplierName:
-          targetCol?.supplierName || prev.recommendedSupplierName,
+          targetCol?.supplierName ||
+          targetCol?.shortName ||
+          prev.recommendedSupplierName,
       };
     });
   };
@@ -717,6 +732,84 @@ export default function ApprovalManagement({
   const shouldRecommendLandscape =
     activeRequest &&
     (activeRequest.supplierColumns.length >= 3 || subColCountPerSupplier >= 3);
+
+  /**
+   * Tính toán tỉ lệ phần trăm độ rộng (<colgroup>) cho từng cột để bảng luôn vừa khít 100% trang A4
+   * và ép các cột văn bản dài (Hàng hóa, Mặt hàng NCC báo) tự động xuống dòng!
+   */
+  const renderTableColGroup = () => {
+    if (!activeRequest) return null;
+    const numSups = Math.max(1, activeRequest.supplierColumns.length);
+    // 4 cột cố định bên trái chiếm ~23% tổng bề ngang bảng:
+    // STT: 3%, Hàng hóa: 13%, Số lượng: 3.5%, ĐVT: 3.5%
+    const sttPct = 3.0;
+    const itemPct = numSups >= 3 ? 12.5 : 15.0;
+    const qtyPct = 3.6;
+    const unitPct = 3.4;
+    const remainingPct = 100 - (sttPct + itemPct + qtyPct + unitPct);
+    const perSupPct = remainingPct / numSups;
+
+    return (
+      <colgroup>
+        <col style={{ width: `${sttPct}%` }} />
+        <col style={{ width: `${itemPct}%` }} />
+        <col style={{ width: `${qtyPct}%` }} />
+        <col style={{ width: `${unitPct}%` }} />
+        {activeRequest.supplierColumns.map((sc) => {
+          if (hasQuotedProduct && hasSupplierQty) {
+            // 4 cột con/NCC: Mặt hàng NCC (35%), Đơn giá (24%), SL (14%), Thành tiền (27%)
+            return (
+              <React.Fragment key={`colg_${sc.colId}`}>
+                <col style={{ width: `${(perSupPct * 0.35).toFixed(2)}%` }} />
+                <col style={{ width: `${(perSupPct * 0.24).toFixed(2)}%` }} />
+                <col style={{ width: `${(perSupPct * 0.14).toFixed(2)}%` }} />
+                <col style={{ width: `${(perSupPct * 0.27).toFixed(2)}%` }} />
+              </React.Fragment>
+            );
+          }
+          if (hasQuotedProduct && !hasSupplierQty) {
+            // 3 cột con/NCC: Mặt hàng NCC (44%), Đơn giá (27%), Thành tiền (29%)
+            return (
+              <React.Fragment key={`colg_${sc.colId}`}>
+                <col style={{ width: `${(perSupPct * 0.44).toFixed(2)}%` }} />
+                <col style={{ width: `${(perSupPct * 0.27).toFixed(2)}%` }} />
+                <col style={{ width: `${(perSupPct * 0.29).toFixed(2)}%` }} />
+              </React.Fragment>
+            );
+          }
+          if (!hasQuotedProduct && hasSupplierQty) {
+            // 3 cột con/NCC: Đơn giá (40%), SL (20%), Thành tiền (40%)
+            return (
+              <React.Fragment key={`colg_${sc.colId}`}>
+                <col style={{ width: `${(perSupPct * 0.4).toFixed(2)}%` }} />
+                <col style={{ width: `${(perSupPct * 0.2).toFixed(2)}%` }} />
+                <col style={{ width: `${(perSupPct * 0.4).toFixed(2)}%` }} />
+              </React.Fragment>
+            );
+          }
+          // 2 cột con/NCC: Đơn giá (48%), Thành tiền (52%)
+          return (
+            <React.Fragment key={`colg_${sc.colId}`}>
+              <col style={{ width: `${(perSupPct * 0.48).toFixed(2)}%` }} />
+              <col style={{ width: `${(perSupPct * 0.52).toFixed(2)}%` }} />
+            </React.Fragment>
+          );
+        })}
+      </colgroup>
+    );
+  };
+
+  // Tên NCC đề xuất (tự động fallback sang NCC được tích chọn nếu ô nhập đang trống)
+  const effectiveRecommendedSupplier = useMemo(() => {
+    if (!activeRequest) return "";
+    if (activeRequest.recommendedSupplierName?.trim()) {
+      return activeRequest.recommendedSupplierName;
+    }
+    const sel =
+      activeRequest.supplierColumns.find((c) => c.isSelected) ||
+      activeRequest.supplierColumns[0];
+    return sel?.supplierName || sel?.shortName || "";
+  }, [activeRequest]);
 
   // =========================================================================
   // CHẾ ĐỘ 1: GIAO DIỆN DANH SÁCH PHIẾU PHÊ DUYỆT (MẶC ĐỊNH KHI VÀO TAB)
@@ -1332,9 +1425,7 @@ export default function ApprovalManagement({
           BIỂU MẪU LÀM VIỆC TRÊN MÀN HÌNH (WYSIWYG WORKSPACE)
          =================================================================== */}
       <div
-        className={`approval-a4-sheet orient-${activeRequest.printOrientation} ${
-          totalTableColumns >= 10 ? "density-compact" : ""
-        }`}
+        className={`approval-a4-sheet orient-${activeRequest.printOrientation}`}
       >
         {/* 1. KHUNG HEADER BIỂU MẪU CÔNG TY */}
         <table className="phenikaa-header-table">
@@ -1453,6 +1544,7 @@ export default function ApprovalManagement({
 
           <div className="approval-grid-scroll-wrap">
             <table className="phenikaa-approval-grid">
+              {renderTableColGroup()}
               <thead>
                 <tr>
                   <th rowSpan={2} className="col-stt">
@@ -1656,10 +1748,7 @@ export default function ApprovalManagement({
                           >
                             <textarea
                               className="cell-textarea no-print"
-                              rows={Math.max(
-                                1,
-                                Math.min(5, row.itemName.split("\n").length),
-                              )}
+                              rows={calcTextareaRows(row.itemName, 22)}
                               value={row.itemName}
                               readOnly={isReportMode}
                               placeholder="Nhập hoặc Paste tên hàng hóa..."
@@ -1748,7 +1837,7 @@ export default function ApprovalManagement({
                                 >
                                   <textarea
                                     className="cell-textarea no-print"
-                                    rows={2}
+                                    rows={calcTextareaRows(prodText, 20)}
                                     value={prodText}
                                     readOnly={isReportMode}
                                     placeholder={`${quotedProductTitle}...`}
@@ -1892,10 +1981,7 @@ export default function ApprovalManagement({
                               <td className="cell-left cell-sub-spec">
                                 <textarea
                                   className="cell-textarea no-print"
-                                  rows={Math.max(
-                                    1,
-                                    Math.min(4, prodText.split("\n").length),
-                                  )}
+                                  rows={calcTextareaRows(prodText, 20)}
                                   value={prodText}
                                   readOnly={isReportMode}
                                   placeholder={`${quotedProductTitle}...`}
@@ -2139,7 +2225,7 @@ export default function ApprovalManagement({
                 type="text"
                 list="approval-suppliers-datalist"
                 className="sheet-inline-input bold-input no-print"
-                value={activeRequest.recommendedSupplierName}
+                value={effectiveRecommendedSupplier}
                 readOnly={isReportMode}
                 placeholder="Nhập hoặc chọn tên đầy đủ của Nhà cung cấp được đề xuất..."
                 onChange={(e) =>
@@ -2394,26 +2480,26 @@ export default function ApprovalManagement({
 
       {/* ===================================================================
           PORTAL BẢN IN CÔ LẬP TRỰC TIẾP RA DOCUMENT.BODY (#approvalPrintPortal)
-          Đảm bảo khi bấm window.print() không bị ẩn bởi .app { display: none } của payment.css
          =================================================================== */}
       {mounted &&
         typeof document !== "undefined" &&
         createPortal(
           <div id="approvalPrintPortal">
             <style>{`
+              @page {
+                size: A4 ${activeRequest.printOrientation || "landscape"};
+                margin: 7mm 8mm;
+              }
               @media screen {
                 #approvalPrintPortal {
                   display: none !important;
                 }
               }
               @media print {
-                @page {
-                  size: A4 ${activeRequest.printOrientation || "landscape"};
-                  margin: 8mm 10mm;
-                }
                 html, body {
                   width: 100% !important;
                   min-width: 0 !important;
+                  max-width: 100% !important;
                   margin: 0 !important;
                   padding: 0 !important;
                   background: #ffffff !important;
@@ -2424,13 +2510,14 @@ export default function ApprovalManagement({
                 #approvalPrintPortal {
                   display: block !important;
                   width: 100% !important;
+                  max-width: 100% !important;
                   margin: 0 !important;
                   padding: 0 !important;
                   background: #ffffff !important;
                   color: #000000 !important;
                   font-family: "Times New Roman", Times, serif !important;
-                  font-size: ${totalTableColumns >= 10 ? "9.5pt" : "11pt"} !important;
-                  line-height: 1.3 !important;
+                  font-size: 11.5pt !important;
+                  line-height: 1.35 !important;
                 }
               }
             `}</style>
@@ -2491,18 +2578,13 @@ export default function ApprovalManagement({
                 </div>
 
                 <table className="phenikaa-print-grid">
+                  {renderTableColGroup()}
                   <thead>
                     <tr>
-                      <th rowSpan={2} style={{ width: 32 }}>
-                        STT
-                      </th>
+                      <th rowSpan={2}>STT</th>
                       <th rowSpan={2}>Hàng hóa</th>
-                      <th rowSpan={2} style={{ width: 48 }}>
-                        Số lượng
-                      </th>
-                      <th rowSpan={2} style={{ width: 44 }}>
-                        ĐVT
-                      </th>
+                      <th rowSpan={2}>Số lượng</th>
+                      <th rowSpan={2}>ĐVT</th>
                       {activeRequest.supplierColumns.map((sc) => (
                         <th
                           key={`p_head_${sc.colId}`}
@@ -2518,11 +2600,9 @@ export default function ApprovalManagement({
                       {activeRequest.supplierColumns.map((sc) => (
                         <React.Fragment key={`p_sub_${sc.colId}`}>
                           {hasQuotedProduct && <th>{quotedProductTitle}</th>}
-                          <th style={{ width: 78 }}>Đơn giá (VNĐ)</th>
-                          {hasSupplierQty && (
-                            <th style={{ width: 46 }}>Số lượng</th>
-                          )}
-                          <th style={{ width: 86 }}>Thành tiền</th>
+                          <th>Đơn giá (VNĐ)</th>
+                          {hasSupplierQty && <th>Số lượng</th>}
+                          <th>Thành tiền</th>
                         </React.Fragment>
                       ))}
                     </tr>
@@ -2551,7 +2631,6 @@ export default function ApprovalManagement({
                               <td
                                 rowSpan={maxSubLines}
                                 className="cell-left"
-                                style={{ whiteSpace: "pre-wrap" }}
                               >
                                 {row.itemName}
                               </td>
@@ -2601,7 +2680,6 @@ export default function ApprovalManagement({
                                     <td
                                       rowSpan={maxSubLines}
                                       className="cell-left"
-                                      style={{ whiteSpace: "pre-wrap" }}
                                     >
                                       {prodText}
                                     </td>
@@ -2658,12 +2736,7 @@ export default function ApprovalManagement({
                                 key={`p_cell_${row.rowId}_${sc.colId}_${subIdx}`}
                               >
                                 {hasQuotedProduct && (
-                                  <td
-                                    className="cell-left"
-                                    style={{ whiteSpace: "pre-wrap" }}
-                                  >
-                                    {prodText}
-                                  </td>
+                                  <td className="cell-left">{prodText}</td>
                                 )}
                                 <td className="cell-right">
                                   {line.unitPrice
@@ -2729,7 +2802,7 @@ export default function ApprovalManagement({
                 <div className="eval-row">
                   <span className="eval-label">1. Nhà cung cấp đề xuất:</span>
                   <strong style={{ flex: 1 }}>
-                    {activeRequest.recommendedSupplierName}
+                    {effectiveRecommendedSupplier}
                   </strong>
                 </div>
                 <div className="eval-row">
