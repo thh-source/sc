@@ -4,6 +4,7 @@ import { fmt, dateVN, makeId } from "../utils";
 import { SupplierSearchCombobox } from "./SupplierSearchCombobox";
 import { TreeProductPickerModal, SelectedItemData } from "./TreeProductPickerModal";
 import { normName } from "../payment-utils";
+import { cleanExcelNumber, parseExcelClipboard } from "../utils/approvalSamples";
 import { useTranslation } from "../i18n";
 import "../payment.css";
 
@@ -187,6 +188,78 @@ export function POList({
       },
     ]);
     setItemError("");
+  };
+
+  const DRAFT_PO_EDITABLE_FIELDS = ["name", "spec", "unit", "qty", "price"] as const;
+  type DraftPOEditableField = (typeof DRAFT_PO_EDITABLE_FIELDS)[number];
+
+  const handleDraftItemPaste = (
+    e: React.ClipboardEvent<HTMLInputElement>,
+    startRowIdx: number,
+    startField: DraftPOEditableField
+  ) => {
+    const text = e.clipboardData?.getData("text/plain") || "";
+    if (!text) return;
+
+    const matrix = parseExcelClipboard(text);
+    if (matrix.length === 0) return;
+
+    const isMultiCell =
+      matrix.length > 1 || (matrix[0] && matrix[0].length > 1);
+    const isNumField = startField === "qty" || startField === "price";
+
+    if (!isMultiCell) {
+      if (isNumField && matrix[0]?.[0] !== undefined) {
+        e.preventDefault();
+        const cleaned = cleanExcelNumber(matrix[0][0]);
+        setDraftItems((prev) =>
+          prev.map((it, i) =>
+            i === startRowIdx ? { ...it, [startField]: cleaned } : it
+          )
+        );
+      }
+      return;
+    }
+
+    e.preventDefault();
+    const startColIdx = DRAFT_PO_EDITABLE_FIELDS.indexOf(startField);
+    if (startColIdx === -1) return;
+
+    setDraftItems((prev) => {
+      const next = prev.map((it) => ({ ...it }));
+      const neededRows = startRowIdx + matrix.length;
+      while (next.length < neededRows) {
+        const nextIdx = next.length + 1;
+        next.push({
+          id: makeId() + next.length * 13 + Math.floor(Math.random() * 1000),
+          code: `VT-${String(nextIdx).padStart(2, "0")}`,
+          category: "Vật tư chung",
+          name: "",
+          desc: "",
+          spec: "",
+          unit: "Cái",
+          qty: 1,
+          price: 0,
+        });
+      }
+
+      for (let r = 0; r < matrix.length; r++) {
+        const targetRow = next[startRowIdx + r];
+        if (!targetRow) continue;
+        const rowCells = matrix[r];
+        for (let c = 0; c < rowCells.length; c++) {
+          const targetField = DRAFT_PO_EDITABLE_FIELDS[startColIdx + c];
+          if (!targetField) break;
+          const cellVal = rowCells[c];
+          if (targetField === "qty" || targetField === "price") {
+            targetRow[targetField] = cleanExcelNumber(cellVal);
+          } else {
+            targetRow[targetField] = cellVal;
+          }
+        }
+      }
+      return next;
+    });
   };
 
   const handleSelectPR = (prIdVal: string) => {
@@ -1230,6 +1303,7 @@ export function POList({
                                 style={{ width: "100%" }}
                                 list={`po-item-datalist-${idx}`}
                                 value={item.name}
+                                onPaste={(e) => handleDraftItemPaste(e, idx, "name")}
                                 onChange={(e) => {
                                   const val = e.target.value;
                                   if (selectedPR) {
@@ -1306,6 +1380,7 @@ export function POList({
                                 className="payment-input"
                                 style={{ width: "100%" }}
                                 value={item.spec}
+                                onPaste={(e) => handleDraftItemPaste(e, idx, "spec")}
                                 onChange={(e) => {
                                   const val = e.target.value;
                                   setDraftItems((prev) =>
@@ -1326,6 +1401,7 @@ export function POList({
                                   textAlign: "center",
                                 }}
                                 value={item.unit}
+                                onPaste={(e) => handleDraftItemPaste(e, idx, "unit")}
                                 onChange={(e) => {
                                   const val = e.target.value;
                                   setDraftItems((prev) =>
@@ -1346,6 +1422,7 @@ export function POList({
                                   textAlign: "right",
                                 }}
                                 value={item.qty}
+                                onPaste={(e) => handleDraftItemPaste(e, idx, "qty")}
                                 onChange={(e) => {
                                   const val = Number(e.target.value) || 0;
                                   setDraftItems((prev) =>
@@ -1367,6 +1444,7 @@ export function POList({
                                   textAlign: "right",
                                 }}
                                 value={item.price}
+                                onPaste={(e) => handleDraftItemPaste(e, idx, "price")}
                                 onChange={(e) => {
                                   const val = Number(e.target.value) || 0;
                                   setDraftItems((prev) =>

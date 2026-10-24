@@ -2282,6 +2282,21 @@ function ProcurementAppInner({
                 quotes={quotes}
                 itemChange={itemChange}
                 quoteChange={quoteChange}
+                onBatchPaste={(nextItems, nextQuotes) => {
+                  setItems(nextItems);
+                  setQuotes(nextQuotes);
+                  if (selectedPR.id) {
+                    const updatedPR = { ...selectedPR, items: nextItems };
+                    setSelectedPR(updatedPR);
+                    setPrs((all) =>
+                      all.map((pr) => (pr.id === updatedPR.id ? updatedPR : pr))
+                    );
+                    setQuotesByPr((all) => ({
+                      ...all,
+                      [selectedPR.id]: nextQuotes,
+                    }));
+                  }
+                }}
                 best={best}
                 quoteCompareMode={quoteCompareMode}
                 setQuoteCompareMode={setQuoteCompareMode}

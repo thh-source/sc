@@ -13,6 +13,7 @@ export interface AutoGrowTextareaProps {
   onBlur?: React.FocusEventHandler<HTMLTextAreaElement>;
   onFocus?: React.FocusEventHandler<HTMLTextAreaElement>;
   onKeyDown?: React.KeyboardEventHandler<HTMLTextAreaElement>;
+  onPaste?: React.ClipboardEventHandler<HTMLTextAreaElement>;
 }
 
 export function AutoGrowTextarea({
@@ -28,6 +29,7 @@ export function AutoGrowTextarea({
   onBlur,
   onFocus,
   onKeyDown,
+  onPaste,
 }: AutoGrowTextareaProps) {
   const ref = useRef<HTMLTextAreaElement>(null);
   useLayoutEffect(() => {
@@ -72,6 +74,7 @@ export function AutoGrowTextarea({
       onBlur={onBlur}
       onFocus={onFocus}
       onKeyDown={onKeyDown}
+      onPaste={onPaste}
       onChange={(event) => onChange(event.target.value)}
     />
   );

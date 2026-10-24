@@ -13,6 +13,7 @@ import {
   formatPONumber,
 } from "../types";
 import { fmt, dateVN, makeId, generateShortName } from "../utils";
+import { cleanExcelNumber, parseExcelClipboard } from "../utils/approvalSamples";
 import { BANK_SUGGESTIONS } from "../payment-utils";
 import { SupplierSearchCombobox } from "./SupplierSearchCombobox";
 import VisualTimeline from "./VisualTimeline";
@@ -83,6 +84,102 @@ export function PODetail({
       items: nextItems,
       payments: nextPayments,
     });
+  };
+
+  const PO_ITEM_EDITABLE_FIELDS = [
+    "name",
+    "qty",
+    "unit",
+    "price",
+    "vatRate",
+    "note",
+  ] as const;
+  type POItemEditableField = (typeof PO_ITEM_EDITABLE_FIELDS)[number];
+
+  const handlePOItemPaste = (
+    e: React.ClipboardEvent<HTMLInputElement>,
+    startRowIdx: number,
+    startField: POItemEditableField
+  ) => {
+    if (readOnly) return;
+    const text = e.clipboardData?.getData("text/plain") || "";
+    if (!text) return;
+
+    const matrix = parseExcelClipboard(text);
+    if (matrix.length === 0) return;
+
+    const isMultiCell =
+      matrix.length > 1 || (matrix[0] && matrix[0].length > 1);
+    const isNumField =
+      startField === "qty" || startField === "price" || startField === "vatRate";
+
+    if (!isMultiCell) {
+      if (isNumField && matrix[0]?.[0] !== undefined) {
+        e.preventDefault();
+        const cleaned = cleanExcelNumber(matrix[0][0]);
+        const nextItems = items.map((x, idx) =>
+          idx === startRowIdx
+            ? { ...x, [startField]: cleaned, ...(startField === "price" ? { estimate: cleaned } : {}) }
+            : x
+        );
+        updatePOItemsAndSyncPayments(nextItems);
+      }
+      return;
+    }
+
+    e.preventDefault();
+    const startColIdx = PO_ITEM_EDITABLE_FIELDS.indexOf(startField);
+    if (startColIdx === -1) return;
+
+    const nextItems = items.map((x) => ({ ...x }));
+    const neededRows = startRowIdx + matrix.length;
+    while (nextItems.length < neededRows) {
+      const nextIdx = nextItems.length + 1;
+      nextItems.push({
+        id: makeId() + nextItems.length * 17 + Math.floor(Math.random() * 1000),
+        code: `VT-${String(nextIdx).padStart(2, "0")}`,
+        category: "Vật tư / Hàng hóa",
+        name: "",
+        desc: "",
+        spec: "",
+        unit: "Cái",
+        qty: 1,
+        estimate: 0,
+        price: 0,
+        vatRate: 8,
+        note: "",
+        deliveryStatus: "Chưa giao",
+        deliveredQty: 0,
+        deliveryDate: "",
+        deliveryHistory: [],
+      });
+    }
+
+    for (let r = 0; r < matrix.length; r++) {
+      const targetRow = nextItems[startRowIdx + r];
+      if (!targetRow) continue;
+      const rowCells = matrix[r];
+      for (let c = 0; c < rowCells.length; c++) {
+        const targetField = PO_ITEM_EDITABLE_FIELDS[startColIdx + c];
+        if (!targetField) break;
+        const cellVal = rowCells[c];
+        if (targetField === "qty") {
+          targetRow.qty = cleanExcelNumber(cellVal);
+        } else if (targetField === "price") {
+          const numVal = cleanExcelNumber(cellVal);
+          targetRow.price = numVal;
+          targetRow.estimate = numVal;
+        } else if (targetField === "vatRate") {
+          const rawVat = cleanExcelNumber(cellVal);
+          const validVats = [0, 5, 8, 10];
+          targetRow.vatRate = validVats.includes(rawVat) ? rawVat : rawVat > 0 ? 8 : 0;
+        } else {
+          targetRow[targetField] = cellVal;
+        }
+      }
+    }
+
+    updatePOItemsAndSyncPayments(nextItems);
   };
 
   const openDeliveryPopup = () => {
@@ -1921,12 +2018,33 @@ export function PODetail({
                     colSpan={readOnly ? 9 : 10}
                     style={{
                       textAlign: "center",
-                      padding: "24px 12px",
+                      padding: "20px 12px",
                       color: "#64748b",
                       fontSize: "13px",
                     }}
                   >
-                    Chưa có mặt hàng nào trong PO này. Bấm <b>"＋ Thêm hàng hóa"</b> hoặc <b>"📥 Lấy hàng từ ĐNPĐ"</b> ở góc trên bên phải để thêm.
+                    <div>
+                      Chưa có mặt hàng nào trong PO này. Bấm <b>&quot;＋ Thêm hàng hóa&quot;</b>, <b>&quot;📥 Lấy hàng từ ĐNPĐ&quot;</b> hoặc dán trực tiếp từ Excel vào ô bên dưới:
+                    </div>
+                    {!readOnly && (
+                      <div style={{ marginTop: "8px", display: "flex", justifyContent: "center" }}>
+                        <input
+                          value=""
+                          onChange={() => {}}
+                          onPaste={(e) => handlePOItemPaste(e, 0, "name")}
+                          placeholder="📋 Click vào đây và nhấn Ctrl+V để dán bảng hàng hóa từ Excel..."
+                          style={{
+                            maxWidth: "460px",
+                            width: "100%",
+                            textAlign: "center",
+                            border: "1px dashed #3b82f6",
+                            background: "#eff6ff",
+                            color: "#1d4ed8",
+                            fontWeight: 600,
+                          }}
+                        />
+                      </div>
+                    )}
                   </td>
                 </tr>
               ) : (
@@ -1948,6 +2066,7 @@ export function PODetail({
                           disabled={readOnly}
                           placeholder="Nhập tên hàng hóa / vật tư..."
                           style={{ width: "100%", fontWeight: 600 }}
+                          onPaste={(e) => handlePOItemPaste(e, idx, "name")}
                           onChange={(e) => {
                             const nextItems = items.map((x) =>
                               x.id === i.id ? { ...x, name: e.target.value } : x
@@ -1963,6 +2082,7 @@ export function PODetail({
                           value={i.qty ?? 0}
                           disabled={readOnly}
                           style={{ width: "100%", textAlign: "right", fontWeight: 600 }}
+                          onPaste={(e) => handlePOItemPaste(e, idx, "qty")}
                           onChange={(e) => {
                             const val = Number(e.target.value) || 0;
                             const nextItems = items.map((x) =>
@@ -1978,6 +2098,7 @@ export function PODetail({
                           disabled={readOnly}
                           placeholder="ĐVT"
                           style={{ width: "100%", textAlign: "center" }}
+                          onPaste={(e) => handlePOItemPaste(e, idx, "unit")}
                           onChange={(e) => {
                             const nextItems = items.map((x) =>
                               x.id === i.id ? { ...x, unit: e.target.value } : x
@@ -1993,6 +2114,7 @@ export function PODetail({
                           value={i.price ?? 0}
                           disabled={readOnly}
                           style={{ width: "100%", textAlign: "right", fontWeight: 600 }}
+                          onPaste={(e) => handlePOItemPaste(e, idx, "price")}
                           onChange={(e) => {
                             const val = Number(e.target.value) || 0;
                             const nextItems = items.map((x) =>
@@ -2094,6 +2216,7 @@ export function PODetail({
                           disabled={readOnly}
                           placeholder="Ghi chú..."
                           style={{ width: "100%" }}
+                          onPaste={(e) => handlePOItemPaste(e, idx, "note")}
                           onChange={(e) => {
                             const nextItems = items.map((x) =>
                               x.id === i.id ? { ...x, note: e.target.value } : x

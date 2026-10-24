@@ -1,8 +1,14 @@
 import React, { useState, useMemo } from "react";
 import { Item, Supplier, PurchaseHistory, Quote, ColumnKey, SortState, QuoteEntry, QuoteMode } from "../types";
-import { fmt, priceStats, reorder, BASE_COLUMNS, valueOf, quoteDefaults, quoteBeforeVat, quoteAfterVat } from "../utils";
+import { fmt, priceStats, reorder, BASE_COLUMNS, valueOf, quoteDefaults, quoteBeforeVat, quoteAfterVat, emptyItem, makeId } from "../utils";
+import { cleanExcelNumber, parseExcelClipboard } from "../utils/approvalSamples";
 import { AutoGrowTextarea } from "./AutoGrowTextarea";
 import { useTranslation } from "../i18n";
+
+type CompareColDescriptor =
+  | { id: string; kind: "item"; key: ColumnKey }
+  | { id: string; kind: "quotePrice"; supplierId: number }
+  | { id: string; kind: "quoteCustom"; supplierId: number; colName: string };
 
 export function AdvancedItemsTable({
   items,
@@ -20,6 +26,7 @@ export function AdvancedItemsTable({
   quotes,
   itemChange,
   quoteChange,
+  onBatchPaste,
   best,
   quoteCompareMode,
   setQuoteCompareMode,
@@ -51,6 +58,7 @@ export function AdvancedItemsTable({
     k: keyof QuoteEntry,
     v: any,
   ) => void;
+  onBatchPaste?: (nextItems: Item[], nextQuotes: Quote) => void;
   best: (id: number) => { supplier: Supplier; price: number } | null;
   quoteCompareMode: QuoteMode;
   setQuoteCompareMode: React.Dispatch<React.SetStateAction<QuoteMode>>;
@@ -62,6 +70,118 @@ export function AdvancedItemsTable({
 }) {
   const { t } = useTranslation();
   const [dragged, setDragged] = useState<ColumnKey | null>(null);
+
+  const flatEditableCols = useMemo<CompareColDescriptor[]>(() => {
+    const cols: CompareColDescriptor[] = [];
+    order.forEach((col) => {
+      if (col !== "stt" && col !== "amount") {
+        cols.push({ id: `item:${col}`, kind: "item", key: col });
+      }
+    });
+    suppliers.forEach((s) => {
+      cols.push({ id: `qp:${s.id}`, kind: "quotePrice", supplierId: s.id });
+      (customColumns || []).forEach((cc) => {
+        cols.push({
+          id: `qc:${s.id}:${cc}`,
+          kind: "quoteCustom",
+          supplierId: s.id,
+          colName: cc,
+        });
+      });
+    });
+    return cols;
+  }, [order, suppliers, customColumns]);
+
+  const handleExcelPaste = (
+    e: React.ClipboardEvent<HTMLInputElement | HTMLTextAreaElement>,
+    targetItemId: number,
+    startColId: string,
+  ) => {
+    const text = e.clipboardData?.getData("text/plain") || "";
+    if (!text) return;
+    const matrix = parseExcelClipboard(text);
+    if (matrix.length === 0) return;
+
+    const startColIdx = flatEditableCols.findIndex((c) => c.id === startColId);
+    if (startColIdx < 0) return;
+    const startCol = flatEditableCols[startColIdx];
+
+    if (matrix.length === 1 && matrix[0].length === 1) {
+      const rawVal = matrix[0][0];
+      if (startCol.kind === "item" && (startCol.key === "qty" || startCol.key === "estimate")) {
+        e.preventDefault();
+        itemChange(targetItemId, startCol.key as keyof Item, String(cleanExcelNumber(rawVal)));
+      } else if (startCol.kind === "quotePrice") {
+        e.preventDefault();
+        const num = cleanExcelNumber(rawVal);
+        quoteChange(targetItemId, startCol.supplierId, "price", num > 0 ? String(num) : "");
+      }
+      return;
+    }
+
+    e.preventDefault();
+
+    const nextItems = items.map((it) => ({ ...it }));
+    let startRowIdx = nextItems.findIndex((it) => it.id === targetItemId);
+    if (startRowIdx < 0) startRowIdx = nextItems.length;
+
+    const requiredRows = startRowIdx + matrix.length;
+    while (nextItems.length < requiredRows) {
+      const idx = nextItems.length;
+      nextItems.push({
+        ...emptyItem(idx),
+        id: makeId() + idx,
+        code: `VT-${String(idx + 1).padStart(3, "0")}`,
+      });
+    }
+
+    const nextQuotes: Quote = { ...quotes };
+
+    matrix.forEach((rowCells, rOffset) => {
+      const targetRow = nextItems[startRowIdx + rOffset];
+      if (!targetRow) return;
+
+      rowCells.forEach((cellVal, cOffset) => {
+        const colDesc = flatEditableCols[startColIdx + cOffset];
+        if (!colDesc) return;
+
+        if (colDesc.kind === "item") {
+          if (colDesc.key === "qty") {
+            const n = cleanExcelNumber(cellVal);
+            targetRow.qty = n > 0 ? n : 1;
+          } else if (colDesc.key === "estimate") {
+            targetRow.estimate = cleanExcelNumber(cellVal);
+          } else {
+            (targetRow as any)[colDesc.key] = cellVal;
+          }
+        } else if (colDesc.kind === "quotePrice") {
+          const num = cleanExcelNumber(cellVal);
+          const itemQuotes = { ...(nextQuotes[targetRow.id] || {}) };
+          const existingEntry = quoteDefaults(itemQuotes[colDesc.supplierId]);
+          itemQuotes[colDesc.supplierId] = {
+            ...existingEntry,
+            price: num > 0 ? String(num) : "",
+          };
+          nextQuotes[targetRow.id] = itemQuotes;
+        } else if (colDesc.kind === "quoteCustom") {
+          const itemQuotes = { ...(nextQuotes[targetRow.id] || {}) };
+          const existingEntry = quoteDefaults(itemQuotes[colDesc.supplierId]);
+          itemQuotes[colDesc.supplierId] = {
+            ...existingEntry,
+            customColumns: {
+              ...(existingEntry.customColumns || {}),
+              [colDesc.colName]: cellVal,
+            },
+          };
+          nextQuotes[targetRow.id] = itemQuotes;
+        }
+      });
+    });
+
+    if (onBatchPaste) {
+      onBatchPaste(nextItems, nextQuotes);
+    }
+  };
 
   const getColLabel = (key: ColumnKey, fallback: string) => {
     switch (key) {
@@ -88,11 +208,6 @@ export function AdvancedItemsTable({
       ) as Record<ColumnKey, string[]>,
     [items, order],
   );
-  const setSuppliers = (updater: React.SetStateAction<Supplier[]>) => {
-    const next = typeof updater === "function" ? updater(suppliers) : updater;
-    const removed = suppliers.find((s) => !next.some((n) => n.id === s.id));
-    if (removed) onRemoveSupplier(removed.id);
-  };
   const toggleSort = (key: ColumnKey) =>
     setSort((s) =>
       s?.key === key
@@ -124,6 +239,7 @@ export function AdvancedItemsTable({
     const numeric = key === "qty" || key === "estimate";
     const multiline =
       key === "category" || key === "name" || key === "desc" || key === "spec";
+    const colId = `item:${key}`;
     return (
       <td key={key}>
         {multiline ? (
@@ -131,6 +247,7 @@ export function AdvancedItemsTable({
             className={key === "category" ? "category-input" : ""}
             value={String(item[inputKey])}
             onChange={(value) => itemChange(item.id, inputKey, value)}
+            onPaste={(e) => handleExcelPaste(e, item.id, colId)}
             placeholder={key === "category" ? t("table.select_category") : ""}
           />
         ) : (
@@ -140,6 +257,7 @@ export function AdvancedItemsTable({
             list={key === "unit" ? "commonAdvancedUnitDatalist" : undefined}
             value={String(item[inputKey])}
             onChange={(e) => itemChange(item.id, inputKey, e.target.value)}
+            onPaste={(e) => handleExcelPaste(e, item.id, colId)}
           />
         )}
       </td>
@@ -321,6 +439,9 @@ export function AdvancedItemsTable({
                           onChange={(e) =>
                             quoteChange(i.id, s.id, "price", e.target.value)
                           }
+                          onPaste={(e) =>
+                            handleExcelPaste(e, i.id, `qp:${s.id}`)
+                          }
                         />
                       </div>
                     </td>,
@@ -331,6 +452,9 @@ export function AdvancedItemsTable({
                           value={q.customColumns?.[col] || ""}
                           onChange={(value) =>
                             quoteChange(i.id, s.id, "customColumns", { ...q.customColumns, [col]: value })
+                          }
+                          onPaste={(e) =>
+                            handleExcelPaste(e, i.id, `qc:${s.id}:${col}`)
                           }
                         />
                       </td>
@@ -393,4 +517,3 @@ export function AdvancedItemsTable({
     </>
   );
 }
-

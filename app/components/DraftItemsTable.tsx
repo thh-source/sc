@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { Item, ColumnKey, SortState } from "../types";
-import { fmt, reorder, BASE_COLUMNS, valueOf } from "../utils";
+import { fmt, reorder, BASE_COLUMNS, valueOf, emptyItem, makeId } from "../utils";
+import { cleanExcelNumber, parseExcelClipboard } from "../utils/approvalSamples";
 import { AutoGrowTextarea } from "./AutoGrowTextarea";
 
 export function DraftItemsTable({
@@ -47,6 +48,68 @@ export function DraftItemsTable({
   >;
 }) {
   const [dragged, setDragged] = useState<ColumnKey | null>(null);
+  const editableCols = order.filter((k) => k !== "stt" && k !== "amount");
+
+  const handleExcelPaste = (
+    e: React.ClipboardEvent<HTMLInputElement | HTMLTextAreaElement>,
+    targetItemId: number,
+    startKey: ColumnKey,
+  ) => {
+    const text = e.clipboardData?.getData("text/plain") || "";
+    if (!text) return;
+    const matrix = parseExcelClipboard(text);
+    if (matrix.length === 0) return;
+
+    const isNumericCol = (k: ColumnKey) => k === "qty" || k === "estimate";
+
+    if (matrix.length === 1 && matrix[0].length === 1) {
+      if (isNumericCol(startKey)) {
+        e.preventDefault();
+        itemChange(targetItemId, startKey as keyof Item, String(cleanExcelNumber(matrix[0][0])), true);
+      }
+      return;
+    }
+
+    e.preventDefault();
+    const startColIdx = editableCols.indexOf(startKey);
+    if (startColIdx < 0) return;
+
+    setDraft((d) => {
+      const nextItems = d.items.map((it) => ({ ...it }));
+      let startRowIdx = nextItems.findIndex((it) => it.id === targetItemId);
+      if (startRowIdx < 0) startRowIdx = nextItems.length;
+
+      const requiredRows = startRowIdx + matrix.length;
+      while (nextItems.length < requiredRows) {
+        const idx = nextItems.length;
+        nextItems.push({
+          ...emptyItem(idx),
+          id: makeId() + idx,
+          code: `VT-${String(idx + 1).padStart(3, "0")}`,
+        });
+      }
+
+      matrix.forEach((rowCells, rOffset) => {
+        const targetRow = nextItems[startRowIdx + rOffset];
+        if (!targetRow) return;
+        rowCells.forEach((cellVal, cOffset) => {
+          const colKey = editableCols[startColIdx + cOffset];
+          if (!colKey) return;
+          if (colKey === "qty") {
+            const n = cleanExcelNumber(cellVal);
+            targetRow.qty = n > 0 ? n : 1;
+          } else if (colKey === "estimate") {
+            targetRow.estimate = cleanExcelNumber(cellVal);
+          } else {
+            (targetRow as any)[colKey] = cellVal;
+          }
+        });
+      });
+
+      return { ...d, items: nextItems };
+    });
+  };
+
   const toggleSort = (key: ColumnKey) =>
     setSort((s) =>
       s?.key === key
@@ -88,6 +151,7 @@ export function DraftItemsTable({
             className={key === "category" ? "category-input" : ""}
             value={String(item[inputKey])}
             onChange={(value) => itemChange(item.id, inputKey, value, true)}
+            onPaste={(e) => handleExcelPaste(e, item.id, key)}
             placeholder={key === "category" ? "Ví dụ: Cơ khí" : ""}
           />
         ) : (
@@ -99,6 +163,7 @@ export function DraftItemsTable({
             onChange={(e) =>
               itemChange(item.id, inputKey, e.target.value, true)
             }
+            onPaste={(e) => handleExcelPaste(e, item.id, key)}
           />
         )}
       </td>
@@ -223,4 +288,3 @@ export function DraftItemsTable({
     </div>
   );
 }
-
