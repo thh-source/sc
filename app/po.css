@@ -419,7 +419,47 @@
   border: 1px solid var(--line);
   border-radius: 9px;
   margin-top: 16px;
+  margin-bottom: 32px;
   box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
 }
+
+/* Fix flex-column shrinking inside .content.po-detail so .po-tabs and bottom #po-items never collapse */
+.content.po-detail {
+  display: block !important;
+  overflow-y: auto !important;
+  padding-bottom: 48px !important;
+}
+
+.content.po-detail > * {
+  flex-shrink: 0 !important;
+}
+
+.po-detail .po-tabs {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  min-height: 48px;
+  height: auto;
+  overflow-x: auto;
+  overflow-y: visible;
+  background: #ffffff;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 6px 10px;
+  margin-bottom: 16px;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.05);
+}
+
+.po-detail .po-section {
+  overflow: visible !important;
+  flex-shrink: 0 !important;
+  margin-bottom: 16px;
+}
+
+.po-detail .po-section > .section-heading {
+  border-top-left-radius: 9px;
+  border-top-right-radius: 9px;
+}
+
 
 
