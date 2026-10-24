@@ -59,7 +59,7 @@ export async function GET(request: Request) {
   const existingSuppIds = new Set((data.suppliers || []).map((s: any) => Number(s.id)));
   const hasMissingPoSupplier = (data.pos || []).some((p: any) => p?.supplierId && !existingSuppIds.has(Number(p.supplierId)));
 
-  if (!data.prs || data.prs.length === 0 || !data.pos || data.pos.length === 0 || hasMissingPoSupplier) {
+  if (!data.prs || data.prs.length === 0 || !Array.isArray(data.pos) || hasMissingPoSupplier) {
     try {
       const [dbSuppliers, dbProducts, dbPrs, dbPrItems, dbPos, dbPoItems, dbPoAllocations, dbPoDocs, dbPoPayments, dbQuotes, dbHistory, dbTrash] = await Promise.all([
           drizzleDb.select().from(suppliers).where(eq(suppliers.workspaceId, workspaceId)),
@@ -127,7 +127,7 @@ export async function GET(request: Request) {
           stateChanged = true;
       }
 
-      if (!data.pos || data.pos.length === 0) {
+      if (!Array.isArray(data.pos)) {
           const currentPos: any[] = [];
           if (dbPos.length > 0) {
               const poIds = new Set(dbPos.map(po => po.id));

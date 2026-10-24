@@ -619,17 +619,18 @@ function ProcurementAppInner({
         };
       setTrash((list) => [entry, ...list]);
       if (deleteTarget.type === "PR") {
-        setPrs((list) => list.filter((pr) => pr.id !== record.id));
-        if (selectedPR.id === record.id) setSelectedPR(emptyPR);
+        setPrs((list) => list.filter((pr) => Number(pr.id) !== Number(record.id)));
+        if (Number(selectedPR.id) === Number(record.id)) setSelectedPR(emptyPR);
         setView("prs");
       } else if (deleteTarget.type === "PO") {
-        setPos((list) => list.filter((po) => po.id !== record.id));
-        if (currentPO.id === record.id) setCurrentPO(emptyPO);
+        setPos((list) => list.filter((po) => Number(po.id) !== Number(record.id)));
+        if (Number(currentPO.id) === Number(record.id)) setCurrentPO(emptyPO);
         setView("po-list");
       } else {
         setHiddenContractIds((ids) => [...new Set([...ids, record.id])]);
         setView("contracts");
       }
+      setStorageStatus(`✓ Đã chuyển ${entry.label} vào thùng rác`);
       setDeleteTarget(null);
       setDeletePassword("");
     } catch (error) {
@@ -1191,26 +1192,7 @@ function ProcurementAppInner({
       expectedDate: "",
       status: "Mới tạo",
       items: [...grouped.values()],
-      docs: [
-        {
-          id: makeId(),
-          name: "Hợp đồng / PO xác nhận",
-          status: "Chờ bổ sung",
-          note: "",
-        },
-        {
-          id: makeId(),
-          name: "Hóa đơn VAT",
-          status: "Còn thiếu",
-          note: "",
-        },
-        {
-          id: makeId(),
-          name: "Biên bản giao nhận",
-          status: "Còn thiếu",
-          note: "",
-        },
-      ],
+      docs: [],
       payments: [
         {
           id: makeId(),
@@ -1909,6 +1891,11 @@ function ProcurementAppInner({
               }}
               onSave={() => persistState()}
               onAddSupplier={handleAddSupplier}
+              onDelete={
+                reportMode
+                  ? undefined
+                  : (targetPO) => requestDelete("PO", targetPO)
+              }
             />
           </ErrorBoundary>
         )}

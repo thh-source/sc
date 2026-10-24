@@ -467,6 +467,18 @@ tbody tr:hover td {
   background: var(--primary-50);
 }
 
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: rgba(15, 23, 42, 0.55);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
 .modal {
   width: min(440px, 100%);
   background: var(--surface-card);

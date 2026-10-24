@@ -321,26 +321,7 @@ export function POList({
         deliveredQty: 0,
         deliveryDate: "",
       })),
-      docs: [
-        {
-          id: makeId(),
-          name: "Hợp đồng / PO xác nhận",
-          status: "Chờ bổ sung",
-          note: "",
-        },
-        {
-          id: makeId(),
-          name: "Hóa đơn VAT",
-          status: "Còn thiếu",
-          note: "",
-        },
-        {
-          id: makeId(),
-          name: "Biên bản giao nhận",
-          status: "Còn thiếu",
-          note: "",
-        },
-      ],
+      docs: [],
       payments: [
         {
           id: makeId(),
@@ -559,15 +540,21 @@ export function POList({
                       </small>
                     </td>
                     <td style={{ textAlign: "center" }}>
-                      <span
-                        className={
-                          docsCount === docs.length && docs.length > 0
-                            ? "status done"
-                            : "status waiting"
-                        }
-                      >
-                        {docsCount}/{docs.length} đủ
-                      </span>
+                      {docs.length === 0 ? (
+                        <span style={{ fontSize: "12px", color: "#94a3b8" }}>
+                          Không có
+                        </span>
+                      ) : (
+                        <span
+                          className={
+                            docsCount === docs.length
+                              ? "status done"
+                              : "status waiting"
+                          }
+                        >
+                          {docsCount}/{docs.length} đủ
+                        </span>
+                      )}
                     </td>
                     <td style={{ textAlign: "center" }}>
                       <b>{total ? Math.round((paid / total) * 100) : 0}%</b>
@@ -1447,7 +1434,7 @@ export function POList({
                   color: "#166534",
                 }}
               >
-                ℹ️ Đơn PO sau khi tạo sẽ tự động khởi tạo hồ sơ nghiệm thu tiêu chuẩn (Hợp đồng/PO, Hóa đơn VAT, Biên bản giao nhận) và 2 mốc giải ngân (Tạm ứng 50%, Hoàn tất 50%). Bạn có thể tùy chỉnh lại bất cứ lúc nào trong trang Chi tiết PO.
+                ℹ️ Đơn PO sau khi tạo mặc định không gắn sẵn hồ sơ để bạn tự thêm trong mục Hồ sơ khi cần. Bạn có thể tùy chỉnh các đợt thanh toán và hồ sơ bất cứ lúc nào trong trang Chi tiết PO.
               </div>
 
               {itemError && (

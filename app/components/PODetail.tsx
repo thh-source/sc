@@ -20,6 +20,7 @@ export function PODetail({
   onNavigateToPayment,
   onSave,
   onAddSupplier,
+  onDelete,
 }: {
   po: PO;
   suppliers: Supplier[];
@@ -34,6 +35,7 @@ export function PODetail({
   onNavigateToPayment?: (reqId?: number) => void;
   onSave?: () => Promise<void> | void;
   onAddSupplier?: (supplier: Supplier) => void;
+  onDelete?: (po: PO) => void;
 }) {
   const [saving, setSaving] = useState(false);
   const [savedNotice, setSavedNotice] = useState(false);
@@ -334,6 +336,23 @@ export function PODetail({
               title="Tạo biên bản bàn giao cho các mặt hàng trong đơn này"
             >
               🚚 Tạo biên bản bàn giao
+            </button>
+          )}
+          {!readOnly && onDelete && (
+            <button
+              type="button"
+              className="delete-action"
+              style={{
+                height: "38px",
+                padding: "0 14px",
+                fontSize: "12.5px",
+                fontWeight: 600,
+                cursor: "pointer",
+              }}
+              onClick={() => onDelete(po)}
+              title="Chuyển đơn PO này vào thùng rác"
+            >
+              🗑 Xóa PO
             </button>
           )}
           <div className="po-total">
@@ -690,72 +709,201 @@ export function PODetail({
           <div className="section-heading">
             <div>
               <span>▧</span>
-              <h2>Hồ sơ cần thiết</h2>
+              <h2>Hồ sơ cần thiết ({(po.docs || []).length})</h2>
             </div>
-            <button
-              onClick={() =>
-                onUpdate({
-                  ...po,
-                  docs: [
-                    ...(po.docs || []),
-                    {
-                      id: makeId(),
-                      name: "Hồ sơ mới",
-                      status: "Còn thiếu",
-                      note: "",
-                    },
-                  ],
-                })
-              }
-            >
-              ＋ Thêm hồ sơ
-            </button>
-          </div>
-          <div className="checklist">
-            {(po.docs || []).map((d) => (
-              <div key={d.id}>
-                <input
-                  value={d.name}
-                  onChange={(e) =>
+            {!readOnly && (
+              <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+                {(po.docs || []).length > 0 && (
+                  <button
+                    type="button"
+                    style={{
+                      borderColor: "#fca5a5",
+                      color: "#dc2626",
+                      background: "#fff5f5",
+                      cursor: "pointer",
+                    }}
+                    onClick={() => {
+                      if (confirm("Bạn có chắc muốn xóa toàn bộ danh sách hồ sơ của PO này không?")) {
+                        onUpdate({ ...po, docs: [] });
+                      }
+                    }}
+                  >
+                    🗑 Xóa hết
+                  </button>
+                )}
+                <button
+                  type="button"
+                  style={{ cursor: "pointer", fontWeight: 600 }}
+                  onClick={() =>
                     onUpdate({
                       ...po,
-                      docs: (po.docs || []).map((x) =>
-                        x.id === d.id ? { ...x, name: e.target.value } : x,
-                      ),
-                    })
-                  }
-                />
-                <select
-                  value={d.status}
-                  onChange={(e) =>
-                    onUpdate({
-                      ...po,
-                      docs: (po.docs || []).map((x) =>
-                        x.id === d.id
-                          ? { ...x, status: e.target.value as PODoc["status"] }
-                          : x,
-                      ),
+                      docs: [
+                        ...(po.docs || []),
+                        {
+                          id: makeId(),
+                          name: "Hồ sơ mới",
+                          status: "Còn thiếu",
+                          note: "",
+                        },
+                      ],
                     })
                   }
                 >
-                  <option>Đã đủ</option>
-                  <option>Còn thiếu</option>
-                  <option>Chờ bổ sung</option>
-                </select>
-                <input
-                  placeholder="Ghi chú"
-                  value={d.note}
-                  onChange={(e) =>
+                  ＋ Thêm hồ sơ
+                </button>
+              </div>
+            )}
+          </div>
+
+          {!readOnly && (
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "6px",
+                flexWrap: "wrap",
+                padding: "8px 14px",
+                background: "#f8fafc",
+                borderBottom: "1px solid #edf1f5",
+                fontSize: "11.5px",
+              }}
+            >
+              <span style={{ color: "#64748b", fontWeight: 600 }}>Thêm nhanh:</span>
+              {[
+                "Hợp đồng / PO xác nhận",
+                "Hóa đơn VAT",
+                "Biên bản giao nhận",
+                "CO / CQ",
+                "Báo giá",
+              ].map((presetName) => (
+                <button
+                  key={presetName}
+                  type="button"
+                  className="po-preset-pill"
+                  style={{ padding: "3px 9px", fontSize: "11.5px" }}
+                  onClick={() =>
                     onUpdate({
                       ...po,
-                      docs: (po.docs || []).map((x) =>
-                        x.id === d.id ? { ...x, note: e.target.value } : x,
-                      ),
+                      docs: [
+                        ...(po.docs || []),
+                        {
+                          id: makeId(),
+                          name: presetName,
+                          status: "Còn thiếu",
+                          note: "",
+                        },
+                      ],
                     })
                   }
-                />
+                >
+                  ＋ {presetName}
+                </button>
+              ))}
+            </div>
+          )}
+
+          <div className="checklist">
+            {(po.docs || []).length === 0 ? (
+              <div
+                style={{
+                  display: "block",
+                  padding: "20px 14px",
+                  textAlign: "center",
+                  color: "#64748b",
+                  fontSize: "12.5px",
+                  background: "#fcfdfe",
+                  border: "1px dashed #cbd5e1",
+                  borderRadius: "6px",
+                  margin: "8px 0",
+                }}
+              >
+                Chưa có hồ sơ nào được yêu cầu cho PO này. Bấm <b>"＋ Thêm hồ sơ"</b> hoặc chọn nhanh ở trên nếu cần theo dõi.
               </div>
-            ))}
+            ) : (
+              (po.docs || []).map((d) => (
+                <div
+                  key={d.id}
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: readOnly ? "1.2fr 115px 1fr" : "1.2fr 115px 1fr 34px",
+                    gap: "7px",
+                    alignItems: "center",
+                    padding: "8px 0",
+                    borderBottom: "1px solid #edf1f5",
+                  }}
+                >
+                  <input
+                    value={d.name || ""}
+                    placeholder="Tên loại hồ sơ..."
+                    onChange={(e) =>
+                      onUpdate({
+                        ...po,
+                        docs: (po.docs || []).map((x) =>
+                          x.id === d.id ? { ...x, name: e.target.value } : x,
+                        ),
+                      })
+                    }
+                  />
+                  <select
+                    value={d.status || "Còn thiếu"}
+                    onChange={(e) =>
+                      onUpdate({
+                        ...po,
+                        docs: (po.docs || []).map((x) =>
+                          x.id === d.id
+                            ? { ...x, status: e.target.value as PODoc["status"] }
+                            : x,
+                        ),
+                      })
+                    }
+                  >
+                    <option>Đã đủ</option>
+                    <option>Còn thiếu</option>
+                    <option>Chờ bổ sung</option>
+                  </select>
+                  <input
+                    placeholder="Ghi chú"
+                    value={d.note || ""}
+                    onChange={(e) =>
+                      onUpdate({
+                        ...po,
+                        docs: (po.docs || []).map((x) =>
+                          x.id === d.id ? { ...x, note: e.target.value } : x,
+                        ),
+                      })
+                    }
+                  />
+                  {!readOnly && (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        onUpdate({
+                          ...po,
+                          docs: (po.docs || []).filter((x) => x.id !== d.id),
+                        })
+                      }
+                      style={{
+                        height: "34px",
+                        width: "34px",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        background: "#fff5f5",
+                        border: "1px solid #fca5a5",
+                        borderRadius: "5px",
+                        color: "#dc2626",
+                        cursor: "pointer",
+                        fontSize: "14px",
+                        padding: 0,
+                      }}
+                      title={`Xóa hồ sơ "${d.name}"`}
+                    >
+                      🗑
+                    </button>
+                  )}
+                </div>
+              ))
+            )}
           </div>
           {!readOnly && (
             <DocumentManager
@@ -1194,6 +1342,22 @@ export function PODetail({
               <span style={{ fontSize: "13px", fontWeight: 600, color: "#168446" }}>
                 ✓ Đã lưu thành công!
               </span>
+            )}
+            {onDelete && (
+              <button
+                type="button"
+                className="delete-action"
+                style={{
+                  height: "38px",
+                  padding: "0 14px",
+                  fontSize: "12.5px",
+                  fontWeight: 600,
+                  cursor: "pointer",
+                }}
+                onClick={() => onDelete(po)}
+              >
+                🗑 Xóa đơn PO
+              </button>
             )}
             <button
               type="button"
