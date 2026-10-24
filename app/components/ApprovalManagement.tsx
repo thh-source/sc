@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   ApprovalItemRow,
   ApprovalRequest,
@@ -11,6 +12,7 @@ import {
   Supplier,
 } from "../types";
 import { fmt as formatVND } from "../utils/format";
+import { PHENIKAA_PHARMA_LOGO_BASE64 } from "../payment-utils";
 import {
   cleanExcelNumber,
   createApprovalFromCompare,
@@ -115,6 +117,7 @@ export default function ApprovalManagement({
   isReportMode = false,
   onBackToCompare,
 }: ApprovalManagementProps) {
+  const [mounted, setMounted] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
   const [sourceModalMode, setSourceModalMode] = useState<"compare" | "pr" | null>(
@@ -125,6 +128,10 @@ export default function ApprovalManagement({
   const [showExcelPasteModal, setShowExcelPasteModal] = useState(false);
   const [rawExcelModalText, setRawExcelModalText] = useState("");
   const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const showToast = (msg: string) => {
     setPasteToast(msg);
@@ -1005,16 +1012,6 @@ export default function ApprovalManagement({
   // =========================================================================
   return (
     <section className="content approval-mgmt-wrapper">
-      {/* Dynamic @page orientation rule for Print Engine */}
-      <style>{`
-        @media print {
-          @page {
-            size: A4 ${activeRequest.printOrientation || "landscape"};
-            margin: 8mm;
-          }
-        }
-      `}</style>
-
       {pasteToast && <div className="approval-toast no-print">{pasteToast}</div>}
 
       {/* Thanh Điều hướng Quay lại Danh sách & Tác vụ chính */}
@@ -1332,7 +1329,7 @@ export default function ApprovalManagement({
       </div>
 
       {/* ===================================================================
-          BIỂU MẪU LÀM VIỆC & IN CHUẨN PHENIKAA PHARMA
+          BIỂU MẪU LÀM VIỆC TRÊN MÀN HÌNH (WYSIWYG WORKSPACE)
          =================================================================== */}
       <div
         className={`approval-a4-sheet orient-${activeRequest.printOrientation} ${
@@ -1345,7 +1342,7 @@ export default function ApprovalManagement({
             <tr>
               <td className="phenikaa-logo-box">
                 <img
-                  src="/phenikaa-logo.png"
+                  src={PHENIKAA_PHARMA_LOGO_BASE64}
                   alt="PHENIKAA PHARMA"
                   className="phenikaa-logo-img"
                 />
@@ -1457,7 +1454,6 @@ export default function ApprovalManagement({
           <div className="approval-grid-scroll-wrap">
             <table className="phenikaa-approval-grid">
               <thead>
-                {/* Tầng Header 1: 4 cột cố định bên trái (rowSpan=2) + Nhóm cột động từng NCC */}
                 <tr>
                   <th rowSpan={2} className="col-stt">
                     STT
@@ -1479,14 +1475,6 @@ export default function ApprovalManagement({
                         sc.isSelected ? "selected-supplier-th" : ""
                       }`}
                     >
-                      {/* Văn bản thuần cho bản in A4 */}
-                      <div className="print-only-header-text">
-                        {sc.isSelected
-                          ? `NCC lựa chọn: ${sc.shortName || sc.supplierName}`
-                          : sc.shortName || sc.supplierName}
-                      </div>
-
-                      {/* Giao diện điều khiển trên màn hình làm việc */}
                       <div className="screen-supplier-header no-print">
                         <div className="sup-header-top">
                           <label
@@ -1557,7 +1545,6 @@ export default function ApprovalManagement({
                             }));
                           }}
                         />
-                        {/* Nút thêm nhanh cột con ngay trên từng cột Nhà cung cấp */}
                         {!isReportMode &&
                           (!hasQuotedProduct || !hasSupplierQty) && (
                             <div className="sup-quick-add-cols">
@@ -1588,7 +1575,6 @@ export default function ApprovalManagement({
                   ))}
                 </tr>
 
-                {/* Tầng Header 2: Các cột con của từng NCC */}
                 <tr>
                   {activeRequest.supplierColumns.map((sc) => (
                     <React.Fragment key={`sub_${sc.colId}`}>
@@ -1646,7 +1632,6 @@ export default function ApprovalManagement({
 
                   return Array.from({ length: maxSubLines }, (_, subIdx) => (
                     <tr key={`${row.rowId}_sub_${subIdx}`}>
-                      {/* 4 Cột cố định bên trái */}
                       {subIdx === 0 && (
                         <>
                           <td
@@ -1669,9 +1654,6 @@ export default function ApprovalManagement({
                             rowSpan={maxSubLines}
                             className="cell-left cell-item-name"
                           >
-                            <div className="print-only-cell-text">
-                              {row.itemName}
-                            </div>
                             <textarea
                               className="cell-textarea no-print"
                               rows={Math.max(
@@ -1695,7 +1677,6 @@ export default function ApprovalManagement({
                             rowSpan={maxSubLines}
                             className="cell-center cell-qty"
                           >
-                            <div className="print-only-cell-text">{row.qty}</div>
                             <input
                               type="text"
                               className="cell-input center no-print"
@@ -1715,9 +1696,6 @@ export default function ApprovalManagement({
                             rowSpan={maxSubLines}
                             className="cell-center cell-unit"
                           >
-                            <div className="print-only-cell-text">
-                              {row.unit}
-                            </div>
                             <input
                               type="text"
                               className="cell-input center no-print"
@@ -1736,7 +1714,6 @@ export default function ApprovalManagement({
                         </>
                       )}
 
-                      {/* Các cột con theo từng Nhà Cung Cấp */}
                       {activeRequest.supplierColumns.map((sc) => {
                         const lines = row.supplierQuotes[sc.colId] || [
                           {
@@ -1749,7 +1726,6 @@ export default function ApprovalManagement({
                           },
                         ];
 
-                        // Nếu NCC chỉ có 1 dòng con trong khi dòng chung có maxSubLines > 1 -> gộp ô dọc
                         if (lines.length === 1 && maxSubLines > 1) {
                           if (subIdx > 0) return null;
                           const line = lines[0];
@@ -1770,9 +1746,6 @@ export default function ApprovalManagement({
                                   rowSpan={maxSubLines}
                                   className="cell-left cell-sub-spec"
                                 >
-                                  <div className="print-only-cell-text">
-                                    {prodText}
-                                  </div>
                                   <textarea
                                     className="cell-textarea no-print"
                                     rows={2}
@@ -1817,11 +1790,6 @@ export default function ApprovalManagement({
                                 rowSpan={maxSubLines}
                                 className="cell-right cell-sub-price"
                               >
-                                <div className="print-only-cell-text">
-                                  {line.unitPrice
-                                    ? formatVND(line.unitPrice)
-                                    : "-"}
-                                </div>
                                 <input
                                   type="text"
                                   className="cell-input right no-print"
@@ -1859,9 +1827,6 @@ export default function ApprovalManagement({
                                   rowSpan={maxSubLines}
                                   className="cell-center cell-sub-qty"
                                 >
-                                  <div className="print-only-cell-text">
-                                    {line.qty}
-                                  </div>
                                   <input
                                     type="text"
                                     className="cell-input center no-print"
@@ -1925,9 +1890,6 @@ export default function ApprovalManagement({
                           >
                             {hasQuotedProduct && (
                               <td className="cell-left cell-sub-spec">
-                                <div className="print-only-cell-text">
-                                  {prodText}
-                                </div>
                                 <textarea
                                   className="cell-textarea no-print"
                                   rows={Math.max(
@@ -1992,11 +1954,6 @@ export default function ApprovalManagement({
                             )}
 
                             <td className="cell-right cell-sub-price">
-                              <div className="print-only-cell-text">
-                                {line.unitPrice
-                                  ? formatVND(line.unitPrice)
-                                  : "-"}
-                              </div>
                               <input
                                 type="text"
                                 className="cell-input right no-print"
@@ -2032,9 +1989,6 @@ export default function ApprovalManagement({
 
                             {hasSupplierQty && (
                               <td className="cell-center cell-sub-qty">
-                                <div className="print-only-cell-text">
-                                  {line.qty}
-                                </div>
                                 <input
                                   type="text"
                                   className="cell-input center no-print"
@@ -2101,7 +2055,6 @@ export default function ApprovalManagement({
                   ));
                 })}
 
-                {/* Dòng tùy chọn: Thời gian giao hàng */}
                 {activeRequest.showDeliveryTimeRow && (
                   <tr className="delivery-time-row">
                     <td className="cell-center" />
@@ -2114,9 +2067,6 @@ export default function ApprovalManagement({
                         colSpan={subColCountPerSupplier}
                         className="cell-center bold-cell"
                       >
-                        <div className="print-only-cell-text">
-                          {sc.deliveryTime || ""}
-                        </div>
                         <input
                           type="text"
                           className="cell-input center bold-input no-print"
@@ -2140,7 +2090,6 @@ export default function ApprovalManagement({
                   </tr>
                 )}
 
-                {/* Dòng Footer: Tổng tiền chưa có VAT */}
                 <tr className="total-footer-row">
                   <td colSpan={4} className="cell-center bold-cell">
                     Tổng tiền chưa có VAT
@@ -2186,9 +2135,6 @@ export default function ApprovalManagement({
           <div className="eval-row">
             <span className="eval-label">1. Nhà cung cấp đề xuất:</span>
             <div className="eval-field-wrap">
-              <span className="print-only-eval-val bold-text">
-                {activeRequest.recommendedSupplierName}
-              </span>
               <input
                 type="text"
                 list="approval-suppliers-datalist"
@@ -2217,9 +2163,6 @@ export default function ApprovalManagement({
           <div className="eval-row">
             <span className="eval-label">2. Điều kiện giao hàng:</span>
             <div className="eval-field-wrap">
-              <span className="print-only-eval-val">
-                {activeRequest.deliveryTerms}
-              </span>
               <input
                 type="text"
                 className="sheet-inline-input no-print"
@@ -2272,9 +2215,6 @@ export default function ApprovalManagement({
           <div className="eval-row">
             <span className="eval-label">3. Điều khoản thanh toán:</span>
             <div className="eval-field-wrap">
-              <span className="print-only-eval-val">
-                {activeRequest.paymentTerms}
-              </span>
               <input
                 type="text"
                 className="sheet-inline-input no-print"
@@ -2319,7 +2259,6 @@ export default function ApprovalManagement({
             {activeRequest.reasons.map((reason, idx) => (
               <div key={idx} className="reason-item-row">
                 <span className="reason-index">{idx + 1}.</span>
-                <span className="print-only-eval-val">{reason}</span>
                 <input
                   type="text"
                   className="sheet-inline-input no-print"
@@ -2398,9 +2337,6 @@ export default function ApprovalManagement({
                 <div className="sign-title">Lãnh đạo phê duyệt</div>
                 <div className="sign-space" />
                 <div className="sign-name">
-                  <span className="print-only-eval-val bold-text">
-                    {activeRequest.approverLeader}
-                  </span>
                   <input
                     type="text"
                     className="sheet-inline-input center bold-input no-print"
@@ -2419,9 +2355,6 @@ export default function ApprovalManagement({
                 <div className="sign-title">Trưởng bộ phận</div>
                 <div className="sign-space" />
                 <div className="sign-name">
-                  <span className="print-only-eval-val bold-text">
-                    {activeRequest.approverDeptHead}
-                  </span>
                   <input
                     type="text"
                     className="sheet-inline-input center bold-input no-print"
@@ -2440,9 +2373,6 @@ export default function ApprovalManagement({
                 <div className="sign-title">Người đề nghị</div>
                 <div className="sign-space" />
                 <div className="sign-name">
-                  <span className="print-only-eval-val bold-text">
-                    {activeRequest.requesterName}
-                  </span>
                   <input
                     type="text"
                     className="sheet-inline-input center bold-input no-print"
@@ -2461,6 +2391,401 @@ export default function ApprovalManagement({
           </tbody>
         </table>
       </div>
+
+      {/* ===================================================================
+          PORTAL BẢN IN CÔ LẬP TRỰC TIẾP RA DOCUMENT.BODY (#approvalPrintPortal)
+          Đảm bảo khi bấm window.print() không bị ẩn bởi .app { display: none } của payment.css
+         =================================================================== */}
+      {mounted &&
+        typeof document !== "undefined" &&
+        createPortal(
+          <div id="approvalPrintPortal">
+            <style>{`
+              @media screen {
+                #approvalPrintPortal {
+                  display: none !important;
+                }
+              }
+              @media print {
+                @page {
+                  size: A4 ${activeRequest.printOrientation || "landscape"};
+                  margin: 8mm 10mm;
+                }
+                html, body {
+                  width: 100% !important;
+                  min-width: 0 !important;
+                  margin: 0 !important;
+                  padding: 0 !important;
+                  background: #ffffff !important;
+                }
+                .app, #paymentPrintPortal {
+                  display: none !important;
+                }
+                #approvalPrintPortal {
+                  display: block !important;
+                  width: 100% !important;
+                  margin: 0 !important;
+                  padding: 0 !important;
+                  background: #ffffff !important;
+                  color: #000000 !important;
+                  font-family: "Times New Roman", Times, serif !important;
+                  font-size: ${totalTableColumns >= 10 ? "9.5pt" : "11pt"} !important;
+                  line-height: 1.3 !important;
+                }
+              }
+            `}</style>
+
+            <div className="approval-pure-print-page">
+              {/* 1. Header Công ty + Tiêu đề Biểu mẫu */}
+              <table className="phenikaa-header-table">
+                <tbody>
+                  <tr>
+                    <td className="phenikaa-logo-box">
+                      <img
+                        src={PHENIKAA_PHARMA_LOGO_BASE64}
+                        alt="PHENIKAA PHARMA"
+                        className="phenikaa-logo-img"
+                      />
+                    </td>
+                    <td className="phenikaa-title-box">
+                      ĐỀ NGHỊ PHÊ DUYỆT LỰA CHỌN NCC
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+
+              {/* 2. Khung Meta góc phải */}
+              <div className="phenikaa-meta-wrapper">
+                <table className="phenikaa-meta-table">
+                  <tbody>
+                    <tr>
+                      <td className="meta-lbl">Số PR:</td>
+                      <td className="meta-val">{activeRequest.prNumber}</td>
+                    </tr>
+                    <tr>
+                      <td className="meta-lbl">Ngày:</td>
+                      <td className="meta-val">{activeRequest.createdDate}</td>
+                    </tr>
+                    <tr>
+                      <td className="meta-lbl">Đơn vị lập biểu mẫu:</td>
+                      <td className="meta-val">{activeRequest.department}</td>
+                    </tr>
+                    <tr>
+                      <td className="meta-lbl">Ghi chú: Căn cứ theo PR số:</td>
+                      <td className="meta-val">{activeRequest.noteRef}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              {/* 3. Phần I & Bảng So sánh */}
+              <div className="phenikaa-section-block">
+                <div className="phenikaa-section-heading">
+                  I. Nội dung đề nghị phê duyệt:
+                </div>
+                <div
+                  className="phenikaa-section-subline"
+                  style={{ fontWeight: 700 }}
+                >
+                  {activeRequest.section1Title}
+                </div>
+
+                <table className="phenikaa-print-grid">
+                  <thead>
+                    <tr>
+                      <th rowSpan={2} style={{ width: 32 }}>
+                        STT
+                      </th>
+                      <th rowSpan={2}>Hàng hóa</th>
+                      <th rowSpan={2} style={{ width: 48 }}>
+                        Số lượng
+                      </th>
+                      <th rowSpan={2} style={{ width: 44 }}>
+                        ĐVT
+                      </th>
+                      {activeRequest.supplierColumns.map((sc) => (
+                        <th
+                          key={`p_head_${sc.colId}`}
+                          colSpan={subColCountPerSupplier}
+                        >
+                          {sc.isSelected
+                            ? `NCC lựa chọn: ${sc.shortName || sc.supplierName}`
+                            : sc.shortName || sc.supplierName}
+                        </th>
+                      ))}
+                    </tr>
+                    <tr>
+                      {activeRequest.supplierColumns.map((sc) => (
+                        <React.Fragment key={`p_sub_${sc.colId}`}>
+                          {hasQuotedProduct && <th>{quotedProductTitle}</th>}
+                          <th style={{ width: 78 }}>Đơn giá (VNĐ)</th>
+                          {hasSupplierQty && (
+                            <th style={{ width: 46 }}>Số lượng</th>
+                          )}
+                          <th style={{ width: 86 }}>Thành tiền</th>
+                        </React.Fragment>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {activeRequest.rows.map((row) => {
+                      const maxSubLines = hasSupplierQty
+                        ? Math.max(
+                            1,
+                            ...activeRequest.supplierColumns.map(
+                              (sc) => (row.supplierQuotes[sc.colId] || []).length,
+                            ),
+                          )
+                        : 1;
+
+                      return Array.from({ length: maxSubLines }, (_, subIdx) => (
+                        <tr key={`p_${row.rowId}_${subIdx}`}>
+                          {subIdx === 0 && (
+                            <>
+                              <td
+                                rowSpan={maxSubLines}
+                                className="cell-center"
+                              >
+                                {row.stt}
+                              </td>
+                              <td
+                                rowSpan={maxSubLines}
+                                className="cell-left"
+                                style={{ whiteSpace: "pre-wrap" }}
+                              >
+                                {row.itemName}
+                              </td>
+                              <td
+                                rowSpan={maxSubLines}
+                                className="cell-center"
+                              >
+                                {row.qty}
+                              </td>
+                              <td
+                                rowSpan={maxSubLines}
+                                className="cell-center"
+                              >
+                                {row.unit}
+                              </td>
+                            </>
+                          )}
+
+                          {activeRequest.supplierColumns.map((sc) => {
+                            const lines = row.supplierQuotes[sc.colId] || [
+                              {
+                                lineId: `d_${row.rowId}_${sc.colId}`,
+                                quotedProduct: "",
+                                origin: "",
+                                unitPrice: 0,
+                                qty: row.qty,
+                                amount: 0,
+                              },
+                            ];
+
+                            if (lines.length === 1 && maxSubLines > 1) {
+                              if (subIdx > 0) return null;
+                              const line = lines[0];
+                              const effQty = hasSupplierQty
+                                ? Number(line.qty) || 0
+                                : Number(row.qty) || 0;
+                              const amt =
+                                (Number(line.unitPrice) || 0) * effQty;
+                              const prodText =
+                                line.quotedProduct || line.origin || "";
+
+                              return (
+                                <React.Fragment
+                                  key={`p_span_${row.rowId}_${sc.colId}`}
+                                >
+                                  {hasQuotedProduct && (
+                                    <td
+                                      rowSpan={maxSubLines}
+                                      className="cell-left"
+                                      style={{ whiteSpace: "pre-wrap" }}
+                                    >
+                                      {prodText}
+                                    </td>
+                                  )}
+                                  <td
+                                    rowSpan={maxSubLines}
+                                    className="cell-right"
+                                  >
+                                    {line.unitPrice
+                                      ? formatVND(line.unitPrice)
+                                      : "-"}
+                                  </td>
+                                  {hasSupplierQty && (
+                                    <td
+                                      rowSpan={maxSubLines}
+                                      className="cell-center"
+                                    >
+                                      {line.qty}
+                                    </td>
+                                  )}
+                                  <td
+                                    rowSpan={maxSubLines}
+                                    className="cell-right"
+                                  >
+                                    {amt ? formatVND(amt) : "-"}
+                                  </td>
+                                </React.Fragment>
+                              );
+                            }
+
+                            const line = lines[subIdx];
+                            if (!line) {
+                              return (
+                                <React.Fragment
+                                  key={`p_empty_${row.rowId}_${sc.colId}_${subIdx}`}
+                                >
+                                  {hasQuotedProduct && <td />}
+                                  <td />
+                                  {hasSupplierQty && <td />}
+                                  <td />
+                                </React.Fragment>
+                              );
+                            }
+
+                            const effQty = hasSupplierQty
+                              ? Number(line.qty) || 0
+                              : Number(row.qty) || 0;
+                            const amt = (Number(line.unitPrice) || 0) * effQty;
+                            const prodText =
+                              line.quotedProduct || line.origin || "";
+
+                            return (
+                              <React.Fragment
+                                key={`p_cell_${row.rowId}_${sc.colId}_${subIdx}`}
+                              >
+                                {hasQuotedProduct && (
+                                  <td
+                                    className="cell-left"
+                                    style={{ whiteSpace: "pre-wrap" }}
+                                  >
+                                    {prodText}
+                                  </td>
+                                )}
+                                <td className="cell-right">
+                                  {line.unitPrice
+                                    ? formatVND(line.unitPrice)
+                                    : "-"}
+                                </td>
+                                {hasSupplierQty && (
+                                  <td className="cell-center">{line.qty}</td>
+                                )}
+                                <td className="cell-right">
+                                  {amt ? formatVND(amt) : "-"}
+                                </td>
+                              </React.Fragment>
+                            );
+                          })}
+                        </tr>
+                      ));
+                    })}
+
+                    {activeRequest.showDeliveryTimeRow && (
+                      <tr>
+                        <td />
+                        <td colSpan={3} className="cell-center bold-cell">
+                          Thời gian giao hàng
+                        </td>
+                        {activeRequest.supplierColumns.map((sc) => (
+                          <td
+                            key={`p_deliv_${sc.colId}`}
+                            colSpan={subColCountPerSupplier}
+                            className="cell-center bold-cell"
+                          >
+                            {sc.deliveryTime || ""}
+                          </td>
+                        ))}
+                      </tr>
+                    )}
+
+                    <tr className="total-footer-row">
+                      <td colSpan={4} className="cell-center bold-cell">
+                        Tổng tiền chưa có VAT
+                      </td>
+                      {activeRequest.supplierColumns.map((sc) => {
+                        const totalVal = supplierTotals[sc.colId] || 0;
+                        return (
+                          <React.Fragment key={`p_tot_${sc.colId}`}>
+                            <td colSpan={subColCountPerSupplier - 1} />
+                            <td className="cell-right bold-cell">
+                              {totalVal ? formatVND(totalVal) : "-"}
+                            </td>
+                          </React.Fragment>
+                        );
+                      })}
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              {/* 4. Phần II */}
+              <div className="phenikaa-section-block">
+                <div className="phenikaa-section-heading">
+                  II. Đánh giá và đề xuất lựa chọn nhà cung cấp:
+                </div>
+                <div className="eval-row">
+                  <span className="eval-label">1. Nhà cung cấp đề xuất:</span>
+                  <strong style={{ flex: 1 }}>
+                    {activeRequest.recommendedSupplierName}
+                  </strong>
+                </div>
+                <div className="eval-row">
+                  <span className="eval-label">2. Điều kiện giao hàng:</span>
+                  <span style={{ flex: 1 }}>{activeRequest.deliveryTerms}</span>
+                </div>
+                <div className="eval-row">
+                  <span className="eval-label">3. Điều khoản thanh toán:</span>
+                  <span style={{ flex: 1 }}>{activeRequest.paymentTerms}</span>
+                </div>
+              </div>
+
+              {/* 5. Phần III */}
+              <div className="phenikaa-section-block">
+                <div className="phenikaa-section-heading">
+                  III. Lý do lựa chọn:
+                </div>
+                {activeRequest.reasons.map((reason, idx) => (
+                  <div key={`p_reason_${idx}`} style={{ marginBottom: 3 }}>
+                    {idx + 1}. {reason}
+                  </div>
+                ))}
+              </div>
+
+              {/* 6. Chữ ký 3 cột */}
+              <table className="phenikaa-sign-table">
+                <tbody>
+                  <tr>
+                    <td className="sign-col">
+                      <div className="sign-title">Lãnh đạo phê duyệt</div>
+                      <div className="sign-space" />
+                      <div className="sign-name">
+                        {activeRequest.approverLeader}
+                      </div>
+                    </td>
+                    <td className="sign-col">
+                      <div className="sign-title">Trưởng bộ phận</div>
+                      <div className="sign-space" />
+                      <div className="sign-name">
+                        {activeRequest.approverDeptHead}
+                      </div>
+                    </td>
+                    <td className="sign-col">
+                      <div className="sign-title">Người đề nghị</div>
+                      <div className="sign-space" />
+                      <div className="sign-name">
+                        {activeRequest.requesterName}
+                      </div>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>,
+          document.body,
+        )}
 
       {/* MODAL DÁN NHANH VÙNG DỮ LIỆU TỪ EXCEL */}
       {showExcelPasteModal && (

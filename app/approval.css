@@ -864,77 +864,69 @@
 }
 
 /* ==========================================================================
-   PRINT ENGINE AUTO-FIT (@media print)
+   PRINT ENGINE AUTO-FIT (@media print & #approvalPrintPortal)
    ========================================================================== */
 
-@media print {
-  body,
-  html {
-    background: #ffffff !important;
-    margin: 0 !important;
-    padding: 0 !important;
-  }
+.phenikaa-print-grid {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: auto;
+}
 
+.phenikaa-print-grid th,
+.phenikaa-print-grid td {
+  border: 1px solid #000000;
+  padding: 4px 5px;
+  vertical-align: middle;
+  color: #000000;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+.phenikaa-print-grid thead th {
+  font-weight: 700;
+  text-align: center;
+  background: #ffffff;
+}
+
+@media screen {
+  #approvalPrintPortal {
+    display: none !important;
+  }
+}
+
+@media print {
   .no-print {
     display: none !important;
   }
 
-  .approval-mgmt-wrapper {
-    padding: 0 !important;
-    margin: 0 !important;
+  #approvalPrintPortal {
     display: block !important;
-  }
-
-  .approval-a4-sheet,
-  .approval-a4-sheet.orient-portrait,
-  .approval-a4-sheet.orient-landscape {
-    max-width: 100% !important;
     width: 100% !important;
     margin: 0 !important;
     padding: 0 !important;
-    border: none !important;
-    box-shadow: none !important;
-    overflow: visible !important;
+    background: #ffffff !important;
   }
 
-  .approval-grid-scroll-wrap {
-    overflow: visible !important;
-  }
-
-  /* Hiển thị văn bản thuần cho bản in, không bị cắt chữ */
-  .print-only-header-text,
-  .print-only-cell-text {
-    display: block !important;
-    white-space: pre-wrap !important;
-    word-break: break-word !important;
-    overflow-wrap: anywhere !important;
-  }
-
-  .print-only-eval-val {
-    display: inline !important;
-    white-space: pre-wrap !important;
-    word-break: break-word !important;
-  }
-
-  .phenikaa-approval-grid {
+  #approvalPrintPortal .phenikaa-print-grid {
     width: 100% !important;
     border-collapse: collapse !important;
     table-layout: auto !important;
   }
 
-  .phenikaa-approval-grid th,
-  .phenikaa-approval-grid td {
+  #approvalPrintPortal .phenikaa-print-grid th,
+  #approvalPrintPortal .phenikaa-print-grid td {
     border: 1px solid #000000 !important;
     background: transparent !important;
     color: #000000 !important;
     padding: 3px 4px !important;
   }
 
-  .phenikaa-approval-grid tr {
+  #approvalPrintPortal .phenikaa-print-grid tr {
     page-break-inside: avoid;
   }
 
-  .phenikaa-sign-table {
+  #approvalPrintPortal .phenikaa-sign-table {
     page-break-inside: avoid;
   }
 }
