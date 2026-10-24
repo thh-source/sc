@@ -1002,12 +1002,6 @@ export function PaymentManagement({
     }
 
     const itemNames = po.items.map((i) => i.name).slice(0, 3).join(", ");
-    const lines: PaymentDetailLine[] = po.items.map((it) => ({
-      description: it.name + (it.spec ? ` (${it.spec})` : ""),
-      invoice_no: "",
-      invoice_date: "",
-      amount: it.qty * it.price,
-    }));
 
     const description = phaseText
       ? `Thanh toán ${phaseText} theo ${docTypeLabel} ${po.number} (Tổng giá trị: ${fmtMoney(poTotal)} ₫)`
@@ -1032,7 +1026,7 @@ export function PaymentManagement({
       account_no: s?.bankAccount || "",
       bank: s?.bank || "",
       created_by_name: paymentTemplate.default_requester_name || "Trần Hải Hà",
-      lines,
+      lines: [],
     };
 
     const nextGroups = [...paymentGroups];
@@ -1089,13 +1083,6 @@ export function PaymentManagement({
       }
     }
 
-    const lines: PaymentDetailLine[] = po.items.map((it) => ({
-      description: it.name + (it.spec ? ` (${it.spec})` : ""),
-      invoice_no: "",
-      invoice_date: "",
-      amount: it.qty * it.price,
-    }));
-
     const description = phaseText
       ? `Thanh toán ${phaseText} theo ${docTypeLabel} ${po.number} (Tổng giá trị: ${fmtMoney(poTotal)} ₫)`
       : `Thanh toán theo ${docTypeLabel} ${po.number} (Tổng giá trị: ${fmtMoney(poTotal)} ₫)`;
@@ -1135,7 +1122,6 @@ export function PaymentManagement({
         address: s?.address || r.address,
         account_no: s?.bankAccount || r.account_no,
         bank: s?.bank || r.bank,
-        lines: lines.length > 0 ? lines : r.lines,
       };
     });
 

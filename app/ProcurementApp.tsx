@@ -1505,27 +1505,6 @@ function ProcurementAppInner({
     const todayStr = localToday();
     const condition = payment.condition || "post";
 
-    const pct = payment.percent || (total > 0 ? (payment.amount / total) * 100 : 100);
-    const lines: PaymentDetailLine[] = (po.items && po.items.length > 0)
-      ? po.items.map((it, idx) => ({
-          id: idx + 1,
-          description: `${it.name}${it.spec ? " (" + it.spec + ")" : ""} - SL: ${it.qty} ${it.unit}`,
-          invoice_no: payment.invoiceNo || "",
-          invoice_date: payment.invoiceDate || "",
-          amount: Math.round((it.qty * it.price * pct) / 100),
-          note: `Đợt: ${payment.phase} (${docTypeLabel} #${po.number})`,
-        }))
-      : [
-          {
-            id: 1,
-            description: `Thanh toán đợt "${payment.phase}" cho ${docTypeLabel} #${po.number}`,
-            invoice_no: payment.invoiceNo || "",
-            invoice_date: payment.invoiceDate || "",
-            amount: payment.amount,
-            note: payment.note || "",
-          },
-        ];
-
     const docSupplement =
       condition === "advance"
         ? "Yêu cầu NCC bổ sung hóa đơn VAT đầy đủ sau khi giao hàng"
@@ -1539,8 +1518,8 @@ function ProcurementAppInner({
       group_code: po.number,
       description: `Thanh toán ${payment.phase} (${payment.percent}% - ${docTypeLabel} #${po.number}) - NCC: ${supplier?.name || "Chưa rõ"}`,
       item_name: po.items?.map((i) => i.name).slice(0, 3).join(", ") + (po.items?.length > 3 ? "..." : "") || payment.phase,
-      invoice_no: payment.invoiceNo || "",
-      invoice_date: payment.invoiceDate || "",
+      invoice_no: "",
+      invoice_date: "",
       amount: payment.amount,
       currency: "VND",
       documents: [],
@@ -1553,7 +1532,7 @@ function ProcurementAppInner({
       bank: supplier?.bank || "",
       created_by_name: "Phòng Cung ứng",
       due_date: payment.date || todayStr,
-      lines: lines,
+      lines: [],
     };
 
     // Update PO payment stage with the new paymentRequestId
