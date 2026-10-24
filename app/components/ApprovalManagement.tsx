@@ -1449,81 +1449,69 @@ export default function ApprovalManagement({
           </tbody>
         </table>
 
-        {/* 2. KHUNG META BÊN TRÁI CÙNG (SỐ PR, NGÀY, ĐƠN VỊ LẬP, GHI CHÚ) */}
-        <div className="phenikaa-meta-wrapper">
-          <table className="phenikaa-meta-table">
-            <tbody>
-              <tr>
-                <td className="meta-single-cell">
-                  <span className="meta-lbl">Số PR:</span>
-                  <input
-                    type="text"
-                    className="sheet-inline-input meta-inline-input"
-                    value={activeRequest.prNumber}
-                    readOnly={isReportMode}
-                    onChange={(e) =>
-                      updateActive((prev) => ({
-                        ...prev,
-                        prNumber: e.target.value,
-                        requestNumber: e.target.value,
-                      }))
-                    }
-                  />
-                </td>
-              </tr>
-              <tr>
-                <td className="meta-single-cell">
-                  <span className="meta-lbl">Ngày:</span>
-                  <input
-                    type="text"
-                    className="sheet-inline-input meta-inline-input"
-                    value={activeRequest.createdDate}
-                    readOnly={isReportMode}
-                    onChange={(e) =>
-                      updateActive((prev) => ({
-                        ...prev,
-                        createdDate: e.target.value,
-                      }))
-                    }
-                  />
-                </td>
-              </tr>
-              <tr>
-                <td className="meta-single-cell">
-                  <span className="meta-lbl">Đơn vị lập biểu mẫu:</span>
-                  <input
-                    type="text"
-                    className="sheet-inline-input meta-inline-input"
-                    value={activeRequest.department}
-                    readOnly={isReportMode}
-                    onChange={(e) =>
-                      updateActive((prev) => ({
-                        ...prev,
-                        department: e.target.value,
-                      }))
-                    }
-                  />
-                </td>
-              </tr>
-              <tr>
-                <td className="meta-single-cell">
-                  <span className="meta-lbl">Ghi chú: Căn cứ theo PR số:</span>
-                  <input
-                    type="text"
-                    className="sheet-inline-input meta-inline-input"
-                    value={activeRequest.noteRef}
-                    readOnly={isReportMode}
-                    onChange={(e) =>
-                      updateActive((prev) => ({
-                        ...prev,
-                        noteRef: e.target.value,
-                      }))
-                    }
-                  />
-                </td>
-              </tr>
-            </tbody>
-          </table>
+        {/* 2. KHUNG THÔNG TIN BÊN TRÁI (KHÔNG KẺ BẢNG, HIỂN THỊ LIỀN MẠCH HẾT BỀ NGANG) */}
+        <div className="phenikaa-meta-lines">
+          <div className="phenikaa-meta-line">
+            <span className="meta-lbl">Số PR:</span>
+            <input
+              type="text"
+              className="sheet-inline-input meta-inline-input"
+              value={activeRequest.prNumber}
+              readOnly={isReportMode}
+              onChange={(e) =>
+                updateActive((prev) => ({
+                  ...prev,
+                  prNumber: e.target.value,
+                  requestNumber: e.target.value,
+                }))
+              }
+            />
+          </div>
+          <div className="phenikaa-meta-line">
+            <span className="meta-lbl">Ngày:</span>
+            <input
+              type="text"
+              className="sheet-inline-input meta-inline-input"
+              value={activeRequest.createdDate}
+              readOnly={isReportMode}
+              onChange={(e) =>
+                updateActive((prev) => ({
+                  ...prev,
+                  createdDate: e.target.value,
+                }))
+              }
+            />
+          </div>
+          <div className="phenikaa-meta-line">
+            <span className="meta-lbl">Đơn vị lập biểu mẫu:</span>
+            <input
+              type="text"
+              className="sheet-inline-input meta-inline-input"
+              value={activeRequest.department}
+              readOnly={isReportMode}
+              onChange={(e) =>
+                updateActive((prev) => ({
+                  ...prev,
+                  department: e.target.value,
+                }))
+              }
+            />
+          </div>
+          <div className="phenikaa-meta-line">
+            <span className="meta-lbl">Ghi chú: Căn cứ theo PR số:</span>
+            <input
+              type="text"
+              className="sheet-inline-input meta-inline-input"
+              value={activeRequest.noteRef}
+              readOnly={isReportMode}
+              onChange={(e) =>
+                updateActive((prev) => ({
+                  ...prev,
+                  noteRef: e.target.value,
+                }))
+              }
+            />
+          </div>
         </div>
 
         {/* 3. PHẦN I: NỘI DUNG ĐỀ NGHỊ PHÊ DUYỆT & BẢNG SO SÁNH ĐỘNG */}
@@ -1626,37 +1614,24 @@ export default function ApprovalManagement({
                           className="sup-short-input"
                           value={sc.shortName}
                           readOnly={isReportMode}
-                          placeholder="Tên viết tắt NCC"
+                          placeholder="Tên Nhà cung cấp"
                           onChange={(e) => {
                             const val = e.target.value;
                             updateActive((prev) => ({
                               ...prev,
                               supplierColumns: prev.supplierColumns.map((c) =>
                                 c.colId === sc.colId
-                                  ? { ...c, shortName: val }
+                                  ? {
+                                      ...c,
+                                      shortName: val,
+                                      supplierName:
+                                        !c.supplierName ||
+                                        c.supplierName === c.shortName
+                                          ? val
+                                          : c.supplierName,
+                                    }
                                   : c,
                               ),
-                            }));
-                          }}
-                        />
-                        <input
-                          type="text"
-                          className="sup-fullname-input"
-                          value={sc.supplierName}
-                          readOnly={isReportMode}
-                          placeholder="Tên đầy đủ của NCC"
-                          onChange={(e) => {
-                            const val = e.target.value;
-                            updateActive((prev) => ({
-                              ...prev,
-                              supplierColumns: prev.supplierColumns.map((c) =>
-                                c.colId === sc.colId
-                                  ? { ...c, supplierName: val }
-                                  : c,
-                              ),
-                              recommendedSupplierName: sc.isSelected
-                                ? val
-                                : prev.recommendedSupplierName,
                             }));
                           }}
                         />
@@ -2578,12 +2553,19 @@ export default function ApprovalManagement({
                   table-layout: fixed !important;
                   border-collapse: collapse !important;
                 }
-                #approvalPrintPortal .phenikaa-meta-table {
-                  width: auto !important;
-                  min-width: 300px !important;
-                  max-width: 100% !important;
-                  table-layout: auto !important;
-                  border-collapse: collapse !important;
+                #approvalPrintPortal .phenikaa-meta-lines {
+                  width: 100% !important;
+                  margin-bottom: 12px !important;
+                }
+                #approvalPrintPortal .phenikaa-meta-line {
+                  width: 100% !important;
+                  text-align: left !important;
+                  padding: 2px 0 !important;
+                  font-size: 12pt !important;
+                  line-height: 1.4 !important;
+                }
+                #approvalPrintPortal .sign-space {
+                  height: 125px !important;
                 }
                 #approvalPrintPortal th,
                 #approvalPrintPortal td {
@@ -2630,38 +2612,24 @@ export default function ApprovalManagement({
                 </tbody>
               </table>
 
-              {/* 2. Khung Meta bên trái cùng */}
-              <div className="phenikaa-meta-wrapper">
-                <table className="phenikaa-meta-table">
-                  <tbody>
-                    <tr>
-                      <td className="meta-single-cell">
-                        <span className="meta-lbl">Số PR:</span>{" "}
-                        <span>{activeRequest.prNumber}</span>
-                      </td>
-                    </tr>
-                    <tr>
-                      <td className="meta-single-cell">
-                        <span className="meta-lbl">Ngày:</span>{" "}
-                        <span>{activeRequest.createdDate}</span>
-                      </td>
-                    </tr>
-                    <tr>
-                      <td className="meta-single-cell">
-                        <span className="meta-lbl">Đơn vị lập biểu mẫu:</span>{" "}
-                        <span>{activeRequest.department}</span>
-                      </td>
-                    </tr>
-                    <tr>
-                      <td className="meta-single-cell">
-                        <span className="meta-lbl">
-                          Ghi chú: Căn cứ theo PR số:
-                        </span>{" "}
-                        <span>{activeRequest.noteRef}</span>
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
+              {/* 2. Khung Thông tin bên trái (không kẻ bảng, hiển thị liền mạch hết bề ngang) */}
+              <div className="phenikaa-meta-lines">
+                <div className="phenikaa-meta-line">
+                  <span className="meta-lbl">Số PR:</span>{" "}
+                  <span>{activeRequest.prNumber}</span>
+                </div>
+                <div className="phenikaa-meta-line">
+                  <span className="meta-lbl">Ngày:</span>{" "}
+                  <span>{activeRequest.createdDate}</span>
+                </div>
+                <div className="phenikaa-meta-line">
+                  <span className="meta-lbl">Đơn vị lập biểu mẫu:</span>{" "}
+                  <span>{activeRequest.department}</span>
+                </div>
+                <div className="phenikaa-meta-line">
+                  <span className="meta-lbl">Ghi chú: Căn cứ theo PR số:</span>{" "}
+                  <span>{activeRequest.noteRef}</span>
+                </div>
               </div>
 
               {/* 3. Phần I & Bảng So sánh */}

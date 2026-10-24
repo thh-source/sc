@@ -379,44 +379,33 @@
   padding: 12px 14px;
 }
 
-/* 2. Khung Meta bên trái cùng (Số PR, Ngày, Đơn vị lập, Ghi chú) */
-.phenikaa-meta-wrapper {
-  display: flex;
-  justify-content: flex-start !important;
+/* 2. Khung Thông tin bên trái (không kẻ bảng, hiển thị liền mạch hết bề ngang trang) */
+.phenikaa-meta-lines {
+  width: 100%;
   margin-bottom: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 
-.phenikaa-meta-table {
-  width: min(460px, 100%) !important;
-  min-width: 280px !important;
-  border-collapse: collapse !important;
-  border: 1px solid #000000;
-}
-
-.phenikaa-meta-table tr + tr td {
-  border-top: 1px dotted #000000;
-}
-
-.phenikaa-meta-table td.meta-single-cell {
-  padding: 4px 8px !important;
-  font-size: 12.5pt;
-  height: auto !important;
-  text-align: left !important;
-  white-space: nowrap;
+.phenikaa-meta-line {
+  width: 100%;
   display: flex;
   align-items: center;
   gap: 6px;
-  border-right: none !important;
-  border-bottom: none !important;
+  font-size: 12.5pt;
+  line-height: 1.4;
+  text-align: left;
+  border: none;
 }
 
-.phenikaa-meta-table .meta-lbl {
+.phenikaa-meta-line .meta-lbl {
   font-weight: 700;
   white-space: nowrap;
   flex-shrink: 0;
 }
 
-.phenikaa-meta-table .meta-inline-input {
+.phenikaa-meta-line .meta-inline-input {
   flex: 1;
   min-width: 0 !important;
   text-align: left !important;
@@ -842,7 +831,7 @@
   max-width: 100% !important;
   table-layout: fixed !important;
   border-collapse: collapse !important;
-  margin-top: 18px;
+  margin-top: 24px;
   page-break-inside: avoid;
 }
 
@@ -861,7 +850,7 @@
 }
 
 .sign-space {
-  height: 75px;
+  height: 125px;
 }
 
 .sign-name {
