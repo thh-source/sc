@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from "react";
-import { Supplier, PO, PR, Item, getPOContractInfo } from "../types";
+import { Supplier, PO, PR, Item, getPOContractInfo, formatPONumber, calcPOTotal } from "../types";
 import { fmt, dateVN, makeId } from "../utils";
 import { SupplierSearchCombobox } from "./SupplierSearchCombobox";
 import { TreeProductPickerModal, SelectedItemData } from "./TreeProductPickerModal";
@@ -50,6 +50,7 @@ export function POList({
   // Create Direct PO Modal State
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [draftNumber, setDraftNumber] = useState("");
+  const [draftNumberManual, setDraftNumberManual] = useState(false);
   const [draftSupplierId, setDraftSupplierId] = useState<number | "">("");
   const [draftPrId, setDraftPrId] = useState<number | "">("");
   const [draftPrNumber, setDraftPrNumber] = useState("Mua trực tiếp");
@@ -162,13 +163,13 @@ export function POList({
   }, [inlineProductQuery, selectedPR, products]);
 
   const resetDraft = () => {
-    const currentYear = new Date().getFullYear();
-    const poNum = `PO-${currentYear}-${String(pos.length + 1).padStart(4, "0")}`;
-    setDraftNumber(poNum);
+    const todayStr = new Date().toISOString().slice(0, 10);
+    setDraftNumber(formatPONumber(null, todayStr));
+    setDraftNumberManual(false);
     setDraftSupplierId("");
     setDraftPrId("");
     setDraftPrNumber("Mua trực tiếp");
-    setDraftCreatedDate(new Date().toISOString().slice(0, 10));
+    setDraftCreatedDate(todayStr);
     setDraftExpectedDate("");
     setDraftNote("Tạo trực tiếp không qua so sánh báo giá");
     setCustomProductInput("");
@@ -432,7 +433,7 @@ export function POList({
           {shown.map((po) => {
             const supplier = suppliers.find((s) => Number(s.id) === Number(po.supplierId));
             const items = po.items || [];
-            const total = items.reduce((sum, item) => sum + (Number(item.qty) || 0) * (Number(item.price) || 0), 0);
+            const total = calcPOTotal(po);
             const delivered = items.filter((item) => item.deliveryStatus === "Đã giao").length;
             return (
               <article key={po.id}>
@@ -512,7 +513,7 @@ export function POList({
                 const paid = payments
                   .filter((p) => p.status === "Đã thanh toán")
                   .reduce((n, p) => n + (Number(p.amount) || 0), 0);
-                const total = items.reduce((n, i) => n + (Number(i.qty) || 0) * (Number(i.price) || 0), 0);
+                const total = calcPOTotal(po);
                 return (
                   <tr key={po.id}>
                     <td style={{ whiteSpace: "nowrap" }}>
@@ -670,16 +671,19 @@ export function POList({
                       marginBottom: 4,
                     }}
                   >
-                    Số PO <span style={{ color: "#ef4444" }}>*</span>
+                    Số PO (Tự động: Tên viết tắt NCC - Ngày tạo, có thể sửa) <span style={{ color: "#ef4444" }}>*</span>
                   </label>
                   <input
                     type="text"
                     required
                     className="payment-input"
-                    style={{ width: "100%" }}
+                    style={{ width: "100%", fontWeight: 600 }}
                     value={draftNumber}
-                    onChange={(e) => setDraftNumber(e.target.value)}
-                    placeholder="VD: PO-2026-0001"
+                    onChange={(e) => {
+                      setDraftNumber(e.target.value);
+                      setDraftNumberManual(true);
+                    }}
+                    placeholder="VD: MERCK-24102026"
                   />
                 </div>
 
@@ -687,7 +691,13 @@ export function POList({
                   <SupplierSearchCombobox
                     suppliers={suppliers}
                     selectedSupplierId={draftSupplierId}
-                    onSelectSupplier={(id) => setDraftSupplierId(id)}
+                    onSelectSupplier={(id) => {
+                      setDraftSupplierId(id);
+                      const chosenSup = suppliers.find((s) => Number(s.id) === Number(id));
+                      if (!draftNumberManual) {
+                        setDraftNumber(formatPONumber(chosenSup, draftCreatedDate));
+                      }
+                    }}
                     onAddSupplier={onAddSupplier}
                     required
                     label="Nhà cung cấp"
@@ -802,7 +812,14 @@ export function POList({
                     className="payment-input"
                     style={{ width: "100%" }}
                     value={draftCreatedDate}
-                    onChange={(e) => setDraftCreatedDate(e.target.value)}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setDraftCreatedDate(val);
+                      if (!draftNumberManual) {
+                        const chosenSup = suppliers.find((s) => Number(s.id) === Number(draftSupplierId));
+                        setDraftNumber(formatPONumber(chosenSup, val));
+                      }
+                    }}
                   />
                 </div>
 

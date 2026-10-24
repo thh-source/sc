@@ -1,5 +1,17 @@
 import React, { useState, useMemo } from "react";
-import { Supplier, PO, POItem, PODoc, Payment, isContractPO } from "../types";
+import {
+  Supplier,
+  PO,
+  POItem,
+  PODoc,
+  Payment,
+  ApprovalRequest,
+  isContractPO,
+  calcPOItemSubtotal,
+  calcPOItemTotal,
+  calcPOTotal,
+  formatPONumber,
+} from "../types";
 import { fmt, dateVN, makeId, generateShortName } from "../utils";
 import { BANK_SUGGESTIONS } from "../payment-utils";
 import { SupplierSearchCombobox } from "./SupplierSearchCombobox";
@@ -20,6 +32,7 @@ export function PODetail({
   onNavigateToPayment,
   onSave,
   onAddSupplier,
+  approvalRequests = [],
   onDelete,
 }: {
   po: PO;
@@ -35,14 +48,185 @@ export function PODetail({
   onNavigateToPayment?: (reqId?: number) => void;
   onSave?: () => Promise<void> | void;
   onAddSupplier?: (supplier: Supplier) => void;
+  approvalRequests?: ApprovalRequest[];
   onDelete?: (po: PO) => void;
 }) {
   const [saving, setSaving] = useState(false);
   const [savedNotice, setSavedNotice] = useState(false);
 
+  // Batch Delivery Modal State
+  const [showDeliveryModal, setShowDeliveryModal] = useState(false);
+  const [batchDeliveryDate, setBatchDeliveryDate] = useState<string>(() =>
+    new Date().toISOString().slice(0, 10)
+  );
+  const [batchSelected, setBatchSelected] = useState<Record<number, boolean>>({});
+  const [batchQty, setBatchQty] = useState<Record<number, number>>({});
+  const [batchItemDate, setBatchItemDate] = useState<Record<number, string>>({});
+
+  // Import from ĐNPĐ Modal State
+  const [showImportApprovalModal, setShowImportApprovalModal] = useState(false);
+
   const supplier = suppliers.find((s) => Number(s.id) === Number(po.supplierId));
   const items = po.items || [];
-  const total = items.reduce((s, i) => s + (Number(i.qty) || 0) * (Number(i.price) || 0), 0);
+  const subtotal = items.reduce((s, i) => s + calcPOItemSubtotal(i), 0);
+  const total = calcPOTotal(po);
+  const totalVatAmount = total - subtotal;
+
+  const updatePOItemsAndSyncPayments = (nextItems: POItem[]) => {
+    const nextTotal = calcPOTotal({ items: nextItems });
+    const nextPayments = (po.payments || []).map((p) => ({
+      ...p,
+      amount: Math.round((nextTotal * (Number(p.percent) || 0)) / 100),
+    }));
+    onUpdate({
+      ...po,
+      items: nextItems,
+      payments: nextPayments,
+    });
+  };
+
+  const openDeliveryPopup = () => {
+    const todayStr = new Date().toISOString().slice(0, 10);
+    setBatchDeliveryDate(todayStr);
+    const initSelected: Record<number, boolean> = {};
+    const initQty: Record<number, number> = {};
+    const initDates: Record<number, string> = {};
+    items.forEach((it) => {
+      const rem = Math.max(0, (Number(it.qty) || 0) - (Number(it.deliveredQty) || 0));
+      initSelected[it.id] = rem > 0;
+      initQty[it.id] = rem > 0 ? rem : Number(it.qty) || 0;
+      initDates[it.id] = todayStr;
+    });
+    setBatchSelected(initSelected);
+    setBatchQty(initQty);
+    setBatchItemDate(initDates);
+    setShowDeliveryModal(true);
+  };
+
+  const handleConfirmBatchDelivery = () => {
+    const selectedIds = items.filter((it) => batchSelected[it.id]).map((it) => it.id);
+    if (selectedIds.length === 0) {
+      alert("Vui lòng tích chọn ít nhất 1 mặt hàng để cập nhật giao hàng!");
+      return;
+    }
+
+    const updatedItems: POItem[] = items.map((it) => {
+      if (!batchSelected[it.id]) return it;
+      const addQty = Math.max(0, Number(batchQty[it.id]) || 0);
+      if (addQty <= 0) return it;
+      const delivDate = batchItemDate[it.id] || batchDeliveryDate || new Date().toISOString().slice(0, 10);
+      const prevDelivered = Number(it.deliveredQty) || 0;
+      const nextDelivered = Math.min(Number(it.qty) || addQty, prevDelivered + addQty);
+      const nextStatus: POItem["deliveryStatus"] =
+        nextDelivered >= (Number(it.qty) || 0)
+          ? "Đã giao"
+          : nextDelivered > 0
+          ? "Giao một phần"
+          : "Chưa giao";
+      const nextHistory = [
+        ...(it.deliveryHistory || []),
+        { date: delivDate, qty: addQty },
+      ];
+      return {
+        ...it,
+        deliveredQty: nextDelivered,
+        deliveryDate: delivDate,
+        deliveryStatus: nextStatus,
+        deliveryHistory: nextHistory,
+      };
+    });
+
+    const allDone =
+      updatedItems.length > 0 &&
+      updatedItems.every((i) => i.deliveryStatus === "Đã giao");
+    const someDone = updatedItems.some(
+      (i) => (Number(i.deliveredQty) || 0) > 0
+    );
+    const nextPoStatus = allDone
+      ? "Đã giao đủ"
+      : someDone
+      ? "Đang giao hàng"
+      : po.status;
+
+    onUpdate({
+      ...po,
+      status: nextPoStatus,
+      items: updatedItems,
+    });
+    setShowDeliveryModal(false);
+    onStatus?.(`✓ Đã cập nhật giao hàng cho ${selectedIds.length} mặt hàng trong PO ${po.number}`);
+  };
+
+  const handleImportItemsFromApproval = (req: ApprovalRequest) => {
+    const selectedCol =
+      req.supplierColumns.find((c) => c.isSelected) || req.supplierColumns[0];
+    if (!selectedCol) return;
+
+    const useSupQty =
+      req.showSupplierQty !== undefined
+        ? req.showSupplierQty
+        : req.columnMode === "extended";
+    const useQuotedProd =
+      req.showQuotedProduct !== undefined
+        ? req.showQuotedProduct
+        : req.columnMode === "extended";
+
+    const importedItems: POItem[] = [];
+    req.rows.forEach((row, rIdx) => {
+      const lines = row.supplierQuotes[selectedCol.colId] || [];
+      if (lines.length === 0) return;
+      lines.forEach((line, lIdx) => {
+        const effQty = useSupQty
+          ? Number(line.qty) || Number(row.qty) || 1
+          : Number(row.qty) || 1;
+        const unitPrice = Number(line.unitPrice) || 0;
+        if (lines.length > 1 && unitPrice <= 0) return;
+        const itemName =
+          useQuotedProd && (line.quotedProduct?.trim() || line.origin?.trim())
+            ? line.quotedProduct?.trim() || line.origin?.trim() || row.itemName
+            : row.itemName || `Hàng hóa #${rIdx + 1}`;
+        importedItems.push({
+          id: makeId() + rIdx * 10 + lIdx,
+          code: row.itemCode || `VT-${String(importedItems.length + 1).padStart(2, "0")}`,
+          category: "Vật tư / Hàng hóa",
+          name: itemName,
+          desc: line.origin || "",
+          spec: row.spec || "",
+          unit: row.unit || "Cái",
+          qty: effQty,
+          estimate: unitPrice,
+          price: unitPrice,
+          vatRate: 8,
+          note: "",
+          deliveryStatus: "Chưa giao",
+          deliveredQty: 0,
+          deliveryDate: "",
+          deliveryHistory: [],
+        });
+      });
+    });
+
+    if (importedItems.length === 0) {
+      alert("Phiếu Đề nghị phê duyệt này chưa có dòng hàng hóa nào có đơn giá!");
+      return;
+    }
+
+    const nextItems = [...items.filter((x) => x.name.trim() !== ""), ...importedItems];
+    const nextTotal = calcPOTotal({ items: nextItems });
+    const nextPayments = (po.payments || []).map((p) => ({
+      ...p,
+      amount: Math.round((nextTotal * (Number(p.percent) || 0)) / 100),
+    }));
+
+    onUpdate({
+      ...po,
+      prNumber: req.prNumber || req.requestNumber || po.prNumber,
+      items: nextItems,
+      payments: nextPayments,
+    });
+    setShowImportApprovalModal(false);
+    onStatus?.(`✓ Đã lấy ${importedItems.length} mặt hàng từ ĐNPĐ ${req.prNumber || req.requestNumber}`);
+  };
 
   const bankOptions = useMemo(() => {
     const set = new Set<string>(BANK_SUGGESTIONS);
@@ -301,9 +485,117 @@ export function PODetail({
           </button>
           <em>{isContractPO(po) ? "HỢP ĐỒNG MUA HÀNG" : "ĐƠN MUA HÀNG"} · {po.number}</em>
           <h1>{supplier?.name || "Chưa chọn nhà cung cấp"}</h1>
-          <p>
-            {po.prNumber ? `Từ ${po.prNumber} · ` : ""}Tạo ngày {dateVN(po.createdDate)}
-          </p>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "12px",
+              flexWrap: "wrap",
+              marginTop: "8px",
+            }}
+          >
+            <label
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "6px",
+                fontSize: "12px",
+                fontWeight: 600,
+                color: "#334155",
+              }}
+            >
+              <span>Số PO:</span>
+              <input
+                value={po.number || ""}
+                disabled={readOnly}
+                placeholder="VD: MERCK-24102026"
+                style={{
+                  width: "165px",
+                  height: "30px",
+                  fontSize: "12.5px",
+                  fontWeight: 700,
+                  color: "#0284c7",
+                  padding: "2px 8px",
+                }}
+                onChange={(e) => onUpdate({ ...po, number: e.target.value })}
+              />
+              {!readOnly && (
+                <button
+                  type="button"
+                  style={{
+                    height: "30px",
+                    padding: "0 8px",
+                    fontSize: "11px",
+                    fontWeight: 600,
+                    background: "#f0f9ff",
+                    border: "1px solid #bae6fd",
+                    color: "#0369a1",
+                    borderRadius: "4px",
+                    cursor: "pointer",
+                  }}
+                  title="Tạo lại Số PO theo quy tắc: Tên viết tắt NCC - Ngày tạo PO (abcd-xyz)"
+                  onClick={() =>
+                    onUpdate({
+                      ...po,
+                      number: formatPONumber(supplier, po.createdDate),
+                    })
+                  }
+                >
+                  ↻ Tạo mã NCC-Ngày
+                </button>
+              )}
+            </label>
+
+            <label
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "6px",
+                fontSize: "12px",
+                fontWeight: 600,
+                color: "#334155",
+              }}
+            >
+              <span>Số PR / Nguồn:</span>
+              <input
+                value={po.prNumber || ""}
+                disabled={readOnly}
+                placeholder="Nhập số PR..."
+                style={{
+                  width: "155px",
+                  height: "30px",
+                  fontSize: "12.5px",
+                  fontWeight: 600,
+                  padding: "2px 8px",
+                }}
+                onChange={(e) => onUpdate({ ...po, prNumber: e.target.value })}
+              />
+            </label>
+
+            <label
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "6px",
+                fontSize: "12px",
+                fontWeight: 600,
+                color: "#334155",
+              }}
+            >
+              <span>Ngày tạo PO:</span>
+              <input
+                type="date"
+                value={po.createdDate || ""}
+                disabled={readOnly}
+                style={{
+                  height: "30px",
+                  fontSize: "12px",
+                  padding: "2px 8px",
+                }}
+                onChange={(e) => onUpdate({ ...po, createdDate: e.target.value })}
+              />
+            </label>
+          </div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
           {!readOnly && (
@@ -356,7 +648,7 @@ export function PODetail({
             </button>
           )}
           <div className="po-total">
-            <span>Giá trị PO</span>
+            <span>Giá trị PO (Sau VAT)</span>
             <b>{fmt(total)} ₫</b>
             <i>{po.status}</i>
           </div>
@@ -376,10 +668,10 @@ export function PODetail({
       <div className="po-tabs" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "8px" }}>
         <div style={{ display: "flex", gap: "4px", overflowX: "auto" }}>
           <a href="#supplier">Thông tin NCC</a>
-          <a href="#delivery">Giao hàng</a>
-          <a href="#documents">Hồ sơ</a>
+          <a href="#documents">Hồ sơ & Hợp đồng</a>
           <a href="#payments">Thanh toán</a>
           <a href="#timeline">Timeline</a>
+          <a href="#po-items">Danh sách hàng hóa & Giao hàng</a>
         </div>
         {!readOnly && (
           <div style={{ display: "flex", alignItems: "center", gap: "8px", paddingRight: "4px" }}>
@@ -526,182 +818,6 @@ export function PODetail({
               onChange={(e) => supplierUpdate("address", e.target.value)}
             />
           </label>
-        </div>
-      </section>
-      <section id="delivery" className="po-section">
-        <div className="section-heading">
-          <div>
-            <span>▰</span>
-            <h2>Tiến độ giao hàng theo sản phẩm</h2>
-          </div>
-          <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
-            {onCreateHandover && (
-              <button
-                type="button"
-                className="btn btn-primary btn-sm"
-                onClick={() => onCreateHandover(po)}
-                title="Bàn giao các sản phẩm đã nhận"
-              >
-                🚚 Bàn giao hàng hóa
-              </button>
-            )}
-            <label>
-              Ngày dự kiến giao chung
-              <input
-                type="date"
-                value={po.expectedDate}
-                onChange={(e) =>
-                  onUpdate({ ...po, expectedDate: e.target.value })
-                }
-              />
-            </label>
-          </div>
-        </div>
-        <div className="delivery-table">
-          <div className="mobile-record-list">
-            {items.map((i) => (
-              <article key={i.id}>
-                <header>
-                  <b>{i.name}</b>
-                  <span className={`status ${i.deliveryStatus === "Đã giao" ? "done" : i.deliveryStatus === "Giao một phần" ? "progress" : "waiting"}`}>
-                    {i.deliveryStatus}
-                  </span>
-                </header>
-                <p>Mã: <b>{i.code}</b> · {i.category}</p>
-                <dl>
-                  <div>
-                    <dt>SL đặt</dt>
-                    <dd>{i.qty} {i.unit}</dd>
-                  </div>
-                  <div>
-                    <dt>Đã giao</dt>
-                    <dd>
-                      <input
-                        type="number"
-                        min="0"
-                        max={i.qty}
-                        value={i.deliveredQty}
-                        onChange={(e) => itemUpdate(i.id, "deliveredQty", Number(e.target.value))}
-                        style={{ width: "70px", padding: "4px 8px", fontSize: "12px", border: "1px solid #cbd5e1", borderRadius: "4px" }}
-                      />
-                    </dd>
-                  </div>
-                  <div>
-                    <dt>Trạng thái</dt>
-                    <dd>
-                      <select
-                        value={i.deliveryStatus}
-                        onChange={(e) => itemUpdate(i.id, "deliveryStatus", e.target.value)}
-                        style={{ padding: "4px 6px", fontSize: "12px", border: "1px solid #cbd5e1", borderRadius: "4px" }}
-                      >
-                        <option>Chưa giao</option>
-                        <option>Giao một phần</option>
-                        <option>Đã giao</option>
-                      </select>
-                    </dd>
-                  </div>
-                  <div>
-                    <dt>Ngày giao</dt>
-                    <dd>
-                      <input
-                        type="date"
-                        value={i.deliveryDate || ""}
-                        onChange={(e) => itemUpdate(i.id, "deliveryDate", e.target.value)}
-                        style={{ padding: "4px", fontSize: "11px", border: "1px solid #cbd5e1", borderRadius: "4px" }}
-                      />
-                    </dd>
-                  </div>
-                  <div>
-                    <dt>Còn lại</dt>
-                    <dd><b>{Math.max(0, i.qty - i.deliveredQty)} {i.unit}</b></dd>
-                  </div>
-                </dl>
-              </article>
-            ))}
-          </div>
-          <table>
-            <thead>
-              <tr>
-                <th>Mã hàng</th>
-                <th>Tên sản phẩm</th>
-                <th>Phân bổ PR nguồn</th>
-                <th>SL đặt</th>
-                <th>Đã giao</th>
-                <th>Trạng thái</th>
-                <th>Ngày giao gần nhất</th>
-                <th>Còn lại</th>
-              </tr>
-            </thead>
-            <tbody>
-              {items.map((i) => (
-                <tr key={i.id}>
-                  <td>{i.code}</td>
-                  <td>
-                    <b>{i.name}</b>
-                    <small>{i.category}</small>
-                  </td>
-                  <td>
-                    {i.allocations?.length ? (
-                      <div className="allocation-list">
-                        {i.allocations.map((allocation) => (
-                          <span key={`${allocation.prId}:${allocation.prItemId}`}>
-                            {allocation.prNumber}: <b>{allocation.qty} {i.unit}</b>
-                          </span>
-                        ))}
-                      </div>
-                    ) : (
-                      <span>{po.prNumber}</span>
-                    )}
-                  </td>
-                  <td>
-                    {i.qty} {i.unit}
-                  </td>
-                  <td>
-                    <input
-                      className="delivery-qty"
-                      type="number"
-                      min="0"
-                      max={i.qty}
-                      value={i.deliveredQty}
-                      onChange={(e) =>
-                        itemUpdate(i.id, "deliveredQty", Number(e.target.value))
-                      }
-                    />
-                  </td>
-                  <td>
-                    <select
-                      value={i.deliveryStatus}
-                      onChange={(e) =>
-                        itemUpdate(i.id, "deliveryStatus", e.target.value)
-                      }
-                    >
-                      <option>Chưa giao</option>
-                      <option>Giao một phần</option>
-                      <option>Đã giao</option>
-                    </select>
-                  </td>
-                  <td>
-                    <input
-                      type="date"
-                      value={i.deliveryDate}
-                      onChange={(e) =>
-                        itemUpdate(i.id, "deliveryDate", e.target.value)
-                      }
-                    />
-                  </td>
-                  <td>
-                    <b
-                      className={
-                        i.qty - i.deliveredQty > 0 ? "remaining" : "complete"
-                      }
-                    >
-                      {i.qty - i.deliveredQty} {i.unit}
-                    </b>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
         </div>
       </section>
       <div className="po-two-columns">
@@ -1615,6 +1731,886 @@ export function PODetail({
           />
         </div>
       </section>
+
+      {/* DANH SÁCH HÀNG HÓA TRONG PO (NẰM DƯỚI CÙNG GIAO DIỆN PO) */}
+      <section id="po-items" className="po-section">
+        <div className="section-heading">
+          <div>
+            <span>📦</span>
+            <h2>Danh sách hàng hóa trong PO ({items.length})</h2>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+            <label
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "6px",
+                fontSize: "12px",
+                fontWeight: 600,
+                color: "#475569",
+                marginRight: "4px",
+              }}
+            >
+              <span>Ngày dự kiến giao chung:</span>
+              <input
+                type="date"
+                value={po.expectedDate || ""}
+                disabled={readOnly}
+                style={{ height: "32px", fontSize: "12px", padding: "2px 8px" }}
+                onChange={(e) => onUpdate({ ...po, expectedDate: e.target.value })}
+              />
+            </label>
+
+            {!readOnly && approvalRequests.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setShowImportApprovalModal(true)}
+                style={{
+                  height: "34px",
+                  padding: "0 12px",
+                  fontSize: "12px",
+                  fontWeight: 600,
+                  background: "#f5f3ff",
+                  border: "1px solid #c4b5fd",
+                  color: "#6d28d9",
+                  borderRadius: "6px",
+                  cursor: "pointer",
+                }}
+                title="Lấy danh sách hàng hóa & đơn giá từ Phiếu Đề nghị phê duyệt (ĐNPĐ)"
+              >
+                📥 Lấy hàng từ ĐNPĐ
+              </button>
+            )}
+
+            {!readOnly && (
+              <button
+                type="button"
+                onClick={openDeliveryPopup}
+                style={{
+                  height: "34px",
+                  padding: "0 14px",
+                  fontSize: "12.5px",
+                  fontWeight: 700,
+                  background: "#0284c7",
+                  border: "1px solid #0369a1",
+                  color: "#ffffff",
+                  borderRadius: "6px",
+                  cursor: "pointer",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "6px",
+                }}
+                title="Mở popup tích chọn hàng hóa giao bao nhiêu vào ngày nào (áp dụng ngày chung cho các hàng giao cùng đợt)"
+              >
+                🚚 Giao hàng
+              </button>
+            )}
+
+            {onCreateHandover && (
+              <button
+                type="button"
+                onClick={() => onCreateHandover(po)}
+                style={{
+                  height: "34px",
+                  padding: "0 12px",
+                  fontSize: "12px",
+                  fontWeight: 600,
+                  background: "#f0fdf4",
+                  border: "1px solid #86efac",
+                  color: "#166534",
+                  borderRadius: "6px",
+                  cursor: "pointer",
+                }}
+                title="Tạo biên bản bàn giao từ các mặt hàng trong PO này"
+              >
+                📋 Lập biên bản bàn giao
+              </button>
+            )}
+
+            {!readOnly && (
+              <button
+                type="button"
+                onClick={() => {
+                  const newItem: POItem = {
+                    id: makeId(),
+                    code: `VT-${String(items.length + 1).padStart(2, "0")}`,
+                    category: "Vật tư / Hàng hóa",
+                    name: "",
+                    desc: "",
+                    spec: "",
+                    unit: "Cái",
+                    qty: 1,
+                    estimate: 0,
+                    price: 0,
+                    vatRate: 8,
+                    note: "",
+                    deliveryStatus: "Chưa giao",
+                    deliveredQty: 0,
+                    deliveryDate: "",
+                    deliveryHistory: [],
+                  };
+                  updatePOItemsAndSyncPayments([...items, newItem]);
+                }}
+                style={{
+                  height: "34px",
+                  padding: "0 12px",
+                  fontSize: "12px",
+                  fontWeight: 600,
+                  cursor: "pointer",
+                }}
+              >
+                ＋ Thêm hàng hóa
+              </button>
+            )}
+          </div>
+        </div>
+
+        <div className="delivery-table" style={{ overflowX: "auto" }}>
+          <table style={{ width: "100%", minWidth: "1050px", borderCollapse: "collapse" }}>
+            <thead>
+              <tr>
+                <th style={{ width: "42px", textAlign: "center" }}>STT</th>
+                <th style={{ minWidth: "220px" }}>Tên hàng hóa</th>
+                <th style={{ width: "90px", textAlign: "right" }}>Số lượng</th>
+                <th style={{ width: "80px", textAlign: "center" }}>ĐVT</th>
+                <th style={{ width: "130px", textAlign: "right" }}>Đơn giá (₫)</th>
+                <th style={{ width: "125px", textAlign: "center" }}>
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "4px" }}>
+                    <span>VAT (%)</span>
+                    {!readOnly && items.length > 0 && (
+                      <select
+                        value=""
+                        onChange={(e) => {
+                          if (e.target.value === "") return;
+                          const rate = Number(e.target.value);
+                          const nextItems = items.map((it) => ({ ...it, vatRate: rate }));
+                          updatePOItemsAndSyncPayments(nextItems);
+                        }}
+                        style={{
+                          height: "24px",
+                          fontSize: "11px",
+                          padding: "0 4px",
+                          background: "#f8fafc",
+                          border: "1px solid #cbd5e1",
+                          borderRadius: "4px",
+                          fontWeight: 600,
+                          color: "#0284c7",
+                          cursor: "pointer",
+                        }}
+                        title="Chọn mức thuế VAT áp dụng nhanh cho tất cả mặt hàng trong PO"
+                      >
+                        <option value="">Chọn tất cả...</option>
+                        <option value="0">Tất cả 0%</option>
+                        <option value="5">Tất cả 5%</option>
+                        <option value="8">Tất cả 8%</option>
+                        <option value="10">Tất cả 10%</option>
+                      </select>
+                    )}
+                  </div>
+                </th>
+                <th style={{ width: "140px", textAlign: "right" }}>Thành tiền (₫)</th>
+                <th style={{ width: "175px", textAlign: "center" }}>Ngày giao hàng</th>
+                <th style={{ minWidth: "160px" }}>Ghi chú</th>
+                {!readOnly && <th style={{ width: "44px", textAlign: "center" }}>Xóa</th>}
+              </tr>
+            </thead>
+            <tbody>
+              {items.length === 0 ? (
+                <tr>
+                  <td
+                    colSpan={readOnly ? 9 : 10}
+                    style={{
+                      textAlign: "center",
+                      padding: "24px 12px",
+                      color: "#64748b",
+                      fontSize: "13px",
+                    }}
+                  >
+                    Chưa có mặt hàng nào trong PO này. Bấm <b>"＋ Thêm hàng hóa"</b> hoặc <b>"📥 Lấy hàng từ ĐNPĐ"</b> ở góc trên bên phải để thêm.
+                  </td>
+                </tr>
+              ) : (
+                items.map((i, idx) => {
+                  const rowTotal = calcPOItemTotal(i);
+                  const delivQty = Number(i.deliveredQty) || 0;
+                  const orderQty = Number(i.qty) || 0;
+                  const isDone = orderQty > 0 && delivQty >= orderQty;
+                  const isPartial = delivQty > 0 && delivQty < orderQty;
+                  const historyList = i.deliveryHistory || [];
+                  return (
+                    <tr key={i.id}>
+                      <td style={{ textAlign: "center", fontWeight: 600, color: "#64748b" }}>
+                        {idx + 1}
+                      </td>
+                      <td>
+                        <input
+                          value={i.name || ""}
+                          disabled={readOnly}
+                          placeholder="Nhập tên hàng hóa / vật tư..."
+                          style={{ width: "100%", fontWeight: 600 }}
+                          onChange={(e) => {
+                            const nextItems = items.map((x) =>
+                              x.id === i.id ? { ...x, name: e.target.value } : x
+                            );
+                            onUpdate({ ...po, items: nextItems });
+                          }}
+                        />
+                      </td>
+                      <td>
+                        <input
+                          type="number"
+                          min="0"
+                          value={i.qty ?? 0}
+                          disabled={readOnly}
+                          style={{ width: "100%", textAlign: "right", fontWeight: 600 }}
+                          onChange={(e) => {
+                            const val = Number(e.target.value) || 0;
+                            const nextItems = items.map((x) =>
+                              x.id === i.id ? { ...x, qty: val } : x
+                            );
+                            updatePOItemsAndSyncPayments(nextItems);
+                          }}
+                        />
+                      </td>
+                      <td>
+                        <input
+                          value={i.unit || ""}
+                          disabled={readOnly}
+                          placeholder="ĐVT"
+                          style={{ width: "100%", textAlign: "center" }}
+                          onChange={(e) => {
+                            const nextItems = items.map((x) =>
+                              x.id === i.id ? { ...x, unit: e.target.value } : x
+                            );
+                            onUpdate({ ...po, items: nextItems });
+                          }}
+                        />
+                      </td>
+                      <td>
+                        <input
+                          type="number"
+                          min="0"
+                          value={i.price ?? 0}
+                          disabled={readOnly}
+                          style={{ width: "100%", textAlign: "right", fontWeight: 600 }}
+                          onChange={(e) => {
+                            const val = Number(e.target.value) || 0;
+                            const nextItems = items.map((x) =>
+                              x.id === i.id ? { ...x, price: val } : x
+                            );
+                            updatePOItemsAndSyncPayments(nextItems);
+                          }}
+                        />
+                      </td>
+                      <td style={{ textAlign: "center" }}>
+                        <select
+                          value={i.vatRate ?? 0}
+                          disabled={readOnly}
+                          style={{ width: "100%", textAlign: "center", fontWeight: 600 }}
+                          onChange={(e) => {
+                            const rate = Number(e.target.value) || 0;
+                            const nextItems = items.map((x) =>
+                              x.id === i.id ? { ...x, vatRate: rate } : x
+                            );
+                            updatePOItemsAndSyncPayments(nextItems);
+                          }}
+                        >
+                          <option value={0}>0%</option>
+                          <option value={5}>5%</option>
+                          <option value={8}>8%</option>
+                          <option value={10}>10%</option>
+                        </select>
+                      </td>
+                      <td
+                        className="money"
+                        style={{
+                          textAlign: "right",
+                          fontWeight: 700,
+                          color: "#0f172a",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        {fmt(rowTotal)} ₫
+                      </td>
+                      <td style={{ textAlign: "center" }}>
+                        <div
+                          onClick={!readOnly ? openDeliveryPopup : undefined}
+                          style={{
+                            cursor: !readOnly ? "pointer" : "default",
+                            padding: "4px 6px",
+                            borderRadius: "6px",
+                            background: isDone
+                              ? "#f0fdf4"
+                              : isPartial
+                              ? "#fefce8"
+                              : "#f8fafc",
+                            border: `1px solid ${
+                              isDone ? "#bbf7d0" : isPartial ? "#fde047" : "#e2e8f0"
+                            }`,
+                            fontSize: "11.5px",
+                          }}
+                          title="Bấm nút '🚚 Giao hàng' để cập nhật ngày giao và số lượng giao"
+                        >
+                          <div
+                            style={{
+                              fontWeight: 700,
+                              color: isDone
+                                ? "#15803d"
+                                : isPartial
+                                ? "#b45309"
+                                : "#64748b",
+                            }}
+                          >
+                            {isDone
+                              ? `✓ Đã giao đủ (${delivQty}/${orderQty})`
+                              : isPartial
+                              ? `⏳ Đã giao ${delivQty}/${orderQty}`
+                              : "Chưa giao"}
+                          </div>
+                          {historyList.length > 0 ? (
+                            <div
+                              style={{
+                                fontSize: "11px",
+                                color: "#334155",
+                                marginTop: "2px",
+                              }}
+                            >
+                              {historyList.map((h, hIdx) => (
+                                <div key={hIdx}>
+                                  📅 {dateVN(h.date)} ({h.qty} {i.unit})
+                                </div>
+                              ))}
+                            </div>
+                          ) : i.deliveryDate ? (
+                            <div style={{ fontSize: "11px", color: "#334155", marginTop: "2px" }}>
+                              📅 {dateVN(i.deliveryDate)}
+                            </div>
+                          ) : null}
+                        </div>
+                      </td>
+                      <td>
+                        <input
+                          value={i.note || ""}
+                          disabled={readOnly}
+                          placeholder="Ghi chú..."
+                          style={{ width: "100%" }}
+                          onChange={(e) => {
+                            const nextItems = items.map((x) =>
+                              x.id === i.id ? { ...x, note: e.target.value } : x
+                            );
+                            onUpdate({ ...po, items: nextItems });
+                          }}
+                        />
+                      </td>
+                      {!readOnly && (
+                        <td style={{ textAlign: "center" }}>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const nextItems = items.filter((x) => x.id !== i.id);
+                              updatePOItemsAndSyncPayments(nextItems);
+                            }}
+                            style={{
+                              height: "30px",
+                              width: "30px",
+                              display: "inline-flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              background: "#fff5f5",
+                              border: "1px solid #fca5a5",
+                              borderRadius: "5px",
+                              color: "#dc2626",
+                              cursor: "pointer",
+                              padding: 0,
+                            }}
+                            title="Xóa mặt hàng này khỏi PO"
+                          >
+                            🗑
+                          </button>
+                        </td>
+                      )}
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+            {items.length > 0 && (
+              <tfoot>
+                <tr style={{ background: "#f8fafc", fontWeight: 600 }}>
+                  <td colSpan={6} style={{ textAlign: "right", padding: "8px 12px", color: "#475569" }}>
+                    Tổng tiền trước thuế VAT:
+                  </td>
+                  <td style={{ textAlign: "right", padding: "8px 12px", color: "#0f172a", whiteSpace: "nowrap" }}>
+                    {fmt(subtotal)} ₫
+                  </td>
+                  <td colSpan={readOnly ? 2 : 3} />
+                </tr>
+                <tr style={{ background: "#f8fafc", fontWeight: 600 }}>
+                  <td colSpan={6} style={{ textAlign: "right", padding: "6px 12px", color: "#475569" }}>
+                    Tổng tiền thuế VAT:
+                  </td>
+                  <td style={{ textAlign: "right", padding: "6px 12px", color: "#0369a1", whiteSpace: "nowrap" }}>
+                    {fmt(totalVatAmount)} ₫
+                  </td>
+                  <td colSpan={readOnly ? 2 : 3} />
+                </tr>
+                <tr style={{ background: "#eff6ff", fontWeight: 700, fontSize: "13.5px" }}>
+                  <td colSpan={6} style={{ textAlign: "right", padding: "10px 12px", color: "#1e3a8a" }}>
+                    TỔNG GIÁ TRỊ ĐƠN HÀNG PO (SAU VAT):
+                  </td>
+                  <td style={{ textAlign: "right", padding: "10px 12px", color: "#1d4ed8", whiteSpace: "nowrap" }}>
+                    {fmt(total)} ₫
+                  </td>
+                  <td colSpan={readOnly ? 2 : 3} />
+                </tr>
+              </tfoot>
+            )}
+          </table>
+        </div>
+      </section>
+
+      {/* POPUP GIAO HÀNG CHO PO */}
+      {showDeliveryModal && (
+        <div
+          className="payment-modal-overlay"
+          onClick={() => setShowDeliveryModal(false)}
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(15, 23, 42, 0.55)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 9999,
+            padding: "16px",
+          }}
+        >
+          <div
+            className="payment-modal-card"
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: "#fff",
+              borderRadius: "10px",
+              maxWidth: "880px",
+              width: "100%",
+              maxHeight: "88vh",
+              display: "flex",
+              flexDirection: "column",
+              boxShadow: "0 20px 35px -10px rgba(0,0,0,0.25)",
+              overflow: "hidden",
+            }}
+          >
+            <div
+              style={{
+                padding: "14px 18px",
+                borderBottom: "1px solid #e2e8f0",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                background: "#f8fafc",
+              }}
+            >
+              <div>
+                <h3 style={{ margin: 0, fontSize: "16px", color: "#0f172a" }}>
+                  🚚 Cập nhật Giao hàng cho PO {po.number}
+                </h3>
+                <small style={{ color: "#64748b" }}>
+                  Tích chọn các mặt hàng được giao, nhập số lượng giao và chọn ngày giao chung cho đợt giao hàng này
+                </small>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowDeliveryModal(false)}
+                style={{
+                  border: 0,
+                  background: "transparent",
+                  fontSize: "20px",
+                  cursor: "pointer",
+                  color: "#64748b",
+                }}
+              >
+                ×
+              </button>
+            </div>
+
+            <div
+              style={{
+                padding: "12px 18px",
+                background: "#eff6ff",
+                borderBottom: "1px solid #bfdbfe",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                flexWrap: "wrap",
+                gap: "12px",
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
+                <label style={{ fontWeight: 700, fontSize: "13px", color: "#1e3a8a" }}>
+                  📅 Ngày giao hàng chung (áp dụng cho tất cả hàng tích chọn):
+                </label>
+                <input
+                  type="date"
+                  value={batchDeliveryDate}
+                  onChange={(e) => {
+                    const newDate = e.target.value;
+                    setBatchDeliveryDate(newDate);
+                    const nextDates: Record<number, string> = {};
+                    items.forEach((it) => {
+                      nextDates[it.id] = newDate;
+                    });
+                    setBatchItemDate(nextDates);
+                  }}
+                  style={{
+                    height: "34px",
+                    padding: "4px 10px",
+                    fontSize: "13px",
+                    fontWeight: 700,
+                    border: "1px solid #60a5fa",
+                    borderRadius: "6px",
+                    background: "#fff",
+                  }}
+                />
+              </div>
+
+              <div style={{ display: "flex", gap: "8px" }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const nextSel: Record<number, boolean> = {};
+                    items.forEach((it) => {
+                      nextSel[it.id] = true;
+                    });
+                    setBatchSelected(nextSel);
+                  }}
+                  style={{
+                    padding: "5px 10px",
+                    fontSize: "12px",
+                    fontWeight: 600,
+                    background: "#fff",
+                    border: "1px solid #93c5fd",
+                    borderRadius: "5px",
+                    color: "#1d4ed8",
+                    cursor: "pointer",
+                  }}
+                >
+                  ☑️ Chọn tất cả
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setBatchSelected({})}
+                  style={{
+                    padding: "5px 10px",
+                    fontSize: "12px",
+                    fontWeight: 600,
+                    background: "#fff",
+                    border: "1px solid #cbd5e1",
+                    borderRadius: "5px",
+                    color: "#475569",
+                    cursor: "pointer",
+                  }}
+                >
+                  Bỏ chọn hết
+                </button>
+              </div>
+            </div>
+
+            <div style={{ padding: "14px 18px", overflowY: "auto", flex: 1 }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
+                <thead>
+                  <tr style={{ background: "#f1f5f9", textAlign: "left" }}>
+                    <th style={{ padding: "8px", width: "44px", textAlign: "center" }}>Chọn</th>
+                    <th style={{ padding: "8px" }}>Tên hàng hóa</th>
+                    <th style={{ padding: "8px", width: "70px", textAlign: "center" }}>ĐVT</th>
+                    <th style={{ padding: "8px", width: "80px", textAlign: "right" }}>SL đặt</th>
+                    <th style={{ padding: "8px", width: "90px", textAlign: "right" }}>Đã giao</th>
+                    <th style={{ padding: "8px", width: "125px", textAlign: "right" }}>SL giao đợt này</th>
+                    <th style={{ padding: "8px", width: "145px", textAlign: "center" }}>Ngày giao</th>
+                    <th style={{ padding: "8px", width: "80px", textAlign: "center" }}>Đặt lại</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {items.map((it) => {
+                    const checked = Boolean(batchSelected[it.id]);
+                    const delivered = Number(it.deliveredQty) || 0;
+                    const rem = Math.max(0, (Number(it.qty) || 0) - delivered);
+                    return (
+                      <tr
+                        key={it.id}
+                        style={{
+                          borderBottom: "1px solid #e2e8f0",
+                          background: checked ? "#f0f9ff" : "#fff",
+                        }}
+                      >
+                        <td style={{ padding: "8px", textAlign: "center" }}>
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={(e) =>
+                              setBatchSelected((prev) => ({
+                                ...prev,
+                                [it.id]: e.target.checked,
+                              }))
+                            }
+                            style={{ width: "16px", height: "16px", cursor: "pointer" }}
+                          />
+                        </td>
+                        <td style={{ padding: "8px", fontWeight: 600 }}>
+                          {it.name || "(Chưa nhập tên hàng)"}
+                        </td>
+                        <td style={{ padding: "8px", textAlign: "center" }}>{it.unit}</td>
+                        <td style={{ padding: "8px", textAlign: "right", fontWeight: 600 }}>
+                          {it.qty}
+                        </td>
+                        <td style={{ padding: "8px", textAlign: "right", color: delivered > 0 ? "#15803d" : "#64748b", fontWeight: 600 }}>
+                          {delivered} (Còn: {rem})
+                        </td>
+                        <td style={{ padding: "8px", textAlign: "right" }}>
+                          <input
+                            type="number"
+                            min="0"
+                            max={it.qty}
+                            disabled={!checked}
+                            value={batchQty[it.id] ?? rem}
+                            onChange={(e) =>
+                              setBatchQty((prev) => ({
+                                ...prev,
+                                [it.id]: Number(e.target.value) || 0,
+                              }))
+                            }
+                            style={{
+                              width: "100%",
+                              textAlign: "right",
+                              fontWeight: 700,
+                              padding: "4px 8px",
+                              border: "1px solid #93c5fd",
+                              borderRadius: "4px",
+                              background: checked ? "#fff" : "#f1f5f9",
+                            }}
+                          />
+                        </td>
+                        <td style={{ padding: "8px", textAlign: "center" }}>
+                          <input
+                            type="date"
+                            disabled={!checked}
+                            value={batchItemDate[it.id] || batchDeliveryDate}
+                            onChange={(e) =>
+                              setBatchItemDate((prev) => ({
+                                ...prev,
+                                [it.id]: e.target.value,
+                              }))
+                            }
+                            style={{
+                              width: "100%",
+                              padding: "4px 6px",
+                              fontSize: "12px",
+                              border: "1px solid #cbd5e1",
+                              borderRadius: "4px",
+                              background: checked ? "#fff" : "#f1f5f9",
+                            }}
+                          />
+                        </td>
+                        <td style={{ padding: "8px", textAlign: "center" }}>
+                          {delivered > 0 && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const nextItems = items.map((x) =>
+                                  x.id === it.id
+                                    ? {
+                                        ...x,
+                                        deliveredQty: 0,
+                                        deliveryDate: "",
+                                        deliveryStatus: "Chưa giao" as const,
+                                        deliveryHistory: [],
+                                      }
+                                    : x
+                                );
+                                onUpdate({ ...po, items: nextItems });
+                                setBatchQty((prev) => ({ ...prev, [it.id]: Number(it.qty) || 0 }));
+                              }}
+                              style={{
+                                fontSize: "11px",
+                                padding: "2px 6px",
+                                background: "#fff5f5",
+                                border: "1px solid #fca5a5",
+                                color: "#dc2626",
+                                borderRadius: "4px",
+                                cursor: "pointer",
+                              }}
+                              title="Xóa lịch sử đã giao của dòng này về 0"
+                            >
+                              Xóa đã giao
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            <div
+              style={{
+                padding: "12px 18px",
+                borderTop: "1px solid #e2e8f0",
+                background: "#f8fafc",
+                display: "flex",
+                justifyContent: "flex-end",
+                gap: "10px",
+              }}
+            >
+              <button
+                type="button"
+                onClick={() => setShowDeliveryModal(false)}
+                style={{
+                  height: "36px",
+                  padding: "0 16px",
+                  background: "#fff",
+                  border: "1px solid #cbd5e1",
+                  borderRadius: "6px",
+                  fontWeight: 600,
+                  cursor: "pointer",
+                }}
+              >
+                Đóng
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmBatchDelivery}
+                style={{
+                  height: "36px",
+                  padding: "0 18px",
+                  background: "#0284c7",
+                  border: "1px solid #0369a1",
+                  color: "#fff",
+                  borderRadius: "6px",
+                  fontWeight: 700,
+                  cursor: "pointer",
+                }}
+              >
+                ✓ Xác nhận Giao hàng
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* POPUP LẤY HÀNG HÓA TỪ ĐỀ NGHỊ PHÊ DUYỆT (ĐNPĐ) */}
+      {showImportApprovalModal && (
+        <div
+          className="payment-modal-overlay"
+          onClick={() => setShowImportApprovalModal(false)}
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(15, 23, 42, 0.55)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 9999,
+            padding: "16px",
+          }}
+        >
+          <div
+            className="payment-modal-card"
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: "#fff",
+              borderRadius: "10px",
+              maxWidth: "680px",
+              width: "100%",
+              maxHeight: "80vh",
+              display: "flex",
+              flexDirection: "column",
+              boxShadow: "0 20px 35px -10px rgba(0,0,0,0.25)",
+              overflow: "hidden",
+            }}
+          >
+            <div
+              style={{
+                padding: "14px 18px",
+                borderBottom: "1px solid #e2e8f0",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                background: "#f8fafc",
+              }}
+            >
+              <div>
+                <h3 style={{ margin: 0, fontSize: "16px", color: "#0f172a" }}>
+                  📥 Chọn Phiếu Đề nghị Phê duyệt (ĐNPĐ) để lấy danh sách hàng
+                </h3>
+                <small style={{ color: "#64748b" }}>
+                  Hệ thống sẽ lấy toàn bộ mặt hàng, số lượng, ĐVT và đơn giá của NCC được lựa chọn sang PO này
+                </small>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowImportApprovalModal(false)}
+                style={{
+                  border: 0,
+                  background: "transparent",
+                  fontSize: "20px",
+                  cursor: "pointer",
+                  color: "#64748b",
+                }}
+              >
+                ×
+              </button>
+            </div>
+
+            <div style={{ padding: "14px 18px", overflowY: "auto", flex: 1, display: "flex", flexDirection: "column", gap: "8px" }}>
+              {approvalRequests.map((req) => {
+                const chosenCol = req.supplierColumns.find((c) => c.isSelected) || req.supplierColumns[0];
+                return (
+                  <div
+                    key={req.id}
+                    style={{
+                      padding: "12px",
+                      border: "1px solid #e2e8f0",
+                      borderRadius: "8px",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      gap: "12px",
+                      background: "#fcfdfe",
+                    }}
+                  >
+                    <div>
+                      <div style={{ fontWeight: 700, color: "#0f172a", fontSize: "13.5px" }}>
+                        {req.prNumber || req.requestNumber} — {req.title}
+                      </div>
+                      <div style={{ fontSize: "12px", color: "#475569", marginTop: "3px" }}>
+                        NCC được chọn: <b>{req.recommendedSupplierName || chosenCol?.supplierName || "Chưa chọn"}</b> · Số mặt hàng: <b>{req.rows.length}</b>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleImportItemsFromApproval(req)}
+                      style={{
+                        height: "34px",
+                        padding: "0 14px",
+                        background: "#6d28d9",
+                        color: "#fff",
+                        border: 0,
+                        borderRadius: "6px",
+                        fontWeight: 600,
+                        fontSize: "12px",
+                        cursor: "pointer",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      📥 Lấy hàng vào PO
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
 
       {!readOnly && (
         <div className="po-footer-actions">

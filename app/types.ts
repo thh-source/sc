@@ -75,12 +75,88 @@ export type POAllocation = {
   qty: number;
 };
 
+export type PODeliveryLog = {
+  date: string;
+  qty: number;
+  note?: string;
+};
+
 export type POItem = Item & {
   price: number;
+  vatRate?: number;
+  note?: string;
   deliveryStatus: "Chưa giao" | "Giao một phần" | "Đã giao";
   deliveredQty: number;
   deliveryDate: string;
+  deliveryHistory?: PODeliveryLog[];
   allocations?: POAllocation[];
+};
+
+export const calcPOItemSubtotal = (
+  item: { qty?: number; price?: number } | null | undefined,
+): number => {
+  if (!item) return 0;
+  return (Number(item.qty) || 0) * (Number(item.price) || 0);
+};
+
+export const calcPOItemTotal = (
+  item: { qty?: number; price?: number; vatRate?: number } | null | undefined,
+): number => {
+  if (!item) return 0;
+  const sub = calcPOItemSubtotal(item);
+  const vat = Number(item.vatRate) || 0;
+  return Math.round(sub * (1 + vat / 100));
+};
+
+export const calcPOTotal = (
+  po: { items?: { qty?: number; price?: number; vatRate?: number }[] } | null | undefined,
+): number => {
+  if (!po || !po.items) return 0;
+  return po.items.reduce((sum, item) => sum + calcPOItemTotal(item), 0);
+};
+
+export const formatPONumber = (
+  supplier: { shortName?: string; code?: string; name?: string } | null | undefined,
+  createdDate?: string,
+): string => {
+  let abcd = (supplier?.shortName || "").trim();
+  if (!abcd && supplier?.name) {
+    const cleaned = supplier.name
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/đ/g, "d")
+      .replace(/Đ/g, "D")
+      .replace(/\b(CONG TY|CTY|TNHH|CO PHAN|CP|MTV|TM|DV|SX|XNK|THUONG MAI|DICH VU|SAN XUAT|VIET NAM|VN)\b/gi, " ")
+      .replace(/[^a-zA-Z0-9\s]/g, " ")
+      .trim();
+    const words = cleaned.split(/\s+/).filter(Boolean);
+    if (words.length > 0) {
+      abcd = words.slice(0, 2).join("").toUpperCase();
+    }
+  }
+  if (!abcd) {
+    abcd = (supplier?.code || "NCC").trim().toUpperCase();
+  }
+  abcd = abcd
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/đ/g, "d")
+    .replace(/Đ/g, "D")
+    .replace(/[^a-zA-Z0-9]/g, "")
+    .toUpperCase() || "NCC";
+
+  const rawDate = (createdDate || new Date().toISOString().slice(0, 10)).trim();
+  let xyz = rawDate.replace(/\D/g, "");
+  const isoMatch = rawDate.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (isoMatch) {
+    xyz = `${isoMatch[3]}${isoMatch[2]}${isoMatch[1]}`;
+  } else {
+    const vnMatch = rawDate.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
+    if (vnMatch) {
+      xyz = `${vnMatch[1]}${vnMatch[2]}${vnMatch[3]}`;
+    }
+  }
+  return `${abcd}-${xyz}`;
 };
 
 export type POCartLine = {
@@ -175,7 +251,7 @@ export const getPOContractInfo = (
   if (!po) {
     return { hasContract: false, contractNumber: "", contractDate: "", contractValue: 0 };
   }
-  const poTotal = (po.items || []).reduce((sum, item) => sum + (Number(item.qty) || 0) * (Number(item.price) || 0), 0);
+  const poTotal = calcPOTotal(po);
   const contractDoc = (po.docs || []).find(
     (d) =>
       d.isContract === true ||
@@ -222,7 +298,7 @@ export const buildPOPaymentDescription = (
   payment?: Payment | null,
   customPercent?: number,
 ): string => {
-  const poTotal = (po.items || []).reduce((sum, item) => sum + (Number(item.qty) || 0) * (Number(item.price) || 0), 0);
+  const poTotal = calcPOTotal(po);
   let stageNum = 1;
   let pct = customPercent ?? 100;
 

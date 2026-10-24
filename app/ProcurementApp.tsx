@@ -19,7 +19,7 @@ import "./vat-quote.css";
 
 import { PaymentManagement } from "./components/PaymentManagement";
 import { BANK_SUGGESTIONS, DEFAULT_PAYMENT_TEMPLATE, localToday } from "./payment-utils";
-import { Item, Supplier, PurchaseHistory, QuoteMode, QuoteEntry, Quote, PR, POItem, POCartLine, ApprovalRow, ApprovalDraft, ApprovalRequest, PODoc, Payment, PO, TrashItem, View, ColumnKey, SortState, PaymentDetailLine, PaymentRequestEntry, PaymentGroup, PaymentBeneficiary, PaymentHandoverItem, PaymentPrintTemplate, StoredState, isContractPO, buildPOPaymentDescription } from "./types";
+import { Item, Supplier, PurchaseHistory, QuoteMode, QuoteEntry, Quote, PR, POItem, POCartLine, ApprovalRow, ApprovalDraft, ApprovalRequest, PODoc, Payment, PO, TrashItem, View, ColumnKey, SortState, PaymentDetailLine, PaymentRequestEntry, PaymentGroup, PaymentBeneficiary, PaymentHandoverItem, PaymentPrintTemplate, StoredState, isContractPO, buildPOPaymentDescription, formatPONumber, calcPOTotal } from "./types";
 import { BASE_COLUMNS, reorder, applyTools, makeId, emptyItem, fmt, dateVN, DEFAULT_VAT_RATE, quoteDefaults, quoteBeforeVat, quoteAfterVat, quoteComparePrice, mergeHistorySeed, PurchaseHistorySeed, excelNumber, emptyPR, emptyPO, generateShortName } from "./utils";
 import { items0, suppliers0, purchaseHistory0, quotes0, prs0, pos0, HISTORY_SEED_ID } from "./seed";
 import { AdvancedItemsTable } from "./components/AdvancedItemsTable";
@@ -368,16 +368,26 @@ function ProcurementAppInner({
           setPrs(data.prs || prs0);
           setProducts(data.products || items0);
           
-          const loadedSuppliers: Supplier[] = data.suppliers || suppliers0;
-          setSuppliers(loadedSuppliers.map(s => ({
+          const loadedSuppliers: Supplier[] = (data.suppliers || suppliers0).map((s: Supplier) => ({
             ...s,
-            shortName: s.shortName || generateShortName(s.name)
-          })));
+            shortName: s.shortName || generateShortName(s.name),
+          }));
+          setSuppliers(loadedSuppliers);
 
           setQuotesByPr(migratedQuotes);
           setQuoteSupplierIdsByPr(migratedSupplierIds);
           setQuotes(firstPR ? migratedQuotes[firstPR.id] || {} : {});
-          setPos(data.pos || pos0);
+          const loadedPos: PO[] = (data.pos || pos0).map((po: PO) => {
+            if (/^PO-\d{4}-\d{4}$/i.test((po.number || "").trim())) {
+              const sup = loadedSuppliers.find((s) => Number(s.id) === Number(po.supplierId));
+              return {
+                ...po,
+                number: formatPONumber(sup, po.createdDate),
+              };
+            }
+            return po;
+          });
+          setPos(loadedPos);
           setItems(firstPR?.items || data.items || items0);
           setQuoteSupplierIds(
             firstPR ? migratedSupplierIds[firstPR.id] || [] : [],
@@ -1243,26 +1253,26 @@ function ProcurementAppInner({
           qty: effQty,
           estimate: unitPrice,
           price: unitPrice,
+          vatRate: 8,
+          note: "",
           deliveryStatus: "Chưa giao",
           deliveredQty: 0,
           deliveryDate: "",
+          deliveryHistory: [],
         });
       });
     });
 
-    const totalBeforeVat = poItems.reduce(
-      (sum, it) => sum + (Number(it.qty) || 0) * (Number(it.price) || 0),
-      0,
-    );
-    const totalWithVat = Math.round(totalBeforeVat * 1.08);
+    const totalWithVat = calcPOTotal({ items: poItems });
     const isAdvance = req.paymentTerms.toLowerCase().includes("trước");
+    const todayDate = new Date().toISOString().slice(0, 10);
 
     const newPO: PO = {
       id: makeId(),
-      number: `PO-${new Date().getFullYear()}-${String(pos.length + 1).padStart(4, "0")}`,
+      number: formatPONumber(targetSupplier, todayDate),
       prNumber: req.prNumber || req.requestNumber,
       supplierId: targetSupplier.id,
-      createdDate: new Date().toISOString().slice(0, 10),
+      createdDate: todayDate,
       expectedDate: "",
       status: "Đang xử lý",
       items: poItems,
@@ -1327,21 +1337,25 @@ function ProcurementAppInner({
           id: makeId(),
           qty: line.allocation.qty,
           price: line.price,
+          vatRate: 0,
+          note: "",
           allocations: [line.allocation],
           deliveryStatus: "Chưa giao",
           deliveredQty: 0,
           deliveryDate: "",
+          deliveryHistory: [],
         });
       }
     });
     const sourcePRs = [...new Set(poCart.map((line) => line.allocation.prNumber))];
+    const todayDate = new Date().toISOString().slice(0, 10);
     const po: PO = {
       id: makeId(),
-      number: `PO-${new Date().getFullYear()}-${String(pos.length + 1).padStart(4, "0")}`,
+      number: formatPONumber(supplier, todayDate),
       prNumber:
         sourcePRs.length === 1 ? sourcePRs[0] : `Nhiều PR (${sourcePRs.length})`,
       supplierId: supplier.id,
-      createdDate: new Date().toISOString().slice(0, 10),
+      createdDate: todayDate,
       expectedDate: "",
       status: "Mới tạo",
       items: [...grouped.values()],
@@ -2067,6 +2081,7 @@ function ProcurementAppInner({
               }}
               onSave={() => persistState()}
               onAddSupplier={handleAddSupplier}
+              approvalRequests={approvalRequests}
               onDelete={
                 reportMode
                   ? undefined
