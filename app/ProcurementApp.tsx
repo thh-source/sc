@@ -1216,16 +1216,20 @@ function ProcurementAppInner({
           phase: "Tạm ứng",
           percent: 50,
           amount: 0,
+          condition: "advance",
           status: "Chưa thanh toán",
           date: "",
+          note: "Yêu cầu bổ sung hóa đơn VAT sau khi nhận hàng",
         },
         {
           id: makeId(),
           phase: "Thanh toán còn lại",
           percent: 50,
           amount: 0,
+          condition: "post",
           status: "Chưa thanh toán",
           date: "",
+          note: "",
         },
       ],
       note: "",
@@ -1339,6 +1343,110 @@ function ProcurementAppInner({
     setSpotlightPaymentSearch("");
     setView("payment");
     setStorageStatus(`Đã tạo Đề nghị thanh toán #${newReq.legacy_stt} từ ${newReq.lines?.length || 0} vật tư bàn giao!`);
+  };
+
+  const handleCreatePaymentRequestFromPOPayment = (po: PO, payment: Payment) => {
+    if (payment.paymentRequestId) {
+      const existing = paymentRequests.find((r) => r.id === payment.paymentRequestId);
+      if (existing) {
+        const go = confirm(
+          `Đợt "${payment.phase}" đã liên kết với Đề nghị thanh toán #${existing.legacy_stt || existing.id}.\n\n` +
+          `• Bấm [OK] để chuyển sang xem ĐNTT này.\n` +
+          `• Bấm [Hủy] để tiếp tục ở lại.`
+        );
+        if (go) {
+          setSpotlightPaymentActiveId(existing.id);
+          setView("payment");
+        }
+        return;
+      }
+    }
+
+    const supplier = suppliers.find((s) => s.id === po.supplierId);
+    const total = po.items.reduce((s, i) => s + i.qty * i.price, 0);
+    const docTypeLabel = isContractPO(po) ? "Hợp đồng" : "PO";
+    const maxId = Math.max(0, ...paymentRequests.map((r) => Number(r.id) || 0)) + 1;
+    const todayStr = localToday();
+    const condition = payment.condition || "post";
+
+    const pct = payment.percent || (total > 0 ? (payment.amount / total) * 100 : 100);
+    const lines: PaymentDetailLine[] = (po.items && po.items.length > 0)
+      ? po.items.map((it, idx) => ({
+          id: idx + 1,
+          description: `${it.name}${it.spec ? " (" + it.spec + ")" : ""} - SL: ${it.qty} ${it.unit}`,
+          invoice_no: payment.invoiceNo || "",
+          invoice_date: payment.invoiceDate || "",
+          amount: Math.round((it.qty * it.price * pct) / 100),
+          note: `Đợt: ${payment.phase} (${docTypeLabel} #${po.number})`,
+        }))
+      : [
+          {
+            id: 1,
+            description: `Thanh toán đợt "${payment.phase}" cho ${docTypeLabel} #${po.number}`,
+            invoice_no: payment.invoiceNo || "",
+            invoice_date: payment.invoiceDate || "",
+            amount: payment.amount,
+            note: payment.note || "",
+          },
+        ];
+
+    const docs: string[] = [
+      `${docTypeLabel} #${po.number}`,
+      ...(condition === "advance"
+        ? ["Giấy đề nghị tạm ứng", "Hợp đồng / Đơn mua hàng đã ký"]
+        : ["Biên bản giao nhận / Nghiệm thu", "Hồ sơ đề nghị thanh toán"]),
+      ...(payment.invoiceNo ? [`Hóa đơn GTGT số ${payment.invoiceNo}`] : []),
+    ];
+
+    const docSupplement =
+      condition === "advance"
+        ? "Yêu cầu NCC bổ sung hóa đơn VAT đầy đủ sau khi giao hàng"
+        : (payment.note || "");
+
+    const newRequest: PaymentRequestEntry = {
+      id: maxId,
+      legacy_stt: maxId,
+      beneficiary_id: supplier?.id,
+      payee_name: supplier?.name || "Chưa xác định",
+      description: `Thanh toán ${payment.phase} (${payment.percent}% - ${docTypeLabel} #${po.number}) - NCC: ${supplier?.name || "Chưa rõ"}`,
+      item_name: po.items?.map((i) => i.name).slice(0, 3).join(", ") + (po.items?.length > 3 ? "..." : "") || payment.phase,
+      invoice_no: payment.invoiceNo || "",
+      invoice_date: payment.invoiceDate || "",
+      amount: payment.amount,
+      currency: "VND",
+      documents: docs,
+      request_date: payment.date || todayStr,
+      payment_type: condition === "advance" ? "Tạm ứng" : "Thanh toán công nợ",
+      status: "Chờ duyệt",
+      doc_supplement: docSupplement,
+      address: supplier?.address || "",
+      account_no: supplier?.bankAccount || "",
+      bank: supplier?.bankName || "",
+      created_by_name: "Phòng Cung ứng",
+      due_date: payment.date || todayStr,
+      lines: lines,
+    };
+
+    // Update PO payment stage with the new paymentRequestId
+    const updatedPayments = po.payments.map((p) =>
+      p.id === payment.id ? { ...p, paymentRequestId: maxId, status: "Đang xử lý" as const } : p
+    );
+    const updatedPO = { ...po, payments: updatedPayments };
+    updatePO(updatedPO);
+
+    // Add to paymentRequests state
+    setPaymentRequests((prev) => [newRequest, ...prev]);
+    setStorageStatus(`Đã tạo Đề nghị thanh toán #${maxId} cho ${payment.phase}`);
+
+    const go = confirm(
+      `✓ Đã lập Đề nghị thanh toán #${maxId} thành công cho đợt "${payment.phase}" (Số tiền: ${fmt(payment.amount)} ₫).\n\n` +
+      `• Bấm [OK] để chuyển ngay sang tab "Quản lý thanh toán" để duyệt và in phiếu.\n` +
+      `• Bấm [Hủy] để tiếp tục ở lại đơn hàng này.`
+    );
+    if (go) {
+      setSpotlightPaymentActiveId(maxId);
+      setView("payment");
+    }
   };
   const activeContracts = pos.filter((po) => !hiddenContractIds.includes(po.id));
   useEffect(() => {
@@ -1795,6 +1903,11 @@ function ProcurementAppInner({
             readOnly={reportMode}
             onStatus={setStorageStatus}
             onCreateHandover={handleCreateHandoverFromPO}
+            onCreatePaymentRequest={handleCreatePaymentRequestFromPOPayment}
+            onNavigateToPayment={(reqId) => {
+              if (reqId) setSpotlightPaymentActiveId(reqId);
+              setView("payment");
+            }}
           />
         )}
         {view === "compare" && (

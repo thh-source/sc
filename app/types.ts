@@ -125,6 +125,11 @@ export type PODoc = {
 export type Payment = {
   id: number;
   phase: string;
+  condition?: "advance" | "post" | "other";
+  invoiceNo?: string;
+  invoiceDate?: string;
+  note?: string;
+  paymentRequestId?: number;
   percent: number;
   amount: number;
   status: "Chưa thanh toán" | "Đang xử lý" | "Đã thanh toán";

@@ -347,16 +347,20 @@ export function POList({
           phase: "Tạm ứng",
           percent: 50,
           amount: Math.round(draftTotal * 0.5),
+          condition: "advance",
           status: "Chưa thanh toán",
           date: "",
+          note: "Yêu cầu bổ sung hóa đơn VAT sau khi nhận hàng",
         },
         {
           id: makeId(),
           phase: "Quyết toán / Hoàn tất",
           percent: 50,
           amount: draftTotal - Math.round(draftTotal * 0.5),
+          condition: "post",
           status: "Chưa thanh toán",
           date: "",
+          note: "",
         },
       ],
       note: draftNote.trim(),
@@ -495,32 +499,20 @@ export function POList({
           })}
         </div>
 
-        <div className="pr-table">
-          <table>
-            <colgroup>
-              <col style={{ width: "130px" }} />
-              <col style={{ width: "130px" }} />
-              <col style={{ minWidth: "240px" }} />
-              <col style={{ width: "110px" }} />
-              <col style={{ width: "130px" }} />
-              <col style={{ width: "130px" }} />
-              <col style={{ width: "120px" }} />
-              <col style={{ width: "110px" }} />
-              <col style={{ width: "130px" }} />
-              <col style={{ width: "80px" }} />
-            </colgroup>
+        <div className="pr-table" style={{ width: "100%", overflowX: "auto" }}>
+          <table style={{ width: "100%", minWidth: "1280px", tableLayout: "auto" }}>
             <thead>
               <tr>
-                <th>{t("table.po_number")}</th>
-                <th>{t("table.source_pr")}</th>
-                <th>{t("table.supplier")}</th>
-                <th>{t("table.created_date")}</th>
-                <th>{t("table.expected_delivery")}</th>
-                <th>{t("table.po_value")}</th>
-                <th>{t("table.delivery_progress")}</th>
-                <th>{t("table.documents")}</th>
-                <th>{t("table.payment")}</th>
-                <th></th>
+                <th style={{ width: "140px", whiteSpace: "nowrap" }}>{t("table.po_number")}</th>
+                <th style={{ width: "130px", whiteSpace: "nowrap" }}>{t("table.source_pr")}</th>
+                <th style={{ minWidth: "260px" }}>{t("table.supplier")}</th>
+                <th style={{ width: "120px", whiteSpace: "nowrap" }}>{t("table.created_date")}</th>
+                <th style={{ width: "120px", whiteSpace: "nowrap" }}>{t("table.expected_delivery")}</th>
+                <th style={{ width: "140px", whiteSpace: "nowrap", textAlign: "right" }}>{t("table.po_value")}</th>
+                <th style={{ width: "130px", whiteSpace: "nowrap", textAlign: "center" }}>{t("table.delivery_progress")}</th>
+                <th style={{ width: "110px", whiteSpace: "nowrap", textAlign: "center" }}>{t("table.documents")}</th>
+                <th style={{ width: "110px", whiteSpace: "nowrap", textAlign: "center" }}>{t("table.payment")}</th>
+                <th style={{ width: "230px", minWidth: "230px", textAlign: "right", paddingRight: "16px" }}>{t("table.actions")}</th>
               </tr>
             </thead>
             <tbody>
@@ -536,21 +528,21 @@ export function POList({
                   total = po.items.reduce((n, i) => n + i.qty * i.price, 0);
                 return (
                   <tr key={po.id}>
-                    <td>
+                    <td style={{ whiteSpace: "nowrap" }}>
                       <button className="pr-link" onClick={() => onOpen(po)}>
                         {po.number}
                       </button>
                     </td>
-                    <td>{po.prNumber}</td>
+                    <td style={{ whiteSpace: "nowrap" }}>{po.prNumber}</td>
                     <td>
                       <b>{s?.name}</b>
                       <small className="supplier-code">{s?.code}</small>
                     </td>
-                    <td>{dateVN(po.createdDate)}</td>
-                    <td>{dateVN(po.expectedDate)}</td>
-                    <td className="money">{fmt(total)} ₫</td>
-                    <td>
-                      <span className="mini-progress">
+                    <td style={{ whiteSpace: "nowrap" }}>{dateVN(po.createdDate)}</td>
+                    <td style={{ whiteSpace: "nowrap" }}>{dateVN(po.expectedDate)}</td>
+                    <td className="money" style={{ whiteSpace: "nowrap", textAlign: "right" }}>{fmt(total)} ₫</td>
+                    <td style={{ textAlign: "center" }}>
+                      <span className="mini-progress" style={{ margin: "0 auto 4px" }}>
                         <i
                           style={{
                             width: `${po.items.length ? (delivered / po.items.length) * 100 : 0}%`,
@@ -561,7 +553,7 @@ export function POList({
                         {delivered}/{po.items.length} mặt hàng
                       </small>
                     </td>
-                    <td>
+                    <td style={{ textAlign: "center" }}>
                       <span
                         className={
                           docs === po.docs.length
@@ -572,11 +564,11 @@ export function POList({
                         {docs}/{po.docs.length} đủ
                       </span>
                     </td>
-                    <td>
+                    <td style={{ textAlign: "center" }}>
                       <b>{total ? Math.round((paid / total) * 100) : 0}%</b>
                     </td>
-                    <td>
-                      <div className="row-actions">
+                    <td style={{ width: "230px", minWidth: "230px", paddingRight: "16px" }}>
+                      <div className="row-actions" style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: "6px", flexWrap: "nowrap" }}>
                         <button className="row-action" onClick={() => onOpen(po)}>
                           Quản lý →
                         </button>
