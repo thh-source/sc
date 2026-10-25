@@ -1,19 +1,20 @@
 {
   "nav": {
     "dashboard": "Home",
-    "prs": "Purchase Requests",
+    "prs": "PR",
     "compare": "Price Comparison",
-    "approval": "Supplier Approval",
-    "po_list": "Purchase Orders",
+    "approval": "Approval",
+    "po_list": "PO",
     "contracts": "Contracts",
-    "payment": "Payment Requests",
-    "handover": "Internal Handover",
+    "payment": "Payment",
+    "handover": "Handover",
     "suppliers": "Suppliers",
-    "products": "Product Catalog",
-    "settings": "System Settings",
-    "trash": "Recycle Bin",
+    "products": "Products",
+    "settings": "Settings",
+    "trash": "Trash",
     "collapse": "Collapse Menu",
-    "expand": "Expand Menu"
+    "expand": "Expand Menu",
+    "catalog": "Catalog"
   },
   "header": {
     "brand_title": "PROCUREMENT MGT",

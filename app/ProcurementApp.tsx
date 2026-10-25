@@ -55,6 +55,7 @@ const SupplierManagement = lazy(() => import("./components/SupplierManagement").
 import { GlobalSpotlightModal } from "./components/GlobalSpotlightModal";
 import { POHandoverPickerModal } from "./components/POHandoverPickerModal";
 import { SettingsModal } from "./components/SettingsModal";
+import { CatalogManagement } from "./components/CatalogManagement";
 import { I18nProvider, useTranslation, LanguageSwitcher } from "./i18n";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import {
@@ -66,6 +67,7 @@ import {
   ShoppingCart,
   Search,
   LayoutDashboard,
+  Layers,
   Home,
   LogOut,
   FileText,
@@ -185,6 +187,7 @@ function ProcurementAppInner({
   const [showHandoverPickerModal, setShowHandoverPickerModal] = useState(false);
   const [helpDrawerOpen, setHelpDrawerOpen] = useState(false);
   const [settingsModalOpen, setSettingsModalOpen] = useState(false);
+  const [catalogSubTab, setCatalogSubTab] = useState<"products" | "suppliers">("products");
 
   useEffect(() => {
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
@@ -1728,6 +1731,14 @@ function ProcurementAppInner({
           setSpotlightPaymentActiveId(route.id);
           setSpotlightPaymentSearch("");
         }
+      } else if (route.view === "catalog") {
+        if (route.tab === "suppliers" || route.tab === "products") {
+          setCatalogSubTab(route.tab);
+        }
+      } else if (route.view === "products") {
+        setCatalogSubTab("products");
+      } else if (route.view === "suppliers") {
+        setCatalogSubTab("suppliers");
       }
     },
     [prs, pos, loadComparePR],
@@ -1766,49 +1777,70 @@ function ProcurementAppInner({
 
   const isNavActive = (id: string) => {
     if (view === "dashboard" && id === "dashboard") return true;
-    if (view === "approval" && id === "approval") return true;
     if ((view === "prs" || view === "create" || view === "compare") && id === "prs") return true;
+    if (view === "approval" && id === "approval") return true;
     if ((view === "po-list" || view === "po-detail" || view === "contracts") && id === "po-list") return true;
     if (view === "payment" && id === "payment") return true;
     if (view === "handover" && id === "handover") return true;
-    if (view === "products" && id === "products") return true;
-    if (view === "suppliers" && id === "suppliers") return true;
+    if ((view === "catalog" || view === "products" || view === "suppliers") && id === "catalog") return true;
     if (view === "trash" && id === "trash") return true;
-    if ((view === "settings" || view === "print-templates") && id === "settings") return true;
-    if (view === "guide" && id === "guide") return true;
     return false;
   };
 
   const nav = [
-    { id: "dashboard", icon: <Home size={18} />, name: t("nav.dashboard"), action: () => navigateTo({ view: "dashboard" }) },
-    { id: "prs", icon: <FileText size={18} />, name: t("nav.prs"), action: () => navigateTo({ view: "prs" }) },
+    {
+      id: "dashboard",
+      icon: <Home size={18} />,
+      name: "Trang chủ",
+      action: () => navigateTo({ view: "dashboard" }),
+    },
+    {
+      id: "prs",
+      icon: <FileText size={18} />,
+      name: "PR",
+      action: () => navigateTo({ view: "prs" }),
+    },
     {
       id: "approval",
       icon: <CheckSquare size={18} />,
-      name: t("nav.approval"),
+      name: "ĐNPD",
       action: () => {
         setActiveApprovalId(null);
         navigateTo({ view: "approval" });
       },
     },
-    { id: "po-list", icon: <Package size={18} />, name: t("nav.po_list"), action: () => navigateTo({ view: "po-list" }) },
-    { id: "payment", icon: <CreditCard size={18} />, name: t("nav.payment"), action: () => navigateTo({ view: "payment" }) },
-    { id: "handover", icon: <Truck size={18} />, name: t("nav.handover"), action: () => navigateTo({ view: "handover" }) },
-    { id: "suppliers", icon: <Building2 size={18} />, name: t("nav.suppliers"), action: () => navigateTo({ view: "suppliers" }) },
-    { id: "products", icon: <Boxes size={18} />, name: t("nav.products"), action: () => navigateTo({ view: "products" }) },
     {
-      id: "guide",
-      icon: <BookOpen size={18} />,
-      name: "Sổ tay Hướng dẫn",
-      action: () => navigateTo({ view: "guide" }),
+      id: "po-list",
+      icon: <Package size={18} />,
+      name: "PO",
+      action: () => navigateTo({ view: "po-list" }),
+    },
+    {
+      id: "payment",
+      icon: <CreditCard size={18} />,
+      name: "Thanh toán",
+      action: () => navigateTo({ view: "payment" }),
+    },
+    {
+      id: "handover",
+      icon: <Truck size={18} />,
+      name: "Bàn giao",
+      action: () => navigateTo({ view: "handover" }),
+    },
+    {
+      id: "catalog",
+      icon: <Layers size={18} />,
+      name: "Danh mục",
+      action: () => navigateTo({ view: "catalog" }),
     },
     {
       id: "trash",
       icon: <Trash2 size={18} />,
-      name: `${t("nav.trash")}${trash.length ? ` (${trash.length})` : ""}`,
+      name: trash.length > 0 ? `Thùng rác (${trash.length})` : "Thùng rác",
       action: () => navigateTo({ view: "trash" }),
     },
   ];
+
   const visibleNav = reportMode
     ? nav.filter((n) =>
         [
@@ -1818,7 +1850,7 @@ function ProcurementAppInner({
           "po-list",
           "payment",
           "handover",
-          "guide",
+          "catalog",
         ].includes(n.id),
       )
     : nav;
@@ -1888,13 +1920,13 @@ function ProcurementAppInner({
             </button>
           </div>
 
-          {/* 2. Thông tin tài khoản & Đăng xuất */}
+          {/* 2. Khối tài khoản: Avatar + Tên hiển thị (Master Admin) */}
           <div className="sidebar-user-card">
             <div className="user-profile">
-              <i className="user-avatar">{currentUser?.displayName?.slice(0, 2).toUpperCase() || "ND"}</i>
+              <i className="user-avatar">{currentUser?.displayName?.slice(0, 2).toUpperCase() || "MA"}</i>
               <div className="user-meta">
-                <b className="user-name" title={currentUser?.displayName || "Người dùng"}>
-                  {currentUser?.displayName || "Người dùng"}
+                <b className="user-name" title={currentUser?.displayName || "Master Admin"}>
+                  {currentUser?.displayName || "Master Admin"}
                 </b>
                 <small className="user-role">
                   {currentUser
@@ -1907,17 +1939,19 @@ function ProcurementAppInner({
                 </small>
               </div>
             </div>
-            {!reportMode && currentUser && (
-              <button
-                type="button"
-                className="btn-sidebar-logout"
-                onClick={logout}
-                title="Đăng xuất tài khoản"
-              >
-                <LogOut size={15} />
-              </button>
-            )}
           </div>
+
+          {/* 3. Nút Đăng xuất: Màu đỏ ở dưới cùng */}
+          {!reportMode && currentUser && (
+            <button
+              type="button"
+              className="btn-sidebar-logout-red"
+              onClick={logout}
+              title="Đăng xuất tài khoản khỏi hệ thống"
+            >
+              <LogOut size={14} /> <span>Đăng xuất</span>
+            </button>
+          )}
         </div>
         <button className="collapse" onClick={() => setCollapsed(!collapsed)} title={collapsed ? t("nav.expand") : t("nav.collapse")}>
           « <b>{collapsed ? t("nav.expand") : t("nav.collapse")}</b>
@@ -1937,7 +1971,7 @@ function ProcurementAppInner({
           </button>
           <b>{reportMode ? t("header.report_mode") : "Procurement"}</b>
           <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: "6px" }}>
-            <LanguageSwitcher variant="compact" />
+            <button type="button" className="mobile-search-btn" onClick={() => setSettingsModalOpen(true)} title="Cài đặt hệ thống"><Settings size={16} /></button>
             <button
               type="button"
               className="mobile-search-btn"
@@ -2150,14 +2184,18 @@ function ProcurementAppInner({
             />
           </ErrorBoundary>
         )}
-        {view === "products" && (
-          <ProductCatalog
+        {(view === "catalog" || view === "products" || view === "suppliers") && (
+          <CatalogManagement
+            initialTab={view === "suppliers" ? "suppliers" : catalogSubTab}
             products={products}
             setProducts={setProducts}
-            pos={pos}
             suppliers={suppliers}
+            setSuppliers={setSuppliers}
+            pos={pos}
             purchaseHistory={purchaseHistory}
             onCreatePR={() => navigateTo({ view: "create" })}
+            onAddSupplier={openSupplierModal}
+            onNavigate={(route) => navigateTo(route)}
           />
         )}
         {(view === "settings" || view === "print-templates") &&
@@ -2212,14 +2250,7 @@ function ProcurementAppInner({
             onSave={savePR}
           />
         )}
-        {view === "suppliers" && (
-          <SupplierManagement
-            suppliers={suppliers}
-            setSuppliers={setSuppliers}
-            onAdd={openSupplierModal}
-            purchaseHistory={purchaseHistory}
-          />
-        )}
+
         {view === "po-list" && (
           <ErrorBoundary key="po-list" fallbackTitle="Lỗi hiển thị danh sách Đơn mua hàng (PO)" onReset={() => navigateTo({ view: "dashboard" })}>
             <POList

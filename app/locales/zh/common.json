@@ -1,19 +1,20 @@
 {
   "nav": {
     "dashboard": "首页",
-    "prs": "采购申请单 (PR)",
+    "prs": "PR",
     "compare": "比价汇总表",
-    "approval": "供应商选择审批",
-    "po_list": "采购订单 (PO)",
+    "approval": "审批",
+    "po_list": "PO",
     "contracts": "合同与订单组",
-    "payment": "付款申请单",
-    "handover": "物资交接验收",
-    "suppliers": "供应商名录",
-    "products": "产品物料库",
-    "settings": "系统管理设置",
+    "payment": "付款",
+    "handover": "交接",
+    "suppliers": "供应商",
+    "products": "商品",
+    "settings": "设置",
     "trash": "回收站",
     "collapse": "折叠侧边栏",
-    "expand": "展开侧边栏"
+    "expand": "展开侧边栏",
+    "catalog": "目录"
   },
   "header": {
     "brand_title": "采购综合管理",

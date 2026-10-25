@@ -368,7 +368,8 @@ export type View =
   | "products"
   | "trash"
   | "settings"
-  | "guide";
+  | "guide"
+  | "catalog";
 
 export type ColumnKey =
   | "stt"

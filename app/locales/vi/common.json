@@ -1,19 +1,20 @@
 {
   "nav": {
     "dashboard": "Trang chủ",
-    "prs": "Yêu cầu mua hàng",
+    "prs": "PR",
     "compare": "So sánh báo giá",
-    "approval": "Đề nghị phê duyệt NCC",
-    "po_list": "Đơn mua hàng (PO)",
+    "approval": "ĐNPD",
+    "po_list": "PO",
     "contracts": "Quản lý hợp đồng",
-    "payment": "Đề nghị thanh toán",
-    "handover": "Bàn giao hàng hóa",
+    "payment": "Thanh toán",
+    "handover": "Bàn giao",
     "suppliers": "Nhà cung cấp",
-    "products": "Danh mục sản phẩm",
-    "settings": "Cài đặt hệ thống",
+    "products": "Hàng hóa",
+    "settings": "Cài đặt",
     "trash": "Thùng rác",
     "collapse": "Thu gọn menu",
-    "expand": "Mở rộng menu"
+    "expand": "Mở rộng menu",
+    "catalog": "Danh mục"
   },
   "header": {
     "brand_title": "QUẢN LÝ MUA HÀNG",

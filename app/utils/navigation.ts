@@ -41,6 +41,7 @@ export function parseRouteFromHash(hashString?: string): AppRoute {
     if (simple === "handover") return { view: "handover" };
     if (simple === "suppliers") return { view: "suppliers" };
     if (simple === "products") return { view: "products" };
+    if (simple === "catalog") return { view: "catalog" };
     if (simple === "trash") return { view: "trash" };
     if (simple === "settings") return { view: "settings" };
     if (simple === "print-templates") return { view: "print-templates" };
@@ -132,6 +133,10 @@ export function parseRouteFromHash(hashString?: string): AppRoute {
       view = "products";
       break;
 
+    case "catalog":
+      view = "catalog";
+      break;
+
     case "trash":
       view = "trash";
       break;
@@ -206,6 +211,8 @@ export function buildHashFromRoute(route: AppRoute): string {
     if (route.id) params.set("id", String(route.id));
   } else if (route.view === "handover") {
     if (route.id) params.set("id", String(route.id));
+  } else if (route.view === "catalog") {
+    if (route.tab) params.set("tab", route.tab);
   }
 
   if (route.modal) {
