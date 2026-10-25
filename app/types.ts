@@ -532,6 +532,7 @@ export type ApprovalRequest = {
   prNumber: string;
   createdDate: string;
   department: string;
+  requestingDepartment?: string;
   noteRef: string;
   section1Title: string;
   columnMode: ApprovalColumnMode;

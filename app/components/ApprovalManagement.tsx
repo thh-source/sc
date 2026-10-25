@@ -18,6 +18,7 @@ import {
   createApprovalFromCompare,
   createApprovalFromPR,
   createManualApproval,
+  formatApprovalSection1Title,
   parseExcelClipboard,
 } from "../utils/approvalSamples";
 
@@ -178,6 +179,55 @@ export default function ApprovalManagement({
     if (!activeRequest || isReportMode) return;
     const next = updater(activeRequest);
     onSaveApproval(next);
+  };
+
+  // PR tương ứng được liên kết với phiếu Đề nghị phê duyệt
+  const linkedPR = useMemo(() => {
+    if (!activeRequest) return null;
+    return (
+      prs.find((p) => p.id === activeRequest.prId) ||
+      prs.find((p) => p.number === activeRequest.prNumber) ||
+      prs.find((p) => p.number === activeRequest.noteRef) ||
+      null
+    );
+  }, [prs, activeRequest?.prId, activeRequest?.prNumber, activeRequest?.noteRef]);
+
+  // Danh sách các phòng ban (gồm phòng ban từ PRs + danh mục chuẩn công ty)
+  const departmentOptions = useMemo(() => {
+    const defaults = [
+      "Phòng Cơ điện",
+      "Phòng QC",
+      "Phòng QA",
+      "Phòng R&D",
+      "Phòng Kỹ thuật",
+      "Phòng Sản xuất",
+      "Kho",
+      "Phòng Kế toán",
+      "Phòng Hành chính nhân sự",
+      "Phòng Công nghệ thông tin (IT)",
+      "Ban Giám đốc",
+    ];
+    const set = new Set<string>();
+    if (linkedPR?.department && linkedPR.department.trim()) {
+      set.add(linkedPR.department.trim());
+    }
+    prs.forEach((p) => {
+      if (p.department && p.department.trim()) {
+        set.add(p.department.trim());
+      }
+    });
+    defaults.forEach((d) => set.add(d));
+    return Array.from(set).filter(Boolean);
+  }, [prs, linkedPR]);
+
+  // Xử lý chọn / điền tên phòng ban để tự cập nhật Mục I
+  const handleSelectRequestingDept = (deptName: string) => {
+    const newTitle = formatApprovalSection1Title(deptName);
+    updateActive((prev) => ({
+      ...prev,
+      requestingDepartment: deptName,
+      section1Title: newTitle,
+    }));
   };
 
   const hasQuotedProduct = activeRequest
@@ -1516,8 +1566,105 @@ export default function ApprovalManagement({
 
         {/* 3. PHẦN I: NỘI DUNG ĐỀ NGHỊ PHÊ DUYỆT & BẢNG SO SÁNH ĐỘNG */}
         <div className="phenikaa-section-block">
-          <div className="phenikaa-section-heading">
-            I. Nội dung đề nghị phê duyệt:
+          <div
+            className="phenikaa-section-heading"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              flexWrap: "wrap",
+              gap: "8px",
+            }}
+          >
+            <span>I. Nội dung đề nghị phê duyệt:</span>
+
+            {!isReportMode && (
+              <div
+                className="no-print"
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "6px",
+                  fontSize: "12px",
+                  fontWeight: "normal",
+                }}
+              >
+                <span style={{ color: "#475569", fontWeight: 600 }}>
+                  🏢 Phòng ban yêu cầu:
+                </span>
+
+                {linkedPR?.department && (
+                  <button
+                    type="button"
+                    style={{
+                      background: "#eff6ff",
+                      color: "#1d4ed8",
+                      border: "1px solid #bfdbfe",
+                      padding: "2px 8px",
+                      fontSize: "11.5px",
+                      fontWeight: 600,
+                      borderRadius: "5px",
+                      cursor: "pointer",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "3px",
+                    }}
+                    onClick={() => handleSelectRequestingDept(linkedPR.department)}
+                    title={`Điền tự động phòng ban từ PR số ${linkedPR.number}: ${linkedPR.department}`}
+                  >
+                    📋 Lấy từ PR ({linkedPR.department})
+                  </button>
+                )}
+
+                <select
+                  style={{
+                    height: "28px",
+                    padding: "0 8px",
+                    fontSize: "12px",
+                    border: "1px solid #cbd5e1",
+                    borderRadius: "5px",
+                    background: "#ffffff",
+                    color: "#0f172a",
+                    fontWeight: 500,
+                    cursor: "pointer",
+                  }}
+                  value={
+                    departmentOptions.includes(activeRequest.requestingDepartment || "")
+                      ? activeRequest.requestingDepartment
+                      : ""
+                  }
+                  onChange={(e) => {
+                    if (e.target.value) {
+                      handleSelectRequestingDept(e.target.value);
+                    }
+                  }}
+                >
+                  <option value="">-- Chọn phòng ban --</option>
+                  {departmentOptions.map((dept) => (
+                    <option key={dept} value={dept}>
+                      {dept}
+                    </option>
+                  ))}
+                </select>
+
+                <input
+                  type="text"
+                  placeholder="Hoặc gõ phòng ban khác..."
+                  style={{
+                    height: "28px",
+                    width: "170px",
+                    padding: "0 8px",
+                    fontSize: "12px",
+                    border: "1px solid #cbd5e1",
+                    borderRadius: "5px",
+                    background: "#ffffff",
+                    boxSizing: "border-box",
+                  }}
+                  value={activeRequest.requestingDepartment || ""}
+                  onChange={(e) => handleSelectRequestingDept(e.target.value)}
+                />
+              </div>
+            )}
           </div>
           <div className="phenikaa-section-subline">
             <input
@@ -1525,6 +1672,7 @@ export default function ApprovalManagement({
               className="sheet-inline-input bold-input"
               value={activeRequest.section1Title}
               readOnly={isReportMode}
+              placeholder="Theo yêu cầu mua hàng phục vụ công việc của phòng... Phòng Cung Ứng đã tìm kiếm, đánh giá và đề xuất phương án như sau:"
               onChange={(e) =>
                 updateActive((prev) => ({
                   ...prev,

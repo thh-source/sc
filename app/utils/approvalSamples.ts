@@ -115,6 +115,19 @@ export function formatTodayVN(): string {
 }
 
 /**
+ * Định dạng câu mở đầu Mục I Đề nghị phê duyệt theo chuẩn Phenikaa Pharma:
+ * "Theo yêu cầu mua hàng phục vụ công việc của phòng [abc] .  Phòng Cung Ứng đã tìm kiếm, đánh giá và đề xuất phương án như sau:"
+ */
+export function formatApprovalSection1Title(deptName?: string): string {
+  const d = (deptName || "").trim();
+  if (!d) {
+    return "Theo yêu cầu mua hàng phục vụ công việc của phòng [chọn phòng ban] .  Phòng Cung Ứng đã tìm kiếm, đánh giá và đề xuất phương án như sau:";
+  }
+  const prefix = /^phòng\s+/i.test(d) ? "của " : "của phòng ";
+  return `Theo yêu cầu mua hàng phục vụ công việc ${prefix}${d} .  Phòng Cung Ứng đã tìm kiếm, đánh giá và đề xuất phương án như sau:`;
+}
+
+/**
  * Tạo phiếu Đề nghị phê duyệt từ Bảng So sánh Báo giá PR
  */
 export function createApprovalFromCompare(
@@ -245,9 +258,10 @@ export function createApprovalFromCompare(
     prId: pr.id,
     prNumber: pr.number,
     createdDate: formatTodayVN(),
-    department: pr.department || "Phòng chuỗi cung ứng",
+    department: "Phòng chuỗi cung ứng",
+    requestingDepartment: pr.department || "",
     noteRef: pr.number,
-    section1Title: `Phê duyệt nhà cung cấp (${pr.purpose || pr.number}) với thông tin báo giá như sau:`,
+    section1Title: formatApprovalSection1Title(pr.department),
     columnMode: "basic",
     showDeliveryTimeRow: false,
     printOrientation: supplierColumns.length >= 3 ? "landscape" : "portrait",
@@ -347,9 +361,10 @@ export function createApprovalFromPR(
     prId: pr.id,
     prNumber: pr.number,
     createdDate: formatTodayVN(),
-    department: pr.department || "Phòng chuỗi cung ứng",
+    department: "Phòng chuỗi cung ứng",
+    requestingDepartment: pr.department || "",
     noteRef: pr.number,
-    section1Title: `Phê duyệt nhà cung cấp (${pr.purpose || pr.number}) với thông tin báo giá như sau:`,
+    section1Title: formatApprovalSection1Title(pr.department),
     columnMode: "basic",
     showDeliveryTimeRow: false,
     printOrientation: supplierColumns.length >= 3 ? "landscape" : "portrait",
@@ -432,9 +447,9 @@ export function createManualApproval(existingCount: number): ApprovalRequest {
     prNumber: code,
     createdDate: formatTodayVN(),
     department: "Phòng chuỗi cung ứng",
+    requestingDepartment: "",
     noteRef: code,
-    section1Title:
-      "Phê duyệt nhà cung cấp (vật tư/hàng hóa) với thông tin báo giá như sau:",
+    section1Title: formatApprovalSection1Title(""),
     columnMode: "basic",
     showDeliveryTimeRow: false,
     printOrientation: "landscape",
@@ -465,9 +480,9 @@ export const SAMPLE_PHENIKAA_APPROVALS: ApprovalRequest[] = [
     prNumber: "16/03/PR2603",
     createdDate: "30/03/2026",
     department: "Phòng chuỗi cung ứng",
+    requestingDepartment: "Phòng Cơ điện",
     noteRef: "16/03/PR2603",
-    section1Title:
-      "Phê duyệt nhà cung cấp (vật tư phòng cơ điện) với thông tin báo giá như sau:",
+    section1Title: formatApprovalSection1Title("Phòng Cơ điện"),
     columnMode: "extended",
     showQuotedProduct: true,
     quotedProductHeader: "Sản phẩm",
@@ -1127,9 +1142,9 @@ export const SAMPLE_PHENIKAA_APPROVALS: ApprovalRequest[] = [
     prNumber: "02/06/PR2602",
     createdDate: "28/02/2026",
     department: "Phòng chuỗi cung ứng",
+    requestingDepartment: "Phòng QC",
     noteRef: "02/06/PR2602",
-    section1Title:
-      "Phê duyệt nhà cung cấp (Kính hiển vi soi nổi) với thông tin báo giá như sau:",
+    section1Title: formatApprovalSection1Title("Phòng QC"),
     columnMode: "origin",
     showQuotedProduct: true,
     quotedProductHeader: "Hãng/ Xuất xứ",
