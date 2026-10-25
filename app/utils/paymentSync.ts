@@ -118,6 +118,7 @@ export function syncPaymentCompletionToPO(
     ...req,
     isCompleted: willComplete,
     status: willComplete ? "Đã thanh toán" : "Đang xử lý",
+    paidAt: willComplete ? (req.paidAt || new Date().toISOString()) : undefined,
   };
 
   let linkedPO: PO | undefined;
@@ -173,4 +174,13 @@ export function syncPaymentCompletionToPO(
   });
 
   return { updatedReq, updatedPOs, linkedPO };
+}
+
+/**
+ * Kiểm tra xem một khoản thanh toán đã được thanh toán trong ngày hôm nay hay chưa
+ */
+export function isPaymentPaidToday(r: PaymentRequestEntry | null | undefined, todayStr?: string): boolean {
+  if (!r || !r.paidAt) return false;
+  const targetDate = todayStr || new Date().toISOString().slice(0, 10);
+  return r.paidAt.slice(0, 10) === targetDate;
 }

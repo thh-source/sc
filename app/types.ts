@@ -411,6 +411,7 @@ export type PaymentRequestEntry = {
   payment_type: string;
   status: string;
   isCompleted?: boolean;
+  paidAt?: string;
   doc_supplement?: string;
   address?: string;
   account_no?: string;

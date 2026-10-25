@@ -21,12 +21,14 @@ import {
   Package,
   FileCheck,
   X,
+  Pencil,
 } from "lucide-react";
 import { PR, PO, Supplier, PurchaseHistory, ApprovalRequest, PaymentRequestEntry } from "../types";
 import { fmt } from "../utils";
 import { fmtMoney } from "../payment-utils";
 import {
   isPaymentCompleted,
+  isPaymentPaidToday,
   findLinkedPOForPayment,
   isPRCompleted,
   isPOCompleted,
@@ -73,6 +75,7 @@ export function Dashboard({
   onSelectApproval,
   onSelectPayment,
   onToggleCompletePayment,
+  onUpdatePaymentRequest,
   onToggleCompletePR,
   onToggleCompletePO,
   onToggleCompleteApproval,
@@ -93,6 +96,7 @@ export function Dashboard({
   onSelectApproval?: (id: number) => void;
   onSelectPayment?: (id: number) => void;
   onToggleCompletePayment?: (req: PaymentRequestEntry) => void;
+  onUpdatePaymentRequest?: (req: PaymentRequestEntry) => void;
   onToggleCompletePR?: (pr: PR) => void;
   onToggleCompletePO?: (po: PO) => void;
   onToggleCompleteApproval?: (appr: ApprovalRequest) => void;
@@ -231,18 +235,83 @@ export function Dashboard({
   }, [cashFlowItems, cashFlowFilter]);
 
   // -------------------------------------------------------------
-  // PENDING PAYMENTS WORKLIST (Khoản thanh toán chưa hoàn thành)
+  // PENDING PAYMENTS WORKLIST (Khoản thanh toán chưa hoàn thành & hoàn thành trong ngày)
   // -------------------------------------------------------------
   const pendingPayments = useMemo(() => {
     return (paymentRequests || [])
-      .filter((r) => !isPaymentCompleted(r))
+      .filter((r) => {
+        const completed = isPaymentCompleted(r);
+        if (!completed) return true;
+        // Nếu đã hoàn thành, chỉ giữ lại trên Dashboard nếu ngày thanh toán là ngày hôm nay
+        if (r.paidAt && r.paidAt.slice(0, 10) === todayStr) {
+          return true;
+        }
+        return false;
+      })
       .sort((a, b) => {
+        const aDone = isPaymentCompleted(a);
+        const bDone = isPaymentCompleted(b);
+        // Khoản chưa thanh toán ở trên, khoản đã thanh toán hôm nay trượt xuống dưới
+        if (aDone !== bDone) {
+          return aDone ? 1 : -1;
+        }
         const na = Number(a.legacy_stt || a.id) || 0;
         const nb = Number(b.legacy_stt || b.id) || 0;
         if (nb !== na) return nb - na;
         return (Number(b.id) || 0) - (Number(a.id) || 0);
       });
+  }, [paymentRequests, todayStr]);
+
+  const unpaidPaymentsCount = useMemo(() => {
+    return (paymentRequests || []).filter((r) => !isPaymentCompleted(r)).length;
   }, [paymentRequests]);
+
+  const paidTodayPaymentsCount = useMemo(() => {
+    return (paymentRequests || []).filter(
+      (r) => isPaymentCompleted(r) && r.paidAt?.slice(0, 10) === todayStr
+    ).length;
+  }, [paymentRequests, todayStr]);
+
+  // Modal xác nhận chuyển trạng thái thanh toán an toàn
+  const [paymentConfirmModal, setPaymentConfirmModal] = useState<{
+    req: PaymentRequestEntry;
+    action: "complete" | "revert";
+  } | null>(null);
+
+  // Inline edit state cho số HĐ và ngày HĐ
+  const [editingInvoiceId, setEditingInvoiceId] = useState<number | null>(null);
+  const [draftInvoiceNo, setDraftInvoiceNo] = useState<string>("");
+  const [draftInvoiceDate, setDraftInvoiceDate] = useState<string>("");
+
+  const handleStartEditInvoice = (r: PaymentRequestEntry) => {
+    setEditingInvoiceId(r.id);
+    setDraftInvoiceNo(r.invoice_no || "");
+    setDraftInvoiceDate(r.invoice_date || "");
+  };
+
+  const handleSaveInvoice = (r: PaymentRequestEntry) => {
+    setEditingInvoiceId(null);
+    const trimmedNo = draftInvoiceNo.trim();
+    const trimmedDate = draftInvoiceDate.trim();
+    if (trimmedNo === (r.invoice_no || "") && trimmedDate === (r.invoice_date || "")) {
+      return;
+    }
+    const updatedReq: PaymentRequestEntry = {
+      ...r,
+      invoice_no: trimmedNo || undefined,
+      invoice_date: trimmedDate || undefined,
+    };
+    if (updatedReq.lines && updatedReq.lines.length > 0) {
+      updatedReq.lines = updatedReq.lines.map((l, idx) =>
+        idx === 0 ? { ...l, invoice_no: trimmedNo, invoice_date: trimmedDate || undefined } : l
+      );
+    }
+    onUpdatePaymentRequest?.(updatedReq);
+  };
+
+  const handleCancelEditInvoice = () => {
+    setEditingInvoiceId(null);
+  };
 
   // -------------------------------------------------------------
   // 3. TO-DO LIST & NOTES (Khu vực 3: Bảng công việc cá nhân)
@@ -1253,11 +1322,14 @@ export function Dashboard({
                   <CreditCard size={16} />
                 </span>
                 <div>
-                  <h2>Thanh toán chưa hoàn thành</h2>
+                  <h2>Thanh toán cần xử lý &amp; trong ngày</h2>
                   <p>Hàng đợi các khoản chi phí cần giải ngân để NCC giao hàng hoặc thanh toán công nợ</p>
                 </div>
               </div>
-              <span className="queue-pill-count">{pendingPayments.length} khoản chờ đi tiền</span>
+              <span className="queue-pill-count">
+                {unpaidPaymentsCount} khoản chờ đi tiền
+                {paidTodayPaymentsCount > 0 && ` • ${paidTodayPaymentsCount} đã xong hôm nay`}
+              </span>
             </div>
 
             <div className="queue-table-wrap">
@@ -1274,20 +1346,30 @@ export function Dashboard({
                       <th style={{ width: "210px" }}>Đơn vị thụ hưởng</th>
                       <th>Nội dung thanh toán</th>
                       <th style={{ width: "155px", textAlign: "right" }}>Số tiền</th>
-                      <th style={{ width: "180px" }}>Số HĐ (Ngày HĐ)</th>
-                      <th style={{ width: "140px", textAlign: "center" }}>Trạng thái / Xác nhận</th>
+                      <th style={{ width: "210px" }}>Số HĐ (Ngày HĐ)</th>
+                      <th style={{ width: "155px", textAlign: "center" }}>Trạng thái / Xác nhận</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {pendingPayments.slice(0, 8).map((r) => {
+                    {pendingPayments.map((r) => {
                       const linkedInfo = findLinkedPOForPayment(r, pos);
                       const linkedPO = linkedInfo?.po;
+                      const isDone = isPaymentCompleted(r);
+                      const isEditing = editingInvoiceId === r.id;
                       const invoiceText = r.invoice_no?.trim() || "Chưa có HĐ";
                       const dateText = r.invoice_date?.trim() ? ` (${r.invoice_date.trim()})` : "";
                       const invoiceCombined = `${invoiceText}${dateText}`;
 
                       return (
-                        <tr key={r.id}>
+                        <tr
+                          key={r.id}
+                          className={isDone ? "row-paid-today" : "row-unpaid"}
+                          style={{
+                            opacity: isDone ? 0.78 : 1,
+                            backgroundColor: isDone ? "#f0fdf4" : undefined,
+                            transition: "all 0.2s ease",
+                          }}
+                        >
                           {/* 1. PO liên kết */}
                           <td>
                             {linkedPO ? (
@@ -1323,34 +1405,98 @@ export function Dashboard({
                             {fmtMoney(r.amount)} {r.currency || "VND"}
                           </td>
 
-                          {/* 5. Số HĐ (Ngày HĐ) */}
+                          {/* 5. Số HĐ (Ngày HĐ) - Inline Edit */}
                           <td style={{ whiteSpace: "nowrap" }}>
-                            <span className="compact-invoice-tag">{invoiceCombined}</span>
+                            {isEditing ? (
+                              <div
+                                className="inline-invoice-editor-wrap"
+                                onBlur={(e) => {
+                                  if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+                                    handleSaveInvoice(r);
+                                  }
+                                }}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter") {
+                                    e.preventDefault();
+                                    handleSaveInvoice(r);
+                                  } else if (e.key === "Escape") {
+                                    e.preventDefault();
+                                    handleCancelEditInvoice();
+                                  }
+                                }}
+                              >
+                                <input
+                                  type="text"
+                                  autoFocus
+                                  placeholder="Số HĐ"
+                                  value={draftInvoiceNo}
+                                  onChange={(e) => setDraftInvoiceNo(e.target.value)}
+                                  className="inline-invoice-input inline-invoice-input-no"
+                                  title="Nhập số hóa đơn (Enter để lưu)"
+                                />
+                                <input
+                                  type="date"
+                                  value={draftInvoiceDate}
+                                  onChange={(e) => setDraftInvoiceDate(e.target.value)}
+                                  className="inline-invoice-input inline-invoice-input-date"
+                                  title="Chọn ngày hóa đơn (Enter để lưu)"
+                                />
+                                <button
+                                  type="button"
+                                  className="inline-invoice-save-btn"
+                                  onMouseDown={(e) => {
+                                    e.preventDefault();
+                                    handleSaveInvoice(r);
+                                  }}
+                                  title="Lưu số hóa đơn"
+                                >
+                                  <Check size={12} />
+                                </button>
+                                <button
+                                  type="button"
+                                  className="inline-invoice-cancel-btn"
+                                  onMouseDown={(e) => {
+                                    e.preventDefault();
+                                    handleCancelEditInvoice();
+                                  }}
+                                  title="Hủy"
+                                >
+                                  <X size={12} />
+                                </button>
+                              </div>
+                            ) : (
+                              <div
+                                className={`compact-invoice-trigger ${r.invoice_no?.trim() ? "has-invoice" : "no-invoice"}`}
+                                onClick={() => handleStartEditInvoice(r)}
+                                title="Bấm để nhập/sửa nhanh số và ngày hóa đơn"
+                              >
+                                <span>{invoiceCombined}</span>
+                                <Pencil size={11} className="invoice-edit-icon" />
+                              </div>
+                            )}
                           </td>
 
-                          {/* 6. Trạng thái / Nút xác nhận 1-click */}
+                          {/* 6. Trạng thái / Nút xác nhận an toàn */}
                           <td style={{ textAlign: "center" }}>
-                            <button
-                              type="button"
-                              className="btn btn-emerald btn-xs btn-confirm-payment"
-                              style={{
-                                display: "inline-flex",
-                                alignItems: "center",
-                                gap: "4px",
-                                backgroundColor: "#10b981",
-                                color: "#ffffff",
-                                padding: "4px 8px",
-                                borderRadius: "6px",
-                                fontWeight: 600,
-                                border: "none",
-                                cursor: "pointer",
-                                fontSize: "12px",
-                              }}
-                              onClick={() => onToggleCompletePayment && onToggleCompletePayment(r)}
-                              title="Xác nhận Đã thanh toán và tự động đồng bộ vào PO liên kết"
-                            >
-                              <CheckCircle2 size={13} /> Đã thanh toán
-                            </button>
+                            {isDone ? (
+                              <button
+                                type="button"
+                                className="payment-status-badge status-paid"
+                                onClick={() => setPaymentConfirmModal({ req: r, action: "revert" })}
+                                title="Đã thanh toán hôm nay. Bấm để hoàn tác nếu chuyển nhầm"
+                              >
+                                <CheckCircle2 size={13} /> Đã thanh toán
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                className="payment-status-badge status-unpaid"
+                                onClick={() => setPaymentConfirmModal({ req: r, action: "complete" })}
+                                title="Chưa thanh toán. Bấm để mở hộp thoại xác nhận thanh toán"
+                              >
+                                <Clock size={13} /> Chưa thanh toán
+                              </button>
+                            )}
                           </td>
                         </tr>
                       );
@@ -1696,6 +1842,228 @@ export function Dashboard({
           </div>
         </div>
       </div>
+      {/* MODAL XÁC NHẬN CHUYỂN TRẠNG THÁI THANH TOÁN */}
+      {paymentConfirmModal && (
+        <div
+          className="modal-backdrop payment-confirm-backdrop"
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: "rgba(15, 23, 42, 0.6)",
+            backdropFilter: "blur(4px)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 9999,
+            padding: "16px",
+          }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setPaymentConfirmModal(null);
+            }
+          }}
+        >
+          <div
+            className="payment-confirm-dialog"
+            style={{
+              backgroundColor: "#ffffff",
+              borderRadius: "14px",
+              boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)",
+              maxWidth: "460px",
+              width: "100%",
+              overflow: "hidden",
+              border: "1px solid #e2e8f0",
+              animation: "dialogFadeIn 0.15s ease-out",
+            }}
+          >
+            {/* Header */}
+            <div
+              style={{
+                padding: "18px 20px 14px",
+                borderBottom: "1px solid #f1f5f9",
+                display: "flex",
+                alignItems: "flex-start",
+                gap: "12px",
+              }}
+            >
+              <div
+                style={{
+                  width: "40px",
+                  height: "40px",
+                  borderRadius: "10px",
+                  backgroundColor:
+                    paymentConfirmModal.action === "complete" ? "#d1fae5" : "#fef3c7",
+                  color:
+                    paymentConfirmModal.action === "complete" ? "#047857" : "#b45309",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  flexShrink: 0,
+                }}
+              >
+                {paymentConfirmModal.action === "complete" ? (
+                  <CheckCircle2 size={22} />
+                ) : (
+                  <AlertCircle size={22} />
+                )}
+              </div>
+              <div style={{ flex: 1 }}>
+                <h3
+                  style={{
+                    margin: 0,
+                    fontSize: "16px",
+                    fontWeight: 700,
+                    color: "#0f172a",
+                    lineHeight: 1.3,
+                  }}
+                >
+                  {paymentConfirmModal.action === "complete"
+                    ? "Xác nhận chuyển sang Đã thanh toán?"
+                    : "Xác nhận hoàn tác về Chưa thanh toán?"}
+                </h3>
+                <p
+                  style={{
+                    margin: "4px 0 0",
+                    fontSize: "12px",
+                    color: "#64748b",
+                    lineHeight: 1.4,
+                  }}
+                >
+                  {paymentConfirmModal.action === "complete"
+                    ? "Hệ thống sẽ cập nhật khoản này thành Đã thanh toán và đồng bộ ngay tiến độ vào PO liên kết."
+                    : "Khoản thanh toán sẽ được hoàn tác về Chưa thanh toán và cập nhật lại tiến độ PO."}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPaymentConfirmModal(null)}
+                style={{
+                  background: "transparent",
+                  border: "none",
+                  cursor: "pointer",
+                  color: "#94a3b8",
+                  padding: "4px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  borderRadius: "6px",
+                }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Info Summary Box */}
+            <div style={{ padding: "16px 20px" }}>
+              <div
+                style={{
+                  backgroundColor: "#f8fafc",
+                  border: "1px solid #e2e8f0",
+                  borderRadius: "10px",
+                  padding: "12px 14px",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "10px",
+                  fontSize: "13px",
+                }}
+              >
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span style={{ color: "#64748b" }}>Đơn vị thụ hưởng:</span>
+                  <span style={{ fontWeight: 600, color: "#0f172a", textAlign: "right", maxWidth: "230px" }}>
+                    {paymentConfirmModal.req.payee_name || "Chưa có NCC"}
+                  </span>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span style={{ color: "#64748b" }}>Số tiền:</span>
+                  <span style={{ fontWeight: 700, color: "#047857", fontSize: "14px" }}>
+                    {fmtMoney(paymentConfirmModal.req.amount)} {paymentConfirmModal.req.currency || "VND"}
+                  </span>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                  <span style={{ color: "#64748b", flexShrink: 0 }}>Nội dung:</span>
+                  <span style={{ color: "#334155", textAlign: "right", maxWidth: "250px", wordBreak: "break-word" }}>
+                    {paymentConfirmModal.req.description || paymentConfirmModal.req.item_name || "Thanh toán theo đơn hàng"}
+                  </span>
+                </div>
+                {paymentConfirmModal.req.group_code && (
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <span style={{ color: "#64748b" }}>PO liên kết:</span>
+                    <span style={{ fontWeight: 600, color: "#2563eb" }}>
+                      {paymentConfirmModal.req.group_code}
+                    </span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div
+              style={{
+                padding: "12px 20px 16px",
+                display: "flex",
+                justifyContent: "flex-end",
+                gap: "10px",
+                borderTop: "1px solid #f1f5f9",
+                backgroundColor: "#fafbfc",
+              }}
+            >
+              <button
+                type="button"
+                onClick={() => setPaymentConfirmModal(null)}
+                style={{
+                  padding: "8px 16px",
+                  borderRadius: "8px",
+                  border: "1px solid #cbd5e1",
+                  backgroundColor: "#ffffff",
+                  color: "#475569",
+                  fontWeight: 600,
+                  fontSize: "13px",
+                  cursor: "pointer",
+                }}
+              >
+                Hủy
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (paymentConfirmModal) {
+                    onToggleCompletePayment?.(paymentConfirmModal.req);
+                    setPaymentConfirmModal(null);
+                  }
+                }}
+                style={{
+                  padding: "8px 18px",
+                  borderRadius: "8px",
+                  border: "none",
+                  backgroundColor:
+                    paymentConfirmModal.action === "complete" ? "#10b981" : "#f59e0b",
+                  color: "#ffffff",
+                  fontWeight: 600,
+                  fontSize: "13px",
+                  cursor: "pointer",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "6px",
+                  boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
+                }}
+              >
+                {paymentConfirmModal.action === "complete" ? (
+                  <>
+                    <CheckCircle2 size={14} /> Đồng ý
+                  </>
+                ) : (
+                  <>
+                    <AlertCircle size={14} /> Đồng ý hoàn tác
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   );
 }

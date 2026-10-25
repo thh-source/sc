@@ -1488,6 +1488,13 @@ function ProcurementAppInner({
     setPos((list) => list.map((x) => (x.id === po.id ? po : x)));
   };
 
+  const handleUpdatePaymentRequest = useCallback((updatedReq: PaymentRequestEntry) => {
+    setPaymentRequests((list) =>
+      list.map((r) => (r.id === updatedReq.id ? updatedReq : r))
+    );
+    setStorageStatus(`Đã cập nhật hóa đơn thanh toán #${updatedReq.legacy_stt || updatedReq.id}`);
+  }, []);
+
   const handleToggleCompletePayment = useCallback((req: PaymentRequestEntry) => {
     const willComplete = !isPaymentCompleted(req);
     const { updatedReq, updatedPOs } = syncPaymentCompletionToPO(req, willComplete, pos);
@@ -2000,6 +2007,7 @@ function ProcurementAppInner({
               navigateTo({ view: "payment", id });
             }}
             onToggleCompletePayment={handleToggleCompletePayment}
+            onUpdatePaymentRequest={handleUpdatePaymentRequest}
             onToggleCompletePR={handleToggleCompletePR}
             onToggleCompletePO={handleToggleCompletePO}
             onToggleCompleteApproval={handleToggleCompleteApproval}
