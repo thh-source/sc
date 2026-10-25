@@ -1502,7 +1502,7 @@ export function HandoverManagement({
       {/* MODAL: Excel Paste for Handover */}
       {showPasteModal && (
         <div className="payment-modal-overlay">
-          <div className="payment-modal-card" style={{ maxWidth: "840px" }}>
+          <div className="payment-modal-card" style={{ maxWidth: "1000px", width: "95vw" }}>
             <div className="payment-modal-header">
               <h3 style={{ color: "#107c41" }}>📋 Dán danh sách vật tư từ file Excel</h3>
               <button type="button" onClick={() => setShowPasteModal(false)}>✕</button>
@@ -1617,11 +1617,10 @@ export function HandoverManagement({
 
       {/* MODAL: Import from PR / PO / Contract */}
       {showImportDocModal && (
-        <div className="payment-modal-overlay" onClick={() => setShowImportDocModal(false)}>
+        <div className="payment-modal-overlay">
           <div
             className="payment-modal-card"
-            style={{ maxWidth: "900px", width: "95vw" }}
-            onClick={(e) => e.stopPropagation()}
+            style={{ maxWidth: "1240px", width: "96vw" }}
           >
             <div className="payment-modal-header">
               <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
@@ -2035,10 +2034,10 @@ export function HandoverManagement({
 
       {/* MODAL: Tùy chỉnh cột hiển thị & Cố định cột cho Bàn Giao */}
       {showColumnConfigModal && (
-        <div className="payment-modal-overlay" onClick={() => setShowColumnConfigModal(false)}>
+        <div className="payment-modal-overlay">
           <div
             className="payment-modal-card"
-            style={{ maxWidth: "560px", width: "95%" }}
+            style={{ maxWidth: "600px", width: "95%" }}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="payment-modal-header">

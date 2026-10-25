@@ -1276,10 +1276,10 @@ export function ContractManagement({
 
           {/* Quick Details Modal: Linked Payment Requests */}
           {viewGroupDetails && (
-            <div className="payment-modal-backdrop" onClick={() => setViewGroupDetails(null)}>
+            <div className="payment-modal-backdrop">
               <div
                 className="payment-modal"
-                style={{ maxWidth: 860, width: "95%" }}
+                style={{ maxWidth: 1100, width: "95%" }}
                 onClick={(e) => e.stopPropagation()}
               >
                 <div className="payment-modal-header">
@@ -1397,7 +1397,7 @@ export function ContractManagement({
 
           {/* Modal to Add / Edit Group */}
           {editingGroup && (
-            <div className="payment-modal-backdrop" onClick={() => setEditingGroup(null)}>
+            <div className="payment-modal-backdrop">
               <div
                 className="payment-modal"
                 style={{ maxWidth: 580, width: "95%" }}
@@ -1542,11 +1542,10 @@ export function ContractManagement({
       {showCreateContractModal && (
         <div
           className="payment-modal-overlay"
-          onClick={() => setShowCreateContractModal(false)}
         >
           <div
             className="payment-modal-card"
-            style={{ maxWidth: 880, width: "95vw" }}
+            style={{ maxWidth: 1200, width: "96vw" }}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="payment-modal-header">

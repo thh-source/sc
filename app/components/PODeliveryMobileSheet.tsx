@@ -305,7 +305,6 @@ export function PODeliveryModal({
   return (
     <div
       className="po-delivery-modal-overlay"
-      onClick={onClose}
       style={{
         position: "fixed",
         inset: 0,
@@ -320,12 +319,11 @@ export function PODeliveryModal({
     >
       <div
         className="po-delivery-modal-card"
-        onClick={(e) => e.stopPropagation()}
         style={{
           background: "#ffffff",
-          width: isMobile ? "100vw" : "min(960px, 96vw)",
+          width: isMobile ? "100vw" : "min(1260px, 96vw)",
           height: isMobile ? "100dvh" : "90vh",
-          maxHeight: isMobile ? "100dvh" : "880px",
+          maxHeight: isMobile ? "100dvh" : "920px",
           borderRadius: isMobile ? 0 : "12px",
           display: "flex",
           flexDirection: "column",

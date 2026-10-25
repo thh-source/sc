@@ -689,14 +689,10 @@ export function POList({
 
       {/* CREATE DIRECT PO MODAL */}
       {showCreateModal && (
-        <div
-          className="payment-modal-overlay"
-          onClick={() => setShowCreateModal(false)}
-        >
+        <div className="payment-modal-overlay">
           <div
             className="payment-modal-card"
-            style={{ maxWidth: 900, width: "95vw" }}
-            onClick={(e) => e.stopPropagation()}
+            style={{ maxWidth: 1260, width: "96vw", maxHeight: "90vh" }}
           >
             <div className="payment-modal-header">
               <div>

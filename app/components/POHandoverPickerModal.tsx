@@ -176,7 +176,6 @@ export function POHandoverPickerModal({
   return (
     <div
       className="po-handover-modal-overlay"
-      onClick={onClose}
       style={{
         position: "fixed",
         inset: 0,
@@ -191,10 +190,9 @@ export function POHandoverPickerModal({
     >
       <div
         className="po-handover-modal-card"
-        onClick={(e) => e.stopPropagation()}
         style={{
           background: "#ffffff",
-          width: isMobile ? "100vw" : "min(860px, 96vw)",
+          width: isMobile ? "100vw" : "min(1240px, 96vw)",
           maxHeight: isMobile ? "92vh" : "88vh",
           borderRadius: isMobile ? "16px 16px 0 0" : "12px",
           display: "flex",
@@ -508,13 +506,13 @@ export function POHandoverPickerModal({
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
               <thead>
                 <tr style={{ background: "#f8fafc", textAlign: "left", borderBottom: "1px solid #e2e8f0" }}>
-                  <th style={{ padding: "8px", width: "44px", textAlign: "center" }}>Chọn</th>
-                  <th style={{ padding: "8px" }}>Tên hàng hóa / Quy cách</th>
-                  <th style={{ padding: "8px", width: "70px", textAlign: "center" }}>ĐVT</th>
-                  <th style={{ padding: "8px", width: "80px", textAlign: "right" }}>SL Đặt</th>
-                  <th style={{ padding: "8px", width: "110px", textAlign: "right" }}>SL Chứng từ</th>
-                  <th style={{ padding: "8px", width: "130px", textAlign: "right" }}>SL Bàn giao</th>
-                  <th style={{ padding: "8px", width: "160px" }}>Ghi chú</th>
+                  <th style={{ padding: "10px", width: "48px", textAlign: "center" }}>Chọn</th>
+                  <th style={{ padding: "10px", minWidth: "300px" }}>Tên hàng hóa / Quy cách</th>
+                  <th style={{ padding: "10px", width: "80px", textAlign: "center" }}>ĐVT</th>
+                  <th style={{ padding: "10px", width: "90px", textAlign: "right" }}>SL Đặt PO</th>
+                  <th style={{ padding: "10px", width: "130px", textAlign: "right" }}>SL Chứng từ</th>
+                  <th style={{ padding: "10px", width: "150px", textAlign: "right" }}>SL Bàn giao thực tế</th>
+                  <th style={{ padding: "10px", minWidth: "200px" }}>Ghi chú</th>
                 </tr>
               </thead>
               <tbody>

@@ -810,7 +810,7 @@ export function AdminSettings({
 
       {/* Modal đặt lại mật khẩu */}
       {resetTargetUser && (
-        <div className="backdrop" onClick={() => setResetTargetUser(null)}>
+        <div className="backdrop">
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <i>🔑</i>
             <h2>Đặt lại mật khẩu</h2>
@@ -850,7 +850,7 @@ export function AdminSettings({
 
       {/* Modal tạo snapshot sao lưu */}
       {snapshotModalOpen && (
-        <div className="backdrop" onClick={() => !creatingSnapshot && setSnapshotModalOpen(false)}>
+        <div className="backdrop">
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <i>💾</i>
             <h2>Tạo bản snapshot sao lưu CSDL</h2>

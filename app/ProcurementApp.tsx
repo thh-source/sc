@@ -2443,11 +2443,8 @@ function ProcurementAppInner({
         </div>
       )}
       {supplierModal && (
-        <div className="backdrop" onMouseDown={() => setSupplierModal(false)}>
-          <div
-            className="modal supplier-modal"
-            onMouseDown={(e) => e.stopPropagation()}
-          >
+        <div className="backdrop">
+          <div className="modal supplier-modal">
             <i>＋</i>
             <h2>Thêm nhà cung cấp</h2>
             <p>Nhập thông tin nhà cung cấp để dùng chung cho báo giá và PO.</p>

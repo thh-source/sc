@@ -2381,10 +2381,10 @@ export function PaymentManagement({
         const attachedDocs = new Set(editReq.documents || []);
 
         return (
-          <div className="payment-modal-overlay" onClick={() => setEditModalReqId(null)}>
+          <div className="payment-modal-overlay">
             <div
               className="payment-modal-card card-edit-modal"
-              style={{ maxWidth: "860px", width: "95vw" }}
+              style={{ maxWidth: "1240px", width: "96vw" }}
               onClick={(e) => e.stopPropagation()}
             >
               <div className="payment-modal-header">
@@ -3576,10 +3576,10 @@ export function PaymentManagement({
 
       {/* MODAL: Tùy chỉnh cột hiển thị & Cố định cột */}
       {showColumnConfigModal && (
-        <div className="payment-modal-overlay" onClick={() => setShowColumnConfigModal(false)}>
+        <div className="payment-modal-overlay">
           <div
             className="payment-modal-card"
-            style={{ maxWidth: "560px", width: "95%" }}
+            style={{ maxWidth: "600px", width: "95%" }}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="payment-modal-header">
@@ -3764,10 +3764,10 @@ export function PaymentManagement({
         if (!multiReq) return null;
 
         return (
-          <div className="payment-modal-overlay" onClick={() => setMultiInvoiceModalReqId(null)}>
+          <div className="payment-modal-overlay">
             <div
               className="payment-modal-card"
-              style={{ maxWidth: "820px", width: "95%" }}
+              style={{ maxWidth: "1100px", width: "95%" }}
               onClick={(e) => e.stopPropagation()}
             >
               <div className="payment-modal-header">

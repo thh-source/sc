@@ -2960,11 +2960,10 @@ export default function ApprovalManagement({
       {showExcelPasteModal && (
         <div
           className="backdrop no-print"
-          onClick={() => setShowExcelPasteModal(false)}
         >
           <div
             className="modal-panel"
-            style={{ width: "min(720px, 95vw)" }}
+            style={{ width: "min(960px, 95vw)" }}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="modal-header">
@@ -3038,11 +3037,10 @@ export default function ApprovalManagement({
     return (
       <div
         className="backdrop no-print"
-        onClick={() => setSourceModalMode(null)}
       >
         <div
           className="modal-panel"
-          style={{ width: "min(680px, 95vw)" }}
+          style={{ width: "min(880px, 95vw)" }}
           onClick={(e) => e.stopPropagation()}
         >
           <div className="modal-header">

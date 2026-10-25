@@ -582,7 +582,7 @@ table.payment-table td .smart-cell-textarea:focus {
 .payment-modal-card {
   background: #ffffff;
   border-radius: 10px;
-  width: min(850px, 98vw);
+  width: min(1200px, 96vw);
   max-height: 90vh;
   overflow: auto;
   box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);

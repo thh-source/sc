@@ -2372,7 +2372,6 @@ export function PODetail({
       {showImportApprovalModal && (
         <div
           className="payment-modal-overlay"
-          onClick={() => setShowImportApprovalModal(false)}
           style={{
             position: "fixed",
             inset: 0,
@@ -2386,13 +2385,12 @@ export function PODetail({
         >
           <div
             className="payment-modal-card"
-            onClick={(e) => e.stopPropagation()}
             style={{
               background: "#fff",
               borderRadius: "10px",
-              maxWidth: "680px",
+              maxWidth: "1000px",
               width: "100%",
-              maxHeight: "80vh",
+              maxHeight: "85vh",
               display: "flex",
               flexDirection: "column",
               boxShadow: "0 20px 35px -10px rgba(0,0,0,0.25)",

@@ -2,7 +2,7 @@
 .modal label select{height:43px;border:1px solid #cbd8e5;border-radius:6px;padding:0 11px;outline:0;background:white;color:var(--ink)}
 .modal label select:focus{border-color:var(--blue);box-shadow:0 0 0 3px #1672f322}
 .empty-suppliers{margin-top:16px;padding:14px;border:1px dashed #b9c9d9;border-radius:7px;background:#f7f9fc;color:var(--muted);font-size:12px}
-.supplier-modal{width:min(720px,100%)}
+.supplier-modal{width:min(900px,96vw)}
 .supplier-modal-grid{display:grid!important;grid-template-columns:1fr 1fr;gap:14px;margin-top:18px}
 .supplier-modal-grid label{margin:0}
 .supplier-modal-grid label b{color:#d73737}
