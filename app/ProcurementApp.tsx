@@ -43,6 +43,7 @@ const HandoverManagement = lazy(() => import("./components/HandoverManagement").
 const ProductCatalog = lazy(() => import("./components/ProductCatalog").then(m => ({ default: m.ProductCatalog })));
 const SupplierManagement = lazy(() => import("./components/SupplierManagement").then(m => ({ default: m.SupplierManagement })));
 import { GlobalSpotlightModal } from "./components/GlobalSpotlightModal";
+import { POHandoverPickerModal } from "./components/POHandoverPickerModal";
 import { I18nProvider, useTranslation, LanguageSwitcher } from "./i18n";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 
@@ -136,6 +137,8 @@ function ProcurementAppInner({
   const [spotlightPaymentSearch, setSpotlightPaymentSearch] = useState<string>("");
   const [spotlightPaymentActiveId, setSpotlightPaymentActiveId] = useState<number | undefined>(undefined);
   const [spotlightHandoverSearch, setSpotlightHandoverSearch] = useState<string>("");
+  const [handoverPickerPO, setHandoverPickerPO] = useState<PO | null>(null);
+  const [showHandoverPickerModal, setShowHandoverPickerModal] = useState(false);
 
   useEffect(() => {
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
@@ -1433,58 +1436,61 @@ function ProcurementAppInner({
       alert("PO/Hợp đồng này không có sản phẩm nào để tạo biên bản bàn giao.");
       return;
     }
+    setHandoverPickerPO(po);
+    setShowHandoverPickerModal(true);
+  };
 
-    // Check if items from this PO/Contract already exist in paymentHandovers
-    const existing = paymentHandovers.filter(
-      (h) => h.source_number === po.number || (h.note && h.note.includes(po.number))
-    );
-    if (existing.length > 0) {
-      const proceed = confirm(
-        `Đã có ${existing.length} mặt hàng từ đơn #${po.number} trong danh sách bàn giao.\n\n` +
-        `• Bấm [OK] để tiếp tục tạo thêm đợt bàn giao mới.\n` +
-        `• Bấm [Hủy] để xem danh sách bàn giao hiện có.`
-      );
-      if (!proceed) {
-        setSpotlightHandoverSearch(po.number);
-        setView("handover");
-        return;
-      }
-    }
+  const handleConfirmHandoverFromPicker = (payload: {
+    items: {
+      item: POItem;
+      qtyDoc: number;
+      qtyPass: number;
+      department: string;
+      note: string;
+      handoverDate: string;
+      senderName: string;
+      receiverName: string;
+    }[];
+    department: string;
+    handoverDate: string;
+    senderName: string;
+    receiverName: string;
+  }) => {
+    if (!handoverPickerPO || payload.items.length === 0) return;
 
     const maxId = Math.max(0, ...paymentHandovers.map((h) => Number(h.id) || 0)) + 1;
     let curId = maxId;
 
-    const supplier = suppliers.find((s) => s.id === po.supplierId);
+    const supplier = suppliers.find((s) => s.id === handoverPickerPO.supplierId);
     const suppPart = supplier?.name ? ` - NCC: ${supplier.name}` : "";
-    const linkedPR = prs.find((p) => p.number === po.prNumber);
-    const defaultDept = linkedPR?.department || "Phòng Cung ứng";
-    const docTypeLabel = isContractPO(po) ? "Hợp đồng" : "PO";
+    const docTypeLabel = isContractPO(handoverPickerPO) ? "Hợp đồng" : "PO";
 
-    const newHandovers: PaymentHandoverItem[] = po.items.map((it) => {
-      const delivered = it.deliveredQty > 0 ? it.deliveredQty : it.qty;
+    const newHandovers: PaymentHandoverItem[] = payload.items.map((entry) => {
+      const it = entry.item;
       const specPart = it.spec ? ` (${it.spec})` : "";
+      const customNote = entry.note ? ` - ${entry.note}` : "";
       return {
         id: curId++,
-        department: defaultDept,
+        department: payload.department,
         item_name: it.name,
         unit: it.unit || "Cái",
-        quantity_doc: String(it.qty),
-        quantity_pass: String(delivered),
+        quantity_doc: String(entry.qtyDoc),
+        quantity_pass: String(entry.qtyPass),
         quantity_fail: "",
-        note: `Nhận từ ${docTypeLabel} #${po.number}${suppPart}${specPart}`,
-        handover_date: localToday(),
-        sender_name: "Trần Hải Hà",
+        note: `Nhận từ ${docTypeLabel} #${handoverPickerPO.number}${suppPart}${specPart}${customNote}`,
+        handover_date: payload.handoverDate || localToday(),
+        sender_name: payload.senderName || "Trần Hải Hà",
         sender_dept: "Phòng Cung ứng",
-        receiver_name: "",
+        receiver_name: payload.receiverName || "",
         source_type: docTypeLabel,
-        source_number: po.number,
+        source_number: handoverPickerPO.number,
       };
     });
 
     setPaymentHandovers((prev) => [...newHandovers, ...prev]);
-    setSpotlightHandoverSearch(po.number);
+    setSpotlightHandoverSearch(handoverPickerPO.number);
     setView("handover");
-    setStorageStatus(`Đã tạo ${newHandovers.length} dòng bàn giao từ ${docTypeLabel} #${po.number}`);
+    setStorageStatus(`Đã bàn giao ${newHandovers.length} mặt hàng cho ${payload.department} từ ${docTypeLabel} #${handoverPickerPO.number}`);
   };
 
   const handleCreatePaymentRequestFromHandover = (newReq: PaymentRequestEntry) => {
@@ -2586,6 +2592,20 @@ function ProcurementAppInner({
         paymentRequests={paymentRequests}
         paymentHandovers={paymentHandovers}
         onNavigate={handleSpotlightNavigate}
+      />
+
+      {/* Handover Item & Department Picker Modal */}
+      <POHandoverPickerModal
+        po={handoverPickerPO}
+        isOpen={showHandoverPickerModal}
+        onClose={() => {
+          setShowHandoverPickerModal(false);
+          setHandoverPickerPO(null);
+        }}
+        onConfirm={handleConfirmHandoverFromPicker}
+        prs={prs}
+        suppliers={suppliers}
+        existingHandovers={paymentHandovers}
       />
     </div>
   );
