@@ -64,6 +64,7 @@ export type PR = {
   purpose: string;
   items: Item[];
   status: string;
+  isCompleted?: boolean;
   note?: string;
   quoteCustomColumns?: string[];
 };
@@ -229,6 +230,7 @@ export type PO = {
   createdDate: string;
   expectedDate: string;
   status: string;
+  isCompleted?: boolean;
   items: POItem[];
   docs: PODoc[];
   payments: Payment[];
@@ -408,6 +410,7 @@ export type PaymentRequestEntry = {
   request_date: string;
   payment_type: string;
   status: string;
+  isCompleted?: boolean;
   doc_supplement?: string;
   address?: string;
   account_no?: string;
@@ -452,6 +455,7 @@ export type PaymentHandoverItem = {
   source_type?: string;
   source_number?: string;
   specification?: string;
+  isCompleted?: boolean;
 };
 
 export type PaymentPrintTemplate = {
@@ -553,6 +557,7 @@ export type ApprovalRequest = {
   approverDeptHead: string;
   requesterName: string;
   status: "Nháp" | "Chờ phê duyệt" | "Đã phê duyệt" | "Đã tạo PO";
+  isCompleted?: boolean;
   linkedPoId?: number;
   linkedPoNumber?: string;
 };

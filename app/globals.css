@@ -1013,3 +1013,49 @@ tbody tr:hover td {
     z-index: 20;
   }
 }
+
+/* ============================================================
+   WORKFLOW COMPLETION & TASK AUTO-SORTING STYLES
+   ============================================================ */
+.completion-toggle-btn {
+  background: transparent !important;
+  border: none !important;
+  cursor: pointer !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 0 !important;
+  line-height: 1 !important;
+  transition: transform 0.15s ease, opacity 0.15s ease !important;
+  flex-shrink: 0 !important;
+}
+.completion-toggle-btn:hover {
+  transform: scale(1.18);
+  opacity: 0.9;
+}
+.row-completed {
+  opacity: 0.8;
+  background-color: #f8fafc !important;
+}
+.row-completed td {
+  color: #64748b !important;
+}
+.compact-invoice-tag {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 500;
+  color: #475569;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  padding: 2px 7px;
+  white-space: nowrap;
+}
+.btn-confirm-payment {
+  transition: all 0.15s ease;
+}
+.btn-confirm-payment:hover {
+  filter: brightness(0.92);
+  transform: translateY(-1px);
+}
+

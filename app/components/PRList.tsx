@@ -1,10 +1,11 @@
 import React, { useState } from "react";
-import { Plus, ArrowRight, Trash2, Search } from "lucide-react";
+import { Plus, ArrowRight, Trash2, Search, CheckCircle2, Circle } from "lucide-react";
 import { PR, PO, ApprovalRequest, PaymentRequestEntry, PaymentHandoverItem } from "../types";
 import { fmt, dateVN } from "../utils";
 import { useTranslation } from "../i18n";
 import { DocFlowLinks } from "./DocFlowLinks";
 import { resolveDocFlow } from "../utils/docFlow";
+import { isPRCompleted } from "../utils/paymentSync";
 
 export function PRList({
   prs,
@@ -16,6 +17,7 @@ export function PRList({
   onOpen,
   onDelete,
   onNavigate,
+  onToggleComplete,
 }: {
   prs: PR[];
   pos?: PO[];
@@ -26,14 +28,23 @@ export function PRList({
   onOpen: (pr: PR) => void;
   onDelete?: (pr: PR) => void;
   onNavigate?: (route: any) => void;
+  onToggleComplete?: (pr: PR) => void;
 }) {
   const { t } = useTranslation();
   const [q, setQ] = useState("");
-  const shown = prs.filter((p) =>
-    (p.number + p.department + p.purpose)
-      .toLowerCase()
-      .includes(q.toLowerCase()),
-  );
+  const shown = prs
+    .filter((p) =>
+      (p.number + p.department + p.purpose)
+        .toLowerCase()
+        .includes(q.toLowerCase()),
+    )
+    .sort((a, b) => {
+      const aDone = isPRCompleted(a);
+      const bDone = isPRCompleted(b);
+      // Ưu tiên: Chưa hoàn thành lên trên cùng, Đã hoàn thành xuống dưới
+      if (aDone !== bDone) return aDone ? 1 : -1;
+      return (b.date || "").localeCompare(a.date || "") || (b.id - a.id);
+    });
   return (
     <section className="content pr-page">
       <div className="heading">
@@ -60,11 +71,25 @@ export function PRList({
         <div className="mobile-record-list">
           {shown.map((pr) => {
             const flow = resolveDocFlow({ pr }, { prs, pos, approvalRequests, paymentRequests, paymentHandovers });
+            const isDone = isPRCompleted(pr);
             return (
-              <article key={pr.id}>
+              <article key={pr.id} className={isDone ? "row-completed" : ""}>
                 <header>
-                  <button onClick={() => onOpen(pr)}>{pr.number}</button>
-                  <span className={`status ${pr.status === "Đã hoàn thành" ? "done" : pr.status.includes("PO") || pr.status === "Đang lấy báo giá" ? "progress" : "waiting"}`}>{pr.status}</span>
+                  <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                    {onToggleComplete && (
+                      <button
+                        type="button"
+                        className={`completion-toggle-btn ${isDone ? "completed" : ""}`}
+                        title={isDone ? "Đã hoàn thành (Click để mở lại)" : "Đang xử lý (Click để đánh dấu Hoàn thành)"}
+                        onClick={() => onToggleComplete(pr)}
+                        style={{ background: "transparent", border: "none", cursor: "pointer", display: "inline-flex", padding: 0 }}
+                      >
+                        {isDone ? <CheckCircle2 size={16} className="text-emerald-600" /> : <Circle size={16} className="text-slate-400" />}
+                      </button>
+                    )}
+                    <button onClick={() => onOpen(pr)}>{pr.number}</button>
+                  </div>
+                  <span className={`status ${isDone ? "done" : pr.status.includes("PO") || pr.status === "Đang lấy báo giá" ? "progress" : "waiting"}`}>{pr.status}</span>
                 </header>
                 <h3>{pr.department}</h3>
                 <p>{pr.purpose}</p>
@@ -119,12 +144,26 @@ export function PRList({
             <tbody>
               {shown.map((pr) => {
                 const flow = resolveDocFlow({ pr }, { prs, pos, approvalRequests, paymentRequests, paymentHandovers });
+                const isDone = isPRCompleted(pr);
                 return (
-                  <tr key={pr.id}>
+                  <tr key={pr.id} className={isDone ? "row-completed" : ""}>
                     <td className="cell-center">
-                      <button className="pr-link" onClick={() => onOpen(pr)}>
-                        {pr.number}
-                      </button>
+                      <div style={{ display: "inline-flex", alignItems: "center", gap: "6px", justifyContent: "center" }}>
+                        {onToggleComplete && (
+                          <button
+                            type="button"
+                            className={`completion-toggle-btn ${isDone ? "completed" : ""}`}
+                            title={isDone ? "Đã hoàn thành (Click để mở lại)" : "Đang xử lý (Click để đánh dấu Hoàn thành)"}
+                            onClick={() => onToggleComplete(pr)}
+                            style={{ background: "transparent", border: "none", cursor: "pointer", display: "inline-flex", padding: 0 }}
+                          >
+                            {isDone ? <CheckCircle2 size={16} className="text-emerald-600" /> : <Circle size={16} className="text-slate-400 hover:text-slate-600" />}
+                          </button>
+                        )}
+                        <button className="pr-link" onClick={() => onOpen(pr)}>
+                          {pr.number}
+                        </button>
+                      </div>
                     </td>
                     <td className="cell-center">{dateVN(pr.date)}</td>
                     <td className="cell-left">{pr.department}</td>
@@ -135,7 +174,7 @@ export function PRList({
                     </td>
                     <td className="cell-center">
                       <span
-                        className={`status ${pr.status === "Đã hoàn thành" ? "done" : pr.status === "Đang lấy báo giá" ? "progress" : "waiting"}`}
+                        className={`status ${isDone ? "done" : pr.status === "Đang lấy báo giá" ? "progress" : "waiting"}`}
                       >
                         {pr.status}
                       </span>

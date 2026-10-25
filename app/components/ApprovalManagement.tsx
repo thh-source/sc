@@ -16,6 +16,8 @@ import {
   Save,
   Printer,
   Search,
+  CheckCircle2,
+  Circle,
 } from "lucide-react";
 import {
   ApprovalItemRow,
@@ -40,6 +42,7 @@ import {
 import { addNewDepartment, getUnifiedDepartments } from "../utils/departments";
 import { DocFlowLinks } from "./DocFlowLinks";
 import { resolveDocFlow } from "../utils/docFlow";
+import { isApprovalCompleted } from "../utils/paymentSync";
 
 interface ApprovalManagementProps {
   approvalRequests: ApprovalRequest[];
@@ -58,6 +61,7 @@ interface ApprovalManagementProps {
   autoPrint?: boolean;
   pos?: PO[];
   onNavigate?: (route: any) => void;
+  onToggleComplete?: (req: ApprovalRequest) => void;
 }
 
 type FlatColDescriptor =
@@ -155,6 +159,7 @@ export default function ApprovalManagement({
   autoPrint = false,
   pos = [],
   onNavigate,
+  onToggleComplete,
 }: ApprovalManagementProps) {
   const [mounted, setMounted] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -180,18 +185,25 @@ export default function ApprovalManagement({
   };
 
   const filteredRequests = useMemo(() => {
-    return approvalRequests.filter((req) => {
-      if (statusFilter !== "ALL" && req.status !== statusFilter) return false;
-      if (!searchQuery.trim()) return true;
-      const q = searchQuery.toLowerCase();
-      return (
-        req.requestNumber.toLowerCase().includes(q) ||
-        req.prNumber.toLowerCase().includes(q) ||
-        req.department.toLowerCase().includes(q) ||
-        req.recommendedSupplierName.toLowerCase().includes(q) ||
-        req.section1Title.toLowerCase().includes(q)
-      );
-    });
+    return approvalRequests
+      .filter((req) => {
+        if (statusFilter !== "ALL" && req.status !== statusFilter) return false;
+        if (!searchQuery.trim()) return true;
+        const q = searchQuery.toLowerCase();
+        return (
+          req.requestNumber.toLowerCase().includes(q) ||
+          req.prNumber.toLowerCase().includes(q) ||
+          req.department.toLowerCase().includes(q) ||
+          req.recommendedSupplierName.toLowerCase().includes(q) ||
+          req.section1Title.toLowerCase().includes(q)
+        );
+      })
+      .sort((a, b) => {
+        const aDone = isApprovalCompleted(a);
+        const bDone = isApprovalCompleted(b);
+        if (aDone !== bDone) return aDone ? 1 : -1;
+        return (b.createdDate || "").localeCompare(a.createdDate || "") || (b.id - a.id);
+      });
   }, [approvalRequests, searchQuery, statusFilter]);
 
   // Chỉ mở giao diện làm việc khi activeApprovalId khác null và tìm thấy phiếu
@@ -1027,30 +1039,50 @@ export default function ApprovalManagement({
                     const selectedTotal = selectedCol
                       ? computeSupplierTotal(req, selectedCol.colId)
                       : 0;
-                    const badgeClass =
-                      req.status === "Đã tạo PO" || req.status === "Đã phê duyệt"
-                        ? "done"
-                        : req.status === "Chờ phê duyệt"
-                          ? "progress"
-                          : "waiting";
+                    const isDone = isApprovalCompleted(req);
+                    const badgeClass = isDone
+                      ? "done"
+                      : req.status === "Chờ phê duyệt"
+                        ? "progress"
+                        : "waiting";
 
                     return (
                       <tr
                         key={req.id}
+                        className={isDone ? "row-completed" : ""}
                         style={{ cursor: "pointer" }}
                         onClick={() => setActiveApprovalId(req.id)}
                       >
                         <td>
-                          <button
-                            type="button"
-                            className="pr-link"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setActiveApprovalId(req.id);
-                            }}
-                          >
-                            {req.prNumber || req.requestNumber}
-                          </button>
+                          <div style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
+                            {onToggleComplete && (
+                              <button
+                                type="button"
+                                className="completion-toggle-btn"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onToggleComplete(req);
+                                }}
+                                title={isDone ? "Đã hoàn thành (Bấm để mở lại)" : "Đang xử lý (Bấm để đánh dấu Hoàn thành)"}
+                              >
+                                {isDone ? (
+                                  <CheckCircle2 size={16} className="text-emerald-600 fill-emerald-100" />
+                                ) : (
+                                  <Circle size={16} className="text-slate-400 hover:text-slate-600" />
+                                )}
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              className="pr-link"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setActiveApprovalId(req.id);
+                              }}
+                            >
+                              {req.prNumber || req.requestNumber}
+                            </button>
+                          </div>
                         </td>
                         <td>{req.createdDate}</td>
                         <td>{req.department}</td>
@@ -1230,6 +1262,48 @@ export default function ApprovalManagement({
                 <option value="Đã phê duyệt">Trạng thái: Đã phê duyệt</option>
                 <option value="Đã tạo PO">Trạng thái: Đã tạo PO</option>
               </select>
+
+              <button
+                type="button"
+                className={`btn ${isApprovalCompleted(activeRequest) ? "btn-secondary" : "btn-approve-status"}`}
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "6px",
+                  backgroundColor: isApprovalCompleted(activeRequest) ? "#ecfdf5" : undefined,
+                  color: isApprovalCompleted(activeRequest) ? "#059669" : undefined,
+                  borderColor: isApprovalCompleted(activeRequest) ? "#a7f3d0" : undefined,
+                  fontWeight: 600,
+                }}
+                onClick={() => {
+                  const willComplete = !isApprovalCompleted(activeRequest);
+                  if (onToggleComplete) {
+                    onToggleComplete(activeRequest);
+                  } else {
+                    updateActive((prev) => ({
+                      ...prev,
+                      isCompleted: willComplete,
+                      status: willComplete ? "Đã phê duyệt" : "Chờ phê duyệt",
+                    }));
+                  }
+                  showToast(
+                    willComplete
+                      ? "✓ Đã đánh dấu Hoàn thành phiếu!"
+                      : "✓ Đã chuyển lại trạng thái Chưa hoàn thành (Chờ phê duyệt)."
+                  );
+                }}
+                title={isApprovalCompleted(activeRequest) ? "Mở lại (Chuyển sang Chờ phê duyệt)" : "Đánh dấu Hoàn thành / Đã phê duyệt"}
+              >
+                {isApprovalCompleted(activeRequest) ? (
+                  <>
+                    <CheckCircle2 size={16} className="text-emerald-600" /> Đã hoàn thành
+                  </>
+                ) : (
+                  <>
+                    <Circle size={16} /> Hoàn thành phiếu
+                  </>
+                )}
+              </button>
 
               {activeRequest.status !== "Đã phê duyệt" &&
                 activeRequest.status !== "Đã tạo PO" && (

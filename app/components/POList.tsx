@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from "react";
-import { Plus, ArrowRight, Trash2, Truck, Search } from "lucide-react";
+import { Plus, ArrowRight, Trash2, Truck, Search, CheckCircle2, Circle } from "lucide-react";
 import { Supplier, PO, PR, Item, ApprovalRequest, PaymentRequestEntry, PaymentHandoverItem, getPOContractInfo, formatPONumber, calcPOTotal } from "../types";
 import { fmt, dateVN, makeId } from "../utils";
 import { SupplierSearchCombobox } from "./SupplierSearchCombobox";
@@ -9,6 +9,7 @@ import { cleanExcelNumber, parseExcelClipboard } from "../utils/approvalSamples"
 import { useTranslation } from "../i18n";
 import { DocFlowLinks } from "./DocFlowLinks";
 import { resolveDocFlow } from "../utils/docFlow";
+import { isPOCompleted } from "../utils/paymentSync";
 import "../payment.css";
 
 interface DraftPOItem {
@@ -38,6 +39,7 @@ export function POList({
   onAddProduct,
   onCreateHandover,
   onNavigate,
+  onToggleComplete,
   readOnly = false,
 }: {
   pos: PO[];
@@ -54,6 +56,7 @@ export function POList({
   onAddProduct?: (product: Item) => void;
   onCreateHandover?: (po: PO) => void;
   onNavigate?: (route: any) => void;
+  onToggleComplete?: (po: PO) => void;
   readOnly?: boolean;
 }) {
   const { t } = useTranslation();
@@ -438,13 +441,20 @@ export function POList({
     setShowCreateModal(false);
   };
 
-  const shown = (pos || []).filter((po) => {
-    if (!po) return false;
-    const s = suppliers.find((x) => Number(x.id) === Number(po.supplierId));
-    return ((po.number || "") + (po.prNumber || "") + (s?.name || ""))
-      .toLowerCase()
-      .includes(q.toLowerCase());
-  });
+  const shown = (pos || [])
+    .filter((po) => {
+      if (!po) return false;
+      const s = suppliers.find((x) => Number(x.id) === Number(po.supplierId));
+      return ((po.number || "") + (po.prNumber || "") + (s?.name || ""))
+        .toLowerCase()
+        .includes(q.toLowerCase());
+    })
+    .sort((a, b) => {
+      const aDone = isPOCompleted(a);
+      const bDone = isPOCompleted(b);
+      if (aDone !== bDone) return aDone ? 1 : -1;
+      return (b.createdDate || "").localeCompare(a.createdDate || "") || (b.id - a.id);
+    });
 
   return (
     <section className="content po-list-page">
@@ -487,11 +497,33 @@ export function POList({
             const total = calcPOTotal(po);
             const delivered = items.filter((item) => item.deliveryStatus === "Đã giao").length;
             const flow = resolveDocFlow({ po }, { prs, pos, approvalRequests, paymentRequests, paymentHandovers });
+            const isDone = isPOCompleted(po);
             return (
-              <article key={po.id}>
+              <article key={po.id} className={isDone ? "row-completed" : ""}>
                 <header>
-                  <button onClick={() => onOpen(po)}>{po.number}</button>
-                  <span className="status progress">{po.status}</span>
+                  <div style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
+                    {onToggleComplete && (
+                      <button
+                        type="button"
+                        className="completion-toggle-btn"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onToggleComplete(po);
+                        }}
+                        title={isDone ? "Đã hoàn thành (Bấm để mở lại)" : "Đang xử lý (Bấm để đánh dấu Hoàn thành)"}
+                      >
+                        {isDone ? (
+                          <CheckCircle2 size={18} className="text-emerald-600 fill-emerald-100" />
+                        ) : (
+                          <Circle size={18} className="text-slate-400 hover:text-slate-600" />
+                        )}
+                      </button>
+                    )}
+                    <button onClick={() => onOpen(po)}>{po.number}</button>
+                  </div>
+                  <span className={`status ${isDone ? "done" : "progress"}`}>
+                    {isDone ? "Đã hoàn thành" : po.status || "Đang xử lý"}
+                  </span>
                 </header>
                 <h3>{supplier?.name || "Chưa có nhà cung cấp"}</h3>
                 <p>
@@ -569,12 +601,32 @@ export function POList({
                   .reduce((n, p) => n + (Number(p.amount) || 0), 0);
                 const total = calcPOTotal(po);
                 const flow = resolveDocFlow({ po }, { prs, pos, approvalRequests, paymentRequests, paymentHandovers });
+                const isDone = isPOCompleted(po);
                 return (
-                  <tr key={po.id}>
+                  <tr key={po.id} className={isDone ? "row-completed" : ""}>
                     <td style={{ whiteSpace: "nowrap" }}>
-                      <button className="pr-link" onClick={() => onOpen(po)}>
-                        {po.number}
-                      </button>
+                      <div style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
+                        {onToggleComplete && (
+                          <button
+                            type="button"
+                            className="completion-toggle-btn"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onToggleComplete(po);
+                            }}
+                            title={isDone ? "Đã hoàn thành (Bấm để mở lại)" : "Đang xử lý (Bấm để đánh dấu Hoàn thành)"}
+                          >
+                            {isDone ? (
+                              <CheckCircle2 size={16} className="text-emerald-600 fill-emerald-100" />
+                            ) : (
+                              <Circle size={16} className="text-slate-400 hover:text-slate-600" />
+                            )}
+                          </button>
+                        )}
+                        <button className="pr-link" onClick={() => onOpen(po)}>
+                          {po.number}
+                        </button>
+                      </div>
                       {contractInfo.hasContract && (
                         <div style={{ marginTop: "3px" }}>
                           <span

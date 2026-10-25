@@ -3,6 +3,7 @@ import {
   Plus,
   Search,
   CheckCircle2,
+  Circle,
   Clock,
   AlertTriangle,
   AlertCircle,
@@ -23,6 +24,14 @@ import {
 } from "lucide-react";
 import { PR, PO, Supplier, PurchaseHistory, ApprovalRequest, PaymentRequestEntry } from "../types";
 import { fmt } from "../utils";
+import { fmtMoney } from "../payment-utils";
+import {
+  isPaymentCompleted,
+  findLinkedPOForPayment,
+  isPRCompleted,
+  isPOCompleted,
+  isApprovalCompleted,
+} from "../utils/paymentSync";
 
 // --- TYPES FOR DASHBOARD TO-DO WIDGET & MENTION SYSTEM ---
 export interface DashboardTodo {
@@ -63,6 +72,10 @@ export function Dashboard({
   onSelectPO,
   onSelectApproval,
   onSelectPayment,
+  onToggleCompletePayment,
+  onToggleCompletePR,
+  onToggleCompletePO,
+  onToggleCompleteApproval,
 }: {
   prs?: PR[];
   pos?: PO[];
@@ -79,6 +92,10 @@ export function Dashboard({
   onSelectPO?: (po: PO) => void;
   onSelectApproval?: (id: number) => void;
   onSelectPayment?: (id: number) => void;
+  onToggleCompletePayment?: (req: PaymentRequestEntry) => void;
+  onToggleCompletePR?: (pr: PR) => void;
+  onToggleCompletePO?: (po: PO) => void;
+  onToggleCompleteApproval?: (appr: ApprovalRequest) => void;
 }) {
   // Current date for comparison
   const todayStr = useMemo(() => new Date().toISOString().slice(0, 10), []);
@@ -93,10 +110,11 @@ export function Dashboard({
   const pendingPRs = useMemo(() => {
     return prs.filter(
       (p) =>
-        p.status === "Chờ xử lý" ||
-        p.status === "Đang lấy báo giá" ||
-        p.status.toLowerCase().includes("báo giá") ||
-        p.status.toLowerCase().includes("so sánh"),
+        !isPRCompleted(p) &&
+        (p.status === "Chờ xử lý" ||
+          p.status === "Đang lấy báo giá" ||
+          p.status.toLowerCase().includes("báo giá") ||
+          p.status.toLowerCase().includes("so sánh")),
     );
   }, [prs]);
 
@@ -104,16 +122,17 @@ export function Dashboard({
   const pendingApprovals = useMemo(() => {
     return approvalRequests.filter(
       (a) =>
-        a.status === "Chờ phê duyệt" ||
-        a.status === "Nháp" ||
-        !a.status,
+        !isApprovalCompleted(a) &&
+        (a.status === "Chờ phê duyệt" ||
+          a.status === "Nháp" ||
+          !a.status),
     );
   }, [approvalRequests]);
 
   // Tab 3: POs undelivered / partially delivered
   const pendingDeliveryPOs = useMemo(() => {
     return pos.filter((po) => {
-      if (po.status === "Hoàn thành" || po.status === "Đã hủy") return false;
+      if (isPOCompleted(po) || po.status === "Hoàn thành" || po.status === "Đã hủy") return false;
       const items = po.items || [];
       const hasUndelivered = items.some(
         (i) => (i.deliveredQty || 0) < i.qty || i.deliveryStatus !== "Đã giao",
@@ -210,6 +229,20 @@ export function Dashboard({
     }
     return cashFlowItems;
   }, [cashFlowItems, cashFlowFilter]);
+
+  // -------------------------------------------------------------
+  // PENDING PAYMENTS WORKLIST (Khoản thanh toán chưa hoàn thành)
+  // -------------------------------------------------------------
+  const pendingPayments = useMemo(() => {
+    return (paymentRequests || [])
+      .filter((r) => !isPaymentCompleted(r))
+      .sort((a, b) => {
+        const na = Number(a.legacy_stt || a.id) || 0;
+        const nb = Number(b.legacy_stt || b.id) || 0;
+        if (nb !== na) return nb - na;
+        return (Number(b.id) || 0) - (Number(a.id) || 0);
+      });
+  }, [paymentRequests]);
 
   // -------------------------------------------------------------
   // 3. TO-DO LIST & NOTES (Khu vực 3: Bảng công việc cá nhân)
@@ -822,13 +855,25 @@ export function Dashboard({
                       {pendingPRs.slice(0, 6).map((pr) => (
                         <tr key={pr.id}>
                           <td>
-                            <button
-                              type="button"
-                              className="queue-code-link"
-                              onClick={() => onSelectPR && onSelectPR(pr)}
-                            >
-                              {pr.number}
-                            </button>
+                            <div style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
+                              {onToggleCompletePR && (
+                                <button
+                                  type="button"
+                                  className="completion-toggle-btn"
+                                  onClick={() => onToggleCompletePR(pr)}
+                                  title="Đánh dấu hoàn thành PR"
+                                >
+                                  <Circle size={15} className="text-slate-400 hover:text-slate-600" />
+                                </button>
+                              )}
+                              <button
+                                type="button"
+                                className="queue-code-link"
+                                onClick={() => onSelectPR && onSelectPR(pr)}
+                              >
+                                {pr.number}
+                              </button>
+                            </div>
                           </td>
                           <td>
                             <span className="cell-dept-badge">{pr.department}</span>
@@ -909,15 +954,27 @@ export function Dashboard({
                         return (
                           <tr key={appr.id}>
                             <td>
-                              <button
-                                type="button"
-                                className="queue-code-link"
-                                onClick={() =>
-                                  onSelectApproval && onSelectApproval(appr.id)
-                                }
-                              >
-                                {appr.requestNumber || `ĐNPD-#${appr.id}`}
-                              </button>
+                              <div style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
+                                {onToggleCompleteApproval && (
+                                  <button
+                                    type="button"
+                                    className="completion-toggle-btn"
+                                    onClick={() => onToggleCompleteApproval(appr)}
+                                    title="Duyệt & đánh dấu hoàn thành ĐNPD"
+                                  >
+                                    <Circle size={15} className="text-slate-400 hover:text-slate-600" />
+                                  </button>
+                                )}
+                                <button
+                                  type="button"
+                                  className="queue-code-link"
+                                  onClick={() =>
+                                    onSelectApproval && onSelectApproval(appr.id)
+                                  }
+                                >
+                                  {appr.requestNumber || `ĐNPD-#${appr.id}`}
+                                </button>
+                              </div>
                             </td>
                             <td>
                               <span className="cell-dept-badge">
@@ -990,13 +1047,25 @@ export function Dashboard({
                         return (
                           <tr key={po.id}>
                             <td>
-                              <button
-                                type="button"
-                                className="queue-code-link"
-                                onClick={() => onSelectPO && onSelectPO(po)}
-                              >
-                                {po.number}
-                              </button>
+                              <div style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
+                                {onToggleCompletePO && (
+                                  <button
+                                    type="button"
+                                    className="completion-toggle-btn"
+                                    onClick={() => onToggleCompletePO(po)}
+                                    title="Đánh dấu hoàn thành PO"
+                                  >
+                                    <Circle size={15} className="text-slate-400 hover:text-slate-600" />
+                                  </button>
+                                )}
+                                <button
+                                  type="button"
+                                  className="queue-code-link"
+                                  onClick={() => onSelectPO && onSelectPO(po)}
+                                >
+                                  {po.number}
+                                </button>
+                              </div>
                             </td>
                             <td>
                               <span className="cell-supplier-name">
@@ -1165,6 +1234,122 @@ export function Dashboard({
                               }}
                             >
                               Xem PO <ArrowRight size={12} />
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          </div>
+
+          {/* KHU VỰC: KHOẢN THANH TOÁN CHƯA HOÀN THÀNH */}
+          <div className="dashboard-card pending-payments-card">
+            <div className="card-header">
+              <div className="card-title-group">
+                <span className="card-badge-icon badge-emerald">
+                  <CreditCard size={16} />
+                </span>
+                <div>
+                  <h2>Thanh toán chưa hoàn thành</h2>
+                  <p>Hàng đợi các khoản chi phí cần giải ngân để NCC giao hàng hoặc thanh toán công nợ</p>
+                </div>
+              </div>
+              <span className="queue-pill-count">{pendingPayments.length} khoản chờ đi tiền</span>
+            </div>
+
+            <div className="queue-table-wrap">
+              {pendingPayments.length === 0 ? (
+                <div className="queue-empty-state">
+                  <CheckCircle2 size={32} className="empty-icon-success" />
+                  <p>Tuyệt vời! Không còn khoản thanh toán nào bị tồn đọng.</p>
+                </div>
+              ) : (
+                <table className="queue-data-table pending-payments-table">
+                  <thead>
+                    <tr>
+                      <th style={{ width: "135px" }}>PO liên kết</th>
+                      <th style={{ width: "210px" }}>Đơn vị thụ hưởng</th>
+                      <th>Nội dung thanh toán</th>
+                      <th style={{ width: "155px", textAlign: "right" }}>Số tiền</th>
+                      <th style={{ width: "180px" }}>Số HĐ (Ngày HĐ)</th>
+                      <th style={{ width: "140px", textAlign: "center" }}>Trạng thái / Xác nhận</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {pendingPayments.slice(0, 8).map((r) => {
+                      const linkedInfo = findLinkedPOForPayment(r, pos);
+                      const linkedPO = linkedInfo?.po;
+                      const invoiceText = r.invoice_no?.trim() || "Chưa có HĐ";
+                      const dateText = r.invoice_date?.trim() ? ` (${r.invoice_date.trim()})` : "";
+                      const invoiceCombined = `${invoiceText}${dateText}`;
+
+                      return (
+                        <tr key={r.id}>
+                          {/* 1. PO liên kết */}
+                          <td>
+                            {linkedPO ? (
+                              <button
+                                type="button"
+                                className="queue-code-link"
+                                onClick={() => onSelectPO && onSelectPO(linkedPO)}
+                                title={`Mở xem đơn ${linkedPO.number}`}
+                              >
+                                <Package size={12} /> {linkedPO.number}
+                              </button>
+                            ) : (
+                              <span className="text-muted" style={{ fontSize: "12px", color: "var(--slate-400)" }}>
+                                {r.group_code || "Trực tiếp"}
+                              </span>
+                            )}
+                          </td>
+
+                          {/* 2. Đơn vị thụ hưởng */}
+                          <td>
+                            <span className="cell-supplier-name font-medium">
+                              {r.payee_name || "Chưa có NCC"}
+                            </span>
+                          </td>
+
+                          {/* 3. Nội dung thanh toán */}
+                          <td className="cell-purpose" title={r.description || r.item_name}>
+                            {r.description || r.item_name || "Thanh toán"}
+                          </td>
+
+                          {/* 4. Số tiền (Gộp chung đơn vị tiền) */}
+                          <td className="cell-money font-semibold" style={{ textAlign: "right", whiteSpace: "nowrap" }}>
+                            {fmtMoney(r.amount)} {r.currency || "VND"}
+                          </td>
+
+                          {/* 5. Số HĐ (Ngày HĐ) */}
+                          <td style={{ whiteSpace: "nowrap" }}>
+                            <span className="compact-invoice-tag">{invoiceCombined}</span>
+                          </td>
+
+                          {/* 6. Trạng thái / Nút xác nhận 1-click */}
+                          <td style={{ textAlign: "center" }}>
+                            <button
+                              type="button"
+                              className="btn btn-emerald btn-xs btn-confirm-payment"
+                              style={{
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: "4px",
+                                backgroundColor: "#10b981",
+                                color: "#ffffff",
+                                padding: "4px 8px",
+                                borderRadius: "6px",
+                                fontWeight: 600,
+                                border: "none",
+                                cursor: "pointer",
+                                fontSize: "12px",
+                              }}
+                              onClick={() => onToggleCompletePayment && onToggleCompletePayment(r)}
+                              title="Xác nhận Đã thanh toán và tự động đồng bộ vào PO liên kết"
+                            >
+                              <CheckCircle2 size={13} /> Đã thanh toán
                             </button>
                           </td>
                         </tr>

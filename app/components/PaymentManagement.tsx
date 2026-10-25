@@ -18,6 +18,8 @@ import {
   Settings,
   Check,
   Paperclip,
+  Circle,
+  CheckCircle2,
 } from "lucide-react";
 import {
   PO,
@@ -52,6 +54,7 @@ import {
 import "../payment.css";
 import { useIsMobile } from "../useIsMobile";
 import { AutoGrowTextarea } from "./AutoGrowTextarea";
+import { isPaymentCompleted, syncPaymentCompletionToPO } from "../utils/paymentSync";
 
 export const isPOContract = (p: PO): boolean =>
   p.number.startsWith("HĐ-") ||
@@ -214,7 +217,7 @@ export const DEFAULT_COLUMN_SETTINGS: ColumnSetting[] = [
   { id: "documents", label: "H · Hồ sơ", minWidth: 105, width: 125, visible: true, pinned: false },
   { id: "request_date", label: "I · Ngày ĐNTT", minWidth: 110, width: 125, visible: true, pinned: false },
   { id: "payment_type", label: "J · Loại TT", minWidth: 115, width: 130, visible: true, pinned: false },
-  { id: "status", label: "K · Trạng thái", minWidth: 135, width: 160, visible: true, pinned: false },
+  { id: "status", label: "K · Trạng thái", minWidth: 135, width: 160, visible: false, pinned: false },
   { id: "doc_supplement", label: "L · Bổ sung HS", minWidth: 120, width: 140, visible: true, pinned: false },
   { id: "address", label: "M · Địa chỉ", minWidth: 150, width: 200, visible: true, pinned: false },
   { id: "account_no", label: "N · Số TK", minWidth: 115, width: 135, visible: true, pinned: false },
@@ -234,7 +237,10 @@ export interface PaymentManagementProps {
     paymentRequests?: PaymentRequestEntry[];
     paymentGroups?: PaymentGroup[];
     paymentTemplate?: PaymentPrintTemplate;
+    pos?: PO[];
   }) => void;
+  onUpdatePO?: (po: PO) => void;
+  onToggleCompletePayment?: (r: PaymentRequestEntry) => void;
   readOnly?: boolean;
   initialSearchQuery?: string;
   initialActiveId?: number;
@@ -252,6 +258,8 @@ export function PaymentManagement({
   readOnly = false,
   initialSearchQuery,
   initialActiveId,
+  onUpdatePO,
+  onToggleCompletePayment,
 }: PaymentManagementProps) {
   // Mobile / Desktop & Card view detection
   const isAutoMobile = useIsMobile(768);
@@ -464,6 +472,30 @@ export function PaymentManagement({
   const [groupFilter, setGroupFilter] = useState("");
   const [isWorkspaceExpanded, setIsWorkspaceExpanded] = useState(false);
 
+  const handleToggleComplete = (r: PaymentRequestEntry) => {
+    if (readOnly) return;
+    if (onToggleCompletePayment) {
+      onToggleCompletePayment(r);
+      return;
+    }
+    const isDone = isPaymentCompleted(r);
+    const willComplete = !isDone;
+
+    const { updatedReq, updatedPOs, linkedPO } = syncPaymentCompletionToPO(r, willComplete, pos);
+
+    const nextRequests = paymentRequests.map((item) => (item.id === r.id ? updatedReq : item));
+
+    onUpdateState({
+      paymentRequests: nextRequests,
+      ...(updatedPOs && updatedPOs.length > 0 ? { pos: updatedPOs } : {}),
+    });
+
+    if (onUpdatePO && linkedPO) {
+      const freshPO = updatedPOs.find((p) => p.id === linkedPO.id);
+      if (freshPO) onUpdatePO(freshPO);
+    }
+  };
+
   // Modals state
   const [docModalReqId, setDocModalReqId] = useState<number | null>(null);
   const [newDocName, setNewDocName] = useState("");
@@ -603,6 +635,12 @@ export function PaymentManagement({
     });
 
     return list.sort((a, b) => {
+      const aDone = isPaymentCompleted(a);
+      const bDone = isPaymentCompleted(b);
+      // Ưu tiên: Chưa hoàn thành lên trên cùng, Đã hoàn thành đẩy xuống dưới
+      if (aDone !== bDone) {
+        return aDone ? 1 : -1;
+      }
       const na = Number(a.legacy_stt || a.id) || 0;
       const nb = Number(b.legacy_stt || b.id) || 0;
       if (nb !== na) return nb - na;
@@ -1794,7 +1832,7 @@ export function PaymentManagement({
       {showMobileCards ? (
         <div className="mobile-cards-container">
           {filteredRequests.map((r) => {
-            const isDone = PAID_STATUSES.includes(r.status);
+            const isDone = isPaymentCompleted(r);
             let stClass = "mb-badge-default";
             if (isDone) stClass = "mb-badge-done";
             else if (r.status && r.status.includes("Đã thanh toán")) stClass = "mb-badge-paid";
@@ -1810,11 +1848,25 @@ export function PaymentManagement({
               <div
                 key={r.id}
                 id={`payment-row-${r.id}`}
-                className={`m-card ${isDone ? "m-card-done" : ""} ${isFlashing ? "row-highlight-flash" : ""}`}
+                className={`m-card ${isDone ? "m-card-done row-completed" : ""} ${isFlashing ? "row-highlight-flash" : ""}`}
                 onClick={() => setActiveRequestId(r.id)}
               >
                 <div className="m-card-header">
-                  <div className="m-card-stt">STT {r.legacy_stt || r.id}</div>
+                  <div className="m-card-stt" style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                    <button
+                      type="button"
+                      className={`completion-toggle-btn ${isDone ? "completed" : ""}`}
+                      title={isDone ? "Đã thanh toán (Bấm để chuyển về Chưa thanh toán)" : "Chưa thanh toán (Bấm để đánh dấu Đã thanh toán & đồng bộ PO)"}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleToggleComplete(r);
+                      }}
+                      style={{ background: "transparent", border: "none", cursor: "pointer", padding: "0 2px", display: "inline-flex" }}
+                    >
+                      {isDone ? <CheckCircle2 size={18} className="text-emerald-600" /> : <Circle size={18} className="text-slate-400" />}
+                    </button>
+                    <span>STT {r.legacy_stt || r.id}</span>
+                  </div>
                   {isPhoneScreen ? (
                     <span className={`m-badge ${stClass}`}>{r.status}</span>
                   ) : (
@@ -2018,15 +2070,18 @@ export function PaymentManagement({
                   <th
                     className="col-check-head"
                     style={{
-                      width: "46px",
-                      minWidth: "46px",
-                      maxWidth: "46px",
+                      width: "76px",
+                      minWidth: "76px",
+                      maxWidth: "82px",
                       textAlign: "center",
                       padding: "6px 2px",
                       boxSizing: "border-box",
                     }}
+                    title="Cột thao tác: Hoàn thành, In phiếu, Chọn hàng loạt"
                   >
-                    <div style={{ display: "inline-flex", alignItems: "center", gap: "3px", justifyContent: "center" }}>
+                    <div style={{ display: "inline-flex", alignItems: "center", gap: "4px", justifyContent: "center" }}>
+                      <span title="Đánh dấu hoàn thành" style={{ fontSize: "12px", color: "#10b981", fontWeight: 700 }}>✓</span>
+                      <span style={{ fontSize: "10px", color: "#64748b", fontWeight: 700 }}>In</span>
                       <input
                         type="checkbox"
                         style={{ margin: 0, cursor: "pointer" }}
@@ -2042,7 +2097,6 @@ export function PaymentManagement({
                           }
                         }}
                       />
-                      <span style={{ fontSize: "10px", color: "#64748b", fontWeight: 700 }}>In</span>
                     </div>
                   </th>
 
@@ -2151,24 +2205,24 @@ export function PaymentManagement({
               <tbody onKeyDown={handleTableKeyDown} onPaste={handlePaymentTablePaste}>
                 {filteredRequests.map((r) => {
                   const isChosen = activeRequestId === r.id;
-                  const isDone = PAID_STATUSES.includes(r.status);
+                  const isDone = isPaymentCompleted(r);
                   const isFlashing = highlightedRowId === r.id;
                   const bg = isChosen ? "#eff6ff" : isDone ? "#f0fdf4" : "#ffffff";
                   return (
                     <tr
                       key={r.id}
                       id={`payment-row-${r.id}`}
-                      className={`${isChosen ? "chosen" : ""} ${isDone ? "row-done" : ""} ${isFlashing ? "row-highlight-flash" : ""}`}
+                      className={`${isChosen ? "chosen" : ""} ${isDone ? "row-done row-completed" : ""} ${isFlashing ? "row-highlight-flash" : ""}`}
                       onClick={() => setActiveRequestId(r.id)}
                     >
-                      {/* Checkbox + In phiếu combined into 1 compact cell */}
+                      {/* Checkbox + In phiếu + Nút hoàn thành combined into 1 compact cell */}
                       <td
                         className="col-check-cell"
                         style={{
                           textAlign: "center",
-                          width: "46px",
-                          minWidth: "46px",
-                          maxWidth: "46px",
+                          width: "76px",
+                          minWidth: "76px",
+                          maxWidth: "82px",
                           background: bg,
                           padding: "6px 2px 2px",
                           whiteSpace: "nowrap",
@@ -2177,17 +2231,18 @@ export function PaymentManagement({
                         }}
                       >
                         <div style={{ display: "inline-flex", alignItems: "center", gap: "4px", justifyContent: "center" }}>
-                          <input
-                            type="checkbox"
-                            style={{ margin: 0, cursor: "pointer" }}
-                            checked={checkedIds.has(r.id)}
-                            onChange={(e) => {
-                              const next = new Set(checkedIds);
-                              if (e.target.checked) next.add(r.id);
-                              else next.delete(r.id);
-                              setCheckedIds(next);
+                          <button
+                            type="button"
+                            className={`completion-toggle-btn ${isDone ? "completed" : ""}`}
+                            title={isDone ? "Đã thanh toán (Bấm để chuyển về Chưa thanh toán)" : "Chưa thanh toán (Bấm để đánh dấu Đã thanh toán & đồng bộ PO)"}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleToggleComplete(r);
                             }}
-                          />
+                            style={{ background: "transparent", border: "none", cursor: "pointer", padding: "0 1px", display: "inline-flex", lineHeight: 1 }}
+                          >
+                            {isDone ? <CheckCircle2 size={16} className="text-emerald-600" /> : <Circle size={16} className="text-slate-400 hover:text-slate-600" />}
+                          </button>
                           <button
                             type="button"
                             className="payment-btn"
@@ -2200,6 +2255,17 @@ export function PaymentManagement({
                           >
                             ⎙
                           </button>
+                          <input
+                            type="checkbox"
+                            style={{ margin: 0, cursor: "pointer" }}
+                            checked={checkedIds.has(r.id)}
+                            onChange={(e) => {
+                              const next = new Set(checkedIds);
+                              if (e.target.checked) next.add(r.id);
+                              else next.delete(r.id);
+                              setCheckedIds(next);
+                            }}
+                          />
                         </div>
                       </td>
 

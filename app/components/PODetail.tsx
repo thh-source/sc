@@ -13,6 +13,8 @@ import {
   ClipboardCheck,
   Table,
   LayoutGrid,
+  CheckCircle2,
+  Circle,
 } from "lucide-react";
 import {
   Supplier,
@@ -38,6 +40,7 @@ import VisualTimeline from "./VisualTimeline";
 import DocumentManager from "./DocumentManager";
 import { DocFlowLinks } from "./DocFlowLinks";
 import { resolveDocFlow } from "../utils/docFlow";
+import { isPOCompleted } from "../utils/paymentSync";
 import { PODeliveryModal, POItemsMobileCards, DeliveryConfirmPayload } from "./PODeliveryMobileSheet";
 
 export function PODetail({
@@ -788,6 +791,44 @@ export function PODetail({
               title="Tạo biên bản bàn giao cho các mặt hàng trong đơn này"
             >
               <Truck size={16} /> Bàn giao
+            </button>
+          )}
+          {!readOnly && (
+            <button
+              type="button"
+              className={`btn ${isPOCompleted(po) ? "btn-secondary" : "btn-success"}`}
+              style={{
+                height: "38px",
+                padding: "0 12px",
+                fontSize: "12.5px",
+                fontWeight: 600,
+                cursor: "pointer",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "5px",
+                backgroundColor: isPOCompleted(po) ? "#ecfdf5" : undefined,
+                color: isPOCompleted(po) ? "#059669" : undefined,
+                borderColor: isPOCompleted(po) ? "#a7f3d0" : undefined,
+              }}
+              onClick={() => {
+                const nextVal = !isPOCompleted(po);
+                onUpdate({
+                  ...po,
+                  isCompleted: nextVal,
+                  status: nextVal ? "Đã hoàn thành" : "Đang thực hiện",
+                });
+              }}
+              title={isPOCompleted(po) ? "Đổi sang Đang thực hiện" : "Đánh dấu Đã hoàn thành đơn hàng"}
+            >
+              {isPOCompleted(po) ? (
+                <>
+                  <CheckCircle2 size={16} className="text-emerald-600" /> Đã hoàn thành
+                </>
+              ) : (
+                <>
+                  <Circle size={16} /> Hoàn thành đơn
+                </>
+              )}
             </button>
           )}
           {!readOnly && onDelete && (

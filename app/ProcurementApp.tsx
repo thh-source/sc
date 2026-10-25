@@ -36,6 +36,13 @@ import { POList } from "./components/POList";
 import { PODetail } from "./components/PODetail";
 import { PRList } from "./components/PRList";
 import { KnowledgeBase, KnowledgeBaseDrawer } from "./components/KnowledgeBase";
+import {
+  isPRCompleted,
+  isPOCompleted,
+  isApprovalCompleted,
+  isPaymentCompleted,
+  syncPaymentCompletionToPO,
+} from "./utils/paymentSync";
 
 const AdminSettings = lazy(() => import("./components/AdminSettings").then(m => ({ default: m.AdminSettings })));
 const TrashPage = lazy(() => import("./components/TrashPage").then(m => ({ default: m.TrashPage })));
@@ -1474,6 +1481,42 @@ function ProcurementAppInner({
     setPos((list) => list.map((x) => (x.id === po.id ? po : x)));
   };
 
+  const handleToggleCompletePayment = useCallback((req: PaymentRequestEntry) => {
+    const willComplete = !isPaymentCompleted(req);
+    const { updatedReq, updatedPOs } = syncPaymentCompletionToPO(req, willComplete, pos);
+    setPaymentRequests((list) =>
+      list.map((r) => (r.id === req.id ? updatedReq : r))
+    );
+    setPos(updatedPOs);
+    setStorageStatus(`Đã cập nhật thanh toán ${req.id} sang ${willComplete ? "Hoàn thành" : "Chưa hoàn thành"}`);
+  }, [pos]);
+
+  const handleToggleCompletePR = useCallback((pr: PR) => {
+    const willComplete = !isPRCompleted(pr);
+    const nextStatus = willComplete ? "Hoàn thành" : "Đang xử lý";
+    setPrs((list) =>
+      list.map((p) => (p.id === pr.id ? { ...p, isCompleted: willComplete, status: nextStatus } : p))
+    );
+    setStorageStatus(`Đã cập nhật PR ${pr.number} sang ${willComplete ? "Hoàn thành" : "Chưa hoàn thành"}`);
+  }, []);
+
+  const handleToggleCompletePO = useCallback((po: PO) => {
+    const willComplete = !isPOCompleted(po);
+    const nextStatus = willComplete ? "Đã hoàn thành" : "Đang thực hiện";
+    const updated = { ...po, isCompleted: willComplete, status: nextStatus };
+    updatePO(updated);
+    setStorageStatus(`Đã cập nhật PO ${po.number} sang ${willComplete ? "Hoàn thành" : "Đang thực hiện"}`);
+  }, []);
+
+  const handleToggleCompleteApproval = useCallback((appr: ApprovalRequest) => {
+    const willComplete = !isApprovalCompleted(appr);
+    const nextStatus: ApprovalRequest["status"] = willComplete ? "Đã phê duyệt" : "Chờ phê duyệt";
+    setApprovalRequests((list) =>
+      list.map((a) => (a.id === appr.id ? { ...a, isCompleted: willComplete, status: nextStatus } : a))
+    );
+    setStorageStatus(`Đã cập nhật ĐNPD #${appr.id} sang ${willComplete ? "Hoàn thành" : "Chưa hoàn thành"}`);
+  }, []);
+
   const handleCreateHandoverFromPO = (po: PO) => {
     if (!po.items || po.items.length === 0) {
       alert("PO/Hợp đồng này không có sản phẩm nào để tạo biên bản bàn giao.");
@@ -1980,6 +2023,10 @@ function ProcurementAppInner({
               if (id) setSpotlightPaymentActiveId(id);
               navigateTo({ view: "payment", id });
             }}
+            onToggleCompletePayment={handleToggleCompletePayment}
+            onToggleCompletePR={handleToggleCompletePR}
+            onToggleCompletePO={handleToggleCompletePO}
+            onToggleCompleteApproval={handleToggleCompleteApproval}
           />
         )}
         {view === "contracts" && (
@@ -2036,6 +2083,8 @@ function ProcurementAppInner({
               if (patch.paymentGroups !== undefined) setPaymentGroups(patch.paymentGroups);
               if (patch.paymentTemplate !== undefined) setPaymentTemplate(patch.paymentTemplate);
             }}
+            onUpdatePO={updatePO}
+            onToggleCompletePayment={handleToggleCompletePayment}
             readOnly={reportMode}
           />
         )}
@@ -2113,6 +2162,7 @@ function ProcurementAppInner({
               }}
               pos={pos}
               onNavigate={(route) => navigateTo(route)}
+              onToggleComplete={handleToggleCompleteApproval}
             />
           </ErrorBoundary>
         )}
@@ -2152,6 +2202,7 @@ function ProcurementAppInner({
             onOpen={openCompare}
             onDelete={reportMode ? undefined : (pr) => requestDelete("PR", pr)}
             onNavigate={(route) => navigateTo(route)}
+            onToggleComplete={handleToggleCompletePR}
           />
         )}
         {view === "create" && (
@@ -2196,6 +2247,7 @@ function ProcurementAppInner({
               paymentRequests={paymentRequests}
               paymentHandovers={paymentHandovers}
               onNavigate={(route) => navigateTo(route)}
+              onToggleComplete={handleToggleCompletePO}
               onAddSupplier={handleAddSupplier}
               onAddProduct={handleAddProduct}
               onCreatePO={(newPO, openDetail, sourcePrId) => {
