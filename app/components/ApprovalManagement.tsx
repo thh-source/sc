@@ -2509,8 +2509,8 @@ export default function ApprovalManagement({
           <div id="approvalPrintPortal">
             <style>{`
               @page {
-                size: A4 ${activeRequest.printOrientation || "landscape"};
-                margin: 7mm 8mm;
+                size: A4 ${activeRequest.printOrientation || "portrait"};
+                margin: 5mm 6mm;
               }
               @media screen {
                 #approvalPrintPortal {
@@ -2539,8 +2539,8 @@ export default function ApprovalManagement({
                   background: #ffffff !important;
                   color: #000000 !important;
                   font-family: "Times New Roman", Times, serif !important;
-                  font-size: 11.5pt !important;
-                  line-height: 1.35 !important;
+                  font-size: 10pt !important;
+                  line-height: 1.18 !important;
                 }
                 /* Ghi đè triệt để rule global table { min-width: max-content } và th, td { white-space: nowrap } từ globals.css */
                 #approvalPrintPortal table,
@@ -2553,19 +2553,66 @@ export default function ApprovalManagement({
                   table-layout: fixed !important;
                   border-collapse: collapse !important;
                 }
+                #approvalPrintPortal .phenikaa-header-table {
+                  margin-bottom: 4px !important;
+                }
+                #approvalPrintPortal .phenikaa-logo-box {
+                  padding: 3px 6px !important;
+                }
+                #approvalPrintPortal .phenikaa-logo-img {
+                  max-height: 40px !important;
+                }
+                #approvalPrintPortal .phenikaa-title-box {
+                  font-size: 14pt !important;
+                  padding: 4px 6px !important;
+                  line-height: 1.15 !important;
+                  font-weight: 700 !important;
+                }
                 #approvalPrintPortal .phenikaa-meta-lines {
                   width: 100% !important;
-                  margin-bottom: 12px !important;
+                  margin-bottom: 4px !important;
                 }
                 #approvalPrintPortal .phenikaa-meta-line {
                   width: 100% !important;
                   text-align: left !important;
-                  padding: 2px 0 !important;
-                  font-size: 12pt !important;
-                  line-height: 1.4 !important;
+                  padding: 0px 0 !important;
+                  font-size: 10pt !important;
+                  line-height: 1.18 !important;
+                }
+                #approvalPrintPortal .phenikaa-section-block {
+                  margin-bottom: 4px !important;
+                }
+                #approvalPrintPortal .phenikaa-section-heading {
+                  font-size: 10.5pt !important;
+                  margin-bottom: 1px !important;
+                  line-height: 1.15 !important;
+                  font-weight: 700 !important;
+                }
+                #approvalPrintPortal .phenikaa-section-subline {
+                  font-size: 10pt !important;
+                  margin-bottom: 2px !important;
+                  line-height: 1.15 !important;
+                }
+                #approvalPrintPortal .eval-row {
+                  margin-bottom: 1px !important;
+                  line-height: 1.18 !important;
+                  font-size: 10pt !important;
+                }
+                #approvalPrintPortal .phenikaa-sign-table {
+                  margin-top: 6px !important;
+                }
+                #approvalPrintPortal .sign-title {
+                  font-size: 10.5pt !important;
+                  line-height: 1.15 !important;
+                  font-weight: 700 !important;
                 }
                 #approvalPrintPortal .sign-space {
-                  height: 125px !important;
+                  height: 45px !important;
+                }
+                #approvalPrintPortal .sign-name {
+                  font-size: 10.5pt !important;
+                  line-height: 1.15 !important;
+                  font-weight: 700 !important;
                 }
                 #approvalPrintPortal th,
                 #approvalPrintPortal td {
@@ -2583,8 +2630,9 @@ export default function ApprovalManagement({
                 #approvalPrintPortal .phenikaa-print-grid th,
                 #approvalPrintPortal .phenikaa-print-grid td {
                   border: 1px solid #000000 !important;
-                  padding: 3px 4px !important;
-                  line-height: 1.28 !important;
+                  padding: 2px 3px !important;
+                  font-size: 9.5pt !important;
+                  line-height: 1.15 !important;
                 }
                 #approvalPrintPortal .phenikaa-sign-table td {
                   border: none !important;
@@ -2917,7 +2965,10 @@ export default function ApprovalManagement({
                   III. Lý do lựa chọn:
                 </div>
                 {activeRequest.reasons.map((reason, idx) => (
-                  <div key={`p_reason_${idx}`} style={{ marginBottom: 3 }}>
+                  <div
+                    key={`p_reason_${idx}`}
+                    style={{ marginBottom: 1, lineHeight: 1.18, fontSize: "10pt" }}
+                  >
                     {idx + 1}. {reason}
                   </div>
                 ))}
