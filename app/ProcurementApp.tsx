@@ -46,6 +46,12 @@ import { GlobalSpotlightModal } from "./components/GlobalSpotlightModal";
 import { POHandoverPickerModal } from "./components/POHandoverPickerModal";
 import { I18nProvider, useTranslation, LanguageSwitcher } from "./i18n";
 import { ErrorBoundary } from "./components/ErrorBoundary";
+import {
+  AppRoute,
+  buildHashFromRoute,
+  navigateTo,
+  parseRouteFromHash,
+} from "./utils/navigation";
 
 function ProcurementAppInner({
   reportToken,
@@ -109,7 +115,8 @@ function ProcurementAppInner({
   const [approvalRequests, setApprovalRequests] = useState<ApprovalRequest[]>(
       SAMPLE_PHENIKAA_APPROVALS,
     ),
-    [activeApprovalId, setActiveApprovalId] = useState<number | null>(null);
+    [activeApprovalId, setActiveApprovalId] = useState<number | null>(null),
+    [isPrintApproval, setIsPrintApproval] = useState(false);
   const [trash, setTrash] = useState<TrashItem[]>([]),
     [hiddenContractIds, setHiddenContractIds] = useState<number[]>([]),
     [deleteTarget, setDeleteTarget] = useState<{
@@ -652,14 +659,14 @@ function ProcurementAppInner({
       if (deleteTarget.type === "PR") {
         setPrs((list) => list.filter((pr) => Number(pr.id) !== Number(record.id)));
         if (Number(selectedPR.id) === Number(record.id)) setSelectedPR(emptyPR);
-        setView("prs");
+        navigateTo({ view: "prs" });
       } else if (deleteTarget.type === "PO") {
         setPos((list) => list.filter((po) => Number(po.id) !== Number(record.id)));
         if (Number(currentPO.id) === Number(record.id)) setCurrentPO(emptyPO);
-        setView("po-list");
+        navigateTo({ view: "po-list" });
       } else {
         setHiddenContractIds((ids) => [...new Set([...ids, record.id])]);
-        setView("contracts");
+        navigateTo({ view: "contracts" });
       }
       setStorageStatus(`✓ Đã chuyển ${entry.label} vào thùng rác`);
       setDeleteTarget(null);
@@ -779,17 +786,24 @@ function ProcurementAppInner({
       ),
     );
   };
+  const loadComparePR = useCallback(
+    (pr: PR) => {
+      setSelectedPR(pr);
+      setItems(pr.items);
+      setQuotes(quotesByPr[pr.id] || {});
+      setQuoteSupplierIds(quoteSupplierIdsByPr[pr.id] || []);
+      setPoSelections(
+        poCart
+          .filter((line) => line.allocation.prId === pr.id)
+          .map((line) => line.allocation.prItemId),
+      );
+    },
+    [quotesByPr, quoteSupplierIdsByPr, poCart],
+  );
+
   const openCompare = (pr: PR) => {
-    setSelectedPR(pr);
-    setItems(pr.items);
-    setQuotes(quotesByPr[pr.id] || {});
-    setQuoteSupplierIds(quoteSupplierIdsByPr[pr.id] || []);
-    setPoSelections(
-      poCart
-        .filter((line) => line.allocation.prId === pr.id)
-        .map((line) => line.allocation.prItemId),
-    );
-    setView("compare");
+    loadComparePR(pr);
+    navigateTo({ view: "compare", prId: pr.id });
   };
 
   const handleSpotlightNavigate = (destination: {
@@ -809,15 +823,17 @@ function ProcurementAppInner({
 
     if (destination.view === "po-detail" && destination.po) {
       setCurrentPO(destination.po);
-      setView("po-detail");
+      navigateTo({ view: "po-detail", id: destination.po.id });
       return;
     }
 
     if (destination.view === "contracts") {
       if (destination.po) {
         setCurrentPO(destination.po);
+        navigateTo({ view: "contracts", id: destination.po.id });
+      } else {
+        navigateTo({ view: "contracts" });
       }
-      setView("contracts");
       return;
     }
 
@@ -827,8 +843,10 @@ function ProcurementAppInner({
       }
       if (destination.paymentId) {
         setSpotlightPaymentActiveId(destination.paymentId);
+        navigateTo({ view: "payment", id: destination.paymentId });
+      } else {
+        navigateTo({ view: "payment" });
       }
-      setView("payment");
       return;
     }
 
@@ -836,11 +854,15 @@ function ProcurementAppInner({
       if (destination.query) {
         setSpotlightHandoverSearch(destination.query);
       }
-      setView("handover");
+      if (destination.handoverId) {
+        navigateTo({ view: "handover", id: destination.handoverId });
+      } else {
+        navigateTo({ view: "handover" });
+      }
       return;
     }
 
-    setView(destination.view);
+    navigateTo({ view: destination.view });
   };
   const updatePRNote = (value: string) => {
     const updated = { ...selectedPR, note: value };
@@ -884,7 +906,7 @@ function ProcurementAppInner({
       items: [emptyItem(0)],
     });
     setImportMessage("");
-    setView("prs");
+    navigateTo({ view: "prs" });
   };
   const importExcel = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -1173,7 +1195,7 @@ function ProcurementAppInner({
     setApprovalRequests((prev) => [newReq, ...prev]);
     setActiveApprovalId(newReq.id);
     setPoCartOpen(false);
-    setView("approval");
+    navigateTo({ view: "approval", id: newReq.id });
   };
 
   const handleCreatePOFromApproval = (req: ApprovalRequest) => {
@@ -1318,7 +1340,7 @@ function ProcurementAppInner({
     setStorageStatus(
       `Đã phát hành đơn PO ${newPO.number} từ phiếu Đề nghị phê duyệt ${req.prNumber}`,
     );
-    setView("po-detail");
+    navigateTo({ view: "po-detail", id: newPO.id });
   };
   const createPO = () => {
     if (!poCart.length) return;
@@ -1424,7 +1446,7 @@ function ProcurementAppInner({
     setPoSelections([]);
     setPoCart([]);
     setPoCartOpen(false);
-    setView("po-detail");
+    navigateTo({ view: "po-detail", id: po.id });
   };
   const updatePO = (po: PO) => {
     setCurrentPO(po);
@@ -1489,7 +1511,7 @@ function ProcurementAppInner({
 
     setPaymentHandovers((prev) => [...newHandovers, ...prev]);
     setSpotlightHandoverSearch(handoverPickerPO.number);
-    setView("handover");
+    navigateTo({ view: "handover" });
     setStorageStatus(`Đã bàn giao ${newHandovers.length} mặt hàng cho ${payload.department} từ ${docTypeLabel} #${handoverPickerPO.number}`);
   };
 
@@ -1497,7 +1519,7 @@ function ProcurementAppInner({
     setPaymentRequests((prev) => [newReq, ...prev]);
     setSpotlightPaymentActiveId(newReq.id);
     setSpotlightPaymentSearch("");
-    setView("payment");
+    navigateTo({ view: "payment", id: newReq.id });
     setStorageStatus(`Đã tạo Đề nghị thanh toán #${newReq.legacy_stt} từ ${newReq.lines?.length || 0} vật tư bàn giao!`);
   };
 
@@ -1512,7 +1534,7 @@ function ProcurementAppInner({
         );
         if (go) {
           setSpotlightPaymentActiveId(existing.id);
-          setView("payment");
+          navigateTo({ view: "payment", id: existing.id });
         }
         return;
       }
@@ -1573,57 +1595,91 @@ function ProcurementAppInner({
     );
     if (go) {
       setSpotlightPaymentActiveId(maxId);
-      setView("payment");
+      navigateTo({ view: "payment", id: maxId });
     }
   };
   const activeContracts = pos.filter((po) => !hiddenContractIds.includes(po.id));
-  useEffect(() => {
-    if (!storageReady) return;
-    const hash = window.location.hash.slice(1);
-    if (hash) {
-      const params = new URLSearchParams(hash);
-      const prParam = params.get("pr");
-      const poParam = params.get("po");
-      const rawViewParam = params.get("view") as View;
-      const viewParam = rawViewParam === "contracts" ? "po-list" : rawViewParam;
-      
-      let didSetPR = false;
-      if (prParam) {
-        const found = prs.find((p) => String(p.id) === prParam);
-        if (found) {
-          openCompare(found);
-          didSetPR = true;
+  const handleSetActiveApprovalId = useCallback((id: number | null) => {
+    setActiveApprovalId(id);
+    if (id !== null) {
+      navigateTo({ view: "approval", id });
+    } else {
+      navigateTo({ view: "approval" });
+    }
+  }, []);
+
+  // Áp dụng route chuẩn hóa vào React state
+  const applyRoute = useCallback(
+    (route: AppRoute) => {
+      setView(route.view);
+      setIsPrintApproval(Boolean(route.isPrint));
+
+      if (route.view === "approval") {
+        setActiveApprovalId(route.id ?? null);
+        if (route.prId !== undefined) {
+          const foundPR = prs.find((p) => p.id === route.prId);
+          if (foundPR) setSelectedPR(foundPR);
+        }
+      } else if (route.view === "compare") {
+        const targetPrId = route.prId || route.id;
+        if (targetPrId !== undefined) {
+          const foundPR = prs.find((p) => p.id === targetPrId);
+          if (foundPR) {
+            loadComparePR(foundPR);
+          }
+        }
+      } else if (route.view === "po-detail") {
+        const targetPoId = route.id || route.poId;
+        if (targetPoId !== undefined) {
+          const foundPO = pos.find((p) => p.id === targetPoId);
+          if (foundPO) {
+            setCurrentPO(foundPO);
+          }
+        }
+      } else if (route.view === "contracts") {
+        if (route.id !== undefined) {
+          const foundPO = pos.find((p) => p.id === route.id);
+          if (foundPO) setCurrentPO(foundPO);
+        }
+      } else if (route.view === "payment") {
+        if (route.id !== undefined) {
+          setSpotlightPaymentActiveId(route.id);
         }
       }
-      
-      if (poParam) {
-        const found = pos.find((p) => String(p.id) === poParam);
-        if (found) setCurrentPO(found);
-      }
-      
-      if (viewParam && !didSetPR) {
-        setView(viewParam);
-      }
-    }
-  }, [storageReady]); // eslint-disable-line react-hooks/exhaustive-deps
+    },
+    [prs, pos, loadComparePR],
+  );
 
+  // Lắng nghe các sự kiện điều hướng Browser History (popstate, hashchange, scm_route_change)
+  useEffect(() => {
+    const handleRouteChange = () => {
+      const currentRoute = parseRouteFromHash(window.location.hash);
+      applyRoute(currentRoute);
+    };
+
+    window.addEventListener("popstate", handleRouteChange);
+    window.addEventListener("hashchange", handleRouteChange);
+    window.addEventListener("scm_route_change", handleRouteChange as EventListener);
+
+    return () => {
+      window.removeEventListener("popstate", handleRouteChange);
+      window.removeEventListener("hashchange", handleRouteChange);
+      window.removeEventListener("scm_route_change", handleRouteChange as EventListener);
+    };
+  }, [applyRoute]);
+
+  // Khởi tạo và đồng bộ hóa URL khi ứng dụng hoặc dữ liệu sẵn sàng
   useEffect(() => {
     if (!storageReady) return;
-    const params = new URLSearchParams();
-    if (view !== "dashboard") params.set("view", view);
-    if (selectedPR?.id && (view === "compare" || view === "approval")) {
-      params.set("pr", String(selectedPR.id));
+    const currentHash = window.location.hash;
+    if (!currentHash || currentHash === "#" || currentHash === "#/") {
+      navigateTo({ view: "dashboard" }, { replace: true });
+      return;
     }
-    if (currentPO?.id && view === "po-detail") {
-      params.set("po", String(currentPO.id));
-    }
-    
-    const newHash = params.toString();
-    const currentHash = window.location.hash.slice(1);
-    if (newHash !== currentHash) {
-      window.history.replaceState(null, "", newHash ? `#${newHash}` : window.location.pathname);
-    }
-  }, [view, selectedPR?.id, currentPO?.id, storageReady]);
+
+    const route = parseRouteFromHash(currentHash);
+    applyRoute(route);
+  }, [storageReady, prs, pos, applyRoute]);
 
   const isNavActive = (id: string) => {
     if (view === "dashboard" && id === "dashboard") return true;
@@ -1641,20 +1697,39 @@ function ProcurementAppInner({
   };
 
   const nav = [
-    { id: "dashboard", icon: "▦", name: t("nav.dashboard"), action: () => setView("dashboard") },
-    { id: "prs", icon: "▣", name: t("nav.prs"), action: () => setView("prs") },
-    { id: "compare", icon: "⚖", name: t("nav.compare"), action: () => setView("compare") },
-    { id: "approval", icon: "✓", name: t("nav.approval"), action: () => { setActiveApprovalId(null); setView("approval"); } },
-    { id: "po-list", icon: "▰", name: t("nav.po_list"), action: () => setView("po-list") },
-    { id: "payment", icon: "💳", name: t("nav.payment"), action: () => setView("payment") },
-    { id: "handover", icon: "📦", name: t("nav.handover"), action: () => setView("handover") },
-    { id: "suppliers", icon: "▱", name: t("nav.suppliers"), action: () => setView("suppliers") },
-    { id: "products", icon: "◇", name: t("nav.products"), action: () => setView("products") },
+    { id: "dashboard", icon: "▦", name: t("nav.dashboard"), action: () => navigateTo({ view: "dashboard" }) },
+    { id: "prs", icon: "▣", name: t("nav.prs"), action: () => navigateTo({ view: "prs" }) },
+    {
+      id: "compare",
+      icon: "⚖",
+      name: t("nav.compare"),
+      action: () => {
+        if (selectedPR?.id) {
+          navigateTo({ view: "compare", prId: selectedPR.id });
+        } else {
+          navigateTo({ view: "compare" });
+        }
+      },
+    },
+    {
+      id: "approval",
+      icon: "✓",
+      name: t("nav.approval"),
+      action: () => {
+        setActiveApprovalId(null);
+        navigateTo({ view: "approval" });
+      },
+    },
+    { id: "po-list", icon: "▰", name: t("nav.po_list"), action: () => navigateTo({ view: "po-list" }) },
+    { id: "payment", icon: "💳", name: t("nav.payment"), action: () => navigateTo({ view: "payment" }) },
+    { id: "handover", icon: "📦", name: t("nav.handover"), action: () => navigateTo({ view: "handover" }) },
+    { id: "suppliers", icon: "▱", name: t("nav.suppliers"), action: () => navigateTo({ view: "suppliers" }) },
+    { id: "products", icon: "◇", name: t("nav.products"), action: () => navigateTo({ view: "products" }) },
     {
       id: "trash",
       icon: "♲",
       name: `${t("nav.trash")}${trash.length ? ` (${trash.length})` : ""}`,
-      action: () => setView("trash"),
+      action: () => navigateTo({ view: "trash" }),
     },
     ...(currentUser?.role === "master" || currentUser?.role === "admin"
       ? [
@@ -1662,7 +1737,7 @@ function ProcurementAppInner({
             id: "settings",
             icon: "⚙",
             name: t("nav.settings"),
-            action: () => setView("settings" as View),
+            action: () => navigateTo({ view: "settings" }),
           },
         ]
       : []),
@@ -1835,13 +1910,19 @@ function ProcurementAppInner({
             pos={pos}
             suppliers={suppliers}
             purchaseHistory={purchaseHistory}
-            onPR={() => setView("prs")}
-            onPO={() => setView("po-list")}
-            onCompare={() => setView("compare")}
+            onPR={() => navigateTo({ view: "prs" })}
+            onPO={() => navigateTo({ view: "po-list" })}
+            onCompare={() => {
+              if (selectedPR?.id) {
+                navigateTo({ view: "compare", prId: selectedPR.id });
+              } else {
+                navigateTo({ view: "compare" });
+              }
+            }}
           />
         )}
         {view === "contracts" && (
-          <ErrorBoundary key="contracts" fallbackTitle="Lỗi hiển thị quản lý Hợp đồng" onReset={() => setView("dashboard")}>
+          <ErrorBoundary key="contracts" fallbackTitle="Lỗi hiển thị quản lý Hợp đồng" onReset={() => navigateTo({ view: "dashboard" })}>
             <ContractManagement
               pos={activeContracts}
               suppliers={suppliers}
@@ -1859,7 +1940,7 @@ function ProcurementAppInner({
               }}
               onOpenPO={(po) => {
                 setCurrentPO(po);
-                setView("po-detail");
+                navigateTo({ view: "po-detail", id: po.id });
               }}
               onUpdate={updatePO}
               onDelete={reportMode ? undefined : (po) => requestDelete("CONTRACT", po)}
@@ -1872,7 +1953,7 @@ function ProcurementAppInner({
                 if (patch.paymentGroups !== undefined) setPaymentGroups(patch.paymentGroups);
               }}
               onNavigateToPayment={(_filterGroupId) => {
-                setView("payment");
+                navigateTo({ view: "payment" });
               }}
               onCreateHandover={handleCreateHandoverFromPO}
             />
@@ -1917,12 +1998,13 @@ function ProcurementAppInner({
           <ErrorBoundary
             key="approval"
             fallbackTitle="Lỗi hiển thị Đề nghị Phê duyệt Lựa chọn Nhà Cung Cấp"
-            onReset={() => setView("dashboard")}
+            onReset={() => navigateTo({ view: "dashboard" })}
           >
             <ApprovalManagement
               approvalRequests={approvalRequests}
               activeApprovalId={activeApprovalId}
-              setActiveApprovalId={setActiveApprovalId}
+              setActiveApprovalId={handleSetActiveApprovalId}
+              autoPrint={isPrintApproval}
               onSaveApproval={(updatedReq) => {
                 setApprovalRequests((prev) => {
                   const exists = prev.some((r) => r.id === updatedReq.id);
@@ -1938,7 +2020,7 @@ function ProcurementAppInner({
                 setApprovalRequests((prev) => {
                   const remaining = prev.filter((r) => r.id !== delId);
                   if (activeApprovalId === delId) {
-                    setActiveApprovalId(remaining[0]?.id ?? null);
+                    handleSetActiveApprovalId(remaining[0]?.id ?? null);
                   }
                   return remaining;
                 });
@@ -1951,7 +2033,7 @@ function ProcurementAppInner({
                   );
                   const merged =
                     missing.length > 0 ? [...missing, ...prev] : prev;
-                  if (merged.length > 0) setActiveApprovalId(merged[0].id);
+                  if (merged.length > 0) handleSetActiveApprovalId(merged[0].id);
                   return merged;
                 });
               }}
@@ -1961,7 +2043,13 @@ function ProcurementAppInner({
               quotesByPr={quotesByPr}
               quoteSupplierIdsByPr={quoteSupplierIdsByPr}
               isReportMode={reportMode}
-              onBackToCompare={() => setView("compare")}
+              onBackToCompare={() => {
+                if (selectedPR?.id) {
+                  navigateTo({ view: "compare", prId: selectedPR.id });
+                } else {
+                  navigateTo({ view: "compare" });
+                }
+              }}
             />
           </ErrorBoundary>
         )}
@@ -1972,7 +2060,7 @@ function ProcurementAppInner({
             pos={pos}
             suppliers={suppliers}
             purchaseHistory={purchaseHistory}
-            onCreatePR={() => setView("create")}
+            onCreatePR={() => navigateTo({ view: "create" })}
           />
         )}
         {(view === "settings" || view === "print-templates") &&
@@ -1993,7 +2081,7 @@ function ProcurementAppInner({
         {view === "prs" && (
           <PRList
             prs={prs}
-            onCreate={() => setView("create")}
+            onCreate={() => navigateTo({ view: "create" })}
             onOpen={openCompare}
             onDelete={reportMode ? undefined : (pr) => requestDelete("PR", pr)}
           />
@@ -2016,7 +2104,7 @@ function ProcurementAppInner({
                 note: "",
                 items: [emptyItem(0)],
               });
-              setView("prs");
+              navigateTo({ view: "prs" });
             }}
             onSave={savePR}
           />
@@ -2030,7 +2118,7 @@ function ProcurementAppInner({
           />
         )}
         {view === "po-list" && (
-          <ErrorBoundary key="po-list" fallbackTitle="Lỗi hiển thị danh sách Đơn mua hàng (PO)" onReset={() => setView("dashboard")}>
+          <ErrorBoundary key="po-list" fallbackTitle="Lỗi hiển thị danh sách Đơn mua hàng (PO)" onReset={() => navigateTo({ view: "dashboard" })}>
             <POList
               pos={pos}
               suppliers={suppliers}
@@ -2052,12 +2140,12 @@ function ProcurementAppInner({
                 }
                 setStorageStatus(`Đã tạo đơn PO ${newPO.number}`);
                 if (openDetail) {
-                  setView("po-detail");
+                  navigateTo({ view: "po-detail", id: newPO.id });
                 }
               }}
               onOpen={(po) => {
                 setCurrentPO(po);
-                setView("po-detail");
+                navigateTo({ view: "po-detail", id: po.id });
               }}
               onDelete={reportMode ? undefined : (po) => requestDelete("PO", po)}
               onCreateHandover={handleCreateHandoverFromPO}
@@ -2069,13 +2157,13 @@ function ProcurementAppInner({
           <TrashPage entries={trash} onRestore={restoreTrash} />
         )}
         {view === "po-detail" && (
-          <ErrorBoundary key="po-detail" fallbackTitle="Lỗi hiển thị chi tiết Đơn mua hàng (PO)" onReset={() => setView("po-list")}>
+          <ErrorBoundary key="po-detail" fallbackTitle="Lỗi hiển thị chi tiết Đơn mua hàng (PO)" onReset={() => navigateTo({ view: "po-list" })}>
             <PODetail
               po={currentPO?.id ? currentPO : ((pos && pos.length > 0) ? pos[0] : emptyPO)}
               suppliers={suppliers}
               setSuppliers={setSuppliers}
               onUpdate={updatePO}
-              onBack={() => setView("po-list")}
+              onBack={() => navigateTo({ view: "po-list" })}
               workspaceId={workspaceId}
               readOnly={reportMode}
               onStatus={setStorageStatus}
@@ -2083,7 +2171,7 @@ function ProcurementAppInner({
               onCreatePaymentRequest={handleCreatePaymentRequestFromPOPayment}
               onNavigateToPayment={(reqId) => {
                 if (reqId) setSpotlightPaymentActiveId(reqId);
-                setView("payment");
+                navigateTo({ view: "payment", id: reqId });
               }}
               onSave={() => persistState()}
               onAddSupplier={handleAddSupplier}
@@ -2107,7 +2195,7 @@ function ProcurementAppInner({
                     <p>{selectedPR.purpose}</p>
                   </div>
                   <div className="actions">
-                    <button className="ghost" onClick={() => setView("prs")}>
+                    <button className="ghost" onClick={() => navigateTo({ view: "prs" })}>
                       ← {t("compare.back_pr_list")}
                     </button>
                   </div>
@@ -2570,10 +2658,10 @@ function ProcurementAppInner({
       )}
       {!reportMode && (
         <nav className="mobile-bottom-nav" aria-label="Điều hướng điện thoại">
-          <button className={view === "dashboard" ? "active" : ""} onClick={() => setView("dashboard")}><span>▦</span><b>{t("nav.dashboard")}</b></button>
-          <button className={view === "prs" || view === "create" ? "active" : ""} onClick={() => setView("prs")}><span>▣</span><b>PR</b></button>
-          <button className={view === "payment" ? "active" : ""} onClick={() => setView("payment")}><span>💳</span><b>{t("nav.payment")}</b></button>
-          <button className={view === "po-list" || view === "po-detail" ? "active" : ""} onClick={() => setView("po-list")}><span>▰</span><b>PO</b></button>
+          <button className={view === "dashboard" ? "active" : ""} onClick={() => navigateTo({ view: "dashboard" })}><span>▦</span><b>{t("nav.dashboard")}</b></button>
+          <button className={view === "prs" || view === "create" ? "active" : ""} onClick={() => navigateTo({ view: "prs" })}><span>▣</span><b>PR</b></button>
+          <button className={view === "payment" ? "active" : ""} onClick={() => navigateTo({ view: "payment" })}><span>💳</span><b>{t("nav.payment")}</b></button>
+          <button className={view === "po-list" || view === "po-detail" ? "active" : ""} onClick={() => navigateTo({ view: "po-list" })}><span>▰</span><b>PO</b></button>
           <button onClick={() => setCollapsed(false)}><span>☰</span><b>Menu</b></button>
         </nav>
       )}

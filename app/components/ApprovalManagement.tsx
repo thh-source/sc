@@ -37,6 +37,7 @@ interface ApprovalManagementProps {
   quoteSupplierIdsByPr: Record<number, number[]>;
   isReportMode?: boolean;
   onBackToCompare?: () => void;
+  autoPrint?: boolean;
 }
 
 type FlatColDescriptor =
@@ -131,6 +132,7 @@ export default function ApprovalManagement({
   quoteSupplierIdsByPr,
   isReportMode = false,
   onBackToCompare,
+  autoPrint = false,
 }: ApprovalManagementProps) {
   const [mounted, setMounted] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -175,6 +177,15 @@ export default function ApprovalManagement({
     if (activeApprovalId === null) return null;
     return approvalRequests.find((r) => r.id === activeApprovalId) || null;
   }, [approvalRequests, activeApprovalId]);
+
+  useEffect(() => {
+    if (autoPrint && activeRequest) {
+      const timer = setTimeout(() => {
+        window.print();
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [autoPrint, activeRequest]);
 
   const updateActive = (updater: (prev: ApprovalRequest) => ApprovalRequest) => {
     if (!activeRequest || isReportMode) return;
