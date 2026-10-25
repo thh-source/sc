@@ -297,6 +297,34 @@ table.payment-grid tr.row-done.chosen td {
   background: #bbf7d0 !important;
 }
 
+/* Highlight Flash Animation for Row Selection / Deep Link Navigation */
+@keyframes paymentRowFlash {
+  0% {
+    background-color: #fef08a !important;
+  }
+  30% {
+    background-color: #fde047 !important;
+  }
+  70% {
+    background-color: #fef9c3 !important;
+  }
+  100% {
+    background-color: #eff6ff !important;
+  }
+}
+
+table.payment-grid tr.row-highlight-flash td,
+table.payment-grid tr.row-highlight-flash .pcol-frozen {
+  animation: paymentRowFlash 1.6s ease-in-out forwards !important;
+  box-shadow: inset 0 2px 0 #eab308, inset 0 -2px 0 #eab308 !important;
+}
+
+.m-card.row-highlight-flash {
+  border-color: #eab308 !important;
+  box-shadow: 0 0 0 2px #eab308, 0 4px 12px rgba(234, 179, 8, 0.25) !important;
+  animation: paymentRowFlash 1.6s ease-in-out forwards;
+}
+
 /* Display table styling (Contract Management, Modal sub-tables, etc.) */
 table.payment-table {
   width: 100%;

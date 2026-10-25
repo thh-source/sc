@@ -863,9 +863,7 @@ function ProcurementAppInner({
     }
 
     if (destination.view === "payment") {
-      if (destination.query) {
-        setSpotlightPaymentSearch(destination.query);
-      }
+      setSpotlightPaymentSearch(destination.query || "");
       if (destination.paymentId) {
         setSpotlightPaymentActiveId(destination.paymentId);
         navigateTo({ view: "payment", id: destination.paymentId });
@@ -876,9 +874,7 @@ function ProcurementAppInner({
     }
 
     if (destination.view === "handover") {
-      if (destination.query) {
-        setSpotlightHandoverSearch(destination.query);
-      }
+      setSpotlightHandoverSearch(destination.query || "");
       if (destination.handoverId) {
         navigateTo({ view: "handover", id: destination.handoverId });
       } else {
@@ -1669,6 +1665,7 @@ function ProcurementAppInner({
       } else if (route.view === "payment") {
         if (route.id !== undefined) {
           setSpotlightPaymentActiveId(route.id);
+          setSpotlightPaymentSearch("");
         }
       }
     },

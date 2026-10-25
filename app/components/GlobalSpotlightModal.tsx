@@ -3,7 +3,7 @@
 
 import React, { useState, useEffect, useRef, useMemo } from "react";
 import { PR, PO, Supplier, Item, PaymentRequestEntry, PaymentHandoverItem, View } from "../types";
-import { normName, fmtMoney, fmt } from "../utils";
+import { normalizeSearchText, normName, fmtMoney, fmt } from "../utils";
 
 export type SpotlightCategory =
   | "all"
@@ -35,6 +35,7 @@ export interface SpotlightItem {
     handoverId?: number;
     query?: string;
   };
+  score?: number;
 }
 
 export interface GlobalSpotlightModalProps {
@@ -105,15 +106,16 @@ export function GlobalSpotlightModal({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isOpen, onClose]);
 
-  // Search logic
+  // Search logic & relevance ranking
   const allResults = useMemo(() => {
     const qTrim = query.trim();
-    const tokens = normName(qTrim).split(/\s+/).filter(Boolean);
+    const qNorm = normalizeSearchText(qTrim);
+    const tokens = qNorm.split(/\s+/).filter(Boolean);
     const searchDigits = qTrim.replace(/\D/g, "");
 
     const matchCorpus = (corpus: string): boolean => {
       if (tokens.length === 0) return true;
-      const normCorpus = normName(corpus);
+      const normCorpus = normalizeSearchText(corpus);
       const corpusDigits = corpus.replace(/\D/g, "");
 
       return tokens.every((tok) => {
@@ -124,7 +126,7 @@ export function GlobalSpotlightModal({
       });
     };
 
-    const items: SpotlightItem[] = [];
+    const items: (SpotlightItem & { score: number })[] = [];
 
     // 1. Payment Requests (Đề nghị thanh toán)
     for (const r of paymentRequests) {
@@ -145,6 +147,83 @@ export function GlobalSpotlightModal({
       ].filter(Boolean).join(" ");
 
       if (matchCorpus(corpus)) {
+        let score = 0;
+        if (tokens.length === 0) {
+          score = 100 + (Number(r.legacy_stt || r.id) || 0) * 0.05;
+        } else {
+          const sttStr = String(r.legacy_stt || "");
+          const idStr = String(r.id || "");
+          const normPayee = normalizeSearchText(r.payee_name || "");
+          const invNorm = normalizeSearchText(r.invoice_no || "");
+          const linesInvNorm = normalizeSearchText((r.lines || []).map((l) => l.invoice_no || "").join(" "));
+          const descNorm = normalizeSearchText(
+            `${r.item_name || ""} ${r.description || ""} ${(r.lines || []).map((l) => l.description || "").join(" ")}`
+          );
+
+          // Nhà cung cấp liên quan
+          const linkedSupp = suppliers.find(
+            (s) =>
+              (r.beneficiary_id && s.id === r.beneficiary_id) ||
+              normalizeSearchText(s.name) === normPayee ||
+              (s.shortName && normalizeSearchText(s.shortName) === normPayee)
+          );
+          const suppShort = normalizeSearchText(linkedSupp?.shortName || "");
+          const suppCode = normalizeSearchText(linkedSupp?.code || "");
+
+          // 1. Khớp chính xác STT hoặc ID (Ưu tiên tuyệt đối)
+          if (searchDigits && (sttStr === searchDigits || idStr === searchDigits)) {
+            score += 2600;
+          } else if (
+            qNorm === `#${sttStr}` ||
+            qNorm === `stt ${sttStr}` ||
+            qNorm === `stt${sttStr}` ||
+            qNorm === `#${idStr}`
+          ) {
+            score += 2600;
+          } else if (searchDigits && (sttStr.startsWith(searchDigits) || idStr.startsWith(searchDigits))) {
+            score += 1000;
+          }
+
+          // 2. Khớp Tên Nhà Cung Cấp / Tên Thụ Hưởng (Ưu tiên cao)
+          if (normPayee === qNorm || suppShort === qNorm || suppCode === qNorm) {
+            score += 2100;
+          } else if (normPayee.startsWith(qNorm) || suppShort.startsWith(qNorm)) {
+            score += 1500;
+          } else if ((normPayee && normPayee.includes(qNorm)) || (suppShort && suppShort.includes(qNorm))) {
+            score += 1200;
+          } else if (tokens.every((tok) => normPayee.includes(tok) || suppShort.includes(tok))) {
+            score += 900;
+          }
+
+          // 3. Khớp Mã PO / Nhóm thanh toán
+          if (r.group_code && normalizeSearchText(r.group_code).includes(qNorm)) {
+            score += 700;
+          }
+
+          // 4. Khớp Số Hóa Đơn
+          if (invNorm === qNorm || (searchDigits && r.invoice_no && r.invoice_no.replace(/\D/g, "") === searchDigits)) {
+            score += 650;
+          } else if (invNorm.includes(qNorm) || linesInvNorm.includes(qNorm)) {
+            score += 350;
+          } else if (
+            searchDigits &&
+            searchDigits.length >= 3 &&
+            (invNorm.replace(/\D/g, "").includes(searchDigits) || linesInvNorm.replace(/\D/g, "").includes(searchDigits))
+          ) {
+            score += 300;
+          }
+
+          // 5. Khớp Nội dung thanh toán / Tên hàng
+          if (descNorm.includes(qNorm)) {
+            score += 400;
+          } else if (tokens.every((tok) => descNorm.includes(tok))) {
+            score += 250;
+          }
+
+          // Điểm cộng theo độ mới (recency)
+          score += Math.min(100, (Number(r.legacy_stt || r.id) || 0) * 0.1);
+        }
+
         items.push({
           id: `payment-${r.id}`,
           category: "payment",
@@ -160,8 +239,9 @@ export function GlobalSpotlightModal({
           target: {
             view: "payment",
             paymentId: r.id,
-            query: r.invoice_no ? r.invoice_no.split(",")[0].trim() : r.payee_name || "",
+            query: "", // Để trống tìm kiếm bảng để không lọc ẩn các dòng dữ liệu khác
           },
+          score,
         });
       }
     }
@@ -186,6 +266,61 @@ export function GlobalSpotlightModal({
       ].filter(Boolean).join(" ");
 
       if (matchCorpus(corpus)) {
+        let score = 0;
+        if (tokens.length === 0) {
+          score = (isContract ? 95 : 90) + (po.id || 0) * 0.05;
+        } else {
+          const numNorm = normalizeSearchText(po.number || "");
+          const prNorm = normalizeSearchText(po.prNumber || "");
+          const suppNameNorm = normalizeSearchText(supp?.name || "");
+          const suppShortNorm = normalizeSearchText(supp?.shortName || "");
+          const suppCodeNorm = normalizeSearchText(supp?.code || "");
+          const itemsNorm = normalizeSearchText(
+            (po.items || []).map((it) => `${it.name || ""} ${it.code || ""} ${it.spec || ""}`).join(" ")
+          );
+          const noteNorm = normalizeSearchText(`${po.note || ""} ${po.contractNote || ""}`);
+
+          // Khớp số PO
+          if (numNorm === qNorm || (searchDigits && po.number.replace(/\D/g, "") === searchDigits)) {
+            score += 2500;
+          } else if (numNorm.startsWith(qNorm)) {
+            score += 1200;
+          } else if (numNorm.includes(qNorm)) {
+            score += 800;
+          }
+
+          // Khớp số PR liên quan
+          if (prNorm === qNorm) {
+            score += 1400;
+          } else if (prNorm.includes(qNorm)) {
+            score += 600;
+          }
+
+          // Khớp Nhà Cung Cấp
+          if (suppNameNorm === qNorm || suppShortNorm === qNorm || suppCodeNorm === qNorm) {
+            score += 2000;
+          } else if (suppNameNorm.startsWith(qNorm) || suppShortNorm.startsWith(qNorm)) {
+            score += 1400;
+          } else if (suppNameNorm.includes(qNorm) || suppShortNorm.includes(qNorm)) {
+            score += 1100;
+          } else if (tokens.every((tok) => suppNameNorm.includes(tok) || suppShortNorm.includes(tok))) {
+            score += 900;
+          }
+
+          // Khớp Tên hàng / Diễn giải
+          if (itemsNorm.includes(qNorm)) {
+            score += 450;
+          } else if (tokens.every((tok) => itemsNorm.includes(tok))) {
+            score += 300;
+          }
+
+          if (noteNorm.includes(qNorm)) {
+            score += 200;
+          }
+
+          score += Math.min(100, (po.id || 0) * 0.1);
+        }
+
         if (isContract) {
           items.push({
             id: `contract-${po.id}`,
@@ -200,10 +335,11 @@ export function GlobalSpotlightModal({
             badgeBg: "#ede9fe",
             badgeColor: "#6d28d9",
             target: {
-              view: "po-detail",
+              view: "contracts",
               po,
               query: po.number,
             },
+            score,
           });
         } else {
           items.push({
@@ -223,6 +359,7 @@ export function GlobalSpotlightModal({
               po,
               query: po.number,
             },
+            score,
           });
         }
       }
@@ -240,6 +377,40 @@ export function GlobalSpotlightModal({
       ].filter(Boolean).join(" ");
 
       if (matchCorpus(corpus)) {
+        let score = 0;
+        if (tokens.length === 0) {
+          score = 80 + (pr.id || 0) * 0.05;
+        } else {
+          const numNorm = normalizeSearchText(pr.number || "");
+          const deptNorm = normalizeSearchText(pr.department || "");
+          const purpNorm = normalizeSearchText(pr.purpose || "");
+          const itemsNorm = normalizeSearchText(
+            (pr.items || []).map((it) => `${it.name || ""} ${it.code || ""} ${it.spec || ""}`).join(" ")
+          );
+
+          if (numNorm === qNorm || (searchDigits && pr.number.replace(/\D/g, "") === searchDigits)) {
+            score += 2500;
+          } else if (numNorm.startsWith(qNorm)) {
+            score += 1200;
+          } else if (numNorm.includes(qNorm)) {
+            score += 800;
+          }
+
+          if (deptNorm === qNorm) {
+            score += 1000;
+          } else if (deptNorm.includes(qNorm) || purpNorm.includes(qNorm)) {
+            score += 500;
+          }
+
+          if (itemsNorm.includes(qNorm)) {
+            score += 450;
+          } else if (tokens.every((tok) => itemsNorm.includes(tok))) {
+            score += 300;
+          }
+
+          score += Math.min(100, (pr.id || 0) * 0.1);
+        }
+
         items.push({
           id: `pr-${pr.id}`,
           category: "pr",
@@ -257,6 +428,7 @@ export function GlobalSpotlightModal({
             pr,
             query: pr.number,
           },
+          score,
         });
       }
     }
@@ -276,6 +448,39 @@ export function GlobalSpotlightModal({
       ].filter(Boolean).join(" ");
 
       if (matchCorpus(corpus)) {
+        let score = 0;
+        if (tokens.length === 0) {
+          score = 70 + (h.id || 0) * 0.05;
+        } else {
+          const idStr = String(h.id || "");
+          const itemNorm = normalizeSearchText(h.item_name || "");
+          const deptNorm = normalizeSearchText(h.department || "");
+          const senderNorm = normalizeSearchText(`${h.sender_name || ""} ${h.receiver_name || ""}`);
+          const noteNorm = normalizeSearchText(h.note || "");
+
+          if (searchDigits && idStr === searchDigits) {
+            score += 2500;
+          } else if (qNorm === `#${idStr}`) {
+            score += 2500;
+          }
+
+          if (itemNorm.includes(qNorm)) {
+            score += 600;
+          } else if (tokens.every((tok) => itemNorm.includes(tok))) {
+            score += 350;
+          }
+
+          if (deptNorm.includes(qNorm)) {
+            score += 400;
+          }
+
+          if (senderNorm.includes(qNorm) || noteNorm.includes(qNorm)) {
+            score += 200;
+          }
+
+          score += Math.min(100, (h.id || 0) * 0.1);
+        }
+
         items.push({
           id: `handover-${h.id}`,
           category: "handover",
@@ -291,8 +496,9 @@ export function GlobalSpotlightModal({
           target: {
             view: "handover",
             handoverId: h.id,
-            query: h.item_name,
+            query: "",
           },
+          score,
         });
       }
     }
@@ -311,6 +517,28 @@ export function GlobalSpotlightModal({
       ].filter(Boolean).join(" ");
 
       if (matchCorpus(corpus)) {
+        let score = 0;
+        if (tokens.length === 0) {
+          score = 60;
+        } else {
+          const nameNorm = normalizeSearchText(s.name || "");
+          const shortNorm = normalizeSearchText(s.shortName || "");
+          const codeNorm = normalizeSearchText(s.code || "");
+          const contactNorm = normalizeSearchText(`${s.contact || ""} ${s.address || ""}`);
+
+          if (nameNorm === qNorm || shortNorm === qNorm || codeNorm === qNorm) {
+            score += 2200;
+          } else if (nameNorm.startsWith(qNorm) || shortNorm.startsWith(qNorm) || codeNorm.startsWith(qNorm)) {
+            score += 1500;
+          } else if (nameNorm.includes(qNorm) || shortNorm.includes(qNorm)) {
+            score += 1100;
+          } else if (tokens.every((tok) => nameNorm.includes(tok) || shortNorm.includes(tok))) {
+            score += 850;
+          } else if (contactNorm.includes(qNorm)) {
+            score += 300;
+          }
+        }
+
         items.push({
           id: `supplier-${s.id}`,
           category: "supplier",
@@ -327,6 +555,7 @@ export function GlobalSpotlightModal({
             view: "suppliers",
             query: s.shortName || s.name,
           },
+          score,
         });
       }
     }
@@ -336,6 +565,29 @@ export function GlobalSpotlightModal({
       const corpus = [p.code, p.name, p.category, p.spec, p.unit].filter(Boolean).join(" ");
 
       if (matchCorpus(corpus)) {
+        let score = 0;
+        if (tokens.length === 0) {
+          score = 50;
+        } else {
+          const codeNorm = normalizeSearchText(p.code || "");
+          const nameNorm = normalizeSearchText(p.name || "");
+          const specNorm = normalizeSearchText(p.spec || "");
+
+          if (codeNorm === qNorm) {
+            score += 2200;
+          } else if (codeNorm.startsWith(qNorm)) {
+            score += 1400;
+          } else if (nameNorm === qNorm) {
+            score += 2000;
+          } else if (nameNorm.startsWith(qNorm)) {
+            score += 1300;
+          } else if (nameNorm.includes(qNorm)) {
+            score += 900;
+          } else if (tokens.every((tok) => nameNorm.includes(tok) || specNorm.includes(tok))) {
+            score += 700;
+          }
+        }
+
         items.push({
           id: `product-${p.id}`,
           category: "product",
@@ -352,9 +604,13 @@ export function GlobalSpotlightModal({
             view: "products",
             query: p.code || p.name,
           },
+          score,
         });
       }
     }
+
+    // Sắp xếp ưu tiên độ khớp cao nhất lên đầu
+    items.sort((a, b) => b.score - a.score);
 
     return items;
   }, [query, paymentRequests, pos, prs, paymentHandovers, suppliers, products]);

@@ -411,6 +411,10 @@ export function PaymentManagement({
   // Filter states
   const [searchQuery, setSearchQuery] = useState(() => initialSearchQuery || "");
 
+  const [highlightedRowId, setHighlightedRowId] = useState<number | null>(() =>
+    initialActiveId !== undefined ? initialActiveId : null
+  );
+
   useEffect(() => {
     if (initialSearchQuery !== undefined) {
       setSearchQuery(initialSearchQuery);
@@ -418,10 +422,44 @@ export function PaymentManagement({
   }, [initialSearchQuery]);
 
   useEffect(() => {
-    if (initialActiveId !== undefined) {
-      setActiveRequestId(initialActiveId);
+    if (initialActiveId !== undefined && initialActiveId !== null) {
+      const match = paymentRequests.find(
+        (r) => r.id === initialActiveId || Number(r.legacy_stt) === Number(initialActiveId)
+      );
+      const targetId = match ? match.id : initialActiveId;
+
+      // Nếu bộ lọc hiện tại đang ẩn dòng cần xem, tự động giải phóng bộ lọc để dòng hiển thị
+      if (match) {
+        if (statusFilter && match.status !== statusFilter) {
+          setStatusFilter("");
+        }
+        if (groupFilter && String(match.group_id || "") !== String(groupFilter)) {
+          setGroupFilter("");
+        }
+      }
+
+      setActiveRequestId(targetId);
+      setHighlightedRowId(targetId);
+
+      // Tự động cuộn mượt mà đến dòng vừa chọn
+      const scrollTimer = setTimeout(() => {
+        const rowEl = document.getElementById(`payment-row-${targetId}`);
+        if (rowEl) {
+          rowEl.scrollIntoView({ behavior: "smooth", block: "center" });
+        }
+      }, 150);
+
+      // Xóa hiệu ứng highlight vàng sau 1.6 giây
+      const clearTimer = setTimeout(() => {
+        setHighlightedRowId((prev) => (prev === targetId ? null : prev));
+      }, 1600);
+
+      return () => {
+        clearTimeout(scrollTimer);
+        clearTimeout(clearTimer);
+      };
     }
-  }, [initialActiveId]);
+  }, [initialActiveId, paymentRequests]);
   const [statusFilter, setStatusFilter] = useState("");
   const [groupFilter, setGroupFilter] = useState("");
   const [isWorkspaceExpanded, setIsWorkspaceExpanded] = useState(false);
@@ -1767,8 +1805,14 @@ export function PaymentManagement({
             const docs = (r.documents || []).filter(Boolean);
             const lines = (r.lines || []).filter((l) => l.description || l.amount);
 
+            const isFlashing = highlightedRowId === r.id;
             return (
-              <div key={r.id} className={`m-card ${isDone ? "m-card-done" : ""}`}>
+              <div
+                key={r.id}
+                id={`payment-row-${r.id}`}
+                className={`m-card ${isDone ? "m-card-done" : ""} ${isFlashing ? "row-highlight-flash" : ""}`}
+                onClick={() => setActiveRequestId(r.id)}
+              >
                 <div className="m-card-header">
                   <div className="m-card-stt">STT {r.legacy_stt || r.id}</div>
                   {isPhoneScreen ? (
@@ -2108,11 +2152,13 @@ export function PaymentManagement({
                 {filteredRequests.map((r) => {
                   const isChosen = activeRequestId === r.id;
                   const isDone = PAID_STATUSES.includes(r.status);
+                  const isFlashing = highlightedRowId === r.id;
                   const bg = isChosen ? "#eff6ff" : isDone ? "#f0fdf4" : "#ffffff";
                   return (
                     <tr
                       key={r.id}
-                      className={`${isChosen ? "chosen" : ""} ${isDone ? "row-done" : ""}`}
+                      id={`payment-row-${r.id}`}
+                      className={`${isChosen ? "chosen" : ""} ${isDone ? "row-done" : ""} ${isFlashing ? "row-highlight-flash" : ""}`}
                       onClick={() => setActiveRequestId(r.id)}
                     >
                       {/* Checkbox + In phiếu combined into 1 compact cell */}
