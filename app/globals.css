@@ -15,6 +15,7 @@
 @import "./approval.css";
 @import "./table-common.css";
 @import "./spotlight.css";
+@import "./knowledge-base.css";
 
 * { box-sizing: border-box; }
 

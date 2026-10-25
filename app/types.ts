@@ -365,7 +365,8 @@ export type View =
   | "approval"
   | "products"
   | "trash"
-  | "settings";
+  | "settings"
+  | "guide";
 
 export type ColumnKey =
   | "stt"

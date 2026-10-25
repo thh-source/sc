@@ -35,6 +35,7 @@ import { Dashboard } from "./components/Dashboard";
 import { POList } from "./components/POList";
 import { PODetail } from "./components/PODetail";
 import { PRList } from "./components/PRList";
+import { KnowledgeBase, KnowledgeBaseDrawer } from "./components/KnowledgeBase";
 
 const AdminSettings = lazy(() => import("./components/AdminSettings").then(m => ({ default: m.AdminSettings })));
 const TrashPage = lazy(() => import("./components/TrashPage").then(m => ({ default: m.TrashPage })));
@@ -66,6 +67,8 @@ import {
   Settings,
   Minimize2,
   Maximize2,
+  BookOpen,
+  HelpCircle,
 } from "lucide-react";
 import {
   AppRoute,
@@ -167,6 +170,7 @@ function ProcurementAppInner({
   const [spotlightHandoverSearch, setSpotlightHandoverSearch] = useState<string>("");
   const [handoverPickerPO, setHandoverPickerPO] = useState<PO | null>(null);
   const [showHandoverPickerModal, setShowHandoverPickerModal] = useState(false);
+  const [helpDrawerOpen, setHelpDrawerOpen] = useState(false);
 
   useEffect(() => {
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
@@ -1714,6 +1718,7 @@ function ProcurementAppInner({
     if (view === "suppliers" && id === "suppliers") return true;
     if (view === "trash" && id === "trash") return true;
     if ((view === "settings" || view === "print-templates") && id === "settings") return true;
+    if (view === "guide" && id === "guide") return true;
     return false;
   };
 
@@ -1747,6 +1752,12 @@ function ProcurementAppInner({
     { id: "suppliers", icon: <Building2 size={18} />, name: t("nav.suppliers"), action: () => navigateTo({ view: "suppliers" }) },
     { id: "products", icon: <Boxes size={18} />, name: t("nav.products"), action: () => navigateTo({ view: "products" }) },
     {
+      id: "guide",
+      icon: <BookOpen size={18} />,
+      name: "Sổ tay Hướng dẫn",
+      action: () => navigateTo({ view: "guide" }),
+    },
+    {
       id: "trash",
       icon: <Trash2 size={18} />,
       name: `${t("nav.trash")}${trash.length ? ` (${trash.length})` : ""}`,
@@ -1773,6 +1784,7 @@ function ProcurementAppInner({
           "po-list",
           "payment",
           "handover",
+          "guide",
         ].includes(n.id),
       )
     : nav;
@@ -1850,6 +1862,15 @@ function ProcurementAppInner({
               ↗ Tạo link theo dõi
             </button>
           )}
+          <button
+            type="button"
+            className="btn btn-secondary btn-sm"
+            onClick={() => setHelpDrawerOpen(true)}
+            title="Mở Sổ tay Hướng dẫn & Phím tắt [?]"
+            style={{ height: "34px", padding: "0 10px", display: "inline-flex", alignItems: "center", gap: "5px" }}
+          >
+            <HelpCircle size={15} style={{ color: "#0284c7" }} /> <span>Hướng dẫn</span>
+          </button>
           <div className="user">
             <i>{currentUser?.displayName?.slice(0, 2).toUpperCase() || "BC"}</i>
             <div>
@@ -1894,6 +1915,14 @@ function ProcurementAppInner({
           <b>{reportMode ? t("header.report_mode") : "Procurement"}</b>
           <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: "6px" }}>
             <LanguageSwitcher variant="compact" />
+            <button
+              type="button"
+              className="mobile-search-btn"
+              onClick={() => setHelpDrawerOpen(true)}
+              title="Sổ tay Hướng dẫn [?]"
+            >
+              <HelpCircle size={17} style={{ color: "#0284c7" }} />
+            </button>
             <button
               type="button"
               className="mobile-search-btn"
@@ -2409,6 +2438,9 @@ function ProcurementAppInner({
             )}
           </section>
         )}
+        {view === "guide" && (
+          <KnowledgeBase onNavigate={(route) => navigateTo(route)} />
+        )}
         </Suspense>
       </main>
       {poCartOpen && (
@@ -2659,6 +2691,26 @@ function ProcurementAppInner({
           <button onClick={() => setCollapsed(false)}><span>☰</span><b>Menu</b></button>
         </nav>
       )}
+
+      {/* Knowledge Base Contextual Slide-Over Drawer */}
+      <KnowledgeBaseDrawer
+        isOpen={helpDrawerOpen}
+        onClose={() => setHelpDrawerOpen(false)}
+        initialTopic={
+          view === "compare"
+            ? "compare"
+            : view === "approval"
+              ? "approval"
+              : view === "prs" || view === "create"
+                ? "pr"
+                : view === "po-list" || view === "po-detail"
+                  ? "po"
+                  : view === "dashboard"
+                    ? "dashboard"
+                    : "flow"
+        }
+        onNavigate={(route) => navigateTo(route)}
+      />
 
       {/* Global Spotlight Search Modal (Ctrl + K) */}
       <GlobalSpotlightModal

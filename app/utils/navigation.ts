@@ -43,6 +43,7 @@ export function parseRouteFromHash(hashString?: string): AppRoute {
     if (simple === "trash") return { view: "trash" };
     if (simple === "settings") return { view: "settings" };
     if (simple === "print-templates") return { view: "print-templates" };
+    if (simple === "guide" || simple === "help") return { view: "guide" };
   }
 
   const params = new URLSearchParams(rawHash);
@@ -135,6 +136,11 @@ export function parseRouteFromHash(hashString?: string): AppRoute {
 
     case "print-templates":
       view = "print-templates";
+      break;
+
+    case "guide":
+    case "help":
+      view = "guide";
       break;
 
     default:
