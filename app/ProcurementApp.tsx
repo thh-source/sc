@@ -2114,6 +2114,8 @@ function ProcurementAppInner({
                   navigateTo({ view: "compare" });
                 }
               }}
+              pos={pos}
+              onNavigate={(route) => navigateTo(route)}
             />
           </ErrorBoundary>
         )}
@@ -2145,9 +2147,14 @@ function ProcurementAppInner({
         {view === "prs" && (
           <PRList
             prs={prs}
+            pos={pos}
+            approvalRequests={approvalRequests}
+            paymentRequests={paymentRequests}
+            paymentHandovers={paymentHandovers}
             onCreate={() => navigateTo({ view: "create" })}
             onOpen={openCompare}
             onDelete={reportMode ? undefined : (pr) => requestDelete("PR", pr)}
+            onNavigate={(route) => navigateTo(route)}
           />
         )}
         {view === "create" && (
@@ -2188,6 +2195,10 @@ function ProcurementAppInner({
               suppliers={suppliers}
               prs={prs}
               products={products}
+              approvalRequests={approvalRequests}
+              paymentRequests={paymentRequests}
+              paymentHandovers={paymentHandovers}
+              onNavigate={(route) => navigateTo(route)}
               onAddSupplier={handleAddSupplier}
               onAddProduct={handleAddProduct}
               onCreatePO={(newPO, openDetail, sourcePrId) => {
@@ -2240,6 +2251,10 @@ function ProcurementAppInner({
               onSave={() => persistState()}
               onAddSupplier={handleAddSupplier}
               approvalRequests={approvalRequests}
+              prs={prs}
+              paymentRequests={paymentRequests}
+              paymentHandovers={paymentHandovers}
+              onNavigate={(route) => navigateTo(route)}
               onDelete={
                 reportMode
                   ? undefined

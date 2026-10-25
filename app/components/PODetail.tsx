@@ -21,6 +21,9 @@ import {
   PODoc,
   Payment,
   ApprovalRequest,
+  PR,
+  PaymentRequestEntry,
+  PaymentHandoverItem,
   isContractPO,
   calcPOItemSubtotal,
   calcPOItemTotal,
@@ -33,6 +36,8 @@ import { BANK_SUGGESTIONS } from "../payment-utils";
 import { SupplierSearchCombobox } from "./SupplierSearchCombobox";
 import VisualTimeline from "./VisualTimeline";
 import DocumentManager from "./DocumentManager";
+import { DocFlowLinks } from "./DocFlowLinks";
+import { resolveDocFlow } from "../utils/docFlow";
 import { PODeliveryModal, POItemsMobileCards, DeliveryConfirmPayload } from "./PODeliveryMobileSheet";
 
 export function PODetail({
@@ -50,6 +55,10 @@ export function PODetail({
   onSave,
   onAddSupplier,
   approvalRequests = [],
+  prs = [],
+  paymentRequests = [],
+  paymentHandovers = [],
+  onNavigate,
   onDelete,
 }: {
   po: PO;
@@ -66,6 +75,10 @@ export function PODetail({
   onSave?: () => Promise<void> | void;
   onAddSupplier?: (supplier: Supplier) => void;
   approvalRequests?: ApprovalRequest[];
+  prs?: PR[];
+  paymentRequests?: PaymentRequestEntry[];
+  paymentHandovers?: PaymentHandoverItem[];
+  onNavigate?: (route: any) => void;
   onDelete?: (po: PO) => void;
 }) {
   const [saving, setSaving] = useState(false);
@@ -622,6 +635,16 @@ export function PODetail({
           </button>
           <em>{isContractPO(po) ? "HỢP ĐỒNG MUA HÀNG" : "ĐƠN MUA HÀNG"} · {po.number}</em>
           <h1>{supplier?.name || "Chưa chọn nhà cung cấp"}</h1>
+          <div style={{ marginTop: "6px", marginBottom: "6px" }}>
+            <DocFlowLinks
+              flow={resolveDocFlow(
+                { po },
+                { prs, pos: [po], approvalRequests, paymentRequests, paymentHandovers }
+              )}
+              currentView="po-detail"
+              onNavigate={onNavigate}
+            />
+          </div>
           <div
             style={{
               display: "flex",

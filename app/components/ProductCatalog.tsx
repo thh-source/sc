@@ -190,15 +190,15 @@ export function ProductCatalog({
           </colgroup>
           <thead>
             <tr>
-              <th>{t("table.item_code")}</th>
-              <th>{t("table.item_name")}</th>
-              <th>{t("table.category")}</th>
-              <th>{t("table.specification")}</th>
-              <th>{t("table.unit")}</th>
-              <th>{t("table.est_price")}</th>
-              <th>{t("table.last_purchase")}</th>
-              <th>{t("table.price_trend")}</th>
-              <th></th>
+              <th className="cell-center">{t("table.item_code")}</th>
+              <th className="cell-left">{t("table.item_name")}</th>
+              <th className="cell-center">{t("table.category")}</th>
+              <th className="cell-left">{t("table.specification")}</th>
+              <th className="cell-center">{t("table.unit")}</th>
+              <th className="cell-right">{t("table.est_price")}</th>
+              <th className="cell-left">{t("table.last_purchase")}</th>
+              <th className="cell-center">{t("table.price_trend")}</th>
+              <th className="cell-center"></th>
             </tr>
           </thead>
           <tbody>
@@ -216,22 +216,22 @@ export function ProductCatalog({
               return (
                 <Fragment key={p.id}>
                   <tr>
-                    <td>
+                    <td className="cell-center">
                       <b className="product-code">{p.code}</b>
                     </td>
-                    <td>
+                    <td className="cell-left">
                       <strong>{p.name || "Hàng hóa mới"}</strong>
                       <small>{p.desc || "Chưa có mô tả kỹ thuật"}</small>
                     </td>
-                    <td>
+                    <td className="cell-center">
                       <span className="category-pill">
                         {p.category || "Chưa phân loại"}
                       </span>
                     </td>
-                    <td>{p.spec || "—"}</td>
-                    <td>{p.unit}</td>
-                    <td className="money">{fmt(p.estimate)} ₫</td>
-                    <td>
+                    <td className="cell-left">{p.spec || "—"}</td>
+                    <td className="cell-center">{p.unit}</td>
+                    <td className="money cell-right">{fmt(p.estimate)} ₫</td>
+                    <td className="cell-left">
                       <b>{latest?.po || "Chưa phát sinh"}</b>
                       <small>
                         {latest
@@ -239,14 +239,14 @@ export function ProductCatalog({
                           : "Chưa có dữ liệu PO"}
                       </small>
                     </td>
-                    <td>
+                    <td className="cell-center">
                       <span className={change <= 0 ? "price-down" : "price-up"}>
                         {latest && previous
                           ? `${change <= 0 ? "↓" : "↑"} ${Math.abs(change)}%`
                           : "—"}
                       </span>
                     </td>
-                    <td>
+                    <td className="cell-center">
                       <button
                         className="history-btn"
                         onClick={() =>

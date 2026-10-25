@@ -1,12 +1,14 @@
 import React, { useState, useMemo } from "react";
 import { Plus, ArrowRight, Trash2, Truck, Search } from "lucide-react";
-import { Supplier, PO, PR, Item, getPOContractInfo, formatPONumber, calcPOTotal } from "../types";
+import { Supplier, PO, PR, Item, ApprovalRequest, PaymentRequestEntry, PaymentHandoverItem, getPOContractInfo, formatPONumber, calcPOTotal } from "../types";
 import { fmt, dateVN, makeId } from "../utils";
 import { SupplierSearchCombobox } from "./SupplierSearchCombobox";
 import { TreeProductPickerModal, SelectedItemData } from "./TreeProductPickerModal";
 import { normName } from "../payment-utils";
 import { cleanExcelNumber, parseExcelClipboard } from "../utils/approvalSamples";
 import { useTranslation } from "../i18n";
+import { DocFlowLinks } from "./DocFlowLinks";
+import { resolveDocFlow } from "../utils/docFlow";
 import "../payment.css";
 
 interface DraftPOItem {
@@ -28,10 +30,14 @@ export function POList({
   onDelete,
   prs = [],
   products = [],
+  approvalRequests = [],
+  paymentRequests = [],
+  paymentHandovers = [],
   onCreatePO,
   onAddSupplier,
   onAddProduct,
   onCreateHandover,
+  onNavigate,
   readOnly = false,
 }: {
   pos: PO[];
@@ -40,10 +46,14 @@ export function POList({
   onDelete?: (po: PO) => void;
   prs?: PR[];
   products?: Item[];
+  approvalRequests?: ApprovalRequest[];
+  paymentRequests?: PaymentRequestEntry[];
+  paymentHandovers?: PaymentHandoverItem[];
   onCreatePO?: (po: PO, openDetail?: boolean, sourcePrId?: number) => void;
   onAddSupplier?: (supplier: Supplier) => void;
   onAddProduct?: (product: Item) => void;
   onCreateHandover?: (po: PO) => void;
+  onNavigate?: (route: any) => void;
   readOnly?: boolean;
 }) {
   const { t } = useTranslation();
@@ -476,6 +486,7 @@ export function POList({
             const items = po.items || [];
             const total = calcPOTotal(po);
             const delivered = items.filter((item) => item.deliveryStatus === "Đã giao").length;
+            const flow = resolveDocFlow({ po }, { prs, pos, approvalRequests, paymentRequests, paymentHandovers });
             return (
               <article key={po.id}>
                 <header>
@@ -498,6 +509,9 @@ export function POList({
                     </dd>
                   </div>
                 </dl>
+                <div style={{ marginTop: "8px", paddingTop: "8px", borderTop: "1px dashed #e2e8f0" }}>
+                  <DocFlowLinks flow={flow} currentView="po-list" onNavigate={onNavigate} compact />
+                </div>
                 <footer style={{ display: "flex", gap: "6px", alignItems: "center" }}>
                   <button className="btn-icon primary-ghost" onClick={() => onOpen(po)} title="Chi tiết PO">
                     <ArrowRight size={16} />
@@ -528,8 +542,8 @@ export function POList({
             <thead>
               <tr>
                 <th style={{ width: "140px", whiteSpace: "nowrap" }}>{t("table.po_number")}</th>
-                <th style={{ width: "130px", whiteSpace: "nowrap" }}>{t("table.source_pr")}</th>
-                <th style={{ minWidth: "260px" }}>{t("table.supplier")}</th>
+                <th style={{ width: "220px", whiteSpace: "nowrap" }}>Chứng từ liên kết</th>
+                <th style={{ minWidth: "240px" }}>{t("table.supplier")}</th>
                 <th style={{ width: "120px", whiteSpace: "nowrap" }}>{t("table.created_date")}</th>
                 <th style={{ width: "120px", whiteSpace: "nowrap" }}>{t("table.expected_delivery")}</th>
                 <th style={{ width: "140px", whiteSpace: "nowrap", textAlign: "right" }}>{t("table.po_value")}</th>
@@ -554,6 +568,7 @@ export function POList({
                   .filter((p) => p.status === "Đã thanh toán")
                   .reduce((n, p) => n + (Number(p.amount) || 0), 0);
                 const total = calcPOTotal(po);
+                const flow = resolveDocFlow({ po }, { prs, pos, approvalRequests, paymentRequests, paymentHandovers });
                 return (
                   <tr key={po.id}>
                     <td style={{ whiteSpace: "nowrap" }}>
@@ -580,7 +595,9 @@ export function POList({
                         </div>
                       )}
                     </td>
-                    <td style={{ whiteSpace: "nowrap" }}>{po.prNumber}</td>
+                    <td style={{ whiteSpace: "nowrap" }}>
+                      <DocFlowLinks flow={flow} currentView="po-list" onNavigate={onNavigate} compact />
+                    </td>
                     <td>
                       <b>{s?.name || "Chưa có NCC"}</b>
                       {s?.code && <small className="supplier-code">{s.code}</small>}

@@ -226,25 +226,25 @@ export function SupplierManagement({
         </div>
         <table className="supplier-list-table">
           <colgroup>
-            <col style={{ width: "110px" }} />
-            <col style={{ minWidth: "260px" }} />
+            <col style={{ width: "95px" }} />
+            <col style={{ width: "auto" }} />
+            <col style={{ width: "125px" }} />
             <col style={{ width: "130px" }} />
-            <col style={{ width: "140px" }} />
-            <col style={{ width: "120px" }} />
-            <col style={{ width: "130px" }} />
+            <col style={{ width: "115px" }} />
+            <col style={{ width: "135px" }} />
             <col style={{ width: "85px" }} />
             <col style={{ width: "85px" }} />
           </colgroup>
           <thead>
             <tr>
-              <th>{t("table.item_code")}</th>
-              <th>{t("table.supplier_name")}</th>
-              <th>{t("table.short_name")}</th>
-              <th>{t("table.contact")}</th>
-              <th>{t("table.phone")}</th>
-              <th>{t("table.po_value")}</th>
-              <th>{t("product.stat_times")}</th>
-              <th>{t("table.items_count")}</th>
+              <th className="cell-center">{t("table.item_code")}</th>
+              <th className="cell-left">{t("table.supplier_name")}</th>
+              <th className="cell-left">{t("table.short_name")}</th>
+              <th className="cell-left">{t("table.contact")}</th>
+              <th className="cell-center">{t("table.phone")}</th>
+              <th className="cell-right">{t("table.po_value")}</th>
+              <th className="cell-center">{t("product.stat_times")}</th>
+              <th className="cell-center">{t("table.items_count")}</th>
             </tr>
           </thead>
           <tbody>
@@ -262,10 +262,10 @@ export function SupplierManagement({
                   <tr
                     className={isSelected ? "selected" : ""}
                   >
-                    <td>
+                    <td className="cell-center">
                       <b className="supplier-list-code">{supplier.code}</b>
                     </td>
-                    <td>
+                    <td className="cell-left">
                       <button
                         type="button"
                         className="supplier-list-name"
@@ -281,12 +281,12 @@ export function SupplierManagement({
                       </button>
                       <small>{supplier.bank || supplier.address || "Chưa có thông tin phụ"}</small>
                     </td>
-                    <td>{supplier.shortName || "—"}</td>
-                    <td>{supplier.contact || "—"}</td>
-                    <td>{supplier.phone || "—"}</td>
-                    <td className="money">{fmt(stats.totalValue)} ₫</td>
-                    <td>{stats.count}</td>
-                    <td>{stats.itemCount}</td>
+                    <td className="cell-left">{supplier.shortName || "—"}</td>
+                    <td className="cell-left">{supplier.contact || "—"}</td>
+                    <td className="cell-center">{supplier.phone || "—"}</td>
+                    <td className="money cell-right">{fmt(stats.totalValue)} ₫</td>
+                    <td className="cell-center">{stats.count}</td>
+                    <td className="cell-center">{stats.itemCount}</td>
                   </tr>
                   {isSelected && (
                     <tr>

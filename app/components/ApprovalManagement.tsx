@@ -23,6 +23,7 @@ import {
   ApprovalSupplierColumn,
   ApprovalSupplierQuoteLine,
   PR,
+  PO,
   Quote,
   Supplier,
 } from "../types";
@@ -37,6 +38,8 @@ import {
   parseExcelClipboard,
 } from "../utils/approvalSamples";
 import { addNewDepartment, getUnifiedDepartments } from "../utils/departments";
+import { DocFlowLinks } from "./DocFlowLinks";
+import { resolveDocFlow } from "../utils/docFlow";
 
 interface ApprovalManagementProps {
   approvalRequests: ApprovalRequest[];
@@ -53,6 +56,8 @@ interface ApprovalManagementProps {
   isReportMode?: boolean;
   onBackToCompare?: () => void;
   autoPrint?: boolean;
+  pos?: PO[];
+  onNavigate?: (route: any) => void;
 }
 
 type FlatColDescriptor =
@@ -148,6 +153,8 @@ export default function ApprovalManagement({
   isReportMode = false,
   onBackToCompare,
   autoPrint = false,
+  pos = [],
+  onNavigate,
 }: ApprovalManagementProps) {
   const [mounted, setMounted] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -1067,18 +1074,15 @@ export default function ApprovalManagement({
                           <span className={`status ${badgeClass}`}>
                             {req.status}
                           </span>
-                          {req.linkedPoNumber && (
-                            <div
-                              style={{
-                                fontSize: 11,
-                                color: "#1d4ed8",
-                                fontWeight: 700,
-                                marginTop: 2,
-                              }}
-                            >
-                              🔗 {req.linkedPoNumber}
-                            </div>
-                          )}
+                          <div style={{ marginTop: 4 }}>
+                            <DocFlowLinks
+                              flow={resolveDocFlow({ approval: req }, { prs, pos, approvalRequests })}
+                              currentView="approval"
+                              onNavigate={onNavigate}
+                              onCreatePOFromApproval={() => onCreatePOFromApproval(req)}
+                              compact
+                            />
+                          </div>
                         </td>
                         <td
                           style={{ textAlign: "right" }}
@@ -1190,12 +1194,13 @@ export default function ApprovalManagement({
             >
               {activeRequest.status}
             </span>
-            {activeRequest.linkedPoNumber && (
-              <span className="linked-po-badge">
-                🔗 Đã tạo {activeRequest.linkedPoNumber}
-              </span>
-            )}
           </div>
+          <DocFlowLinks
+            flow={resolveDocFlow({ approval: activeRequest }, { prs, pos, approvalRequests })}
+            currentView="approval"
+            onNavigate={onNavigate}
+            onCreatePOFromApproval={() => onCreatePOFromApproval(activeRequest)}
+          />
         </div>
 
         <div className="config-actions-right">

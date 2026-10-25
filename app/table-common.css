@@ -122,3 +122,145 @@
 .table-common .col-resizer-handle.is-resizing {
   background-color: #3b82f6;
 }
+
+/* -------------------------------------------------------------
+   DOC FLOW TRACEABILITY LINKS (DocFlowLinks)
+   ------------------------------------------------------------- */
+.doc-flow-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.doc-flow-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2.5px 8px;
+  border-radius: 9999px;
+  font-size: 11px;
+  font-weight: 600;
+  text-decoration: none;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+  white-space: nowrap;
+  line-height: 1.25;
+}
+
+.doc-flow-badge:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.06);
+}
+
+.doc-flow-badge:active {
+  transform: translateY(0);
+}
+
+/* Variant: PR Badge (Blue) */
+.doc-flow-pr {
+  background: #eff6ff;
+  border-color: #bfdbfe;
+  color: #1d4ed8;
+}
+.doc-flow-pr:hover {
+  background: #dbeafe;
+  border-color: #93c5fd;
+  color: #1e40af;
+}
+
+/* Variant: Compare Badge (Cyan) */
+.doc-flow-compare {
+  background: #ecfeff;
+  border-color: #a5f3fc;
+  color: #0891b2;
+}
+.doc-flow-compare:hover {
+  background: #cffafe;
+  border-color: #67e8f9;
+  color: #0e7490;
+}
+
+/* Variant: Approval / DNPD Badge (Amber) */
+.doc-flow-approval {
+  background: #fffbeb;
+  border-color: #fde68a;
+  color: #b45309;
+}
+.doc-flow-approval:hover {
+  background: #fef3c7;
+  border-color: #fcd34d;
+  color: #92400e;
+}
+
+/* Variant: PO Badge (Green) */
+.doc-flow-po {
+  background: #f0fdf4;
+  border-color: #bbf7d0;
+  color: #15803d;
+}
+.doc-flow-po:hover {
+  background: #dcfce7;
+  border-color: #86efac;
+  color: #166534;
+}
+
+/* Variant: Payment Badge (Purple) */
+.doc-flow-payment {
+  background: #faf5ff;
+  border-color: #e9d5ff;
+  color: #7e22ce;
+}
+.doc-flow-payment:hover {
+  background: #f3e8ff;
+  border-color: #d8b4fe;
+  color: #6b21a8;
+}
+
+/* Variant: Delivery / Handover Badge (Indigo) */
+.doc-flow-handover {
+  background: #eef2ff;
+  border-color: #c7d2fe;
+  color: #4338ca;
+}
+.doc-flow-handover:hover {
+  background: #e0e7ff;
+  border-color: #a5b4fc;
+  color: #3730a3;
+}
+
+/* Subtle / Ghost state for pending steps */
+.doc-flow-ghost {
+  background: #f8fafc;
+  border-color: #e2e8f0;
+  color: #94a3b8;
+  border-style: dashed;
+}
+.doc-flow-ghost:hover {
+  background: #f1f5f9;
+  color: #475569;
+}
+
+/* Table layout helper utilities */
+.table-auto-fit {
+  width: 100% !important;
+  table-layout: auto !important;
+}
+
+.cell-center {
+  text-align: center !important;
+}
+
+.cell-right {
+  text-align: right !important;
+  font-variant-numeric: tabular-nums;
+}
+
+.cell-left {
+  text-align: left !important;
+}
+
+.cell-nowrap {
+  white-space: nowrap !important;
+}

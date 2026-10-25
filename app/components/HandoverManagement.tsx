@@ -17,8 +17,10 @@ import {
   Search,
   X,
   Check,
+  Package,
 } from "lucide-react";
 import { PaymentHandoverItem, PR, PO, Supplier, PaymentRequestEntry } from "../types";
+import { navigateTo } from "../utils/navigation";
 import {
   normName,
   localToday,
@@ -892,13 +894,36 @@ export function HandoverManagement({
       }
       case "item_name":
         return (
-          <AutoGrowTextarea
-            className="cell-editor cell-editor-textarea"
-            value={h.item_name || ""}
-            onChange={(val) => handleEditHandover(h.id, "item_name", val)}
-            placeholder="Tên hàng hóa - quy cách..."
-            title={h.item_name || "Tên hàng hóa - quy cách..."}
-          />
+          <div>
+            <AutoGrowTextarea
+              className="cell-editor cell-editor-textarea"
+              value={h.item_name || ""}
+              onChange={(val) => handleEditHandover(h.id, "item_name", val)}
+              placeholder="Tên hàng hóa - quy cách..."
+              title={h.item_name || "Tên hàng hóa - quy cách..."}
+            />
+            {h.source_number && (
+              <div style={{ marginTop: "3px" }}>
+                <button
+                  type="button"
+                  className="doc-flow-badge doc-flow-po"
+                  style={{ fontSize: "10px", padding: "1px 6px" }}
+                  title={`Đơn hàng gốc: ${h.source_number}`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    const matchedPO = pos.find((p) => p.number === h.source_number);
+                    if (matchedPO) {
+                      navigateTo({ view: "po-detail", id: matchedPO.id });
+                    } else {
+                      navigateTo({ view: "po-list" });
+                    }
+                  }}
+                >
+                  <Package size={11} /> <span>{h.source_number}</span>
+                </button>
+              </div>
+            )}
+          </div>
         );
       case "unit":
         return (
