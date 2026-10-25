@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import {
   Plus,
   Search,
@@ -19,17 +19,30 @@ import {
   Filter,
   Package,
   FileCheck,
+  X,
 } from "lucide-react";
 import { PR, PO, Supplier, PurchaseHistory, ApprovalRequest, PaymentRequestEntry } from "../types";
 import { fmt } from "../utils";
 
-// --- TYPES FOR DASHBOARD TO-DO WIDGET ---
+// --- TYPES FOR DASHBOARD TO-DO WIDGET & MENTION SYSTEM ---
 export interface DashboardTodo {
   id: string;
   text: string;
   completed: boolean;
   createdAt: string;
   priority?: "high" | "normal" | "low";
+}
+
+export interface MentionItem {
+  id: string;
+  category: "po" | "pr" | "dnpd" | "ncc";
+  tag: string;
+  badge: string;
+  title: string;
+  subtitle?: string;
+  meta?: string;
+  status?: string;
+  searchStr: string;
 }
 
 const STORAGE_KEY_TODOS = "scmh_dashboard_todos_v1";
@@ -255,6 +268,257 @@ export function Dashboard({
   const [todoPriority, setTodoPriority] = useState<"high" | "normal" | "low">("normal");
   const [todoFilter, setTodoFilter] = useState<"all" | "active" | "completed">("all");
 
+  // Mention State & Refs
+  const inputRef = useRef<HTMLInputElement>(null);
+  const mentionDropdownRef = useRef<HTMLDivElement>(null);
+  const [mentionCategoryTab, setMentionCategoryTab] = useState<"all" | "po" | "pr" | "dnpd" | "ncc">("all");
+  const [mentionState, setMentionState] = useState<{
+    isOpen: boolean;
+    query: string;
+    categoryFilter: "all" | "po" | "pr" | "dnpd" | "ncc";
+    symbol: "@" | "#";
+    startIndex: number;
+    selectedIndex: number;
+  }>({
+    isOpen: false,
+    query: "",
+    categoryFilter: "all",
+    symbol: "@",
+    startIndex: 0,
+    selectedIndex: 0,
+  });
+
+  // Build the complete list of mention items across PO, PR, DNPD, and NCC
+  const allMentionItems = useMemo<MentionItem[]>(() => {
+    const items: MentionItem[] = [];
+
+    // 1. POs
+    pos.forEach((po) => {
+      const supp = suppliers.find((s) => s.id === po.supplierId);
+      const suppName = supp?.name || "";
+      const cleanNum = po.number.startsWith("PO-") ? po.number : `PO-${po.number}`;
+      const itemsSummary = po.items?.map((i) => i.name).join(" ") || "";
+      const poTotal = po.items?.reduce((sum, item) => sum + (item.price || 0) * (item.qty || 0), 0) || 0;
+      items.push({
+        id: `po-${po.id}`,
+        category: "po",
+        tag: `@${cleanNum}`,
+        badge: "PO",
+        title: po.number,
+        subtitle: suppName || undefined,
+        meta: `${poTotal > 0 ? fmt(poTotal) + " đ · " : ""}${po.createdDate || ""}`,
+        status: po.status,
+        searchStr: `${po.number} ${suppName} ${itemsSummary} ${po.prNumber || ""}`.toLowerCase(),
+      });
+    });
+
+    // 2. PRs
+    prs.forEach((pr) => {
+      const cleanNum = pr.number.startsWith("PR-") ? pr.number : `PR-${pr.number}`;
+      const itemsSummary = pr.items?.map((i) => i.name).join(" ") || "";
+      items.push({
+        id: `pr-${pr.id}`,
+        category: "pr",
+        tag: `#${cleanNum}`,
+        badge: "PR",
+        title: pr.number,
+        subtitle: pr.department ? `${pr.department}${pr.purpose ? " · " + pr.purpose : ""}` : (pr.purpose || undefined),
+        meta: `${pr.items?.length || 0} vật tư · ${pr.date || ""}`,
+        status: pr.status,
+        searchStr: `${pr.number} ${pr.department || ""} ${pr.purpose || ""} ${itemsSummary} ${pr.note || ""}`.toLowerCase(),
+      });
+    });
+
+    // 3. Approval Requests (ĐNPD)
+    approvalRequests.forEach((appr) => {
+      const cleanNum = appr.requestNumber.startsWith("DNPD-") ? appr.requestNumber : `DNPD-${appr.requestNumber}`;
+      items.push({
+        id: `dnpd-${appr.id}`,
+        category: "dnpd",
+        tag: `@${cleanNum}`,
+        badge: "ĐNPD",
+        title: appr.requestNumber,
+        subtitle: appr.recommendedSupplierName ? `NCC đề xuất: ${appr.recommendedSupplierName}` : (appr.department || undefined),
+        meta: appr.createdDate ? `Ngày tạo: ${appr.createdDate}` : undefined,
+        status: appr.status || "Chờ duyệt",
+        searchStr: `${appr.requestNumber} ${appr.recommendedSupplierName || ""} ${appr.department || ""} ${appr.section1Title || ""}`.toLowerCase(),
+      });
+    });
+
+    // 4. Suppliers (NCC)
+    suppliers.forEach((s) => {
+      const tagSafe = s.name.replace(/\s+/g, "_");
+      items.push({
+        id: `ncc-${s.id}`,
+        category: "ncc",
+        tag: `@NCC-${tagSafe}`,
+        badge: "NCC",
+        title: s.name,
+        subtitle: s.contact ? `${s.contact}${s.phone ? " · " + s.phone : ""}` : (s.phone || undefined),
+        meta: s.code ? `Mã: ${s.code}` : undefined,
+        searchStr: `${s.name} ${s.code || ""} ${s.contact || ""} ${s.phone || ""} ${s.address || ""}`.toLowerCase(),
+      });
+    });
+
+    return items;
+  }, [pos, prs, approvalRequests, suppliers]);
+
+  // Filter mention items based on category tab & search query
+  const filteredMentionItems = useMemo(() => {
+    const activeTab = mentionCategoryTab;
+    const q = mentionState.query.toLowerCase().trim();
+
+    let list = allMentionItems;
+    if (activeTab !== "all") {
+      list = list.filter((item) => item.category === activeTab);
+    }
+
+    if (q) {
+      list = list.filter((item) => item.searchStr.includes(q));
+    }
+
+    return list.slice(0, 12);
+  }, [allMentionItems, mentionCategoryTab, mentionState.query]);
+
+  // Check mention trigger in text
+  const checkMentionTrigger = (text: string, cursorPos: number) => {
+    const textBefore = text.slice(0, cursorPos);
+    const match = textBefore.match(/(?:^|\s)([@#])([a-zA-Z0-9_\-\u00C0-\u024F\u1E00-\u1EFF]*)$/);
+
+    if (!match) {
+      setMentionState((prev) => (prev.isOpen ? { ...prev, isOpen: false } : prev));
+      return;
+    }
+
+    const symbol = match[1] as "@" | "#";
+    const word = match[2];
+    const startIndex = cursorPos - (symbol.length + word.length);
+    const lowerWord = word.toLowerCase();
+
+    let cat: "all" | "po" | "pr" | "dnpd" | "ncc" = "all";
+    let search = lowerWord;
+
+    if (lowerWord.startsWith("po-") || lowerWord === "po") {
+      cat = "po";
+      search = lowerWord.replace(/^po-?/, "").trim();
+    } else if (lowerWord.startsWith("pr-") || lowerWord === "pr") {
+      cat = "pr";
+      search = lowerWord.replace(/^pr-?/, "").trim();
+    } else if (lowerWord.startsWith("dnpd-") || lowerWord === "dnpd" || lowerWord === "dn") {
+      cat = "dnpd";
+      search = lowerWord.replace(/^(dnpd|dn)-?/, "").trim();
+    } else if (lowerWord.startsWith("ncc-") || lowerWord === "ncc") {
+      cat = "ncc";
+      search = lowerWord.replace(/^ncc-?/, "").trim();
+    } else if (symbol === "#") {
+      cat = "pr";
+      search = lowerWord;
+    }
+
+    setMentionCategoryTab(cat);
+    setMentionState({
+      isOpen: true,
+      query: search,
+      categoryFilter: cat,
+      symbol,
+      startIndex,
+      selectedIndex: 0,
+    });
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setTodoInput(val);
+    const pos = e.target.selectionStart ?? val.length;
+    checkMentionTrigger(val, pos);
+  };
+
+  const handleInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (!mentionState.isOpen || filteredMentionItems.length === 0) {
+      if (e.key === "Escape" && mentionState.isOpen) {
+        e.preventDefault();
+        setMentionState((prev) => ({ ...prev, isOpen: false }));
+      }
+      return;
+    }
+
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setMentionState((prev) => ({
+        ...prev,
+        selectedIndex: (prev.selectedIndex + 1) % filteredMentionItems.length,
+      }));
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setMentionState((prev) => ({
+        ...prev,
+        selectedIndex:
+          (prev.selectedIndex - 1 + filteredMentionItems.length) %
+          filteredMentionItems.length,
+      }));
+    } else if (e.key === "Enter" || e.key === "Tab") {
+      e.preventDefault();
+      const item = filteredMentionItems[mentionState.selectedIndex];
+      if (item) {
+        applyMentionItem(item);
+      }
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      setMentionState((prev) => ({ ...prev, isOpen: false }));
+    }
+  };
+
+  const applyMentionItem = (item: MentionItem) => {
+    const before = todoInput.slice(0, mentionState.startIndex);
+    const after = todoInput.slice(inputRef.current?.selectionStart ?? (mentionState.startIndex + mentionState.query.length + 1));
+    const cleanAfter = after.replace(/^[a-zA-Z0-9_\-]+/, "");
+    const newText = `${before}${item.tag} ${cleanAfter}`;
+
+    setTodoInput(newText);
+    setMentionState((prev) => ({ ...prev, isOpen: false }));
+
+    const newCursor = before.length + item.tag.length + 1;
+    setTimeout(() => {
+      if (inputRef.current) {
+        inputRef.current.focus();
+        inputRef.current.setSelectionRange(newCursor, newCursor);
+      }
+    }, 10);
+  };
+
+  const handleInsertHelperTag = (tagPrefix: string) => {
+    const current = todoInput;
+    const needLeadingSpace = current.length > 0 && !current.endsWith(" ");
+    const textToAdd = (needLeadingSpace ? " " : "") + tagPrefix;
+    const newText = current + textToAdd;
+    setTodoInput(newText);
+
+    setTimeout(() => {
+      if (inputRef.current) {
+        inputRef.current.focus();
+        const pos = newText.length;
+        inputRef.current.setSelectionRange(pos, pos);
+        checkMentionTrigger(newText, pos);
+      }
+    }, 10);
+  };
+
+  // Close mention dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (
+        mentionDropdownRef.current &&
+        !mentionDropdownRef.current.contains(e.target as Node) &&
+        inputRef.current &&
+        !inputRef.current.contains(e.target as Node)
+      ) {
+        setMentionState((prev) => ({ ...prev, isOpen: false }));
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
   const handleAddTodo = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     const trimmed = todoInput.trim();
@@ -271,6 +535,7 @@ export function Dashboard({
     setTodos((prev) => [newTodo, ...prev]);
     setTodoInput("");
     setTodoPriority("normal");
+    setMentionState((prev) => ({ ...prev, isOpen: false }));
   };
 
   const handleToggleTodo = (id: string) => {
@@ -289,12 +554,15 @@ export function Dashboard({
 
   // Smart tag click handlers
   const handleOpenPRTag = (tagText: string) => {
-    const clean = tagText.replace(/^#PR-?/i, "").trim().toLowerCase();
+    const rawTag = tagText.replace(/^[@#]/i, "").trim().toLowerCase();
+    const clean = tagText.replace(/^[@#]PR-?/i, "").trim().toLowerCase();
     const matched = prs.find(
       (p) =>
+        p.number.toLowerCase() === rawTag ||
+        p.number.toLowerCase() === clean ||
+        p.number.toLowerCase() === `pr-${clean}` ||
         p.number.toLowerCase().includes(clean) ||
-        String(p.id) === clean ||
-        p.number.toLowerCase() === `pr-${clean}`,
+        String(p.id) === clean,
     );
     if (matched && onSelectPR) {
       onSelectPR(matched);
@@ -304,12 +572,15 @@ export function Dashboard({
   };
 
   const handleOpenPOTag = (tagText: string) => {
+    const rawTag = tagText.replace(/^@/i, "").trim().toLowerCase();
     const clean = tagText.replace(/^@PO-?/i, "").trim().toLowerCase();
     const matched = pos.find(
       (p) =>
+        p.number.toLowerCase() === rawTag ||
+        p.number.toLowerCase() === clean ||
+        p.number.toLowerCase() === `po-${clean}` ||
         p.number.toLowerCase().includes(clean) ||
-        String(p.id) === clean ||
-        p.number.toLowerCase() === `po-${clean}`,
+        String(p.id) === clean,
     );
     if (matched && onSelectPO) {
       onSelectPO(matched);
@@ -319,9 +590,13 @@ export function Dashboard({
   };
 
   const handleOpenApprovalTag = (tagText: string) => {
+    const rawTag = tagText.replace(/^[@#]/i, "").trim().toLowerCase();
     const clean = tagText.replace(/^[@#]DNPD-?/i, "").trim().toLowerCase();
     const matched = approvalRequests.find(
       (a) =>
+        a.requestNumber.toLowerCase() === rawTag ||
+        a.requestNumber.toLowerCase() === clean ||
+        a.requestNumber.toLowerCase() === `dnpd-${clean}` ||
         a.requestNumber.toLowerCase().includes(clean) ||
         String(a.id) === clean,
     );
@@ -332,11 +607,24 @@ export function Dashboard({
     }
   };
 
-  // Render text with clickable smart tags (#PR-xxx, @PO-xxx, @DNPD-xxx)
+  const handleOpenSupplierTag = (tagText: string) => {
+    const rawTag = tagText.replace(/^[@#]NCC[-:]?/i, "").replace(/_/g, " ").trim().toLowerCase();
+    const matched = suppliers.find(
+      (s) =>
+        s.name.toLowerCase() === rawTag ||
+        s.name.toLowerCase().includes(rawTag) ||
+        String(s.id) === rawTag,
+    );
+    if (onNavigate) {
+      onNavigate({ view: "suppliers" });
+    }
+  };
+
+  // Render text with clickable smart tags (@PO-xxx, #PR-xxx, @PR-xxx, @DNPD-xxx, @NCC-xxx)
   const renderSmartTodoText = (text: string) => {
-    const parts = text.split(/([@#][A-Za-z0-9_-]+)/g);
+    const parts = text.split(/([@#][A-Za-z0-9_\-\.:]+)/g);
     return parts.map((part, idx) => {
-      if (/^#PR-?[A-Za-z0-9_-]+/i.test(part)) {
+      if (/^[@#]PR-?[A-Za-z0-9_\-\.:]+/i.test(part)) {
         return (
           <button
             key={idx}
@@ -352,7 +640,7 @@ export function Dashboard({
           </button>
         );
       }
-      if (/^@PO-?[A-Za-z0-9_-]+/i.test(part)) {
+      if (/^@PO-?[A-Za-z0-9_\-\.:]+/i.test(part)) {
         return (
           <button
             key={idx}
@@ -368,7 +656,7 @@ export function Dashboard({
           </button>
         );
       }
-      if (/^[@#]DNPD-?[A-Za-z0-9_-]+/i.test(part)) {
+      if (/^[@#]DNPD-?[A-Za-z0-9_\-\.:]+/i.test(part)) {
         return (
           <button
             key={idx}
@@ -378,6 +666,22 @@ export function Dashboard({
             onClick={(e) => {
               e.stopPropagation();
               handleOpenApprovalTag(part);
+            }}
+          >
+            {part}
+          </button>
+        );
+      }
+      if (/^[@#]NCC[-:][A-Za-z0-9_\-\.:]+/i.test(part)) {
+        return (
+          <button
+            key={idx}
+            type="button"
+            className="todo-smart-chip chip-supplier"
+            title="Mở Nhà cung cấp"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleOpenSupplierTag(part);
             }}
           >
             {part}
@@ -920,11 +1224,14 @@ export function Dashboard({
             <form className="todo-input-form" onSubmit={handleAddTodo}>
               <div className="todo-input-row">
                 <input
+                  ref={inputRef}
                   type="text"
                   className="todo-input"
-                  placeholder="Thêm việc... gõ @PO-xxx, #PR-xxx..."
+                  placeholder="Thêm việc... gõ @PO, #PR, @DNPD, @NCC để chọn nhanh"
                   value={todoInput}
-                  onChange={(e) => setTodoInput(e.target.value)}
+                  onChange={handleInputChange}
+                  onKeyDown={handleInputKeyDown}
+                  autoComplete="off"
                 />
                 <button
                   type="submit"
@@ -933,6 +1240,106 @@ export function Dashboard({
                 >
                   <Plus size={15} /> Thêm
                 </button>
+
+                {/* Auto-Complete Mention Dropdown */}
+                {mentionState.isOpen && (
+                  <div
+                    ref={mentionDropdownRef}
+                    className="todo-mention-dropdown"
+                    onMouseDown={(e) => e.preventDefault()}
+                  >
+                    <div className="mention-header">
+                      <div className="mention-tabs">
+                        <button
+                          type="button"
+                          className={`mention-tab ${mentionCategoryTab === "all" ? "active" : ""}`}
+                          onClick={() => setMentionCategoryTab("all")}
+                        >
+                          Tất cả
+                        </button>
+                        <button
+                          type="button"
+                          className={`mention-tab tab-po ${mentionCategoryTab === "po" ? "active" : ""}`}
+                          onClick={() => setMentionCategoryTab("po")}
+                        >
+                          Đơn PO ({pos.length})
+                        </button>
+                        <button
+                          type="button"
+                          className={`mention-tab tab-pr ${mentionCategoryTab === "pr" ? "active" : ""}`}
+                          onClick={() => setMentionCategoryTab("pr")}
+                        >
+                          Phiếu PR ({prs.length})
+                        </button>
+                        <button
+                          type="button"
+                          className={`mention-tab tab-approval ${mentionCategoryTab === "dnpd" ? "active" : ""}`}
+                          onClick={() => setMentionCategoryTab("dnpd")}
+                        >
+                          ĐNPD ({approvalRequests.length})
+                        </button>
+                        <button
+                          type="button"
+                          className={`mention-tab tab-ncc ${mentionCategoryTab === "ncc" ? "active" : ""}`}
+                          onClick={() => setMentionCategoryTab("ncc")}
+                        >
+                          NCC ({suppliers.length})
+                        </button>
+                      </div>
+                      <button
+                        type="button"
+                        className="mention-close-btn"
+                        onClick={() => setMentionState((prev) => ({ ...prev, isOpen: false }))}
+                        title="Đóng (Esc)"
+                      >
+                        <X size={13} />
+                      </button>
+                    </div>
+
+                    <div className="mention-list">
+                      {filteredMentionItems.length === 0 ? (
+                        <div className="mention-empty">
+                          Không tìm thấy chứng từ phù hợp với từ khóa &ldquo;{mentionState.query}&rdquo;
+                        </div>
+                      ) : (
+                        filteredMentionItems.map((item, idx) => (
+                          <div
+                            key={item.id}
+                            className={`mention-item ${idx === mentionState.selectedIndex ? "selected" : ""}`}
+                            onClick={() => applyMentionItem(item)}
+                            onMouseEnter={() =>
+                              setMentionState((prev) => ({ ...prev, selectedIndex: idx }))
+                            }
+                          >
+                            <span className={`mention-badge badge-${item.category}`}>
+                              {item.badge}
+                            </span>
+                            <div className="mention-info">
+                              <div className="mention-top-line">
+                                <strong className="mention-title">{item.title}</strong>
+                                {item.status && (
+                                  <span className="mention-status">{item.status}</span>
+                                )}
+                              </div>
+                              {(item.subtitle || item.meta) && (
+                                <div className="mention-meta">
+                                  {item.subtitle && <span className="mention-sub">{item.subtitle}</span>}
+                                  {item.subtitle && item.meta && <span className="meta-sep">·</span>}
+                                  {item.meta && <span className="mention-extra">{item.meta}</span>}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+
+                    <div className="mention-footer">
+                      <span>↑↓ điều hướng · Enter / Tab chọn · Esc đóng</span>
+                      <span>{filteredMentionItems.length} kết quả</span>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Smart Tag Helper Pills */}
@@ -941,23 +1348,34 @@ export function Dashboard({
                 <button
                   type="button"
                   className="helper-chip chip-po"
-                  onClick={() => setTodoInput((prev) => prev + " @PO-")}
+                  onClick={() => handleInsertHelperTag("@PO-")}
+                  title="Chọn đơn hàng PO"
                 >
                   + @PO
                 </button>
                 <button
                   type="button"
                   className="helper-chip chip-pr"
-                  onClick={() => setTodoInput((prev) => prev + " #PR-")}
+                  onClick={() => handleInsertHelperTag("#PR-")}
+                  title="Chọn yêu cầu mua sắm PR"
                 >
                   + #PR
                 </button>
                 <button
                   type="button"
                   className="helper-chip chip-approval"
-                  onClick={() => setTodoInput((prev) => prev + " @DNPD-")}
+                  onClick={() => handleInsertHelperTag("@DNPD-")}
+                  title="Chọn tờ trình đề nghị phê duyệt"
                 >
                   + @DNPD
+                </button>
+                <button
+                  type="button"
+                  className="helper-chip chip-supplier"
+                  onClick={() => handleInsertHelperTag("@NCC-")}
+                  title="Chọn nhà cung cấp"
+                >
+                  + @NCC
                 </button>
 
                 <div className="todo-priority-toggle">
