@@ -54,6 +54,7 @@ const ProductCatalog = lazy(() => import("./components/ProductCatalog").then(m =
 const SupplierManagement = lazy(() => import("./components/SupplierManagement").then(m => ({ default: m.SupplierManagement })));
 import { GlobalSpotlightModal } from "./components/GlobalSpotlightModal";
 import { POHandoverPickerModal } from "./components/POHandoverPickerModal";
+import { SettingsModal } from "./components/SettingsModal";
 import { I18nProvider, useTranslation, LanguageSwitcher } from "./i18n";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import {
@@ -65,6 +66,8 @@ import {
   ShoppingCart,
   Search,
   LayoutDashboard,
+  Home,
+  LogOut,
   FileText,
   Scale,
   CheckSquare,
@@ -181,6 +184,7 @@ function ProcurementAppInner({
   const [handoverPickerPO, setHandoverPickerPO] = useState<PO | null>(null);
   const [showHandoverPickerModal, setShowHandoverPickerModal] = useState(false);
   const [helpDrawerOpen, setHelpDrawerOpen] = useState(false);
+  const [settingsModalOpen, setSettingsModalOpen] = useState(false);
 
   useEffect(() => {
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
@@ -1769,7 +1773,7 @@ function ProcurementAppInner({
   };
 
   const nav = [
-    { id: "dashboard", icon: <LayoutDashboard size={18} />, name: t("nav.dashboard"), action: () => navigateTo({ view: "dashboard" }) },
+    { id: "dashboard", icon: <Home size={18} />, name: t("nav.dashboard"), action: () => navigateTo({ view: "dashboard" }) },
     { id: "prs", icon: <FileText size={18} />, name: t("nav.prs"), action: () => navigateTo({ view: "prs" }) },
     {
       id: "approval",
@@ -1797,16 +1801,6 @@ function ProcurementAppInner({
       name: `${t("nav.trash")}${trash.length ? ` (${trash.length})` : ""}`,
       action: () => navigateTo({ view: "trash" }),
     },
-    ...(currentUser?.role === "master" || currentUser?.role === "admin"
-      ? [
-          {
-            id: "settings",
-            icon: <Settings size={18} />,
-            name: t("nav.settings"),
-            action: () => navigateTo({ view: "settings" }),
-          },
-        ]
-      : []),
   ];
   const visibleNav = reportMode
     ? nav.filter((n) =>
@@ -1867,67 +1861,56 @@ function ProcurementAppInner({
           ))}
         </nav>
         <div className="sidebar-bottom-actions">
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "6px", marginBottom: "6px" }}>
-            <span style={{ fontSize: "11px", color: "#94a3b8", fontWeight: 600 }}>{t("header.language")}</span>
-            <LanguageSwitcher variant="compact" />
-          </div>
-          {!reportMode && workspaceUsers.length > 0 && (
-            <label className="workspace-picker">
-              <span>Môi trường</span>
-              <select
-                value={workspaceId}
-                onChange={(event) => {
-                  setStorageReady(false);
-                  setStorageStatus("Đang mở môi trường làm việc...");
-                  setWorkspaceId(event.target.value);
-                }}
-              >
-                {workspaceUsers.map((workspaceUser) => (
-                  <option key={workspaceUser.id} value={workspaceUser.id}>
-                    {workspaceUser.displayName} ({workspaceUser.username})
-                  </option>
-                ))}
-              </select>
-            </label>
-          )}
-          {!reportMode && (
-            <button className="header-share-report" onClick={openShareReport}>
-              ↗ Tạo link theo dõi
-            </button>
-          )}
-          <button
-            type="button"
-            className="btn btn-secondary btn-sm"
-            onClick={() => setHelpDrawerOpen(true)}
-            title="Mở Sổ tay Hướng dẫn & Phím tắt [?]"
-            style={{ height: "34px", padding: "0 10px", display: "inline-flex", alignItems: "center", gap: "5px" }}
-          >
-            <HelpCircle size={15} style={{ color: "#0284c7" }} /> <span>Hướng dẫn</span>
-          </button>
-          <div className="user">
-            <i>{currentUser?.displayName?.slice(0, 2).toUpperCase() || "BC"}</i>
-            <div>
-              <b>{currentUser?.displayName || "Báo cáo"}</b>
-              <small>
-                {currentUser
-                  ? currentUser.role === "master"
-                    ? "Master Admin"
-                  : currentUser.role === "admin"
-                    ? "Admin"
-                    : "Người dùng"
-                  : "Chỉ xem"}
-              </small>
-            </div>
-          </div>
-          {!reportMode && currentUser && (
+          {/* 1. Hàng nút tiện ích phụ (Secondary Actions) */}
+          <div className="sidebar-secondary-actions">
             <button
-              className="header-logout"
-              onClick={logout}
-              title="Đăng xuất tài khoản"
+              type="button"
+              className="sidebar-secondary-btn"
+              onClick={() => setHelpDrawerOpen(true)}
+              title="Mở Sổ tay Hướng dẫn quy trình & Phím tắt [?]"
             >
-              <span>↪</span> {t("header.logout")}
+              <HelpCircle size={15} style={{ color: "#38bdf8" }} /> <span>Hướng dẫn</span>
             </button>
-          )}
+            <button
+              type="button"
+              className="sidebar-secondary-btn"
+              onClick={() => setSettingsModalOpen(true)}
+              title="Cài đặt hệ thống: Ngôn ngữ, Tạo link theo dõi, Mẫu in..."
+            >
+              <Settings size={15} style={{ color: "#94a3b8" }} /> <span>Cài đặt</span>
+            </button>
+          </div>
+
+          {/* 2. Thông tin tài khoản & Đăng xuất */}
+          <div className="sidebar-user-card">
+            <div className="user-profile">
+              <i className="user-avatar">{currentUser?.displayName?.slice(0, 2).toUpperCase() || "ND"}</i>
+              <div className="user-meta">
+                <b className="user-name" title={currentUser?.displayName || "Người dùng"}>
+                  {currentUser?.displayName || "Người dùng"}
+                </b>
+                <small className="user-role">
+                  {currentUser
+                    ? currentUser.role === "master"
+                      ? "Master Admin"
+                    : currentUser.role === "admin"
+                      ? "Admin"
+                      : "Người dùng"
+                    : "Chỉ xem"}
+                </small>
+              </div>
+            </div>
+            {!reportMode && currentUser && (
+              <button
+                type="button"
+                className="btn-sidebar-logout"
+                onClick={logout}
+                title="Đăng xuất tài khoản"
+              >
+                <LogOut size={15} />
+              </button>
+            )}
+          </div>
         </div>
         <button className="collapse" onClick={() => setCollapsed(!collapsed)} title={collapsed ? t("nav.expand") : t("nav.collapse")}>
           « <b>{collapsed ? t("nav.expand") : t("nav.collapse")}</b>
@@ -2843,13 +2826,23 @@ function ProcurementAppInner({
       )}
       {!reportMode && (
         <nav className="mobile-bottom-nav" aria-label="Điều hướng điện thoại">
-          <button className={view === "dashboard" ? "active" : ""} onClick={() => navigateTo({ view: "dashboard" })}><span><LayoutDashboard size={18} /></span><b>{t("nav.dashboard")}</b></button>
+          <button className={view === "dashboard" ? "active" : ""} onClick={() => navigateTo({ view: "dashboard" })}><span><Home size={18} /></span><b>{t("nav.dashboard")}</b></button>
           <button className={view === "prs" || view === "create" ? "active" : ""} onClick={() => navigateTo({ view: "prs" })}><span><FileText size={18} /></span><b>PR</b></button>
           <button className={view === "payment" ? "active" : ""} onClick={() => navigateTo({ view: "payment" })}><span><CreditCard size={18} /></span><b>{t("nav.payment")}</b></button>
           <button className={view === "po-list" || view === "po-detail" ? "active" : ""} onClick={() => navigateTo({ view: "po-list" })}><span><Package size={18} /></span><b>PO</b></button>
           <button onClick={() => setCollapsed(false)}><span>☰</span><b>Menu</b></button>
         </nav>
       )}
+
+      {/* Settings & System Utilities Modal */}
+      <SettingsModal
+        isOpen={settingsModalOpen}
+        onClose={() => setSettingsModalOpen(false)}
+        currentUser={currentUser}
+        onOpenPrintTemplates={() => navigateTo({ view: "print-templates" })}
+        onOpenAdminSettings={() => navigateTo({ view: "settings" })}
+        onStatus={setStorageStatus}
+      />
 
       {/* Knowledge Base Contextual Slide-Over Drawer */}
       <KnowledgeBaseDrawer

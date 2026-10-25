@@ -102,11 +102,18 @@ aside {
 nav {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  padding: 14px 8px;
+  gap: 3px;
+  padding: 10px 8px;
+  flex: 1;
+  overflow-y: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+nav::-webkit-scrollbar {
+  display: none;
 }
 nav button, .collapse {
-  height: 44px;
+  height: 40px;
   border: 0;
   border-radius: var(--radius-sm);
   background: transparent;
@@ -986,20 +993,124 @@ tbody tr:hover td {
 .sidebar-bottom-actions {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  padding: 16px;
-  border-top: 1px solid #ffffff1a;
+  gap: 10px;
+  padding: 12px 12px 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
   margin-top: auto;
+  background: rgba(11, 26, 45, 0.4);
 }
-.sidebar-bottom-actions label span { color: #8fa6c5; font-size: 11px; margin-bottom: 4px; display: block; }
-.sidebar-bottom-actions select { width: 100%; height: 32px; border-radius: 4px; background: #0c2340; color: white; border: 1px solid #23436a; }
-.sidebar-bottom-actions .header-share-report { background: transparent; color: #60a5fa; border: 1px solid #23436a; padding: 6px; border-radius: 4px; font-size: 12px; }
-.sidebar-bottom-actions .user { display: flex; align-items: center; gap: 8px; color: white; margin: 4px 0; }
-.sidebar-bottom-actions .user i { width: 32px; height: 32px; background: #2563eb; border-radius: 50%; display: grid; place-items: center; font-style: normal; }
-.sidebar-bottom-actions .user b { font-size: 13px; }
-.sidebar-bottom-actions .user small { font-size: 11px; color: #94a3b8; }
-.sidebar-bottom-actions .header-logout { background: #dc2626; color: white; border: none; border-radius: 4px; padding: 6px; cursor: pointer; font-size: 12px; }
-.collapsed .sidebar-bottom-actions { display: none; }
+
+.sidebar-secondary-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.sidebar-secondary-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #cbd5e1;
+  border-radius: 6px;
+  padding: 7px 8px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+  font-family: inherit;
+}
+
+.sidebar-secondary-btn:hover {
+  background: rgba(255, 255, 255, 0.14);
+  border-color: rgba(255, 255, 255, 0.25);
+  color: #ffffff;
+}
+
+.sidebar-user-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 8px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.sidebar-user-card .user-profile {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  flex: 1;
+}
+
+.sidebar-user-card .user-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #2563eb, #38bdf8);
+  color: #ffffff;
+  display: grid;
+  place-items: center;
+  font-style: normal;
+  font-size: 11px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.sidebar-user-card .user-meta {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.sidebar-user-card .user-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: #ffffff;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sidebar-user-card .user-role {
+  font-size: 10.5px;
+  color: #94a3b8;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.btn-sidebar-logout {
+  background: rgba(239, 68, 68, 0.15);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: 6px;
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all 0.15s ease;
+  padding: 0;
+}
+
+.btn-sidebar-logout:hover {
+  background: #dc2626;
+  color: #ffffff;
+  border-color: #dc2626;
+  transform: scale(1.05);
+}
+
+.collapsed .sidebar-bottom-actions {
+  display: none;
+}
 .mobile-header { display: none; }
 @media(max-width: 720px) {
   .mobile-header {
