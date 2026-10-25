@@ -79,6 +79,11 @@ export type PODeliveryLog = {
   date: string;
   qty: number;
   note?: string;
+  discrepancyReason?: string;
+  senderName?: string;
+  receiverName?: string;
+  photoNames?: string[];
+  signatureDataUrl?: string;
 };
 
 export type POItem = Item & {

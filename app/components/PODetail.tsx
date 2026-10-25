@@ -18,6 +18,7 @@ import { BANK_SUGGESTIONS } from "../payment-utils";
 import { SupplierSearchCombobox } from "./SupplierSearchCombobox";
 import VisualTimeline from "./VisualTimeline";
 import DocumentManager from "./DocumentManager";
+import { PODeliveryModal, POItemsMobileCards, DeliveryConfirmPayload } from "./PODeliveryMobileSheet";
 
 export function PODetail({
   po,
@@ -66,6 +67,7 @@ export function PODetail({
 
   // Import from ĐNPĐ Modal State
   const [showImportApprovalModal, setShowImportApprovalModal] = useState(false);
+  const [itemsViewMode, setItemsViewMode] = useState<"auto" | "table" | "card">("auto");
 
   const supplier = suppliers.find((s) => Number(s.id) === Number(po.supplierId));
   const items = po.items || [];
@@ -200,20 +202,20 @@ export function PODetail({
     setShowDeliveryModal(true);
   };
 
-  const handleConfirmBatchDelivery = () => {
-    const selectedIds = items.filter((it) => batchSelected[it.id]).map((it) => it.id);
-    if (selectedIds.length === 0) {
-      alert("Vui lòng tích chọn ít nhất 1 mặt hàng để cập nhật giao hàng!");
-      return;
-    }
+  const handleDeliveryConfirm = (payload: DeliveryConfirmPayload) => {
+    const { selectedItems, senderName, receiverName, uploadedPhotoNames, signatureDataUrl, createHandoverAfter } = payload;
+    if (!selectedItems || selectedItems.length === 0) return;
+
+    const payloadMap = new Map(selectedItems.map((s) => [s.id, s]));
 
     const updatedItems: POItem[] = items.map((it) => {
-      if (!batchSelected[it.id]) return it;
-      const addQty = Math.max(0, Number(batchQty[it.id]) || 0);
+      const match = payloadMap.get(it.id);
+      if (!match) return it;
+      const addQty = Math.max(0, match.qty || 0);
       if (addQty <= 0) return it;
-      const delivDate = batchItemDate[it.id] || batchDeliveryDate || new Date().toISOString().slice(0, 10);
+      const delivDate = match.date || new Date().toISOString().slice(0, 10);
       const prevDelivered = Number(it.deliveredQty) || 0;
-      const nextDelivered = Math.min(Number(it.qty) || addQty, prevDelivered + addQty);
+      const nextDelivered = prevDelivered + addQty;
       const nextStatus: POItem["deliveryStatus"] =
         nextDelivered >= (Number(it.qty) || 0)
           ? "Đã giao"
@@ -222,7 +224,16 @@ export function PODetail({
           : "Chưa giao";
       const nextHistory = [
         ...(it.deliveryHistory || []),
-        { date: delivDate, qty: addQty },
+        {
+          date: delivDate,
+          qty: addQty,
+          note: match.note || undefined,
+          discrepancyReason: match.reason || undefined,
+          senderName: senderName || undefined,
+          receiverName: receiverName || undefined,
+          photoNames: uploadedPhotoNames.length > 0 ? uploadedPhotoNames : undefined,
+          signatureDataUrl: signatureDataUrl || undefined,
+        },
       ];
       return {
         ...it,
@@ -235,7 +246,7 @@ export function PODetail({
 
     const allDone =
       updatedItems.length > 0 &&
-      updatedItems.every((i) => i.deliveryStatus === "Đã giao");
+      updatedItems.every((i) => (Number(i.deliveredQty) || 0) >= (Number(i.qty) || 0));
     const someDone = updatedItems.some(
       (i) => (Number(i.deliveredQty) || 0) > 0
     );
@@ -245,13 +256,19 @@ export function PODetail({
       ? "Đang giao hàng"
       : po.status;
 
-    onUpdate({
+    const updatedPo = {
       ...po,
       status: nextPoStatus,
       items: updatedItems,
-    });
+    };
+
+    onUpdate(updatedPo);
     setShowDeliveryModal(false);
-    onStatus?.(`✓ Đã cập nhật giao hàng cho ${selectedIds.length} mặt hàng trong PO ${po.number}`);
+    onStatus?.(`✓ Đã cập nhật giao nhận cho ${selectedItems.length} mặt hàng trong PO ${po.number}`);
+
+    if (createHandoverAfter && onCreateHandover) {
+      onCreateHandover(updatedPo);
+    }
   };
 
   const handleImportItemsFromApproval = (req: ApprovalRequest) => {
@@ -1924,6 +1941,25 @@ export function PODetail({
               </button>
             )}
 
+            <button
+              type="button"
+              onClick={() => setItemsViewMode(itemsViewMode === "card" ? "table" : "card")}
+              style={{
+                height: "34px",
+                padding: "0 10px",
+                fontSize: "12px",
+                fontWeight: 600,
+                background: itemsViewMode === "card" ? "#eff6ff" : "#f8fafc",
+                border: itemsViewMode === "card" ? "1px solid #3b82f6" : "1px solid #cbd5e1",
+                borderRadius: "6px",
+                cursor: "pointer",
+                color: itemsViewMode === "card" ? "#1d4ed8" : "#334155",
+              }}
+              title="Chuyển chế độ xem dạng Bảng chi tiết hoặc Thẻ di động"
+            >
+              {itemsViewMode === "card" ? "🖥 Dạng Bảng" : "📱 Dạng Thẻ"}
+            </button>
+
             {!readOnly && (
               <button
                 type="button"
@@ -1962,7 +1998,35 @@ export function PODetail({
           </div>
         </div>
 
-        <div className="delivery-table" style={{ overflowX: "auto" }}>
+        {/* MOBILE CARDS VIEW */}
+        {(itemsViewMode === "card" || itemsViewMode === "auto") && (
+          <div
+            className={itemsViewMode === "auto" ? "po-mobile-cards-view" : ""}
+            style={{ padding: "12px 14px" }}
+          >
+            <POItemsMobileCards
+              po={po}
+              items={items}
+              readOnly={readOnly}
+              onUpdateItem={(id, patch) => {
+                const nextItems = items.map((x) => (x.id === id ? { ...x, ...patch } : x));
+                updatePOItemsAndSyncPayments(nextItems);
+              }}
+              onDeleteItem={(id) => {
+                const nextItems = items.filter((x) => x.id !== id);
+                updatePOItemsAndSyncPayments(nextItems);
+              }}
+              onOpenDeliveryPopup={openDeliveryPopup}
+            />
+          </div>
+        )}
+
+        {/* DESKTOP TABLE VIEW */}
+        {(itemsViewMode === "table" || itemsViewMode === "auto") && (
+          <div
+            className={`delivery-table ${itemsViewMode === "auto" ? "po-desktop-table-view" : ""}`}
+            style={{ overflowX: "auto" }}
+          >
           <table style={{ width: "100%", minWidth: "1050px", borderCollapse: "collapse" }}>
             <thead>
               <tr>
@@ -2290,335 +2354,19 @@ export function PODetail({
             )}
           </table>
         </div>
+      )}
       </section>
 
-      {/* POPUP GIAO HÀNG CHO PO */}
-      {showDeliveryModal && (
-        <div
-          className="payment-modal-overlay"
-          onClick={() => setShowDeliveryModal(false)}
-          style={{
-            position: "fixed",
-            inset: 0,
-            background: "rgba(15, 23, 42, 0.55)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 9999,
-            padding: "16px",
-          }}
-        >
-          <div
-            className="payment-modal-card"
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              background: "#fff",
-              borderRadius: "10px",
-              maxWidth: "880px",
-              width: "100%",
-              maxHeight: "88vh",
-              display: "flex",
-              flexDirection: "column",
-              boxShadow: "0 20px 35px -10px rgba(0,0,0,0.25)",
-              overflow: "hidden",
-            }}
-          >
-            <div
-              style={{
-                padding: "14px 18px",
-                borderBottom: "1px solid #e2e8f0",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                background: "#f8fafc",
-              }}
-            >
-              <div>
-                <h3 style={{ margin: 0, fontSize: "16px", color: "#0f172a" }}>
-                  🚚 Cập nhật Giao hàng cho PO {po.number}
-                </h3>
-                <small style={{ color: "#64748b" }}>
-                  Tích chọn các mặt hàng được giao, nhập số lượng giao và chọn ngày giao chung cho đợt giao hàng này
-                </small>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowDeliveryModal(false)}
-                style={{
-                  border: 0,
-                  background: "transparent",
-                  fontSize: "20px",
-                  cursor: "pointer",
-                  color: "#64748b",
-                }}
-              >
-                ×
-              </button>
-            </div>
-
-            <div
-              style={{
-                padding: "12px 18px",
-                background: "#eff6ff",
-                borderBottom: "1px solid #bfdbfe",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                flexWrap: "wrap",
-                gap: "12px",
-              }}
-            >
-              <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
-                <label style={{ fontWeight: 700, fontSize: "13px", color: "#1e3a8a" }}>
-                  📅 Ngày giao hàng chung (áp dụng cho tất cả hàng tích chọn):
-                </label>
-                <input
-                  type="date"
-                  value={batchDeliveryDate}
-                  onChange={(e) => {
-                    const newDate = e.target.value;
-                    setBatchDeliveryDate(newDate);
-                    const nextDates: Record<number, string> = {};
-                    items.forEach((it) => {
-                      nextDates[it.id] = newDate;
-                    });
-                    setBatchItemDate(nextDates);
-                  }}
-                  style={{
-                    height: "34px",
-                    padding: "4px 10px",
-                    fontSize: "13px",
-                    fontWeight: 700,
-                    border: "1px solid #60a5fa",
-                    borderRadius: "6px",
-                    background: "#fff",
-                  }}
-                />
-              </div>
-
-              <div style={{ display: "flex", gap: "8px" }}>
-                <button
-                  type="button"
-                  onClick={() => {
-                    const nextSel: Record<number, boolean> = {};
-                    items.forEach((it) => {
-                      nextSel[it.id] = true;
-                    });
-                    setBatchSelected(nextSel);
-                  }}
-                  style={{
-                    padding: "5px 10px",
-                    fontSize: "12px",
-                    fontWeight: 600,
-                    background: "#fff",
-                    border: "1px solid #93c5fd",
-                    borderRadius: "5px",
-                    color: "#1d4ed8",
-                    cursor: "pointer",
-                  }}
-                >
-                  ☑️ Chọn tất cả
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setBatchSelected({})}
-                  style={{
-                    padding: "5px 10px",
-                    fontSize: "12px",
-                    fontWeight: 600,
-                    background: "#fff",
-                    border: "1px solid #cbd5e1",
-                    borderRadius: "5px",
-                    color: "#475569",
-                    cursor: "pointer",
-                  }}
-                >
-                  Bỏ chọn hết
-                </button>
-              </div>
-            </div>
-
-            <div style={{ padding: "14px 18px", overflowY: "auto", flex: 1 }}>
-              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
-                <thead>
-                  <tr style={{ background: "#f1f5f9", textAlign: "left" }}>
-                    <th style={{ padding: "8px", width: "44px", textAlign: "center" }}>Chọn</th>
-                    <th style={{ padding: "8px" }}>Tên hàng hóa</th>
-                    <th style={{ padding: "8px", width: "70px", textAlign: "center" }}>ĐVT</th>
-                    <th style={{ padding: "8px", width: "80px", textAlign: "right" }}>SL đặt</th>
-                    <th style={{ padding: "8px", width: "90px", textAlign: "right" }}>Đã giao</th>
-                    <th style={{ padding: "8px", width: "125px", textAlign: "right" }}>SL giao đợt này</th>
-                    <th style={{ padding: "8px", width: "145px", textAlign: "center" }}>Ngày giao</th>
-                    <th style={{ padding: "8px", width: "80px", textAlign: "center" }}>Đặt lại</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {items.map((it) => {
-                    const checked = Boolean(batchSelected[it.id]);
-                    const delivered = Number(it.deliveredQty) || 0;
-                    const rem = Math.max(0, (Number(it.qty) || 0) - delivered);
-                    return (
-                      <tr
-                        key={it.id}
-                        style={{
-                          borderBottom: "1px solid #e2e8f0",
-                          background: checked ? "#f0f9ff" : "#fff",
-                        }}
-                      >
-                        <td style={{ padding: "8px", textAlign: "center" }}>
-                          <input
-                            type="checkbox"
-                            checked={checked}
-                            onChange={(e) =>
-                              setBatchSelected((prev) => ({
-                                ...prev,
-                                [it.id]: e.target.checked,
-                              }))
-                            }
-                            style={{ width: "16px", height: "16px", cursor: "pointer" }}
-                          />
-                        </td>
-                        <td style={{ padding: "8px", fontWeight: 600 }}>
-                          {it.name || "(Chưa nhập tên hàng)"}
-                        </td>
-                        <td style={{ padding: "8px", textAlign: "center" }}>{it.unit}</td>
-                        <td style={{ padding: "8px", textAlign: "right", fontWeight: 600 }}>
-                          {it.qty}
-                        </td>
-                        <td style={{ padding: "8px", textAlign: "right", color: delivered > 0 ? "#15803d" : "#64748b", fontWeight: 600 }}>
-                          {delivered} (Còn: {rem})
-                        </td>
-                        <td style={{ padding: "8px", textAlign: "right" }}>
-                          <input
-                            type="number"
-                            min="0"
-                            max={it.qty}
-                            disabled={!checked}
-                            value={batchQty[it.id] ?? rem}
-                            onChange={(e) =>
-                              setBatchQty((prev) => ({
-                                ...prev,
-                                [it.id]: Number(e.target.value) || 0,
-                              }))
-                            }
-                            style={{
-                              width: "100%",
-                              textAlign: "right",
-                              fontWeight: 700,
-                              padding: "4px 8px",
-                              border: "1px solid #93c5fd",
-                              borderRadius: "4px",
-                              background: checked ? "#fff" : "#f1f5f9",
-                            }}
-                          />
-                        </td>
-                        <td style={{ padding: "8px", textAlign: "center" }}>
-                          <input
-                            type="date"
-                            disabled={!checked}
-                            value={batchItemDate[it.id] || batchDeliveryDate}
-                            onChange={(e) =>
-                              setBatchItemDate((prev) => ({
-                                ...prev,
-                                [it.id]: e.target.value,
-                              }))
-                            }
-                            style={{
-                              width: "100%",
-                              padding: "4px 6px",
-                              fontSize: "12px",
-                              border: "1px solid #cbd5e1",
-                              borderRadius: "4px",
-                              background: checked ? "#fff" : "#f1f5f9",
-                            }}
-                          />
-                        </td>
-                        <td style={{ padding: "8px", textAlign: "center" }}>
-                          {delivered > 0 && (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                const nextItems = items.map((x) =>
-                                  x.id === it.id
-                                    ? {
-                                        ...x,
-                                        deliveredQty: 0,
-                                        deliveryDate: "",
-                                        deliveryStatus: "Chưa giao" as const,
-                                        deliveryHistory: [],
-                                      }
-                                    : x
-                                );
-                                onUpdate({ ...po, items: nextItems });
-                                setBatchQty((prev) => ({ ...prev, [it.id]: Number(it.qty) || 0 }));
-                              }}
-                              style={{
-                                fontSize: "11px",
-                                padding: "2px 6px",
-                                background: "#fff5f5",
-                                border: "1px solid #fca5a5",
-                                color: "#dc2626",
-                                borderRadius: "4px",
-                                cursor: "pointer",
-                              }}
-                              title="Xóa lịch sử đã giao của dòng này về 0"
-                            >
-                              Xóa đã giao
-                            </button>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-
-            <div
-              style={{
-                padding: "12px 18px",
-                borderTop: "1px solid #e2e8f0",
-                background: "#f8fafc",
-                display: "flex",
-                justifyContent: "flex-end",
-                gap: "10px",
-              }}
-            >
-              <button
-                type="button"
-                onClick={() => setShowDeliveryModal(false)}
-                style={{
-                  height: "36px",
-                  padding: "0 16px",
-                  background: "#fff",
-                  border: "1px solid #cbd5e1",
-                  borderRadius: "6px",
-                  fontWeight: 600,
-                  cursor: "pointer",
-                }}
-              >
-                Đóng
-              </button>
-              <button
-                type="button"
-                onClick={handleConfirmBatchDelivery}
-                style={{
-                  height: "36px",
-                  padding: "0 18px",
-                  background: "#0284c7",
-                  border: "1px solid #0369a1",
-                  color: "#fff",
-                  borderRadius: "6px",
-                  fontWeight: 700,
-                  cursor: "pointer",
-                }}
-              >
-                ✓ Xác nhận Giao hàng
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* POPUP GIAO HÀNG CHO PO (MOBILE-FIRST FIELD RECEIVING) */}
+      <PODeliveryModal
+        po={po}
+        isOpen={showDeliveryModal}
+        onClose={() => setShowDeliveryModal(false)}
+        onConfirm={handleDeliveryConfirm}
+        workspaceId={workspaceId}
+        onStatus={onStatus}
+        hasHandoverFeature={Boolean(onCreateHandover)}
+      />
 
       {/* POPUP LẤY HÀNG HÓA TỪ ĐỀ NGHỊ PHÊ DUYỆT (ĐNPĐ) */}
       {showImportApprovalModal && (

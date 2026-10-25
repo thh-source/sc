@@ -461,5 +461,87 @@
   border-top-right-radius: 9px;
 }
 
+/* ==========================================================================
+   MOBILE-FIRST FIELD RECEIVING & DELIVERY STYLES (< 768px)
+   ========================================================================== */
+
+/* Prevent iOS Auto-Zoom on Inputs & Selects */
+@media (max-width: 768px) {
+  .po-delivery-modal-card input,
+  .po-delivery-modal-card select,
+  .po-delivery-modal-card textarea,
+  .po-mobile-item-card input,
+  .po-mobile-item-card select,
+  .po-mobile-item-card textarea {
+    font-size: 16px !important;
+  }
+}
+
+/* Touch-friendly Minimum Tap Target */
+.po-touch-target {
+  min-width: 44px;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Card-based Mobile UI */
+.po-mobile-item-card {
+  transition: transform 0.12s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.po-mobile-item-card.is-checked {
+  border-color: #3b82f6 !important;
+  background-color: #ffffff !important;
+}
+
+.po-mobile-item-card.is-over-limit {
+  border-color: #ef4444 !important;
+  background-color: #fef2f2 !important;
+}
+
+/* Slide-up Bottom Sheet Animation */
+@keyframes poSlideUp {
+  from {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.po-bottom-sheet,
+.po-signature-drawer {
+  animation: poSlideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Sticky Bottom Action Bar with iPhone Safe Area Insets */
+.po-sticky-bottom-bar {
+  padding-bottom: max(10px, env(safe-area-inset-bottom, 10px));
+}
+
+@media (max-width: 768px) {
+  /* Hide the horizontal table by default on mobile if mobile cards exist */
+  .po-desktop-table-view {
+    display: none !important;
+  }
+  .po-mobile-cards-view {
+    display: block !important;
+  }
+}
+
+@media (min-width: 769px) {
+  .po-mobile-cards-view {
+    display: none;
+  }
+  .po-desktop-table-view {
+    display: block;
+  }
+}
+
+
 
 
