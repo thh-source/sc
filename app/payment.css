@@ -1100,6 +1100,20 @@ table.payment-table td .smart-cell-textarea:focus {
     break-after: auto;
     page-break-after: auto;
   }
+
+  #paymentPrintPortal table tr {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  #paymentPrintPortal .sign,
+  #paymentPrintPortal .date,
+  #paymentPrintPortal .words,
+  #paymentPrintPortal .doclabel,
+  #paymentPrintPortal .docs {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
 }
 
 @media screen {

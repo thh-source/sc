@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { LogOut, Users, FileText, Database, History, Plus, RotateCcw } from "lucide-react";
 import { dateVN } from "../utils";
 import { AdminUsage } from "./AdminUsage";
@@ -99,6 +99,13 @@ export function AdminSettings({
   const [auditLoading, setAuditLoading] = useState(false);
   const [cleaningSessions, setCleaningSessions] = useState(false);
   const [cleanupStatus, setCleanupStatus] = useState("");
+  const cleanupTimerRef = useRef<any>(null);
+
+  useEffect(() => {
+    return () => {
+      if (cleanupTimerRef.current) clearTimeout(cleanupTimerRef.current);
+    };
+  }, []);
 
   // Reset password state
   const [resetTargetUser, setResetTargetUser] = useState<UserRow | null>(null);
@@ -241,7 +248,8 @@ export function AdminSettings({
       const data = (await res.json()) as { deletedCount?: number };
       if (res.ok) {
         setCleanupStatus(`Đã dọn dẹp ${data.deletedCount || 0} phiên hết hạn`);
-        setTimeout(() => setCleanupStatus(""), 4000);
+        if (cleanupTimerRef.current) clearTimeout(cleanupTimerRef.current);
+        cleanupTimerRef.current = setTimeout(() => setCleanupStatus(""), 4000);
         loadUsage();
       }
     } catch {

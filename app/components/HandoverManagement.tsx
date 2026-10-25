@@ -305,6 +305,13 @@ export function HandoverManagement({
   // Print states
   const [isPrinting, setIsPrinting] = useState(false);
   const [printItemsList, setPrintItemsList] = useState<PaymentHandoverItem[]>([]);
+  const printTimerRef = useRef<any>(null);
+
+  useEffect(() => {
+    return () => {
+      if (printTimerRef.current) clearTimeout(printTimerRef.current);
+    };
+  }, []);
 
   // Hidden date picker
   const calendarPickerRef = useRef<HTMLInputElement>(null);
@@ -800,7 +807,7 @@ export function HandoverManagement({
       status: "Đã giao KT, chờ đi tiền",
       address: matchedSupplier?.address || "",
       account_no: matchedSupplier?.bankAccount || "",
-      bank: matchedSupplier?.bankName || "",
+      bank: matchedSupplier?.bank || "",
       beneficiary_id: matchedSupplier?.id,
       created_by_name: chosen[0]?.sender_name || "Trần Hải Hà",
       lines: lines,
@@ -828,7 +835,8 @@ export function HandoverManagement({
 
     setPrintItemsList(items);
     setIsPrinting(true);
-    setTimeout(() => {
+    if (printTimerRef.current) clearTimeout(printTimerRef.current);
+    printTimerRef.current = setTimeout(() => {
       window.print();
       setIsPrinting(false);
     }, 250);

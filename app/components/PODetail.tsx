@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useRef, useEffect } from "react";
 import {
   ArrowLeft,
   ArrowRight,
@@ -70,6 +70,13 @@ export function PODetail({
 }) {
   const [saving, setSaving] = useState(false);
   const [savedNotice, setSavedNotice] = useState(false);
+  const savedNoticeTimerRef = useRef<any>(null);
+
+  useEffect(() => {
+    return () => {
+      if (savedNoticeTimerRef.current) clearTimeout(savedNoticeTimerRef.current);
+    };
+  }, []);
 
   // Batch Delivery Modal State
   const [showDeliveryModal, setShowDeliveryModal] = useState(false);
@@ -373,7 +380,8 @@ export function PODetail({
       }
       setSavedNotice(true);
       onStatus?.(`✓ Đã lưu thông tin ${po.number}`);
-      setTimeout(() => setSavedNotice(false), 3000);
+      if (savedNoticeTimerRef.current) clearTimeout(savedNoticeTimerRef.current);
+      savedNoticeTimerRef.current = setTimeout(() => setSavedNotice(false), 3000);
       if (andGoBack) {
         onBack();
       }
@@ -2487,7 +2495,7 @@ export function PODetail({
                   >
                     <div>
                       <div style={{ fontWeight: 700, color: "#0f172a", fontSize: "13.5px" }}>
-                        {req.prNumber || req.requestNumber} — {req.title}
+                        {req.prNumber || req.requestNumber} — {req.section1Title || req.department || "Phiếu phê duyệt NCC"}
                       </div>
                       <div style={{ fontSize: "12px", color: "#475569", marginTop: "3px" }}>
                         NCC được chọn: <b>{req.recommendedSupplierName || chosenCol?.supplierName || "Chưa chọn"}</b> · Số mặt hàng: <b>{req.rows.length}</b>

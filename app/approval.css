@@ -976,10 +976,15 @@
   }
 
   #approvalPrintPortal .phenikaa-print-grid tr {
-    page-break-inside: avoid;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
   }
 
-  #approvalPrintPortal .phenikaa-sign-table {
-    page-break-inside: avoid;
+  #approvalPrintPortal .phenikaa-sign-table,
+  #approvalPrintPortal .approval-signatures,
+  #approvalPrintPortal .phenikaa-print-header,
+  #approvalPrintPortal .phenikaa-print-section {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
   }
 }

@@ -179,10 +179,10 @@ export function PODeliveryModal({
       try {
         const res = await fetch("/api/files", { method: "POST", body: formData });
         if (res.ok) {
-          const data = await res.json();
+          const data = (await res.json()) as { id?: string | number };
           setUploadedPhotos((prev) => [
             ...prev,
-            { id: data.id || String(Date.now()), name: file.name, url: URL.createObjectURL(file) },
+            { id: String(data?.id || Date.now()), name: file.name, url: URL.createObjectURL(file) },
           ]);
         }
       } catch (err) {

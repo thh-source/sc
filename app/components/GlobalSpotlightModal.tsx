@@ -181,7 +181,7 @@ export function GlobalSpotlightModal({
         supp?.code,
         po.note,
         po.createdDate,
-        po.deliveryDate,
+        po.expectedDate,
         ...(po.items || []).map((it) => `${it.name || ""} ${it.code || ""} ${it.spec || ""}`),
       ].filter(Boolean).join(" ");
 
@@ -214,7 +214,7 @@ export function GlobalSpotlightModal({
             categoryBg: "#eff6ff",
             categoryColor: "#2563eb",
             title: `PO ${po.number} · ${supp?.shortName || supp?.name || "NCC"}`,
-            subtitle: `${po.items?.length || 0} mặt hàng · Trị giá: ${fmt(totalAmount)} ₫ · Hạn giao: ${po.deliveryDate || "---"}`,
+            subtitle: `${po.items?.length || 0} mặt hàng · Trị giá: ${fmt(totalAmount)} ₫ · Hạn giao: ${po.expectedDate || "---"}`,
             badge: po.items?.every((it) => it.deliveryStatus === "Đã giao") ? "Đã giao đủ" : "Đang giao hàng",
             badgeBg: po.items?.every((it) => it.deliveryStatus === "Đã giao") ? "#dcfce7" : "#e0e7ff",
             badgeColor: po.items?.every((it) => it.deliveryStatus === "Đã giao") ? "#15803d" : "#4338ca",

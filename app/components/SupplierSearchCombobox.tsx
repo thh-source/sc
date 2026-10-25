@@ -38,6 +38,13 @@ export function SupplierSearchCombobox({
 
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const focusTimerRef = useRef<any>(null);
+
+  useEffect(() => {
+    return () => {
+      if (focusTimerRef.current) clearTimeout(focusTimerRef.current);
+    };
+  }, []);
 
   // Find currently selected supplier
   const selectedSupplier = useMemo(() => {
@@ -228,7 +235,8 @@ export function SupplierSearchCombobox({
             onClick={() => {
               onSelectSupplier("");
               setQuery("");
-              setTimeout(() => {
+              if (focusTimerRef.current) clearTimeout(focusTimerRef.current);
+              focusTimerRef.current = setTimeout(() => {
                 inputRef.current?.focus();
                 setIsOpen(true);
               }, 50);

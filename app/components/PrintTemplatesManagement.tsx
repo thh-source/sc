@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { PaymentPrintTemplate, PaymentRequestEntry, PaymentDetailLine, PaymentHandoverItem, Supplier } from "../types";
 import {
@@ -38,6 +38,13 @@ export function PrintTemplatesManagement({
   );
   const [isPrinting, setIsPrinting] = useState(false);
   const [printType, setPrintType] = useState<"01-TT" | "handover">("01-TT");
+  const printTimerRef = useRef<any>(null);
+
+  useEffect(() => {
+    return () => {
+      if (printTimerRef.current) clearTimeout(printTimerRef.current);
+    };
+  }, []);
 
   const sampleReq: PaymentRequestEntry = useMemo(() => {
     if (sampleRequest) return sampleRequest;
@@ -103,7 +110,8 @@ export function PrintTemplatesManagement({
   const handlePrintSample = (type: "01-TT" | "handover") => {
     setPrintType(type);
     setIsPrinting(true);
-    setTimeout(() => {
+    if (printTimerRef.current) clearTimeout(printTimerRef.current);
+    printTimerRef.current = setTimeout(() => {
       window.print();
       setIsPrinting(false);
     }, 150);
