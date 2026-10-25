@@ -5,19 +5,7 @@ import { PO, POItem, PR, Supplier, PaymentHandoverItem, isContractPO } from "../
 import { localToday, normName } from "../payment-utils";
 import { fmt, dateVN } from "../utils";
 import { useIsMobile } from "../useIsMobile";
-
-const DEFAULT_DEPARTMENT_SUGGESTIONS = [
-  "Phòng Kỹ thuật",
-  "Phòng Sản xuất",
-  "Phòng QA/QC",
-  "Phòng Cung ứng",
-  "Phòng Kho vận / Kho",
-  "Phòng R&D",
-  "Phòng Hành chính - Nhân sự",
-  "Phòng Kế toán",
-  "Ban Quản lý Dự án",
-  "Phòng Kinh doanh",
-];
+import { addNewDepartment, getUnifiedDepartments } from "../utils/departments";
 
 export interface HandoverConfirmedItem {
   item: POItem;
@@ -67,19 +55,20 @@ export function POHandoverPickerModal({
     return suppliers.find((s) => Number(s.id) === Number(po.supplierId)) || null;
   }, [po?.supplierId, suppliers]);
 
+  const [sysDepts, setSysDepts] = useState<string[]>(() => getUnifiedDepartments());
+
+  useEffect(() => {
+    const onDeptsUpdated = () => setSysDepts(getUnifiedDepartments());
+    window.addEventListener("scm_departments_updated", onDeptsUpdated);
+    return () => window.removeEventListener("scm_departments_updated", onDeptsUpdated);
+  }, []);
+
   // Department suggestions list
   const departmentOptions = useMemo(() => {
-    const set = new Set<string>();
+    const set = new Set<string>(sysDepts);
     if (linkedPR?.department?.trim()) set.add(linkedPR.department.trim());
-    DEFAULT_DEPARTMENT_SUGGESTIONS.forEach((d) => set.add(d));
-    prs.forEach((p) => {
-      if (p.department?.trim()) set.add(p.department.trim());
-    });
-    existingHandovers.forEach((h) => {
-      if (h.department?.trim()) set.add(h.department.trim());
-    });
     return Array.from(set).filter(Boolean);
-  }, [linkedPR, prs, existingHandovers]);
+  }, [sysDepts, linkedPR]);
 
   // Form states
   const [department, setDepartment] = useState<string>("");
@@ -262,12 +251,20 @@ export function POHandoverPickerModal({
             <label style={{ fontSize: "12.5px", fontWeight: 700, color: "#1e3a8a", display: "block", marginBottom: "4px" }}>
               🏢 Bộ phận nhận bàn giao <b style={{ color: "#dc2626" }}>*</b>:
             </label>
-            <input
-              type="text"
-              list="handover-dept-options"
+            <select
               value={department}
-              onChange={(e) => setDepartment(e.target.value)}
-              placeholder="Chọn hoặc nhập bộ phận tiếp nhận..."
+              onChange={(e) => {
+                const val = e.target.value;
+                if (val === "__ADD_NEW__") {
+                  const name = window.prompt("Nhập tên / mã bộ phận mới để lưu vào hệ thống:", "");
+                  if (name && name.trim()) {
+                    addNewDepartment(name.trim());
+                    setDepartment(name.trim());
+                  }
+                  return;
+                }
+                setDepartment(val);
+              }}
               style={{
                 width: "100%",
                 height: "38px",
@@ -279,13 +276,17 @@ export function POHandoverPickerModal({
                 background: "#ffffff",
                 color: "#0f172a",
                 outline: "none",
+                cursor: "pointer",
               }}
-            />
-            <datalist id="handover-dept-options">
+            >
+              <option value="">-- Chọn bộ phận tiếp nhận --</option>
               {departmentOptions.map((dept, idx) => (
-                <option key={idx} value={dept} />
+                <option key={idx} value={dept}>
+                  {dept}
+                </option>
               ))}
-            </datalist>
+              <option value="__ADD_NEW__">＋ Thêm bộ phận / phòng ban mới...</option>
+            </select>
           </div>
 
           {/* Ngày bàn giao */}

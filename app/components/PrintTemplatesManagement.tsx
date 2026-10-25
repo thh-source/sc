@@ -67,9 +67,9 @@ export function PrintTemplatesManagement({
   }, [sampleRequest, tplForm.default_requester_name]);
 
   const sampleHandoverItems: PaymentHandoverItem[] = useMemo(() => [
-    { id: 1, department: "Phòng Cơ điện", item_name: "Van bi inox vi sinh DN25", unit: "Cái", quantity_doc: 4, quantity_pass: 4, quantity_fail: 0, note: "Mới 100%", handover_date: localToday() },
-    { id: 2, department: "Phòng Cơ điện", item_name: "Gioăng cao su EPDM chịu nhiệt", unit: "Bộ", quantity_doc: 10, quantity_pass: 10, quantity_fail: 0, note: "Kèm CO/CQ", handover_date: localToday() },
-    { id: 3, department: "Phòng Cơ điện", item_name: "Cảm biến áp suất 0-10 bar", unit: "Chiếc", quantity_doc: 2, quantity_pass: 2, quantity_fail: 0, note: "Đạt kiểm định", handover_date: localToday() },
+    { id: 1, department: "Sản xuất", item_name: "Van bi inox vi sinh DN25", unit: "Cái", quantity_doc: 4, quantity_pass: 4, quantity_fail: 0, note: "Mới 100%", handover_date: localToday() },
+    { id: 2, department: "Sản xuất", item_name: "Gioăng cao su EPDM chịu nhiệt", unit: "Bộ", quantity_doc: 10, quantity_pass: 10, quantity_fail: 0, note: "Kèm CO/CQ", handover_date: localToday() },
+    { id: 3, department: "Sản xuất", item_name: "Cảm biến áp suất 0-10 bar", unit: "Chiếc", quantity_doc: 2, quantity_pass: 2, quantity_fail: 0, note: "Đạt kiểm định", handover_date: localToday() },
   ], []);
 
   const fullPayeeName = useMemo(() => {
@@ -599,7 +599,7 @@ export function PrintTemplatesManagement({
                       </div>
                       <div className="hb-two-col">
                         <div>Ông (bà): .................................................... Người nhận hàng</div>
-                        <div>Địa chỉ: Phòng Cơ điện</div>
+                        <div>Địa chỉ: Sản xuất</div>
                       </div>
                       <div className="hb-line">Cùng nhau tiến hành giao nhận và nghiệm thu số lượng vật tư sau:</div>
                     </div>
@@ -797,7 +797,7 @@ export function PrintTemplatesManagement({
                     </div>
                     <div className="hb-two-col">
                       <div>Ông (bà): .................................................... Người nhận hàng</div>
-                      <div>Địa chỉ: Phòng Cơ điện</div>
+                      <div>Địa chỉ: Sản xuất</div>
                     </div>
                     <div className="hb-line">Cùng nhau tiến hành giao nhận và nghiệm thu số lượng vật tư sau:</div>
                   </div>

@@ -1,7 +1,8 @@
-import React, { ChangeEvent, useState, useMemo } from "react";
+import React, { ChangeEvent, useState, useMemo, useEffect } from "react";
 import { Item, ColumnKey, SortState } from "../types";
 import { fmt, makeId, emptyItem, applyTools, BASE_COLUMNS } from "../utils";
 import { DraftItemsTable } from "./DraftItemsTable";
+import { addNewDepartment, getUnifiedDepartments } from "../utils/departments";
 
 export function CreatePRCatalog({
   draft,
@@ -45,6 +46,13 @@ export function CreatePRCatalog({
   onCancel: () => void;
   onSave: () => void;
 }) {
+  const [sysDepts, setSysDepts] = useState<string[]>(() => getUnifiedDepartments());
+  useEffect(() => {
+    const onDeptsUpdated = () => setSysDepts(getUnifiedDepartments());
+    window.addEventListener("scm_departments_updated", onDeptsUpdated);
+    return () => window.removeEventListener("scm_departments_updated", onDeptsUpdated);
+  }, []);
+
   const [selectedProduct, setSelectedProduct] = useState(""),
     [order, setOrder] = useState<ColumnKey[]>(BASE_COLUMNS.map((c) => c.key)),
     [filters, setFilters] = useState<Partial<Record<ColumnKey, string[]>>>({}),
@@ -122,13 +130,39 @@ export function CreatePRCatalog({
           </label>
           <label>
             Đơn vị <b>*</b>
-            <input
-              placeholder="Ví dụ: Phòng Kỹ thuật"
+            <select
               value={draft.department}
-              onChange={(e) =>
-                setDraft((d) => ({ ...d, department: e.target.value }))
-              }
-            />
+              onChange={(e) => {
+                const val = e.target.value;
+                if (val === "__ADD_NEW__") {
+                  const name = window.prompt("Nhập tên / mã phòng ban mới để lưu vào hệ thống:", "");
+                  if (name && name.trim()) {
+                    addNewDepartment(name.trim());
+                    setDraft((d) => ({ ...d, department: name.trim() }));
+                  }
+                  return;
+                }
+                setDraft((d) => ({ ...d, department: val }));
+              }}
+              style={{
+                height: "42px",
+                border: "1px solid #ccd8e5",
+                borderRadius: "6px",
+                padding: "0 11px",
+                outline: 0,
+                color: "var(--ink)",
+                background: "white",
+                cursor: "pointer",
+              }}
+            >
+              <option value="">-- Chọn đơn vị / phòng ban --</option>
+              {sysDepts.map((d) => (
+                <option key={d} value={d}>
+                  {d}
+                </option>
+              ))}
+              <option value="__ADD_NEW__">＋ Thêm phòng ban mới...</option>
+            </select>
           </label>
           <label className="purpose-input">
             Mục đích sử dụng <b>*</b>

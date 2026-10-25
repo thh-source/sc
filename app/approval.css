@@ -859,7 +859,8 @@
 }
 
 .sign-space {
-  height: 48px;
+  height: 96px;
+  position: relative;
 }
 
 .sign-name {

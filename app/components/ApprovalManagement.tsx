@@ -21,6 +21,7 @@ import {
   formatApprovalSection1Title,
   parseExcelClipboard,
 } from "../utils/approvalSamples";
+import { addNewDepartment, getUnifiedDepartments } from "../utils/departments";
 
 interface ApprovalManagementProps {
   approvalRequests: ApprovalRequest[];
@@ -192,35 +193,35 @@ export default function ApprovalManagement({
     );
   }, [prs, activeRequest?.prId, activeRequest?.prNumber, activeRequest?.noteRef]);
 
-  // Danh sách các phòng ban (gồm phòng ban từ PRs + danh mục chuẩn công ty)
+  const [sysDepts, setSysDepts] = useState<string[]>(() => getUnifiedDepartments());
+
+  useEffect(() => {
+    const onDeptsUpdated = () => setSysDepts(getUnifiedDepartments());
+    window.addEventListener("scm_departments_updated", onDeptsUpdated);
+    return () => window.removeEventListener("scm_departments_updated", onDeptsUpdated);
+  }, []);
+
+  // Danh sách các phòng ban thống nhất toàn web
   const departmentOptions = useMemo(() => {
-    const defaults = [
-      "Phòng Cơ điện",
-      "Phòng QC",
-      "Phòng QA",
-      "Phòng R&D",
-      "Phòng Kỹ thuật",
-      "Phòng Sản xuất",
-      "Kho",
-      "Phòng Kế toán",
-      "Phòng Hành chính nhân sự",
-      "Phòng Công nghệ thông tin (IT)",
-      "Ban Giám đốc",
-    ];
-    const set = new Set<string>();
+    const set = new Set<string>(sysDepts);
     if (linkedPR?.department && linkedPR.department.trim()) {
       set.add(linkedPR.department.trim());
     }
-    prs.forEach((p) => {
-      if (p.department && p.department.trim()) {
-        set.add(p.department.trim());
-      }
-    });
-    defaults.forEach((d) => set.add(d));
     return Array.from(set).filter(Boolean);
-  }, [prs, linkedPR]);
+  }, [sysDepts, linkedPR]);
 
-  // Xử lý chọn / điền tên phòng ban để tự cập nhật Mục I
+  // Xử lý tạo thêm mã/phòng ban mới vào hệ thống
+  const handleAddNewDept = () => {
+    const name = window.prompt("Nhập tên / mã phòng ban mới để lưu vào hệ thống:", "");
+    if (!name || !name.trim()) return;
+    const res = addNewDepartment(name.trim());
+    if (res.success) {
+      setSysDepts(res.list);
+      handleSelectRequestingDept(name.trim());
+    }
+  };
+
+  // Xử lý chọn tên phòng ban để tự cập nhật Mục I
   const handleSelectRequestingDept = (deptName: string) => {
     const newTitle = formatApprovalSection1Title(deptName);
     updateActive((prev) => ({
@@ -1634,35 +1635,41 @@ export default function ApprovalManagement({
                       : ""
                   }
                   onChange={(e) => {
+                    if (e.target.value === "__ADD_NEW__") {
+                      handleAddNewDept();
+                      return;
+                    }
                     if (e.target.value) {
                       handleSelectRequestingDept(e.target.value);
                     }
                   }}
                 >
-                  <option value="">-- Chọn phòng ban --</option>
+                  <option value="">-- Chọn phòng ban yêu cầu --</option>
                   {departmentOptions.map((dept) => (
                     <option key={dept} value={dept}>
                       {dept}
                     </option>
                   ))}
+                  <option value="__ADD_NEW__">＋ Thêm phòng ban mới...</option>
                 </select>
 
-                <input
-                  type="text"
-                  placeholder="Hoặc gõ phòng ban khác..."
+                <button
+                  type="button"
                   style={{
-                    height: "28px",
-                    width: "170px",
-                    padding: "0 8px",
-                    fontSize: "12px",
+                    background: "#f1f5f9",
+                    color: "#0f172a",
                     border: "1px solid #cbd5e1",
+                    padding: "2px 8px",
+                    fontSize: "11.5px",
+                    fontWeight: 600,
                     borderRadius: "5px",
-                    background: "#ffffff",
-                    boxSizing: "border-box",
+                    cursor: "pointer",
                   }}
-                  value={activeRequest.requestingDepartment || ""}
-                  onChange={(e) => handleSelectRequestingDept(e.target.value)}
-                />
+                  onClick={handleAddNewDept}
+                  title="Thêm phòng ban mới vào hệ thống (không tự gõ không thêm mã)"
+                >
+                  ＋ Thêm mã
+                </button>
               </div>
             )}
           </div>
@@ -2591,7 +2598,10 @@ export default function ApprovalManagement({
             <tr>
               <td className="sign-col">
                 <div className="sign-title">Lãnh đạo phê duyệt</div>
-                <div className="sign-space" />
+                <div
+                  className="sign-space"
+                  style={{ height: `${activeRequest.signSpaceHeight || 96}px` }}
+                />
                 <div className="sign-name">
                   <input
                     type="text"
@@ -2609,7 +2619,10 @@ export default function ApprovalManagement({
               </td>
               <td className="sign-col">
                 <div className="sign-title">Trưởng bộ phận</div>
-                <div className="sign-space" />
+                <div
+                  className="sign-space"
+                  style={{ height: `${activeRequest.signSpaceHeight || 96}px` }}
+                />
                 <div className="sign-name">
                   <input
                     type="text"
@@ -2627,7 +2640,10 @@ export default function ApprovalManagement({
               </td>
               <td className="sign-col">
                 <div className="sign-title">Người đề nghị</div>
-                <div className="sign-space" />
+                <div
+                  className="sign-space"
+                  style={{ height: `${activeRequest.signSpaceHeight || 96}px` }}
+                />
                 <div className="sign-name">
                   <input
                     type="text"
@@ -2646,6 +2662,112 @@ export default function ApprovalManagement({
             </tr>
           </tbody>
         </table>
+
+        {/* Thanh kéo chỉnh độ giãn cách khu vực ký (Chỉ trên màn hình, không in) */}
+        {!isReportMode && (
+          <div
+            className="no-print"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              flexWrap: "wrap",
+              gap: "8px",
+              marginTop: "8px",
+              padding: "6px 12px",
+              background: "#f8fafc",
+              border: "1px dashed #cbd5e1",
+              borderRadius: "6px",
+              fontSize: "12px",
+              color: "#475569",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
+              <span>✍️ <b>Khu vực ký:</b> {activeRequest.signSpaceHeight || 96}px</span>
+              <button
+                type="button"
+                style={{
+                  padding: "2px 8px",
+                  fontSize: "11px",
+                  background: (activeRequest.signSpaceHeight || 96) === 48 ? "#2563eb" : "#ffffff",
+                  color: (activeRequest.signSpaceHeight || 96) === 48 ? "#ffffff" : "#334155",
+                  border: "1px solid #cbd5e1",
+                  borderRadius: "4px",
+                  cursor: "pointer",
+                }}
+                onClick={() =>
+                  updateActive((prev) => ({
+                    ...prev,
+                    signSpaceHeight: 48,
+                  }))
+                }
+              >
+                Gọn (48px)
+              </button>
+              <button
+                type="button"
+                style={{
+                  padding: "2px 8px",
+                  fontSize: "11px",
+                  background: (activeRequest.signSpaceHeight || 96) === 96 ? "#2563eb" : "#ffffff",
+                  color: (activeRequest.signSpaceHeight || 96) === 96 ? "#ffffff" : "#334155",
+                  border: "1px solid #cbd5e1",
+                  borderRadius: "4px",
+                  cursor: "pointer",
+                  fontWeight: (activeRequest.signSpaceHeight || 96) === 96 ? 700 : 400,
+                }}
+                onClick={() =>
+                  updateActive((prev) => ({
+                    ...prev,
+                    signSpaceHeight: 96,
+                  }))
+                }
+              >
+                Gấp đôi / Chuẩn (96px)
+              </button>
+              <button
+                type="button"
+                style={{
+                  padding: "2px 8px",
+                  fontSize: "11px",
+                  background: (activeRequest.signSpaceHeight || 96) === 130 ? "#2563eb" : "#ffffff",
+                  color: (activeRequest.signSpaceHeight || 96) === 130 ? "#ffffff" : "#334155",
+                  border: "1px solid #cbd5e1",
+                  borderRadius: "4px",
+                  cursor: "pointer",
+                }}
+                onClick={() =>
+                  updateActive((prev) => ({
+                    ...prev,
+                    signSpaceHeight: 130,
+                  }))
+                }
+              >
+                Rộng (130px)
+              </button>
+            </div>
+
+            <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+              <span style={{ fontSize: "11px" }}>Kéo chỉnh:</span>
+              <input
+                type="range"
+                min="40"
+                max="180"
+                step="4"
+                value={activeRequest.signSpaceHeight || 96}
+                onChange={(e) => {
+                  const val = Number(e.target.value);
+                  updateActive((prev) => ({
+                    ...prev,
+                    signSpaceHeight: val,
+                  }));
+                }}
+                style={{ width: "120px", cursor: "pointer" }}
+                title="Kéo thanh trượt để thay đổi chiều cao khu vực ký tên"
+              />
+            </div>
+          </div>
+        )}
       </div>
 
       {/* ===================================================================
@@ -2755,7 +2877,7 @@ export default function ApprovalManagement({
                   font-weight: 700 !important;
                 }
                 #approvalPrintPortal .sign-space {
-                  height: 45px !important;
+                  height: ${activeRequest.signSpaceHeight || 96}px !important;
                 }
                 #approvalPrintPortal .sign-name {
                   font-size: 10.5pt !important;
@@ -3128,21 +3250,30 @@ export default function ApprovalManagement({
                   <tr>
                     <td className="sign-col">
                       <div className="sign-title">Lãnh đạo phê duyệt</div>
-                      <div className="sign-space" />
+                      <div
+                        className="sign-space"
+                        style={{ height: `${activeRequest.signSpaceHeight || 96}px` }}
+                      />
                       <div className="sign-name">
                         {activeRequest.approverLeader}
                       </div>
                     </td>
                     <td className="sign-col">
                       <div className="sign-title">Trưởng bộ phận</div>
-                      <div className="sign-space" />
+                      <div
+                        className="sign-space"
+                        style={{ height: `${activeRequest.signSpaceHeight || 96}px` }}
+                      />
                       <div className="sign-name">
                         {activeRequest.approverDeptHead}
                       </div>
                     </td>
                     <td className="sign-col">
                       <div className="sign-title">Người đề nghị</div>
-                      <div className="sign-space" />
+                      <div
+                        className="sign-space"
+                        style={{ height: `${activeRequest.signSpaceHeight || 96}px` }}
+                      />
                       <div className="sign-name">
                         {activeRequest.requesterName}
                       </div>

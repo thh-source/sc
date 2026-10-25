@@ -541,6 +541,7 @@ export type ApprovalRequest = {
   showSupplierQty?: boolean;
   showDeliveryTimeRow: boolean;
   printOrientation: "portrait" | "landscape";
+  signSpaceHeight?: number;
   supplierColumns: ApprovalSupplierColumn[];
   rows: ApprovalItemRow[];
   recommendedSupplierName: string;

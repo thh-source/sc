@@ -15,6 +15,7 @@ import "../payment.css";
 import { useIsMobile } from "../useIsMobile";
 import { AutoGrowTextarea } from "./AutoGrowTextarea";
 import { useTranslation } from "../i18n";
+import { addNewDepartment, getUnifiedDepartments } from "../utils/departments";
 
 const PHENIKAA_LOGO_SRC = PHENIKAA_PHARMA_LOGO_BASE64;
 
@@ -293,35 +294,19 @@ export function HandoverManagement({
   const calendarPickerRef = useRef<HTMLInputElement>(null);
   const calendarCbRef = useRef<((dateVal: string) => void) | null>(null);
 
-  // Departments list (standard departments + from existing handovers and PRs)
+  const [sysDepts, setSysDepts] = useState<string[]>(() => getUnifiedDepartments());
+
+  useEffect(() => {
+    const onDeptsUpdated = () => setSysDepts(getUnifiedDepartments());
+    window.addEventListener("scm_departments_updated", onDeptsUpdated);
+    return () => window.removeEventListener("scm_departments_updated", onDeptsUpdated);
+  }, []);
+
+  // Danh sách các phòng ban thống nhất toàn web
   const handoverDepts = useMemo(() => {
-    const defaultDepts = [
-      "RD",
-      "QC",
-      "QA",
-      "Sản xuất",
-      "Kho",
-      "Bảo trì",
-      "Kế toán",
-      "Phòng Cung ứng",
-      "Mua hàng",
-      "Hành chính",
-      "Kỹ thuật",
-      "IT",
-      "R&D",
-      "Ban Giám đốc",
-    ];
-    const set = new Set<string>(defaultDepts);
-    for (const h of paymentHandovers) {
-      const d = String(h.department || "").trim();
-      if (d) set.add(d);
-    }
-    for (const p of prs) {
-      const d = String(p.department || "").trim();
-      if (d) set.add(d);
-    }
+    const set = new Set<string>(sysDepts);
     return Array.from(set).filter(Boolean).sort((a, b) => a.localeCompare(b, "vi"));
-  }, [paymentHandovers, prs]);
+  }, [sysDepts]);
 
   const handoverItemSuggestions = useMemo(() => {
     const set = new Set<string>();
@@ -854,8 +839,9 @@ export function HandoverManagement({
             onChange={(e) => {
               const val = e.target.value;
               if (val === "__custom__") {
-                const custom = window.prompt("Nhập tên bộ phận / phòng ban nhận mới:", "");
+                const custom = window.prompt("Nhập tên bộ phận / phòng ban nhận mới để lưu vào hệ thống:", "");
                 if (custom && custom.trim()) {
+                  addNewDepartment(custom.trim());
                   handleEditHandover(h.id, "department", custom.trim());
                 }
               } else {
@@ -1521,16 +1507,32 @@ export function HandoverManagement({
                 <label style={{ fontSize: "12px", fontWeight: 600, display: "block", marginBottom: "4px" }}>
                   Bộ phận nhận (áp dụng cho đợt dán này):
                 </label>
-                <input
-                  list="deptSuggestions"
-                  placeholder="Chọn hoặc nhập phòng ban (vd: Cơ điện, QC, RD...)"
+                <select
                   value={pasteTargetDept}
                   onChange={(e) => {
-                    setPasteTargetDept(e.target.value);
-                    handleParsePasteModal(pasteText, e.target.value, pasteTargetDate);
+                    const val = e.target.value;
+                    if (val === "__ADD_NEW__") {
+                      const name = window.prompt("Nhập tên / mã phòng ban mới để lưu vào hệ thống:", "");
+                      if (name && name.trim()) {
+                        addNewDepartment(name.trim());
+                        setPasteTargetDept(name.trim());
+                        handleParsePasteModal(pasteText, name.trim(), pasteTargetDate);
+                      }
+                      return;
+                    }
+                    setPasteTargetDept(val);
+                    handleParsePasteModal(pasteText, val, pasteTargetDate);
                   }}
                   style={{ width: "100%", padding: "7px 10px", border: "1px solid #cbd5e1", borderRadius: "6px", fontSize: "12px", boxSizing: "border-box" }}
-                />
+                >
+                  <option value="">-- Chọn phòng ban nhận --</option>
+                  {handoverDepts.map((d) => (
+                    <option key={d} value={d}>
+                      {d}
+                    </option>
+                  ))}
+                  <option value="__ADD_NEW__">＋ Thêm phòng ban mới...</option>
+                </select>
               </div>
               <div style={{ width: "160px" }}>
                 <label style={{ fontSize: "12px", fontWeight: 600, display: "block", marginBottom: "4px" }}>
@@ -1727,18 +1729,30 @@ export function HandoverManagement({
                 <label style={{ display: "block", fontSize: "12px", fontWeight: 600, color: "#475569", marginBottom: "4px" }}>
                   Bộ phận nhận bàn giao:
                 </label>
-                <input
-                  list="handoverDeptsList"
+                <select
                   style={{ width: "100%", padding: "7px 10px", border: "1px solid #cbd5e1", borderRadius: "6px", fontSize: "13px", boxSizing: "border-box" }}
                   value={importTargetDept}
-                  onChange={(e) => setImportTargetDept(e.target.value)}
-                  placeholder="Nhập hoặc chọn phòng ban..."
-                />
-                <datalist id="handoverDeptsList">
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (val === "__ADD_NEW__") {
+                      const name = window.prompt("Nhập tên / mã phòng ban mới để lưu vào hệ thống:", "");
+                      if (name && name.trim()) {
+                        addNewDepartment(name.trim());
+                        setImportTargetDept(name.trim());
+                      }
+                      return;
+                    }
+                    setImportTargetDept(val);
+                  }}
+                >
+                  <option value="">-- Chọn phòng ban nhận --</option>
                   {handoverDepts.map((d) => (
-                    <option key={d} value={d} />
+                    <option key={d} value={d}>
+                      {d}
+                    </option>
                   ))}
-                </datalist>
+                  <option value="__ADD_NEW__">＋ Thêm phòng ban mới...</option>
+                </select>
               </div>
             </div>
 
