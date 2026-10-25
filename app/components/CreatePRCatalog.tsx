@@ -1,4 +1,5 @@
 import React, { ChangeEvent, useState, useMemo, useEffect } from "react";
+import { ArrowLeft, Check, Plus, Download, Upload } from "lucide-react";
 import { Item, ColumnKey, SortState } from "../types";
 import { fmt, makeId, emptyItem, applyTools, BASE_COLUMNS } from "../utils";
 import { DraftItemsTable } from "./DraftItemsTable";
@@ -77,17 +78,15 @@ export function CreatePRCatalog({
     <section className="content create-page">
       <div className="heading">
         <div>
-          <em>ĐỀ NGHỊ MUA HÀNG</em>
           <h1>Tạo PR mới</h1>
-          <p>Chọn hàng từ danh mục hoặc tạo mới nếu chưa có.</p>
         </div>
         <div className="actions">
-
-          <button className="ghost" onClick={onCancel}>
-            Hủy
+          <button type="button" className="btn btn-secondary" onClick={onCancel}>
+            <ArrowLeft size={16} /> Quay lại
           </button>
           <button
-            className="primary"
+            type="button"
+            className="btn btn-primary"
             onClick={onSave}
             disabled={
               !draft.number ||
@@ -96,13 +95,13 @@ export function CreatePRCatalog({
               !draft.purpose
             }
           >
-            Lưu PR
+            <Check size={16} /> Lưu PR
           </button>
         </div>
       </div>
       <div className="form-card">
         <div className="section-title">
-          <span>1</span>
+          <span className="section-step">1</span>
           <div>
             <h2>Thông tin PR</h2>
             <p>Các thông tin nhận diện và mục đích sử dụng</p>
@@ -190,19 +189,19 @@ export function CreatePRCatalog({
       <div className="form-card items-card">
         <div className="items-heading">
           <div className="section-title">
-            <span>2</span>
+            <span className="section-step">2</span>
             <div>
               <h2>Danh sách hàng hóa</h2>
-              <p>Chọn sản phẩm có sẵn hoặc nhập mới trực tiếp vào bảng</p>
+              <p>Chọn sản phẩm có sẵn từ danh mục hoặc nhập mới trực tiếp vào bảng</p>
             </div>
           </div>
           <div className="excel-actions">
             <a
-              className="ghost download"
+              className="btn btn-secondary btn-sm download"
               href="/mau-nhap-danh-sach-hang-hoa-pr.xlsx"
               download
             >
-              ⇩ Tải Excel mẫu
+              <Download size={14} /> Tải Excel mẫu
             </a>
             <input
               ref={fileRef}
@@ -212,57 +211,61 @@ export function CreatePRCatalog({
               onChange={importExcel}
             />
             <button
-              className="excel-upload"
+              type="button"
+              className="btn btn-secondary btn-sm excel-upload"
               onClick={() => fileRef.current?.click()}
             >
-              ⇧ Nhập Excel
+              <Upload size={14} /> Nhập Excel
             </button>
           </div>
         </div>
-        <div className="catalog-picker">
-          <div>
-            <label>
-              Chọn từ danh mục
-              <select
-                value={selectedProduct}
-                onChange={(e) => setSelectedProduct(e.target.value)}
-              >
-                <option value="">— Tìm và chọn hàng hóa —</option>
-                {products.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.code} · {p.name} · {p.spec}
-                  </option>
-                ))}
-              </select>
-            </label>
+
+        <div className="catalog-picker-toolbar">
+          <div className="catalog-picker-left">
+            <span className="picker-label">Thêm từ danh mục:</span>
+            <select
+              className="catalog-select"
+              value={selectedProduct}
+              onChange={(e) => setSelectedProduct(e.target.value)}
+            >
+              <option value="">— Tìm và chọn hàng hóa từ kho danh mục —</option>
+              {products.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.code} · {p.name} · {p.spec}
+                </option>
+              ))}
+            </select>
             <button
-              className="primary"
+              type="button"
+              className="btn btn-primary btn-sm"
               disabled={!selectedProduct}
               onClick={addCatalogProduct}
             >
-              Thêm vào PR
+              <Plus size={14} /> Thêm vào PR
             </button>
           </div>
-          <span>hoặc</span>
-          <button
-            className="new-product-btn"
-            onClick={() =>
-              setDraft((d) => ({
-                ...d,
-                items: [
-                  ...d.items,
-                  {
-                    ...emptyItem(d.items.length),
-                    code: `VT-${String(products.length + 1).padStart(3, "0")}`,
-                  },
-                ],
-              }))
-            }
-          >
-            ＋ Tạo hàng hóa mới
-          </button>
-          <small>Hàng hóa mới sẽ tự động lưu vào danh mục khi lưu PR.</small>
+          <div className="catalog-picker-right">
+            <button
+              type="button"
+              className="btn btn-secondary btn-sm"
+              onClick={() =>
+                setDraft((d) => ({
+                  ...d,
+                  items: [
+                    ...d.items,
+                    {
+                      ...emptyItem(d.items.length),
+                      code: `VT-${String(products.length + 1).padStart(3, "0")}`,
+                    },
+                  ],
+                }))
+              }
+            >
+              <Plus size={14} /> Tạo hàng hóa mới
+            </button>
+          </div>
         </div>
+
         {message && (
           <div
             className={`import-message ${message.startsWith("Không") ? "error" : ""}`}
@@ -270,43 +273,64 @@ export function CreatePRCatalog({
             {message}
           </div>
         )}
-        <DraftItemsTable
-          items={draft.items}
-          visibleItems={visible}
-          order={order}
-          setOrder={setOrder}
-          filters={filters}
-          setFilters={setFilters}
-          sort={sort}
-          setSort={setSort}
-          filterOpen={open}
-          setFilterOpen={setOpen}
-          itemChange={itemChange}
-          setDraft={setDraft}
-        />
-        <button
-          className="add-row"
-          onClick={() =>
-            setDraft((d) => ({
-              ...d,
-              items: [...d.items, emptyItem(d.items.length)],
-            }))
-          }
-        >
-          ＋ Thêm dòng hàng hóa
-        </button>
-      </div>
-      <div className="create-footer">
-        <p>
-          <b>{draft.items.filter((i) => i.code || i.name).length}</b> mặt hàng ·
-          Tổng dự kiến <strong>{fmt(total)} ₫</strong>
-        </p>
-        <div>
-          <button className="ghost" onClick={onCancel}>
-            Hủy
+
+        <div className="pr-work-table-container">
+          <DraftItemsTable
+            items={draft.items}
+            visibleItems={visible}
+            order={order}
+            setOrder={setOrder}
+            filters={filters}
+            setFilters={setFilters}
+            sort={sort}
+            setSort={setSort}
+            filterOpen={open}
+            setFilterOpen={setOpen}
+            itemChange={itemChange}
+            setDraft={setDraft}
+          />
+        </div>
+
+        <div className="table-bottom-actions">
+          <button
+            type="button"
+            className="btn btn-secondary add-row-btn"
+            onClick={() =>
+              setDraft((d) => ({
+                ...d,
+                items: [...d.items, emptyItem(d.items.length)],
+              }))
+            }
+          >
+            <Plus size={15} /> Thêm dòng hàng hóa
           </button>
-          <button className="primary" onClick={onSave}>
-            Lưu PR
+        </div>
+      </div>
+
+      <div className="create-footer">
+        <div className="create-footer-summary">
+          <span className="summary-badge">PR Workspace</span>
+          <p>
+            Đang có <b>{draft.items.filter((i) => i.code || i.name).length}</b> mặt hàng hợp lệ ·
+            Tổng dự kiến: <strong>{fmt(total)} ₫</strong>
+          </p>
+        </div>
+        <div className="create-footer-actions">
+          <button type="button" className="btn btn-secondary" onClick={onCancel}>
+            <ArrowLeft size={16} /> Quay lại
+          </button>
+          <button
+            type="button"
+            className="btn btn-primary"
+            onClick={onSave}
+            disabled={
+              !draft.number ||
+              !draft.date ||
+              !draft.department ||
+              !draft.purpose
+            }
+          >
+            <Check size={16} /> Lưu PR
           </button>
         </div>
       </div>

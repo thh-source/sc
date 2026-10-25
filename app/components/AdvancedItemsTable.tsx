@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from "react";
+import { ShoppingCart, Sparkles, Check, X, ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
 import { Item, Supplier, PurchaseHistory, Quote, ColumnKey, SortState, QuoteEntry, QuoteMode } from "../types";
 import { fmt, priceStats, reorder, BASE_COLUMNS, valueOf, quoteDefaults, quoteBeforeVat, quoteAfterVat, emptyItem, makeId } from "../utils";
 import { cleanExcelNumber, parseExcelClipboard } from "../utils/approvalSamples";
@@ -271,12 +272,15 @@ export function AdvancedItemsTable({
         ))}
       </datalist>
 
-      <div className="tablewrap advanced-table vat-quote-table">
-      <table>
+      <div className="tablewrap advanced-table vat-quote-table compare-table-container">
+      <table className="compare-matrix-table">
         <thead>
           <tr>
-            <th rowSpan={2} className="po-check-head">
-              {t("nav.po_list")}
+            <th rowSpan={2} className="po-check-head" title="Chọn mặt hàng cho giỏ PO">
+              <div className="po-check-head-inner">
+                <ShoppingCart size={13} />
+                <span>{t("nav.po_list")}</span>
+              </div>
             </th>
             {order.map((col) => {
               const meta = BASE_COLUMNS.find((c) => c.key === col)!;
@@ -292,20 +296,19 @@ export function AdvancedItemsTable({
                     if (dragged) setOrder((o) => reorder(o, dragged, col));
                     setDragged(null);
                   }}
-                  className={`draggable-head ${dragged === col ? "dragging" : ""}`}
+                  className={`draggable-head col-${col} ${dragged === col ? "dragging" : ""}`}
                 >
                   <div className="head-label">
-                    <button onClick={() => toggleSort(col)}>
-                      {getColLabel(col, meta.label)}{" "}
-                      <small>
-                        {sort?.key === col
-                          ? sort.direction === "asc"
-                            ? "↑"
-                            : "↓"
-                          : ""}
-                      </small>
+                    <button type="button" onClick={() => toggleSort(col)}>
+                      <span>{getColLabel(col, meta.label)}</span>
+                      {sort?.key === col && (
+                        <span className="sort-indicator">
+                          {sort.direction === "asc" ? "↑" : "↓"}
+                        </span>
+                      )}
                     </button>
                     <button
+                      type="button"
                       className={
                         filters[col]?.length
                           ? "filter-trigger active"
@@ -314,8 +317,9 @@ export function AdvancedItemsTable({
                       onClick={() =>
                         setFilterOpen(filterOpen === col ? null : col)
                       }
+                      title="Lọc"
                     >
-                      ▾
+                      <ChevronDown size={12} />
                     </button>
                   </div>
                   {filterOpen === col && (
@@ -338,13 +342,14 @@ export function AdvancedItemsTable({
                       </div>
                       <div className="filter-actions">
                         <button
+                          type="button"
                           onClick={() =>
                             setFilters((f) => ({ ...f, [col]: [] }))
                           }
                         >
                           {t("table.clear_filter")}
                         </button>
-                        <button onClick={() => setFilterOpen(null)}>
+                        <button type="button" onClick={() => setFilterOpen(null)}>
                           {t("table.done")}
                         </button>
                       </div>
@@ -353,56 +358,90 @@ export function AdvancedItemsTable({
                 </th>
               );
             })}
-            {suppliers.map((s) => (
-              <th colSpan={1 + (customColumns?.length || 0)} className="suphead" key={s.id}>
-                {s.shortName || s.name}
-                <button
-                  onClick={() => onRemoveSupplier(s.id)}
-                >
-                  ×
-                </button>
+            {suppliers.map((s, idx) => (
+              <th
+                colSpan={1 + (customColumns?.length || 0)}
+                className={`suphead suphead-vendor vendor-col-${idx % 5}`}
+                key={s.id}
+              >
+                <div className="suphead-card">
+                  <div className="suphead-info">
+                    <span className="suphead-badge">{s.shortName || `NCC ${idx + 1}`}</span>
+                    <span className="suphead-name" title={s.name}>{s.name}</span>
+                  </div>
+                  <button
+                    type="button"
+                    className="suphead-remove-btn"
+                    onClick={() => onRemoveSupplier(s.id)}
+                    title={`Gỡ ${s.name} khỏi bảng`}
+                  >
+                    <X size={13} />
+                  </button>
+                </div>
               </th>
             ))}
-            <th colSpan={2} className="choice">
-              <div style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px'}}>
+            <th colSpan={2} className="choice choice-head">
+              <div className="choice-head-inner">
+                <Sparkles size={14} className="choice-sparkle-icon" />
                 <span>{t("table.auto_choice")}</span>
               </div>
             </th>
           </tr>
           <tr>
             {suppliers.flatMap((s) => [
-              <th key={s.id + "p"}>{t("table.vendor_price")}</th>,
+              <th key={s.id + "p"} className="sub-th-price">{t("table.vendor_price")}</th>,
               ...(customColumns || []).map((col, idx) => (
-                 <th key={s.id + "cc" + idx}>
-                   <div style={{display: 'flex', justifyContent: 'space-between'}}>
+                 <th key={s.id + "cc" + idx} className="sub-th-custom">
+                   <div className="custom-th-inner">
                      <div style={{display: 'flex', gap: '4px', alignItems: 'center'}}>
                        {s.id === suppliers[0]?.id && setCustomColumns && idx > 0 && (
-                         <button onClick={() => {
-                           const next = [...(customColumns||[])];
-                           [next[idx-1], next[idx]] = [next[idx], next[idx-1]];
-                           setCustomColumns(next);
-                         }} style={{cursor: 'pointer', background: 'transparent', border: 'none', padding: '0 4px', fontSize: '12px'}} title="Di chuyển sang trái">◀</button>
+                         <button
+                           type="button"
+                           onClick={() => {
+                             const next = [...(customColumns||[])];
+                             [next[idx-1], next[idx]] = [next[idx], next[idx-1]];
+                             setCustomColumns(next);
+                           }}
+                           className="col-nav-btn"
+                           title="Di chuyển sang trái"
+                         >
+                           <ChevronLeft size={12} />
+                         </button>
                        )}
-                       <span>{col}</span>
+                       <span className="custom-th-name" title={col}>{col}</span>
                        {s.id === suppliers[0]?.id && setCustomColumns && idx < (customColumns||[]).length - 1 && (
-                         <button onClick={() => {
-                           const next = [...(customColumns||[])];
-                           [next[idx], next[idx+1]] = [next[idx+1], next[idx]];
-                           setCustomColumns(next);
-                         }} style={{cursor: 'pointer', background: 'transparent', border: 'none', padding: '0 4px', fontSize: '12px'}} title="Di chuyển sang phải">▶</button>
+                         <button
+                           type="button"
+                           onClick={() => {
+                             const next = [...(customColumns||[])];
+                             [next[idx], next[idx+1]] = [next[idx+1], next[idx]];
+                             setCustomColumns(next);
+                           }}
+                           className="col-nav-btn"
+                           title="Di chuyển sang phải"
+                         >
+                           <ChevronRight size={12} />
+                         </button>
                        )}
                      </div>
                      {s.id === suppliers[0]?.id && setCustomColumns && (
-                        <button onClick={() => {
-                          if (confirm(`Xóa cột "${col}"?`)) setCustomColumns((customColumns||[]).filter(c => c !== col));
-                        }} style={{color: 'red', border: 'none', background: 'transparent', cursor: 'pointer', fontSize: '14px', lineHeight: '14px'}}>×</button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (confirm(`Xóa cột "${col}"?`)) setCustomColumns((customColumns||[]).filter(c => c !== col));
+                          }}
+                          className="col-del-btn"
+                          title="Xóa cột này"
+                        >
+                          <X size={12} />
+                        </button>
                      )}
                    </div>
                  </th>
               )),
             ])}
-            <th>{t("compare.best_price")}</th>
-            <th>{t("table.supplier")}</th>
+            <th className="sub-th-best">{t("compare.best_price")}</th>
+            <th className="sub-th-winner">{t("table.supplier")}</th>
           </tr>
         </thead>
         <tbody>
@@ -418,9 +457,11 @@ export function AdvancedItemsTable({
                 <td className="po-check">
                   <input
                     type="checkbox"
+                    className="po-item-checkbox"
                     checked={poSelections.includes(i.id)}
                     disabled={!win}
                     onChange={() => togglePOItem(i.id)}
+                    title={win ? "Chọn mặt hàng này cho PO" : "Cần có báo giá để tạo PO"}
                   />
                 </td>
                 {order.map((key) => cell(i, key, r))}
@@ -428,13 +469,17 @@ export function AdvancedItemsTable({
                   const q = quoteDefaults(quotes[i.id]?.[s.id]),
                     low = win?.supplier.id === s.id;
                   return [
-                    <td className={low ? "low" : ""} key={s.id + "p"}>
-                      <div className="qprice">
-                        {low && <b>✓</b>}
+                    <td className={`vendor-price-cell ${low ? "is-low-price" : ""}`} key={s.id + "p"}>
+                      <div className="qprice-cell-box">
+                        {low && (
+                          <span className="winner-check-pill" title="Giá tốt nhất">
+                            <Check size={11} strokeWidth={3} />
+                          </span>
+                        )}
                         <input
-                          className="num"
+                          className="qprice-input num"
                           type="number"
-                          placeholder="Nhập giá"
+                          placeholder="0"
                           value={q.price}
                           onChange={(e) =>
                             quoteChange(i.id, s.id, "price", e.target.value)
@@ -446,8 +491,9 @@ export function AdvancedItemsTable({
                       </div>
                     </td>,
                     ...(customColumns || []).map((col, idx) => (
-                      <td key={s.id + "cc" + idx}>
+                      <td key={s.id + "cc" + idx} className="vendor-custom-cell">
                         <AutoGrowTextarea
+                          className="compare-custom-input"
                           placeholder={col}
                           value={q.customColumns?.[col] || ""}
                           onChange={(value) =>
@@ -461,55 +507,64 @@ export function AdvancedItemsTable({
                     )),
                   ];
                 })}
-                <td className="best">
-                  {win ? fmt(win.price) + " ₫" : "—"}
+                <td className="best-price-cell">
+                  <div className="best-price-val">
+                    {win ? `${fmt(win.price)} ₫` : <span className="no-price-mark">—</span>}
+                  </div>
                   {!!historicalStats.latest && (
-                    <small className="history-reference">
-                      LS gần nhất {fmt(historicalStats.latest.unitPrice)} ₫ ·
-                      min {fmt(historicalStats.min)} · max{" "}
-                      {fmt(historicalStats.max)}
-                    </small>
+                    <div className="history-reference-box" title="Lịch sử giá đã mua gần nhất">
+                      <span className="hist-label">LS:</span>
+                      <span className="hist-val">{fmt(historicalStats.latest.unitPrice)} ₫</span>
+                      <span className="hist-range">({fmt(historicalStats.min)} - {fmt(historicalStats.max)})</span>
+                    </div>
                   )}
                 </td>
-                <td>
-                  <span className={win ? "badge" : "empty"}>
-                    {win?.supplier.name || "Chưa có giá"}
-                  </span>
+                <td className="winner-supplier-cell">
+                  {win ? (
+                    <span className="winner-supplier-badge" title={win.supplier.name}>
+                      <Check size={12} strokeWidth={2.5} />
+                      <span>{win.supplier.shortName || win.supplier.name}</span>
+                    </span>
+                  ) : (
+                    <span className="empty-supplier-mark">Chưa có giá</span>
+                  )}
                 </td>
               </tr>
             );
           })}
         </tbody>
-        <tfoot style={{ whiteSpace: "nowrap", overflow: "hidden" }}>
+        <tfoot className="compare-tfoot">
           <tr>
             <td></td>
             <td colSpan={order.length}>
-              TỔNG: {visibleItems.length} mặt hàng ·{" "}
-              {fmt(visibleItems.reduce((s, i) => s + i.qty * i.estimate, 0))} ₫
+              <div className="compare-foot-summary">
+                <span>Tổng số: <b>{visibleItems.length}</b> mặt hàng</span>
+                <span className="foot-sep">·</span>
+                <span>
+                  Dự toán: <b>{fmt(visibleItems.reduce((s, i) => s + i.qty * i.estimate, 0))} ₫</b>
+                </span>
+              </div>
             </td>
             {suppliers.flatMap((s) => [
-              <td className="money" key={s.id + "t"}>
-                {fmt(
-                  visibleItems.reduce(
-                    (a, i) => a + quoteBeforeVat(quotes[i.id]?.[s.id]) * i.qty,
-                    0,
-                  ),
-                )}{" "}
-                ₫
+              <td className="money vendor-foot-cell" key={s.id + "t"}>
+                <div className="foot-subtotal-block">
+                  <span className="foot-subtotal-val">
+                    {fmt(
+                      visibleItems.reduce(
+                        (a, i) => a + quoteBeforeVat(quotes[i.id]?.[s.id]) * i.qty,
+                        0,
+                      ),
+                    )}{" "}
+                    ₫
+                  </span>
+                  <span className="foot-subtotal-hint">Trước VAT</span>
+                </div>
               </td>,
-              <td className="money" key={s.id + "ta"}>
-                {fmt(
-                  visibleItems.reduce(
-                    (a, i) => a + quoteAfterVat(quotes[i.id]?.[s.id]) * i.qty,
-                    0,
-                  ),
-                )}{" "}
-                ₫
-              </td>,
-              <td key={s.id + "tc"}></td>,
-              <td key={s.id + "x"}></td>,
+              ...(customColumns || []).map((_, idx) => (
+                <td key={s.id + "fc" + idx} className="foot-empty-cell"></td>
+              )),
             ])}
-            <td colSpan={2}></td>
+            <td colSpan={2} className="foot-end-cell"></td>
           </tr>
         </tfoot>
       </table>

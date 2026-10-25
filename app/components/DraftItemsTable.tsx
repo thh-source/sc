@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { Trash2, ChevronDown } from "lucide-react";
 import { Item, ColumnKey, SortState } from "../types";
 import { fmt, reorder, BASE_COLUMNS, valueOf, emptyItem, makeId } from "../utils";
 import { cleanExcelNumber, parseExcelClipboard } from "../utils/approvalSamples";
@@ -128,13 +129,13 @@ export function DraftItemsTable({
   const cell = (item: Item, key: ColumnKey, row: number) => {
     if (key === "stt")
       return (
-        <td className="center" key={key}>
+        <td className="col-stt" key={key}>
           {row + 1}
         </td>
       );
     if (key === "amount")
       return (
-        <td className="money" key={key}>
+        <td className="col-amount" key={key}>
           {fmt(item.qty * item.estimate)}
         </td>
       );
@@ -146,10 +147,10 @@ export function DraftItemsTable({
         key === "desc" ||
         key === "spec";
     return (
-      <td key={key}>
+      <td key={key} className={`col-${key}`}>
         {multiline ? (
           <AutoGrowTextarea
-            className={key === "category" ? "category-input" : ""}
+            className={key === "category" ? "category-input draft-cell-textarea" : "draft-cell-textarea"}
             value={String(item[inputKey])}
             onChange={(value) => itemChange(item.id, inputKey, value, true)}
             onPaste={(e) => handleExcelPaste(e, item.id, key)}
@@ -157,7 +158,7 @@ export function DraftItemsTable({
           />
         ) : (
           <input
-            className={`${key === "unit" || key === "qty" ? "short" : ""} ${numeric ? "num" : ""}`}
+            className={`draft-cell-input ${key === "unit" || key === "qty" ? "short" : ""} ${numeric ? "num" : ""}`}
             type={numeric ? "number" : "text"}
             list={key === "unit" ? "commonUnitDatalist" : undefined}
             value={String(item[inputKey])}
@@ -195,20 +196,19 @@ export function DraftItemsTable({
                     if (dragged) setOrder((o) => reorder(o, dragged, col));
                     setDragged(null);
                   }}
-                  className="draggable-head"
+                  className={`draggable-head col-${col} ${dragged === col ? "dragging" : ""}`}
                 >
                   <div className="head-label">
-                    <button onClick={() => toggleSort(col)}>
-                      {meta.label}{" "}
-                      <small>
-                        {sort?.key === col
-                          ? sort.direction === "asc"
-                            ? "↑"
-                            : "↓"
-                          : ""}
-                      </small>
+                    <button type="button" onClick={() => toggleSort(col)}>
+                      <span>{meta.label}</span>
+                      {sort?.key === col && (
+                        <span className="sort-indicator">
+                          {sort.direction === "asc" ? "↑" : "↓"}
+                        </span>
+                      )}
                     </button>
                     <button
+                      type="button"
                       className={
                         filters[col]?.length
                           ? "filter-trigger active"
@@ -217,8 +217,9 @@ export function DraftItemsTable({
                       onClick={() =>
                         setFilterOpen(filterOpen === col ? null : col)
                       }
+                      title="Lọc"
                     >
-                      ▾
+                      <ChevronDown size={12} />
                     </button>
                   </div>
                   {filterOpen === col && (
@@ -238,13 +239,14 @@ export function DraftItemsTable({
                       </div>
                       <div className="filter-actions">
                         <button
+                          type="button"
                           onClick={() =>
                             setFilters((f) => ({ ...f, [col]: [] }))
                           }
                         >
                           Xóa lọc
                         </button>
-                        <button onClick={() => setFilterOpen(null)}>
+                        <button type="button" onClick={() => setFilterOpen(null)}>
                           Xong
                         </button>
                       </div>
@@ -253,16 +255,20 @@ export function DraftItemsTable({
                 </th>
               );
             })}
-            <th></th>
+            <th className="col-action" style={{ width: "44px", textAlign: "center" }}>
+              <span style={{ fontSize: "11px", color: "#64748b" }}>Xóa</span>
+            </th>
           </tr>
         </thead>
         <tbody>
           {visibleItems.map((i, r) => (
             <tr key={i.id}>
               {order.map((key) => cell(i, key, r))}
-              <td>
+              <td className="col-action center">
                 <button
-                  className="delete-row"
+                  type="button"
+                  className="draft-del-btn"
+                  title="Xóa mặt hàng này khỏi PR"
                   onClick={() =>
                     setDraft((d) => ({
                       ...d,
@@ -270,7 +276,7 @@ export function DraftItemsTable({
                     }))
                   }
                 >
-                  ×
+                  <Trash2 size={14} />
                 </button>
               </td>
             </tr>
@@ -278,11 +284,18 @@ export function DraftItemsTable({
         </tbody>
         <tfoot>
           <tr>
-            <td colSpan={order.length}>
-              TỔNG: {visibleItems.length} mặt hàng ·{" "}
-              {fmt(visibleItems.reduce((s, i) => s + i.qty * i.estimate, 0))} ₫
+            <td colSpan={order.length + 1}>
+              <div className="table-footer-summary">
+                <span>Tổng số: <b>{visibleItems.length}</b> mặt hàng</span>
+                <span className="summary-separator">·</span>
+                <span>
+                  Thành tiền dự kiến:{" "}
+                  <b className="summary-total-val">
+                    {fmt(visibleItems.reduce((s, i) => s + i.qty * i.estimate, 0))} ₫
+                  </b>
+                </span>
+              </div>
             </td>
-            <td></td>
           </tr>
         </tfoot>
       </table>

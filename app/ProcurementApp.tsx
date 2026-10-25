@@ -2232,7 +2232,7 @@ function ProcurementAppInner({
                 </section>
               </>
             )}
-            <div className="toolbar" style={compactCompare ? { marginTop: "1rem" } : {}}>
+            <div className="compare-toolbar" style={compactCompare ? { marginTop: "1rem" } : {}}>
               <label style={{ width: "260px", display: "inline-flex", alignItems: "center", gap: "6px" }}>
                 <Search size={16} style={{ color: "var(--slate-400)" }} />
                 <input
@@ -2241,20 +2241,24 @@ function ProcurementAppInner({
                   placeholder={t("compare.search_placeholder")}
                 />
               </label>
-              <div className="vat-compare-toolbar" style={{ margin: 0, padding: 0, border: "none", background: "none" }}>
-                <span>{t("compare.price_mode")}</span>
-                <button
-                  className={quoteCompareMode === "before-vat" ? "active" : ""}
-                  onClick={() => setQuoteCompareMode("before-vat")}
-                >
-                  {t("compare.before_vat")}
-                </button>
-                <button
-                  className={quoteCompareMode === "after-vat" ? "active" : ""}
-                  onClick={() => setQuoteCompareMode("after-vat")}
-                >
-                  {t("compare.after_vat")}
-                </button>
+              <div className="vat-compare-segmented">
+                <span className="seg-label">{t("compare.price_mode")}:</span>
+                <div className="seg-buttons">
+                  <button
+                    type="button"
+                    className={`seg-btn ${quoteCompareMode === "before-vat" ? "active" : ""}`}
+                    onClick={() => setQuoteCompareMode("before-vat")}
+                  >
+                    {t("compare.before_vat")}
+                  </button>
+                  <button
+                    type="button"
+                    className={`seg-btn ${quoteCompareMode === "after-vat" ? "active" : ""}`}
+                    onClick={() => setQuoteCompareMode("after-vat")}
+                  >
+                    {t("compare.after_vat")}
+                  </button>
+                </div>
               </div>
               <div style={{ display: "flex", gap: "8px", marginLeft: "auto", alignItems: "center" }}>
                 {!reportMode && (
