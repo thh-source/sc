@@ -423,15 +423,32 @@
   box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
 }
 
-/* Fix flex-column shrinking inside .content.po-detail so .po-tabs and bottom #po-items never collapse */
-.content.po-detail {
+/* Fix flex-column shrinking inside .content.po-detail and .content.po-list-page so tabs and lists never collapse */
+.content.po-detail,
+.content.po-list-page {
   display: block !important;
   overflow-y: auto !important;
-  padding-bottom: 48px !important;
+  -webkit-overflow-scrolling: touch !important;
+  padding-bottom: 60px !important;
 }
 
-.content.po-detail > * {
+.content.po-detail > *,
+.content.po-list-page > * {
   flex-shrink: 0 !important;
+}
+
+@media (max-width: 768px) {
+  .content.po-list-page {
+    overflow-y: visible !important;
+    padding-bottom: 120px !important;
+  }
+  .po-list-panel {
+    overflow: visible !important;
+  }
+  .mobile-record-list {
+    overflow: visible !important;
+    padding-bottom: 30px !important;
+  }
 }
 
 .po-detail .po-tabs {

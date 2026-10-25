@@ -13,12 +13,24 @@
   .app.collapsed {
     display: block;
     min-height: 100dvh;
+    height: auto;
   }
   .app main {
-    padding-bottom: 78px;
+    display: block;
+    height: auto;
+    min-height: 100dvh;
+    overflow-y: visible;
+    overflow-x: hidden;
+    padding-bottom: 96px;
+    -webkit-overflow-scrolling: touch;
   }
   .content {
-    padding: 12px 10px 28px;
+    display: block !important;
+    overflow-y: visible !important;
+    height: auto !important;
+    min-height: auto !important;
+    padding: 12px 10px 48px;
+    box-sizing: border-box;
   }
   .app > aside {
     display: flex;
@@ -198,6 +210,7 @@
   .supplier-list-panel {
     border: 0;
     background: transparent;
+    overflow: visible !important;
   }
   .pr-toolbar,
   .product-toolbar,
