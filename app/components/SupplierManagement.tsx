@@ -1,4 +1,5 @@
 import React, { useState, useMemo, Fragment } from "react";
+import { Plus, Search } from "lucide-react";
 import { Supplier, PurchaseHistory } from "../types";
 import { fmt, dateVN, priceStats } from "../utils";
 import { BANK_SUGGESTIONS } from "../payment-utils";
@@ -92,33 +93,15 @@ export function SupplierManagement({
     <section className="content supplier-page">
       <div className="heading">
         <div>
-          <em>{t("supplier.badge")}</em>
           <h1>{t("supplier.title")}</h1>
-          <p>
-            {t("supplier.desc")}
-          </p>
         </div>
         <button className="primary" onClick={onAdd}>
-          {t("supplier.create_btn")}
+          <Plus size={16} /> Thêm NCC
         </button>
-      </div>
-      <div className="supplier-summary">
-        <span>
-          <b>{suppliers.length}</b> nhà cung cấp
-        </span>
-        <span>
-          <b>{suppliers.filter((s) => s.bankAccount).length}</b> đã có tài khoản
-        </span>
-        <span>
-          <b>{suppliers.filter((s) => s.contact).length}</b> đã có người liên hệ
-        </span>
-        <span>
-          <b>{purchaseHistory.length}</b> dòng lịch sử nhập kho
-        </span>
       </div>
       <div className="supplier-toolbar">
         <label>
-          ⌕
+          <Search size={16} />
           <input
             value={supplierQuery}
             onChange={(e) => setSupplierQuery(e.target.value)}

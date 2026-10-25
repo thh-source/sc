@@ -1,5 +1,20 @@
 import React, { useState, useMemo } from "react";
 import {
+  ArrowLeft,
+  ArrowRight,
+  Save,
+  Trash2,
+  Truck,
+  Plus,
+  Check,
+  RotateCcw,
+  CreditCard,
+  FileDown,
+  ClipboardCheck,
+  Table,
+  LayoutGrid,
+} from "lucide-react";
+import {
   Supplier,
   PO,
   POItem,
@@ -595,7 +610,7 @@ export function PODetail({
       <div className="heading">
         <div>
           <button className="back-link" onClick={onBack}>
-            ← Quản lý PO
+            <ArrowLeft size={16} /> Quay lại
           </button>
           <em>{isContractPO(po) ? "HỢP ĐỒNG MUA HÀNG" : "ĐƠN MUA HÀNG"} · {po.number}</em>
           <h1>{supplier?.name || "Chưa chọn nhà cung cấp"}</h1>
@@ -655,7 +670,7 @@ export function PODetail({
                     })
                   }
                 >
-                  ↻ Tạo mã NCC-Ngày
+                  <RotateCcw size={12} style={{ display: "inline-block", verticalAlign: "middle", marginRight: "3px" }} /> Tạo mã
                 </button>
               )}
             </label>
@@ -721,7 +736,7 @@ export function PODetail({
                 onClick={() => void handleManualSave(false)}
                 title="Lưu toàn bộ thông tin đơn hàng PO này"
               >
-                {saving ? "⏳ Đang lưu..." : savedNotice ? "✓ Đã lưu thành công!" : "💾 Lưu đơn PO"}
+                {saving ? "Đang lưu..." : savedNotice ? <><Check size={16} /> Đã lưu!</> : <><Save size={16} /> Lưu</>}
               </button>
               <button
                 type="button"
@@ -730,7 +745,7 @@ export function PODetail({
                 onClick={() => void handleManualSave(true)}
                 title="Lưu thông tin và quay lại danh sách PO"
               >
-                ✓ Lưu & Quay lại
+                <Check size={16} /> Lưu & Quay lại
               </button>
             </>
           )}
@@ -741,7 +756,7 @@ export function PODetail({
               onClick={() => onCreateHandover(po)}
               title="Tạo biên bản bàn giao cho các mặt hàng trong đơn này"
             >
-              🚚 Tạo biên bản bàn giao
+              <Truck size={16} /> Bàn giao
             </button>
           )}
           {!readOnly && onDelete && (
@@ -754,11 +769,14 @@ export function PODetail({
                 fontSize: "12.5px",
                 fontWeight: 600,
                 cursor: "pointer",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "5px",
               }}
               onClick={() => onDelete(po)}
               title="Chuyển đơn PO này vào thùng rác"
             >
-              🗑 Xóa PO
+              <Trash2 size={15} /> Xóa
             </button>
           )}
           <div className="po-total">
@@ -797,11 +815,11 @@ export function PODetail({
             <button
               type="button"
               className="po-save-btn"
-              style={{ height: "32px", padding: "0 12px", fontSize: "12px" }}
+              style={{ height: "32px", padding: "0 12px", fontSize: "12px", display: "inline-flex", alignItems: "center", gap: "5px" }}
               disabled={saving}
               onClick={() => void handleManualSave(false)}
             >
-              {saving ? "⏳ Đang lưu..." : "💾 Lưu thay đổi"}
+              {saving ? "Đang lưu..." : <><Save size={14} /> Lưu thay đổi</>}
             </button>
           </div>
         )}
@@ -809,7 +827,6 @@ export function PODetail({
       <section id="supplier" className="po-section">
         <div className="section-heading">
           <div>
-            <span>▱</span>
             <h2>Thông tin nhà cung cấp</h2>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
@@ -831,9 +848,12 @@ export function PODetail({
                   color: "#166534",
                   fontWeight: 600,
                   cursor: "pointer",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "5px",
                 }}
               >
-                ✓ Lưu thông tin NCC
+                <Check size={14} /> Lưu NCC
               </button>
             )}
           </div>
@@ -963,7 +983,7 @@ export function PODetail({
                       }
                     }}
                   >
-                    🗑 Xóa hết
+                    <Trash2 size={13} style={{ display: "inline-block", verticalAlign: "middle", marginRight: "3px" }} /> Xóa hết
                   </button>
                 )}
                 <button
@@ -974,6 +994,9 @@ export function PODetail({
                     background: "#f5f3ff",
                     borderColor: "#c4b5fd",
                     color: "#6d28d9",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "4px",
                   }}
                   onClick={() => {
                     const existingContract = (po.docs || []).find(
@@ -1003,11 +1026,11 @@ export function PODetail({
                     });
                   }}
                 >
-                  📑 ＋ Thêm hợp đồng
+                  <Plus size={14} /> Thêm hợp đồng
                 </button>
                 <button
                   type="button"
-                  style={{ cursor: "pointer", fontWeight: 600 }}
+                  style={{ cursor: "pointer", fontWeight: 600, display: "inline-flex", alignItems: "center", gap: "4px" }}
                   onClick={() =>
                     onUpdate({
                       ...po,
@@ -1023,7 +1046,7 @@ export function PODetail({
                     })
                   }
                 >
-                  ＋ Thêm hồ sơ
+                  <Plus size={14} /> Thêm hồ sơ
                 </button>
               </div>
             )}
@@ -1082,7 +1105,7 @@ export function PODetail({
                   });
                 }}
               >
-                📑 ＋ Hợp đồng
+                <Plus size={12} style={{ display: "inline-block", verticalAlign: "middle", marginRight: "2px" }} /> Hợp đồng
               </button>
               {[
                 "PO xác nhận",
@@ -1111,7 +1134,7 @@ export function PODetail({
                     })
                   }
                 >
-                  ＋ {presetName}
+                  <Plus size={12} style={{ display: "inline-block", verticalAlign: "middle", marginRight: "2px" }} /> {presetName}
                 </button>
               ))}
             </div>
@@ -1225,7 +1248,7 @@ export function PODetail({
                               }}
                               title="Xóa hợp đồng khỏi PO"
                             >
-                              🗑
+                              <Trash2 size={14} />
                             </button>
                           )}
                         </div>
@@ -1425,7 +1448,7 @@ export function PODetail({
                         }}
                         title={`Xóa hồ sơ "${d.name}"`}
                       >
-                        🗑
+                        <Trash2 size={14} />
                       </button>
                     )}
                   </div>
@@ -1447,11 +1470,10 @@ export function PODetail({
         <section id="payments" className="po-section po-payment-section">
           <div className="section-heading">
             <div>
-              <span>₫</span>
               <h2>Tiến độ thanh toán</h2>
             </div>
-            <button type="button" onClick={handleAddPaymentStage}>
-              ＋ Thêm đợt
+            <button type="button" onClick={handleAddPaymentStage} style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}>
+              <Plus size={14} /> Thêm đợt
             </button>
           </div>
 
@@ -1508,8 +1530,8 @@ export function PODetail({
                   <button type="button" className="po-preset-pill" onClick={() => handleApplyPreset("2-50-50")}>
                     Chọn 2 đợt (50% - 50%)
                   </button>
-                  <button type="button" className="po-preset-pill" onClick={handleAddPaymentStage}>
-                    ＋ Thêm đợt thủ công
+                  <button type="button" className="po-preset-pill" onClick={handleAddPaymentStage} style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}>
+                    <Plus size={12} /> Thêm đợt thủ công
                   </button>
                 </div>
               </div>
@@ -1535,8 +1557,9 @@ export function PODetail({
                       className="po-stage-del-btn"
                       onClick={() => handleRemovePaymentStage(p.id)}
                       title="Xóa đợt thanh toán này (cho phép giảm xuống 1 đợt duy nhất)"
+                      style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}
                     >
-                      🗑️ Xóa đợt
+                      <Trash2 size={13} /> Xóa đợt
                     </button>
                   </div>
 
@@ -1785,8 +1808,9 @@ export function PODetail({
                             type="button"
                             className="po-create-payment-req-btn"
                             onClick={() => onNavigateToPayment?.(p.paymentRequestId)}
+                            style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}
                           >
-                            👁️ Xem ĐNTT trong Quản lý thanh toán →
+                            Xem ĐNTT <ArrowRight size={13} />
                           </button>
                           <button
                             type="button"
@@ -1812,8 +1836,9 @@ export function PODetail({
                             type="button"
                             className="po-create-payment-req-btn"
                             onClick={() => onCreatePaymentRequest(po, p)}
+                            style={{ display: "inline-flex", alignItems: "center", gap: "5px" }}
                           >
-                            💳 Lập Đề nghị thanh toán (ĐNTT)
+                            <CreditCard size={14} /> Lập ĐNTT
                           </button>
                         )}
                       </div>
@@ -1889,10 +1914,13 @@ export function PODetail({
                   color: "#6d28d9",
                   borderRadius: "6px",
                   cursor: "pointer",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "5px",
                 }}
                 title="Lấy danh sách hàng hóa & đơn giá từ Phiếu Đề nghị phê duyệt (ĐNPĐ)"
               >
-                📥 Lấy hàng từ ĐNPĐ
+                <FileDown size={14} /> Lấy từ ĐNPĐ
               </button>
             )}
 
@@ -1916,7 +1944,7 @@ export function PODetail({
                 }}
                 title="Mở popup tích chọn hàng hóa giao bao nhiêu vào ngày nào (áp dụng ngày chung cho các hàng giao cùng đợt)"
               >
-                🚚 Giao hàng
+                <Truck size={14} /> Giao hàng
               </button>
             )}
 
@@ -1934,10 +1962,13 @@ export function PODetail({
                   color: "#166534",
                   borderRadius: "6px",
                   cursor: "pointer",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "5px",
                 }}
                 title="Tạo biên bản bàn giao từ các mặt hàng trong PO này"
               >
-                📋 Lập biên bản bàn giao
+                <ClipboardCheck size={14} /> Bàn giao
               </button>
             )}
 
@@ -1954,10 +1985,14 @@ export function PODetail({
                 borderRadius: "6px",
                 cursor: "pointer",
                 color: itemsViewMode === "card" ? "#1d4ed8" : "#334155",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "5px",
               }}
               title="Chuyển chế độ xem dạng Bảng chi tiết hoặc Thẻ di động"
             >
-              {itemsViewMode === "card" ? "🖥 Dạng Bảng" : "📱 Dạng Thẻ"}
+              {itemsViewMode === "card" ? <Table size={14} /> : <LayoutGrid size={14} />}
+              {itemsViewMode === "card" ? "Dạng bảng" : "Dạng thẻ"}
             </button>
 
             {!readOnly && (
@@ -1990,9 +2025,12 @@ export function PODetail({
                   fontSize: "12px",
                   fontWeight: 600,
                   cursor: "pointer",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "5px",
                 }}
               >
-                ＋ Thêm hàng hóa
+                <Plus size={14} /> Thêm hàng
               </button>
             )}
           </div>
@@ -2312,7 +2350,7 @@ export function PODetail({
                             }}
                             title="Xóa mặt hàng này khỏi PO"
                           >
-                            🗑
+                            <Trash2 size={14} />
                           </button>
                         </td>
                       )}
@@ -2469,9 +2507,12 @@ export function PODetail({
                         fontSize: "12px",
                         cursor: "pointer",
                         whiteSpace: "nowrap",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: "5px",
                       }}
                     >
-                      📥 Lấy hàng vào PO
+                      <Check size={14} /> Lấy hàng
                     </button>
                   </div>
                 );
@@ -2496,9 +2537,12 @@ export function PODetail({
               color: "#334155",
               fontWeight: 600,
               cursor: "pointer",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "6px",
             }}
           >
-            ← Quay lại danh sách PO
+            <ArrowLeft size={16} /> Quay lại
           </button>
           <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
             {savedNotice && (
@@ -2516,10 +2560,13 @@ export function PODetail({
                   fontSize: "12.5px",
                   fontWeight: 600,
                   cursor: "pointer",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "5px",
                 }}
                 onClick={() => onDelete(po)}
               >
-                🗑 Xóa đơn PO
+                <Trash2 size={15} /> Xóa
               </button>
             )}
             <button
@@ -2528,7 +2575,7 @@ export function PODetail({
               disabled={saving}
               onClick={() => void handleManualSave(false)}
             >
-              {saving ? "⏳ Đang lưu..." : "💾 Lưu thông tin PO"}
+              {saving ? "Đang lưu..." : <><Save size={15} /> Lưu</>}
             </button>
             <button
               type="button"
@@ -2536,7 +2583,7 @@ export function PODetail({
               disabled={saving}
               onClick={() => void handleManualSave(true)}
             >
-              ✓ Lưu & Quay lại danh sách
+              <Check size={15} /> Lưu & Quay lại
             </button>
           </div>
         </div>

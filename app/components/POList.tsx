@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from "react";
+import { Plus, ArrowRight, Trash2, Truck, Search } from "lucide-react";
 import { Supplier, PO, PR, Item, getPOContractInfo, formatPONumber, calcPOTotal } from "../types";
 import { fmt, dateVN, makeId } from "../utils";
 import { SupplierSearchCombobox } from "./SupplierSearchCombobox";
@@ -439,9 +440,7 @@ export function POList({
     <section className="content po-list-page">
       <div className="heading">
         <div>
-          <em>{t("po.badge")}</em>
           <h1>{t("po.title")}</h1>
-          <p>{t("po.desc")}</p>
         </div>
         {!readOnly && onCreatePO && (
           <div className="actions">
@@ -452,47 +451,16 @@ export function POList({
                 setShowCreateModal(true);
               }}
             >
-              {t("po.create_direct")}
+              <Plus size={16} /> Lập PO
             </button>
           </div>
         )}
       </div>
 
-      <div className="po-kpis">
-        <article>
-          <span>Tổng PO</span>
-          <b>{(pos || []).length}</b>
-        </article>
-        <article>
-          <span>Đang giao hàng</span>
-          <b>{(pos || []).filter((p) => (p?.status || "").includes("giao")).length}</b>
-        </article>
-        <article>
-          <span>Hồ sơ còn thiếu</span>
-          <b>
-            {(pos || []).reduce(
-              (n, p) => n + (p?.docs || []).filter((d) => d?.status !== "Đã đủ").length,
-              0
-            )}
-          </b>
-        </article>
-        <article>
-          <span>Chờ thanh toán</span>
-          <b>
-            {(pos || []).reduce(
-              (n, p) =>
-                n +
-                (p?.payments || []).filter((x) => x?.status !== "Đã thanh toán").length,
-              0
-            )}
-          </b>
-        </article>
-      </div>
-
       <div className="po-list-panel">
         <div className="pr-toolbar">
-          <label>
-            ⌕
+          <label style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
+            <Search size={16} style={{ color: "var(--slate-400)" }} />
             <input
               value={q}
               onChange={(e) => setQ(e.target.value)}
@@ -530,24 +498,23 @@ export function POList({
                     </dd>
                   </div>
                 </dl>
-                <footer>
-                  <button className="row-action" onClick={() => onOpen(po)}>
-                    Quản lý PO
+                <footer style={{ display: "flex", gap: "6px", alignItems: "center" }}>
+                  <button className="btn-icon primary-ghost" onClick={() => onOpen(po)} title="Chi tiết PO">
+                    <ArrowRight size={16} />
                   </button>
                   {onCreateHandover && (
                     <button
                       type="button"
-                      className="row-action"
-                      style={{ color: "#0284c7", fontWeight: 600 }}
+                      className="btn-icon info-ghost"
                       onClick={() => onCreateHandover(po)}
                       title="Tạo biên bản bàn giao"
                     >
-                      🚚 Bàn giao
+                      <Truck size={16} />
                     </button>
                   )}
                   {onDelete && (
-                    <button className="delete-action" onClick={() => onDelete(po)}>
-                      Xóa
+                    <button className="btn-icon danger-ghost" onClick={() => onDelete(po)} title="Xóa PO">
+                      <Trash2 size={16} />
                     </button>
                   )}
                 </footer>
@@ -655,26 +622,26 @@ export function POList({
                     </td>
                     <td style={{ width: "230px", minWidth: "230px", paddingRight: "16px" }}>
                       <div className="row-actions" style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: "6px", flexWrap: "nowrap" }}>
-                        <button className="row-action" onClick={() => onOpen(po)}>
-                          Quản lý →
+                        <button className="btn-icon primary-ghost" onClick={() => onOpen(po)} title="Chi tiết PO">
+                          <ArrowRight size={16} />
                         </button>
                         {onCreateHandover && (
                           <button
                             type="button"
-                            className="row-action"
-                            style={{ color: "#0284c7", fontWeight: 600 }}
+                            className="btn-icon info-ghost"
                             onClick={() => onCreateHandover(po)}
                             title="Tạo biên bản bàn giao cho PO này"
                           >
-                            🚚 Bàn giao
+                            <Truck size={16} />
                           </button>
                         )}
                         {onDelete && (
                           <button
-                            className="delete-action"
+                            className="btn-icon danger-ghost"
                             onClick={() => onDelete(po)}
+                            title="Xóa PO"
                           >
-                            Xóa
+                            <Trash2 size={16} />
                           </button>
                         )}
                       </div>

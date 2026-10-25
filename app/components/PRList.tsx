@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { Plus, ArrowRight, Trash2, Search } from "lucide-react";
 import { PR } from "../types";
 import { fmt, dateVN } from "../utils";
 import { useTranslation } from "../i18n";
@@ -25,37 +26,17 @@ export function PRList({
     <section className="content pr-page">
       <div className="heading">
         <div>
-          <em>{t("pr.badge")}</em>
           <h1>{t("pr.title")}</h1>
-          <p>{t("pr.desc")}</p>
         </div>
         <button className="primary" onClick={onCreate}>
-          {t("pr.create_btn")}
+          <Plus size={16} /> Tạo PR
         </button>
       </div>
-      <div className="pr-stats">
-        <article>
-          <span>{t("pr.stat_total")}</span>
-          <strong>{prs.length}</strong>
-          <small>{t("pr.stat_total_sub")}</small>
-        </article>
-        <article>
-          <span>{t("pr.stat_pending")}</span>
-          <strong>{prs.filter((p) => p.status === "Chờ xử lý").length}</strong>
-          <small>{t("pr.stat_pending_sub")}</small>
-        </article>
-        <article>
-          <span>{t("pr.stat_quoting")}</span>
-          <strong>
-            {prs.filter((p) => p.status === "Đang lấy báo giá").length}
-          </strong>
-          <small>{t("pr.stat_quoting_sub")}</small>
-        </article>
-      </div>
+
       <div className="pr-panel">
         <div className="pr-toolbar">
-          <label>
-            ⌕
+          <label style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
+            <Search size={16} style={{ color: "var(--slate-400)" }} />
             <input
               value={q}
               onChange={(e) => setQ(e.target.value)}
@@ -71,7 +52,16 @@ export function PRList({
               <h3>{pr.department}</h3>
               <p>{pr.purpose}</p>
               <dl><div><dt>Ngày PR</dt><dd>{dateVN(pr.date)}</dd></div><div><dt>Mặt hàng</dt><dd>{pr.items.length}</dd></div><div><dt>Dự kiến</dt><dd>{fmt(pr.items.reduce((sum, item) => sum + item.qty * item.estimate, 0))} ₫</dd></div></dl>
-              <footer><button className="row-action" onClick={() => onOpen(pr)}>Mở PR</button>{onDelete && <button className="delete-action" onClick={() => onDelete(pr)}>Xóa</button>}</footer>
+              <footer>
+                <button className="btn-icon primary-ghost" onClick={() => onOpen(pr)} title="Mở PR">
+                  <ArrowRight size={16} />
+                </button>
+                {onDelete && (
+                  <button className="btn-icon danger-ghost" onClick={() => onDelete(pr)} title="Xóa PR">
+                    <Trash2 size={16} />
+                  </button>
+                )}
+              </footer>
             </article>
           ))}
         </div>
@@ -123,13 +113,13 @@ export function PRList({
                     </span>
                   </td>
                   <td>
-                    <div className="row-actions">
-                      <button className="row-action" onClick={() => onOpen(pr)}>
-                        Mở PR →
+                    <div className="row-actions" style={{ display: "inline-flex", gap: "4px" }}>
+                      <button className="btn-icon primary-ghost" onClick={() => onOpen(pr)} title="Mở PR">
+                        <ArrowRight size={16} />
                       </button>
                       {onDelete && (
-                        <button className="delete-action" onClick={() => onDelete(pr)}>
-                          Xóa
+                        <button className="btn-icon danger-ghost" onClick={() => onDelete(pr)} title="Xóa PR">
+                          <Trash2 size={16} />
                         </button>
                       )}
                     </div>

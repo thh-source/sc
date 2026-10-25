@@ -47,6 +47,27 @@ import { POHandoverPickerModal } from "./components/POHandoverPickerModal";
 import { I18nProvider, useTranslation, LanguageSwitcher } from "./i18n";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import {
+  ArrowLeft,
+  Plus,
+  Users,
+  Check,
+  ShoppingCart,
+  Search,
+  LayoutDashboard,
+  FileText,
+  Scale,
+  CheckSquare,
+  Package,
+  CreditCard,
+  Truck,
+  Building2,
+  Boxes,
+  Trash2,
+  Settings,
+  Minimize2,
+  Maximize2,
+} from "lucide-react";
+import {
   AppRoute,
   buildHashFromRoute,
   navigateTo,
@@ -1697,11 +1718,11 @@ function ProcurementAppInner({
   };
 
   const nav = [
-    { id: "dashboard", icon: "▦", name: t("nav.dashboard"), action: () => navigateTo({ view: "dashboard" }) },
-    { id: "prs", icon: "▣", name: t("nav.prs"), action: () => navigateTo({ view: "prs" }) },
+    { id: "dashboard", icon: <LayoutDashboard size={18} />, name: t("nav.dashboard"), action: () => navigateTo({ view: "dashboard" }) },
+    { id: "prs", icon: <FileText size={18} />, name: t("nav.prs"), action: () => navigateTo({ view: "prs" }) },
     {
       id: "compare",
-      icon: "⚖",
+      icon: <Scale size={18} />,
       name: t("nav.compare"),
       action: () => {
         if (selectedPR?.id) {
@@ -1713,21 +1734,21 @@ function ProcurementAppInner({
     },
     {
       id: "approval",
-      icon: "✓",
+      icon: <CheckSquare size={18} />,
       name: t("nav.approval"),
       action: () => {
         setActiveApprovalId(null);
         navigateTo({ view: "approval" });
       },
     },
-    { id: "po-list", icon: "▰", name: t("nav.po_list"), action: () => navigateTo({ view: "po-list" }) },
-    { id: "payment", icon: "💳", name: t("nav.payment"), action: () => navigateTo({ view: "payment" }) },
-    { id: "handover", icon: "📦", name: t("nav.handover"), action: () => navigateTo({ view: "handover" }) },
-    { id: "suppliers", icon: "▱", name: t("nav.suppliers"), action: () => navigateTo({ view: "suppliers" }) },
-    { id: "products", icon: "◇", name: t("nav.products"), action: () => navigateTo({ view: "products" }) },
+    { id: "po-list", icon: <Package size={18} />, name: t("nav.po_list"), action: () => navigateTo({ view: "po-list" }) },
+    { id: "payment", icon: <CreditCard size={18} />, name: t("nav.payment"), action: () => navigateTo({ view: "payment" }) },
+    { id: "handover", icon: <Truck size={18} />, name: t("nav.handover"), action: () => navigateTo({ view: "handover" }) },
+    { id: "suppliers", icon: <Building2 size={18} />, name: t("nav.suppliers"), action: () => navigateTo({ view: "suppliers" }) },
+    { id: "products", icon: <Boxes size={18} />, name: t("nav.products"), action: () => navigateTo({ view: "products" }) },
     {
       id: "trash",
-      icon: "♲",
+      icon: <Trash2 size={18} />,
       name: `${t("nav.trash")}${trash.length ? ` (${trash.length})` : ""}`,
       action: () => navigateTo({ view: "trash" }),
     },
@@ -1735,7 +1756,7 @@ function ProcurementAppInner({
       ? [
           {
             id: "settings",
-            icon: "⚙",
+            icon: <Settings size={18} />,
             name: t("nav.settings"),
             action: () => navigateTo({ view: "settings" }),
           },
@@ -2190,44 +2211,19 @@ function ProcurementAppInner({
               <>
                 <div className="heading">
                   <div>
-                    <em>{t("compare.pr_breadcrumb")} · {selectedPR.number}</em>
                     <h1>{t("compare.title")}</h1>
-                    <p>{selectedPR.purpose}</p>
                   </div>
                   <div className="actions">
-                    <button className="ghost" onClick={() => navigateTo({ view: "prs" })}>
-                      ← {t("compare.back_pr_list")}
+                    <button className="btn btn-secondary" onClick={() => navigateTo({ view: "prs" })}>
+                      <ArrowLeft size={16} /> Quay lại
                     </button>
                   </div>
-                </div>
-                <div className="cards">
-                  <article>
-                    <i>◇</i>
-                    <strong>{items.length}</strong>
-                    <span>{t("compare.items_count")}</span>
-                  </article>
-                  <article>
-                    <i>♙</i>
-                    <strong>{suppliers.length}</strong>
-                    <span>{t("compare.suppliers_count")}</span>
-                  </article>
-                  <article className="good">
-                    <i>✓</i>
-                    <div>
-                      <strong>{t("compare.best_price")}</strong>
-                      <span>{t("compare.best_price_desc")}</span>
-                    </div>
-                  </article>
-                  <article className="total">
-                    <span>{t("compare.estimated_total")}</span>
-                    <strong>{fmt(estimated)} ₫</strong>
-                  </article>
                 </div>
                 <section className="common-note-card">
                   <label>
                     <span>✎ {t("compare.general_note")}</span>
                     <textarea
-                      rows={3}
+                      rows={2}
                       value={selectedPR.note || ""}
                       placeholder={t("compare.general_note_placeholder")}
                       onChange={(e) => updatePRNote(e.target.value)}
@@ -2237,8 +2233,8 @@ function ProcurementAppInner({
               </>
             )}
             <div className="toolbar" style={compactCompare ? { marginTop: "1rem" } : {}}>
-              <label style={{ width: "260px" }}>
-                ⌕
+              <label style={{ width: "260px", display: "inline-flex", alignItems: "center", gap: "6px" }}>
+                <Search size={16} style={{ color: "var(--slate-400)" }} />
                 <input
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
@@ -2260,23 +2256,17 @@ function ProcurementAppInner({
                   {t("compare.after_vat")}
                 </button>
               </div>
-              <p>
-                <span>{t("compare.drag_hint")}</span>
-                <span>{t("compare.filter_hint")}</span>
-              </p>
-              <div style={{ display: "flex", gap: "8px", marginLeft: "auto" }}>
+              <div style={{ display: "flex", gap: "8px", marginLeft: "auto", alignItems: "center" }}>
                 {!reportMode && (
                   <>
                     <button
-                      className="ghost"
-                      style={{ border: "1px solid var(--line)", background: "#fff", padding: "6px 12px", borderRadius: "6px", fontSize: "0.85rem", fontWeight: 500, color: "#3f3f46", boxShadow: "0 1px 2px rgba(0,0,0,0.05)", cursor: "pointer" }}
+                      className="btn btn-secondary"
                       onClick={() => setItems((x) => [...x, emptyItem(x.length)])}
                     >
-                      {t("compare.add_item")}
+                      <Plus size={16} /> Thêm hàng
                     </button>
                     <button
-                      className="ghost"
-                      style={{ border: "1px solid var(--line)", background: "#fff", padding: "6px 12px", borderRadius: "6px", fontSize: "0.85rem", fontWeight: 500, color: "#3f3f46", boxShadow: "0 1px 2px rgba(0,0,0,0.05)", cursor: "pointer" }}
+                      className="btn btn-secondary"
                       onClick={() => {
                         const name = prompt("Nhập tên cột mới (VD: Tên hàng NCC, Xuất xứ, Bảo hành...):");
                         if (name && name.trim()) {
@@ -2287,55 +2277,41 @@ function ProcurementAppInner({
                         }
                       }}
                     >
-                      {t("compare.add_vendor_col")}
+                      <Plus size={16} /> Thêm cột NCC
                     </button>
                     <button
-                      className="primary"
-                      style={{ padding: "6px 12px", borderRadius: "6px", fontSize: "0.85rem", fontWeight: 500, boxShadow: "0 1px 2px rgba(0,0,0,0.05)", cursor: "pointer" }}
+                      className="btn btn-secondary"
                       onClick={() => {
                         setSelectedSupplierId("");
                         setSupplierSearch("");
                         setSupplierPicker(true);
                       }}
                     >
-                      {t("compare.choose_supplier")}
+                      <Users size={16} /> Chọn NCC
                     </button>
                     <button
-                      className="primary"
-                      style={{ padding: "6px 12px", borderRadius: "6px", fontSize: "0.85rem", fontWeight: 600, background: "#0f2b5b", color: "#fff", boxShadow: "0 1px 2px rgba(0,0,0,0.05)", cursor: "pointer" }}
+                      className="btn btn-primary"
+                      style={{ background: "#0f2b5b", color: "#fff" }}
                       onClick={openApproval}
                       title="Kế thừa danh sách hàng hóa, NCC và đơn giá của PR này sang Đề nghị Phê duyệt Lựa chọn NCC"
                     >
-                      ✓ Lập Đề nghị Phê duyệt
+                      <Check size={16} /> Lập ĐNPD
                     </button>
                     <button
-                      className="po-create-btn"
+                      className="btn btn-primary po-create-btn"
                       disabled={!poCart.length}
                       onClick={() => setPoCartOpen(true)}
-                      style={{ padding: "6px 12px", borderRadius: "6px", fontSize: "0.85rem", fontWeight: 500, boxShadow: "0 1px 2px rgba(0,0,0,0.05)", cursor: "pointer" }}
                     >
-                      {t("compare.po_cart_btn", { count: poCart.length })}
+                      <ShoppingCart size={16} /> Giỏ PO ({poCart.length})
                     </button>
                   </>
                 )}
                 <button
+                  className="btn btn-secondary"
                   onClick={() => setCompactCompare(!compactCompare)}
-                  style={{
-                    padding: "6px 12px",
-                    cursor: "pointer",
-                    borderRadius: "6px",
-                    border: "1px solid #d4d4d8",
-                    background: "#fff",
-                    fontSize: "0.85rem",
-                    fontWeight: 500,
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "6px",
-                    color: "#3f3f46",
-                    boxShadow: "0 1px 2px rgba(0,0,0,0.05)"
-                  }}
                 >
-                  {compactCompare ? t("btn.expand_workspace") : t("btn.collapse_workspace")}
+                  {compactCompare ? <Maximize2 size={16} /> : <Minimize2 size={16} />}
+                  {compactCompare ? "Mở rộng" : "Thu gọn"}
                 </button>
               </div>
             </div>
@@ -2658,10 +2634,10 @@ function ProcurementAppInner({
       )}
       {!reportMode && (
         <nav className="mobile-bottom-nav" aria-label="Điều hướng điện thoại">
-          <button className={view === "dashboard" ? "active" : ""} onClick={() => navigateTo({ view: "dashboard" })}><span>▦</span><b>{t("nav.dashboard")}</b></button>
-          <button className={view === "prs" || view === "create" ? "active" : ""} onClick={() => navigateTo({ view: "prs" })}><span>▣</span><b>PR</b></button>
-          <button className={view === "payment" ? "active" : ""} onClick={() => navigateTo({ view: "payment" })}><span>💳</span><b>{t("nav.payment")}</b></button>
-          <button className={view === "po-list" || view === "po-detail" ? "active" : ""} onClick={() => navigateTo({ view: "po-list" })}><span>▰</span><b>PO</b></button>
+          <button className={view === "dashboard" ? "active" : ""} onClick={() => navigateTo({ view: "dashboard" })}><span><LayoutDashboard size={18} /></span><b>{t("nav.dashboard")}</b></button>
+          <button className={view === "prs" || view === "create" ? "active" : ""} onClick={() => navigateTo({ view: "prs" })}><span><FileText size={18} /></span><b>PR</b></button>
+          <button className={view === "payment" ? "active" : ""} onClick={() => navigateTo({ view: "payment" })}><span><CreditCard size={18} /></span><b>{t("nav.payment")}</b></button>
+          <button className={view === "po-list" || view === "po-detail" ? "active" : ""} onClick={() => navigateTo({ view: "po-list" })}><span><Package size={18} /></span><b>PO</b></button>
           <button onClick={() => setCollapsed(false)}><span>☰</span><b>Menu</b></button>
         </nav>
       )}

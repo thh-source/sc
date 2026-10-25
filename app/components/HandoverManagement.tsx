@@ -2,6 +2,22 @@
 
 import React, { useState, useMemo, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
+import {
+  Plus,
+  FileText,
+  ClipboardPaste,
+  Printer,
+  Receipt,
+  Trash2,
+  Settings,
+  Minimize2,
+  Maximize2,
+  Table,
+  LayoutGrid,
+  Search,
+  X,
+  Check,
+} from "lucide-react";
 import { PaymentHandoverItem, PR, PO, Supplier, PaymentRequestEntry } from "../types";
 import {
   normName,
@@ -999,23 +1015,19 @@ export function HandoverManagement({
       />
 
       {/* Top Heading */}
-      <div className={`heading ${isWorkspaceExpanded ? "payment-heading-desc" : ""}`}>
+      <div className="heading">
         <div>
-          <em>{t("handover.badge")}</em>
           <h1>{t("handover.title")}</h1>
-          <p>
-            {showMobileCards
-              ? "Giao diện di động: Tra cứu vật tư bàn giao và chọn in biên bản."
-              : "Theo dõi danh mục vật tư chuyển trực tiếp từ Phòng Cung ứng đến các bộ phận sử dụng nội bộ Phenikaa."}
-          </p>
         </div>
         <div className="actions">
           <button
             className="payment-btn"
             onClick={() => setUserMobileToggle(!showMobileCards)}
             title="Chuyển đổi giao diện giữa dạng bảng tính desktop và dạng thẻ di động"
+            style={{ display: "inline-flex", alignItems: "center", gap: "5px" }}
           >
-            {showMobileCards ? "💻 Xem bản desktop" : "📱 Xem dạng thẻ"}
+            {showMobileCards ? <Table size={15} /> : <LayoutGrid size={15} />}
+            {showMobileCards ? "Dạng bảng" : "Dạng thẻ"}
           </button>
         </div>
       </div>
@@ -1025,28 +1037,28 @@ export function HandoverManagement({
         {!showMobileCards ? (
           <>
             <button className="btn btn-primary btn-md" onClick={handleAddHandoverRow}>
-              ＋ Thêm dòng vật tư
+              <Plus size={16} /> Thêm dòng
             </button>
             <button
               className="btn btn-secondary btn-md"
               onClick={openImportDocModal}
               title="Nhập sản phẩm từ PR, PO hoặc Hợp đồng vào danh sách bàn giao"
             >
-              📦 Chọn từ PR / PO / Hợp đồng
+              <FileText size={16} /> Từ PR/PO/HĐ
             </button>
             <button
               className="btn btn-secondary btn-md"
               onClick={() => setShowPasteModal(true)}
               title="Dán danh sách vật tư từ file Excel (Ctrl+V)"
             >
-              📋 Dán từ Excel
+              <ClipboardPaste size={16} /> Dán Excel
             </button>
             <button
               className="btn btn-teal btn-md"
               onClick={() => handlePrintHandoverDirect()}
               title="In biên bản bàn giao các vật tư đã chọn"
             >
-              🖨️ In biên bản {checkedHandovers.size > 0 ? `(${checkedHandovers.size})` : ""}
+              <Printer size={16} /> In biên bản {checkedHandovers.size > 0 ? `(${checkedHandovers.size})` : ""}
             </button>
             <button
               type="button"
@@ -1059,10 +1071,10 @@ export function HandoverManagement({
               }
               disabled={checkedHandovers.size === 0}
             >
-              💳 Lập ĐNTT {checkedHandovers.size > 0 ? `(${checkedHandovers.size})` : ""}
+              <Receipt size={16} /> Lập ĐNTT {checkedHandovers.size > 0 ? `(${checkedHandovers.size})` : ""}
             </button>
             <button className="btn btn-danger btn-md" onClick={handleDeleteSelectedHandovers}>
-              🗑️ Xóa đã chọn
+              <Trash2 size={16} /> Xóa {checkedHandovers.size > 0 ? `(${checkedHandovers.size})` : ""}
             </button>
 
             <button
@@ -1071,7 +1083,7 @@ export function HandoverManagement({
               onClick={() => setShowColumnConfigModal(true)}
               title="Tùy chỉnh thứ tự các cột, ẩn hiện cột và chọn các cột cần cố định"
             >
-              <span>⚙ Cột hiển thị ({columns.filter((c) => c.visible).length}/{columns.length})</span>
+              <Settings size={15} /> Cột ({columns.filter((c) => c.visible).length}/{columns.length})
             </button>
 
             <button
@@ -1080,7 +1092,7 @@ export function HandoverManagement({
               onClick={() => setIsWorkspaceExpanded(!isWorkspaceExpanded)}
               title={isWorkspaceExpanded ? "Thu gọn về giao diện chuẩn" : "Mở rộng không gian làm việc (giống So sánh báo giá)"}
             >
-              <span>{isWorkspaceExpanded ? "🗗" : "⛶"}</span>
+              {isWorkspaceExpanded ? <Minimize2 size={15} /> : <Maximize2 size={15} />}
               {isWorkspaceExpanded ? "Thu gọn" : "Mở rộng"}
             </button>
           </>
@@ -1092,7 +1104,7 @@ export function HandoverManagement({
               onClick={openImportDocModal}
               title="Nhập sản phẩm từ PR, PO hoặc Hợp đồng vào danh sách bàn giao"
             >
-              📦 Chọn từ PR / PO / HĐ
+              <FileText size={15} /> Từ PR/PO/HĐ
             </button>
             <button
               className="btn btn-teal btn-md"
@@ -1100,7 +1112,7 @@ export function HandoverManagement({
               onClick={() => handlePrintHandoverDirect()}
               title="In biên bản bàn giao các vật tư đã chọn"
             >
-              🖨️ In biên bản {checkedHandovers.size > 0 ? `(${checkedHandovers.size})` : ""}
+              <Printer size={15} /> In ({checkedHandovers.size})
             </button>
             <button
               type="button"
@@ -1110,7 +1122,7 @@ export function HandoverManagement({
               disabled={checkedHandovers.size === 0}
               title="Lập ĐNTT cho các vật tư đã chọn"
             >
-              💳 Lập ĐNTT {checkedHandovers.size > 0 ? `(${checkedHandovers.size})` : ""}
+              <Receipt size={15} /> Lập ĐNTT
             </button>
           </div>
         )}

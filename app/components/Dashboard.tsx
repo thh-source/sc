@@ -1,4 +1,5 @@
 import React from "react";
+import { Plus, FileText, Scale, Package, CreditCard, Archive, ArrowRight } from "lucide-react";
 import { Supplier, PurchaseHistory, PR, PO } from "../types";
 import { fmt } from "../utils";
 import { useTranslation } from "../i18n";
@@ -87,19 +88,15 @@ export function Dashboard({
     <section className="content dashboard-page">
       <div className="dashboard-welcome">
         <div>
-          <em>{t("dashboard.welcome_badge")}</em>
           <h1>{t("dashboard.welcome_title")}</h1>
-          <p>
-            {t("dashboard.welcome_subtitle")}
-          </p>
         </div>
         <button className="primary" onClick={onPR}>
-          {t("pr.create_btn")}
+          <Plus size={16} /> Tạo PR
         </button>
       </div>
       <div className="dashboard-kpis">
         <button onClick={onPR}>
-          <i className="blue">▣</i>
+          <i className="blue"><FileText size={18} /></i>
           <span>
             Yêu cầu mua hàng<strong>{prs.length}</strong>
             <small>
@@ -108,7 +105,7 @@ export function Dashboard({
           </span>
         </button>
         <button onClick={onCompare}>
-          <i className="purple">⚖</i>
+          <i className="purple"><Scale size={18} /></i>
           <span>
             Đang so sánh giá
             <strong>
@@ -118,7 +115,7 @@ export function Dashboard({
           </span>
         </button>
         <button onClick={onPO}>
-          <i className="green">▰</i>
+          <i className="green"><Package size={18} /></i>
           <span>
             Đơn mua hàng<strong>{pos.length}</strong>
             <small>
@@ -127,14 +124,14 @@ export function Dashboard({
           </span>
         </button>
         <button onClick={onPO}>
-          <i className="orange">₫</i>
+          <i className="orange"><CreditCard size={18} /></i>
           <span>
             Giá trị PO<strong>{fmt(poValue)} ₫</strong>
             <small>{pendingPayments} đợt chờ thanh toán</small>
           </span>
         </button>
         <button onClick={onCompare}>
-          <i className="green">◎</i>
+          <i className="green"><Archive size={18} /></i>
           <span>
             Lịch sử nhập kho<strong>{fmt(historyValue)} ₫</strong>
             <small>
@@ -180,7 +177,11 @@ export function Dashboard({
                   <b>{w.title}</b>
                   <p>{w.text}</p>
                 </div>
-                <button onClick={w.action}>{w.label} →</button>
+                <button onClick={w.action}>
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}>
+                    {w.label} <ArrowRight size={13} />
+                  </span>
+                </button>
               </article>
             ))}
           </div>

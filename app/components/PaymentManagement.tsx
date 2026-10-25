@@ -3,6 +3,23 @@
 import React, { useState, useMemo, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import {
+  Plus,
+  FileText,
+  Minimize2,
+  Maximize2,
+  Table,
+  LayoutGrid,
+  Download,
+  Printer,
+  Pencil,
+  Trash2,
+  Search,
+  X,
+  Settings,
+  Check,
+  Paperclip,
+} from "lucide-react";
+import {
   PO,
   Payment,
   Supplier,
@@ -1531,17 +1548,9 @@ export function PaymentManagement({
       />
 
       {/* Top Heading */}
-      <div className={`heading ${isWorkspaceExpanded ? "payment-heading-desc" : ""}`}>
+      <div className="heading">
         <div>
-          <em>{t("payment.badge")}</em>
           <h1>{t("payment.title")}</h1>
-          <p>
-            {isPhoneScreen
-              ? "Giao diện di động: Chỉ xem thông tin và đánh dấu đã thanh toán."
-              : isCardView
-              ? "Chế độ xem dạng thẻ trực quan: Xem, tìm kiếm, chỉnh sửa và lập đề nghị thanh toán mới."
-              : "Lập, theo dõi và phê duyệt đề nghị thanh toán chuyển khoản Phenikaa. Dùng chung danh mục Nhà cung cấp và Cài đặt của hệ thống mua hàng."}
-          </p>
         </div>
       </div>
 
@@ -1555,7 +1564,7 @@ export function PaymentManagement({
               onClick={isCardView ? handleAddNewFromCardView : handleAddRequestRow}
               title={isCardView ? "Thêm một đề nghị thanh toán mới và chỉnh sửa" : "Thêm một dòng đề nghị thanh toán mới vào bảng"}
             >
-              ＋ Thêm đề nghị {isCardView ? "mới" : "(thêm dòng)"}
+              <Plus size={16} /> Thêm ĐNTT
             </button>
 
             <button
@@ -1568,7 +1577,7 @@ export function PaymentManagement({
               }}
               title="Lập đề nghị thanh toán từ đơn đặt hàng PO hoặc Hợp đồng kinh tế"
             >
-              ⚡ Lập từ PO / Hợp đồng
+              <FileText size={16} /> Từ PO/HĐ
             </button>
 
             <button
@@ -1577,8 +1586,8 @@ export function PaymentManagement({
               onClick={() => setIsWorkspaceExpanded(!isWorkspaceExpanded)}
               title={isWorkspaceExpanded ? "Thu gọn về giao diện chuẩn" : "Mở rộng không gian làm việc (giống So sánh báo giá)"}
             >
-              <span>{isWorkspaceExpanded ? "🗗" : "⛶"}</span>
-              {isWorkspaceExpanded ? "Thu gọn giao diện" : "Mở rộng không gian"}
+              {isWorkspaceExpanded ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+              {isWorkspaceExpanded ? "Thu gọn" : "Mở rộng"}
             </button>
 
             <button
@@ -1587,7 +1596,8 @@ export function PaymentManagement({
               onClick={() => setUserMobileToggle(!isCardView)}
               title="Chuyển đổi giao diện giữa dạng bảng tính desktop và dạng thẻ trực quan"
             >
-              {isCardView ? "📊 Xem dạng bảng tính" : "🗂️ Xem dạng thẻ"}
+              {isCardView ? <Table size={16} /> : <LayoutGrid size={16} />}
+              {isCardView ? "Dạng bảng" : "Dạng thẻ"}
             </button>
           </>
         )}
@@ -1618,7 +1628,7 @@ export function PaymentManagement({
                 lineHeight: "1",
               }}
             >
-              ✕
+              <X size={13} />
             </button>
           )}
         </div>
@@ -1655,7 +1665,8 @@ export function PaymentManagement({
             onClick={() => setShowColumnConfigModal(true)}
             title="Tùy chỉnh thứ tự các cột, ẩn hiện cột và chọn các cột cần cố định"
           >
-            <span>⚙️ Cột hiển thị ({columns.filter((c) => c.visible).length}/{columns.length})</span>
+            <Settings size={15} />
+            Cột ({columns.filter((c) => c.visible).length}/{columns.length})
           </button>
         )}
 
@@ -1663,14 +1674,15 @@ export function PaymentManagement({
           <>
             {!isCardView && (
               <>
-                <button className="btn btn-teal btn-md" onClick={handlePrintChecked}>
-                  ⎙ In các dòng đã tích ({checkedIds.size})
+                <button className="btn btn-teal btn-md" onClick={handlePrintChecked} style={{ display: "inline-flex", alignItems: "center", gap: "5px" }}>
+                  <Printer size={15} /> In ({checkedIds.size})
                 </button>
                 <button
                   className="btn btn-danger btn-md"
                   onClick={handleDeleteSelectedRequests}
+                  style={{ display: "inline-flex", alignItems: "center", gap: "5px" }}
                 >
-                  Xóa dòng đã chọn
+                  <Trash2 size={15} /> Xóa ({checkedIds.size})
                 </button>
               </>
             )}
@@ -1883,40 +1895,45 @@ export function PaymentManagement({
                       className="m-btn-edit-card"
                       onClick={() => setEditModalReqId(r.id)}
                       title="Chỉnh sửa chi tiết thông tin đề nghị thanh toán"
+                      style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}
                     >
-                      ✏️ Sửa chi tiết
+                      <Pencil size={13} /> Sửa
                     </button>
                     <button
                       type="button"
                       className={`m-btn-toggle-done ${isDone ? "is-done" : ""}`}
                       onClick={() => handleTogglePaid(r.id, !isDone)}
                       title={isDone ? "Bỏ đánh dấu đã thanh toán" : "Đánh dấu đã thanh toán"}
+                      style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}
                     >
-                      {isDone ? "✓ Đã TT" : "○ Đánh dấu TT"}
+                      {isDone ? <Check size={13} /> : null} {isDone ? "Đã TT" : "Đánh dấu TT"}
                     </button>
                     <button
                       type="button"
                       className="m-btn-icon-action"
                       onClick={() => handlePrintSingle(r)}
                       title="In phiếu thanh toán này"
+                      style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}
                     >
-                      ⎙ In
+                      <Printer size={13} /> In
                     </button>
                     <button
                       type="button"
                       className="m-btn-icon-action"
                       onClick={() => setDocModalReqId(r.id)}
                       title="Hồ sơ chứng từ"
+                      style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}
                     >
-                      📎 Hồ sơ
+                      <Paperclip size={13} /> Hồ sơ
                     </button>
                     <button
                       type="button"
                       className="m-btn-icon-action btn-danger"
                       onClick={() => handleDeleteRequest(r.id)}
                       title="Xóa đề nghị này"
+                      style={{ display: "inline-flex", alignItems: "center", justifyContent: "center" }}
                     >
-                      🗑️
+                      <Trash2 size={14} />
                     </button>
                   </div>
                 )}
@@ -1931,7 +1948,7 @@ export function PaymentManagement({
               onClick={handleAddNewFromCardView}
               title="Nhấp để thêm đề nghị thanh toán mới ngay tại đây"
             >
-              <div className="m-card-add-icon">＋</div>
+              <div className="m-card-add-icon"><Plus size={28} /></div>
               <div className="m-card-add-title">Thêm đề nghị thanh toán mới</div>
               <div className="m-card-add-sub">
                 Tạo phiếu nhanh chóng và mở form chỉnh sửa thẻ trực quan
@@ -2958,16 +2975,18 @@ export function PaymentManagement({
                     className="payment-btn"
                     onClick={() => handlePrintSingle(editReq)}
                     title="In phiếu thanh toán này"
+                    style={{ display: "inline-flex", alignItems: "center", gap: "5px" }}
                   >
-                    ⎙ In phiếu
+                    <Printer size={15} /> In phiếu
                   </button>
                   <button
                     type="button"
                     className="payment-btn btn-danger"
                     onClick={() => handleDeleteRequest(editReq.id)}
                     title="Xóa đề nghị thanh toán này"
+                    style={{ display: "inline-flex", alignItems: "center", gap: "5px" }}
                   >
-                    🗑️ Xóa đề nghị
+                    <Trash2 size={15} /> Xóa
                   </button>
                 </div>
                 <div style={{ display: "flex", gap: "8px" }}>
@@ -2982,8 +3001,9 @@ export function PaymentManagement({
                     type="button"
                     className="payment-btn btn-primary"
                     onClick={() => setEditModalReqId(null)}
+                    style={{ display: "inline-flex", alignItems: "center", gap: "5px" }}
                   >
-                    ✓ Hoàn tất
+                    <Check size={15} /> Hoàn tất
                   </button>
                 </div>
               </div>

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { LogOut, Users, FileText, Database, History, Plus, RotateCcw } from "lucide-react";
 import { dateVN } from "../utils";
 import { AdminUsage } from "./AdminUsage";
 import { PrintTemplatesManagement } from "./PrintTemplatesManagement";
@@ -355,12 +356,10 @@ export function AdminSettings({
     <section className="content admin-settings">
       <div className="heading">
         <div>
-          <em>MASTER ADMIN</em>
           <h1>Cài đặt hệ thống</h1>
-          <p>Quản lý tài khoản, cấu hình mẫu phiếu in, sao lưu Cloudflare R2 và nhật ký kiểm toán.</p>
         </div>
-        <button className="ghost" onClick={logout}>
-          Đăng xuất
+        <button className="ghost" onClick={logout} style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
+          <LogOut size={16} /> Đăng xuất
         </button>
       </div>
 
@@ -379,30 +378,30 @@ export function AdminSettings({
         <button
           className={activeTab === "users" ? "primary" : "ghost"}
           onClick={() => setActiveTab("users")}
-          style={{ fontSize: "13px", padding: "7px 15px", height: "auto" }}
+          style={{ fontSize: "13px", padding: "7px 15px", height: "auto", display: "inline-flex", alignItems: "center", gap: "6px" }}
         >
-          👥 Tài khoản & Phân quyền
+          <Users size={15} /> Tài khoản & Phân quyền
         </button>
         <button
           className={activeTab === "templates" ? "primary" : "ghost"}
           onClick={() => setActiveTab("templates")}
-          style={{ fontSize: "13px", padding: "7px 15px", height: "auto" }}
+          style={{ fontSize: "13px", padding: "7px 15px", height: "auto", display: "inline-flex", alignItems: "center", gap: "6px" }}
         >
-          📄 Mẫu phiếu in
+          <FileText size={15} /> Mẫu phiếu in
         </button>
         <button
           className={activeTab === "snapshots" ? "primary" : "ghost"}
           onClick={() => setActiveTab("snapshots")}
-          style={{ fontSize: "13px", padding: "7px 15px", height: "auto" }}
+          style={{ fontSize: "13px", padding: "7px 15px", height: "auto", display: "inline-flex", alignItems: "center", gap: "6px" }}
         >
-          💾 Sao lưu R2 Snapshots ({snapshots.length})
+          <Database size={15} /> Sao lưu Snapshots ({snapshots.length})
         </button>
         <button
           className={activeTab === "audit" ? "primary" : "ghost"}
           onClick={() => setActiveTab("audit")}
-          style={{ fontSize: "13px", padding: "7px 15px", height: "auto" }}
+          style={{ fontSize: "13px", padding: "7px 15px", height: "auto", display: "inline-flex", alignItems: "center", gap: "6px" }}
         >
-          📋 Nhật ký thao tác ({auditLogs.length})
+          <History size={15} /> Nhật ký thao tác ({auditLogs.length})
         </button>
       </div>
 
@@ -658,7 +657,7 @@ export function AdminSettings({
                 disabled={snapshotLoading}
                 style={{ fontSize: "12px", padding: "4px 10px", height: "auto" }}
               >
-                {snapshotLoading ? "Đang tải..." : "↻ Làm mới"}
+                {snapshotLoading ? "Đang tải..." : <><RotateCcw size={13} style={{ display: "inline-block", verticalAlign: "middle", marginRight: "3px" }} /> Làm mới</>}
               </button>
               <button
                 className="primary"
@@ -669,7 +668,7 @@ export function AdminSettings({
                 }}
                 style={{ fontSize: "12px", padding: "6px 14px", height: "auto" }}
               >
-                ＋ Tạo bản snapshot sao lưu
+                <Plus size={14} style={{ display: "inline-block", verticalAlign: "middle", marginRight: "3px" }} /> Tạo snapshot
               </button>
             </div>
           </div>
@@ -765,7 +764,7 @@ export function AdminSettings({
                 disabled={auditLoading}
                 style={{ fontSize: "12px", padding: "4px 10px", height: "auto" }}
               >
-                {auditLoading ? "Đang tải..." : "↻ Làm mới"}
+                {auditLoading ? "Đang tải..." : <><RotateCcw size={13} style={{ display: "inline-block", verticalAlign: "middle", marginRight: "3px" }} /> Làm mới</>}
               </button>
             </div>
           </div>

@@ -1,4 +1,5 @@
 import React, { useState, Fragment } from "react";
+import { Plus, FilePlus, Search } from "lucide-react";
 import { Item, Supplier, PurchaseHistory, PO } from "../types";
 import { fmt, dateVN, emptyItem } from "../utils";
 import { useTranslation } from "../i18n";
@@ -61,9 +62,7 @@ export function ProductCatalog({
     <section className="content product-page">
       <div className="heading">
         <div>
-          <em>{t("product.badge")}</em>
           <h1>{t("product.title")}</h1>
-          <p>{t("product.desc")}</p>
         </div>
         <div className="actions">
           <button
@@ -75,51 +74,16 @@ export function ProductCatalog({
               ])
             }
           >
-            {t("product.create_btn")}
+            <Plus size={16} /> Thêm hàng
           </button>
           <button className="primary" onClick={onCreatePR}>
-            Tạo PR từ danh mục
+            <FilePlus size={16} /> Tạo PR
           </button>
         </div>
       </div>
-      <div className="product-kpis">
-        <article>
-          <span>Tổng hàng hóa</span>
-          <b>{products.length}</b>
-          <small>{categories.length - 1} phân loại</small>
-        </article>
-        <article>
-          <span>Đã phát sinh mua</span>
-          <b>
-            {
-              products.filter((p) =>
-                pos.some((po) => po.items.some((i) => i.code === p.code)) ||
-                purchaseHistory.some((row) => row.itemCode === p.code),
-              ).length
-            }
-          </b>
-          <small>Có PO hoặc nhập kho</small>
-        </article>
-        <article>
-          <span>Tổng lượt mua</span>
-          <b>{pos.reduce((n, p) => n + p.items.length, 0) + purchaseHistory.length}</b>
-          <small>PO + nhập kho T1-T7</small>
-        </article>
-        <article>
-          <span>Giá gần nhất</span>
-          <b>
-            {fmt(
-              products.reduce((n, p) => n + p.estimate, 0) /
-                Math.max(1, products.length),
-            )}{" "}
-            ₫
-          </b>
-          <small>Bình quân danh mục</small>
-        </article>
-      </div>
       <div className="product-toolbar">
         <label>
-          ⌕
+          <Search size={16} />
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}

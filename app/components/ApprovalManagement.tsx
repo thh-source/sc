@@ -3,6 +3,21 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import {
+  Scale,
+  FileText,
+  Plus,
+  RotateCcw,
+  ArrowRight,
+  PackagePlus,
+  Trash2,
+  ArrowLeft,
+  ClipboardPaste,
+  Check,
+  Save,
+  Printer,
+  Search,
+} from "lucide-react";
+import {
   ApprovalItemRow,
   ApprovalRequest,
   ApprovalSupplierColumn,
@@ -897,12 +912,7 @@ export default function ApprovalManagement({
 
         <div className="heading">
           <div>
-            <em>QUY TRÌNH MUA SẮM · PHENIKAA PHARMA</em>
-            <h1>Đề nghị Phê duyệt Lựa chọn Nhà Cung Cấp</h1>
-            <p>
-              Quản lý tờ trình đánh giá báo giá, phê duyệt lựa chọn nhà cung cấp và
-              phát hành đơn mua hàng (PO)
-            </p>
+            <h1>Đề nghị Phê duyệt</h1>
           </div>
           {!isReportMode && (
             <div className="approval-source-actions">
@@ -911,21 +921,21 @@ export default function ApprovalManagement({
                 className="btn approval-source-btn source-compare"
                 onClick={() => setSourceModalMode("compare")}
               >
-                📊 ＋ Tạo từ So sánh giá PR
+                <Scale size={16} /> Từ So sánh
               </button>
               <button
                 type="button"
                 className="btn approval-source-btn source-pr"
                 onClick={() => setSourceModalMode("pr")}
               >
-                📋 ＋ Tạo từ PR
+                <FileText size={16} /> Từ PR
               </button>
               <button
                 type="button"
                 className="primary"
                 onClick={handleCreateManual}
               >
-                ✨ ＋ Tạo phiếu mới (Excel)
+                <Plus size={16} /> Tạo mới
               </button>
               <button
                 type="button"
@@ -935,45 +945,18 @@ export default function ApprovalManagement({
                   showToast("✓ Đã nạp 2 biểu mẫu chuẩn Phenikaa Pharma!");
                 }}
               >
-                📂 Nạp mẫu chuẩn
+                <RotateCcw size={16} /> Mẫu chuẩn
               </button>
             </div>
           )}
-        </div>
-
-        {/* 4 Thẻ KPI giống giao diện PR & PO */}
-        <div
-          className="pr-stats"
-          style={{ gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))" }}
-        >
-          <article>
-            <span>Tổng số phiếu phê duyệt</span>
-            <strong>{approvalRequests.length}</strong>
-            <small>Toàn bộ tờ trình lựa chọn NCC</small>
-          </article>
-          <article>
-            <span>Đang lập / Chờ phê duyệt</span>
-            <strong>{pendingCount}</strong>
-            <small>Phiếu nháp hoặc đang trình ký</small>
-          </article>
-          <article>
-            <span>Đã phê duyệt</span>
-            <strong style={{ color: "#16a34a" }}>{approvedCount}</strong>
-            <small>Sẵn sàng phát hành đơn PO</small>
-          </article>
-          <article>
-            <span>Đã phát hành PO</span>
-            <strong style={{ color: "#2563eb" }}>{poCreatedCount}</strong>
-            <small>Đã chuyển sang Đơn mua hàng</small>
-          </article>
         </div>
 
         {/* Bảng Danh sách các phiếu Đề nghị Phê duyệt */}
         <div className="pr-panel">
           <div className="pr-toolbar" style={{ flexWrap: "wrap", gap: 12 }}>
             <div style={{ display: "flex", gap: 10, alignItems: "center", flex: 1 }}>
-              <label style={{ minWidth: 280 }}>
-                ⌕
+              <label style={{ minWidth: 280, display: "inline-flex", alignItems: "center", gap: "6px" }}>
+                <Search size={16} style={{ color: "var(--slate-400)" }} />
                 <input
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
@@ -1110,32 +1093,28 @@ export default function ApprovalManagement({
                           >
                             <button
                               type="button"
-                              className="row-action"
+                              className="btn-icon primary-ghost"
                               onClick={() => setActiveApprovalId(req.id)}
+                              title="Mở phiếu"
                             >
-                              Mở phiếu
+                              <ArrowRight size={16} />
                             </button>
                             {!isReportMode &&
                               (req.status === "Đã phê duyệt" ||
                                 req.status === "Đã tạo PO") && (
                                 <button
                                   type="button"
-                                  className="row-action"
-                                  style={{
-                                    background: "#fff7ed",
-                                    color: "#c2410c",
-                                    borderColor: "#fed7aa",
-                                  }}
+                                  className="btn-icon accent-ghost"
                                   onClick={() => onCreatePOFromApproval(req)}
                                   title="Phát hành đơn mua hàng (PO) từ phiếu đã duyệt này"
                                 >
-                                  🚀 Tạo PO
+                                  <PackagePlus size={16} />
                                 </button>
                               )}
                             {!isReportMode && (
                               <button
                                 type="button"
-                                className="delete-action"
+                                className="btn-icon danger-ghost"
                                 onClick={() => {
                                   if (
                                     window.confirm(
@@ -1145,8 +1124,9 @@ export default function ApprovalManagement({
                                     onDeleteApproval(req.id);
                                   }
                                 }}
+                                title="Xóa phiếu"
                               >
-                                Xóa
+                                <Trash2 size={16} />
                               </button>
                             )}
                           </div>
@@ -1181,7 +1161,7 @@ export default function ApprovalManagement({
             className="btn btn-back-list"
             onClick={() => setActiveApprovalId(null)}
           >
-            ← Quay lại danh sách Phiếu phê duyệt
+            <ArrowLeft size={16} /> Danh sách
           </button>
           {onBackToCompare && (
             <button
@@ -1190,7 +1170,7 @@ export default function ApprovalManagement({
               onClick={onBackToCompare}
               title="Quay lại Bảng so sánh giá"
             >
-              ⚖ Bảng so sánh giá
+              <Scale size={16} /> So sánh giá
             </button>
           )}
           <div className="detail-breadcrumb">
@@ -1227,7 +1207,7 @@ export default function ApprovalManagement({
                 onClick={() => setShowExcelPasteModal(true)}
                 title="Dán nhanh bảng dữ liệu copy từ Excel"
               >
-                📋 Dán từ Excel
+                <ClipboardPaste size={16} /> Dán Excel
               </button>
 
               <select
@@ -1261,7 +1241,7 @@ export default function ApprovalManagement({
                       );
                     }}
                   >
-                    ✓ Duyệt phiếu
+                    <Check size={16} /> Duyệt phiếu
                   </button>
                 )}
 
@@ -1280,7 +1260,7 @@ export default function ApprovalManagement({
                 }
                 onClick={() => onCreatePOFromApproval(activeRequest)}
               >
-                🚀 Tạo PO (
+                <PackagePlus size={16} /> Tạo PO (
                 {activeRequest.supplierColumns.find((c) => c.isSelected)
                   ?.shortName || "NCC chọn"}
                 )
@@ -1294,7 +1274,7 @@ export default function ApprovalManagement({
                   showToast("💾 Đã lưu phiếu Đề nghị phê duyệt!");
                 }}
               >
-                💾 Lưu
+                <Save size={16} /> Lưu
               </button>
 
               {confirmDeleteId === activeRequest.id ? (
@@ -1326,8 +1306,9 @@ export default function ApprovalManagement({
                   className="btn"
                   style={{ color: "#dc2626" }}
                   onClick={() => setConfirmDeleteId(activeRequest.id)}
+                  title="Xóa phiếu"
                 >
-                  🗑️
+                  <Trash2 size={16} />
                 </button>
               )}
             </>
@@ -1338,11 +1319,7 @@ export default function ApprovalManagement({
             className="btn btn-primary"
             onClick={() => window.print()}
           >
-            🖨️ In biểu mẫu (
-            {activeRequest.printOrientation === "landscape"
-              ? "A4 Ngang"
-              : "A4 Dọc"}
-            )
+            <Printer size={16} /> In phiếu
           </button>
         </div>
       </div>

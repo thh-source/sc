@@ -1,6 +1,18 @@
 "use client";
 
 import React, { useState, useMemo } from "react";
+import {
+  Plus,
+  Trash2,
+  Search,
+  Truck,
+  ExternalLink,
+  Pencil,
+  FileText,
+  Check,
+  X,
+  ArrowRight,
+} from "lucide-react";
 import { Supplier, PO, PaymentGroup, PaymentRequestEntry, Item, PR } from "../types";
 import { fmt, dateVN } from "../utils";
 import VisualTimeline from "./VisualTimeline";
@@ -679,9 +691,7 @@ export function ContractManagement({
     <section className="content contract-page">
       <div className="heading">
         <div>
-          <em>LIÊN THÔNG PO · HỒ SƠ · GIẢI NGÂN THANH TOÁN</em>
-          <h1>Quản lý hợp đồng & Gói đơn hàng</h1>
-          <p>Theo dõi tiến độ thực hiện hợp đồng theo PO và tổng hợp giải ngân theo nhóm nội dung hợp đồng.</p>
+          <h1>Quản lý Hợp đồng</h1>
         </div>
         <div className="actions">
           {mainTab === "pos" ? (
@@ -691,12 +701,12 @@ export function ContractManagement({
                   className="primary"
                   onClick={() => openCreateContractModal()}
                 >
-                  ＋ Tạo hợp đồng mới
+                  <Plus size={16} /> Tạo HĐ
                 </button>
               )}
               {onDelete && selected && (
                 <button className="danger-action" onClick={() => onDelete(selected)}>
-                  🗑 Xóa hợp đồng
+                  <Trash2 size={16} /> Xóa HĐ
                 </button>
               )}
             </>
@@ -716,7 +726,7 @@ export function ContractManagement({
                     })
                   }
                 >
-                  ＋ Thêm nhóm hợp đồng / gói
+                  <Plus size={16} /> Thêm nhóm
                 </button>
               )}
             </>
@@ -753,54 +763,16 @@ export function ContractManagement({
                   style={{ marginTop: 14 }}
                   onClick={() => openCreateContractModal()}
                 >
-                  ＋ Tạo hợp đồng mới
+                  <Plus size={16} /> Tạo HĐ
                 </button>
               )}
             </div>
           ) : (
             <>
-              <div className="contract-kpis">
-                <article>
-                  <span>Tổng hợp đồng</span>
-                  <b>{pos.length}</b>
-                  <small>
-                    {pos.filter((p) => p.status !== "Hoàn thành").length} đang thực hiện
-                  </small>
-                </article>
-                <article>
-                  <span>Tổng giá trị</span>
-                  <b>
-                    {fmt(
-                      pos.reduce(
-                        (n, p) => n + p.items.reduce((s, i) => s + i.qty * i.price, 0),
-                        0
-                      )
-                    )}{" "}
-                    ₫
-                  </b>
-                  <small>Liên thông từ PO</small>
-                </article>
-                <article className="warn">
-                  <span>Sắp đến hạn giao</span>
-                  <b>{pos.filter((p) => p.expectedDate).length}</b>
-                  <small>Trong 7 ngày tới</small>
-                </article>
-                <article className="danger">
-                  <span>Hồ sơ còn thiếu</span>
-                  <b>
-                    {pos.reduce(
-                      (n, p) => n + p.docs.filter((d) => d.status !== "Đã đủ").length,
-                      0
-                    )}
-                  </b>
-                  <small>Cần bổ sung trước thanh toán</small>
-                </article>
-              </div>
-
               <div className="contract-layout">
                 <aside className="contract-list">
                   <div className="contract-search">
-                    ⌕
+                    <Search size={16} />
                     <input
                       value={query}
                       onChange={(e) => setQuery(e.target.value)}
@@ -841,8 +813,8 @@ export function ContractManagement({
                       </p>
                     </div>
                     <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
-                      <button onClick={() => onOpenPO(selected)}>
-                        Mở PO liên kết ↗
+                      <button onClick={() => onOpenPO(selected)} style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}>
+                        Mở PO <ExternalLink size={13} />
                       </button>
                       {onCreateHandover && (
                         <button
@@ -850,8 +822,9 @@ export function ContractManagement({
                           className="btn btn-primary btn-sm"
                           onClick={() => onCreateHandover(selected)}
                           title="Tạo biên bản bàn giao cho hợp đồng này"
+                          style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}
                         >
-                          🚚 Tạo bàn giao
+                          <Truck size={14} /> Bàn giao
                         </button>
                       )}
                       <strong>{fmt(total)} ₫</strong>
@@ -1031,47 +1004,10 @@ export function ContractManagement({
       {/* TAB 2: CONTRACT GROUPS / PO PACKAGES (NHÓM HỢP ĐỒNG & GIẢI NGÂN) */}
       {mainTab === "groups" && (
         <div className="payment-management">
-          {/* Summary KPI Cards */}
-          <div className="payment-summary-cards">
-            <div className="payment-card card-primary">
-              <span className="payment-card-label">Tổng nhóm HĐ / Gói</span>
-              <span className="payment-card-value">{paymentGroups.length}</span>
-              <span className="payment-card-sub">Quản lý theo gói thầu / hợp đồng</span>
-            </div>
-            <div className="payment-card">
-              <span className="payment-card-label">Tổng giá trị cam kết</span>
-              <span className="payment-card-value">{fmtMoney(groupMetrics.totalCommitment)} ₫</span>
-              <span className="payment-card-sub">Tổng ngân sách hợp đồng</span>
-            </div>
-            <div className="payment-card card-success">
-              <span className="payment-card-label">Đã giải ngân (Đã chi)</span>
-              <span className="payment-card-value" style={{ color: "#10b981" }}>
-                {fmtMoney(groupMetrics.totalPaid)} ₫
-              </span>
-              <span className="payment-card-sub">
-                {groupMetrics.totalCommitment > 0
-                  ? `Đạt ${Math.round((groupMetrics.totalPaid / groupMetrics.totalCommitment) * 100)}% kế hoạch`
-                  : "Chưa phát sinh"}
-              </span>
-            </div>
-            <div className="payment-card card-warning">
-              <span className="payment-card-label">Đang giải quyết</span>
-              <span className="payment-card-value" style={{ color: "#f59e0b" }}>
-                {fmtMoney(groupMetrics.totalPending)} ₫
-              </span>
-              <span className="payment-card-sub">Chờ kế toán / đi tiền</span>
-            </div>
-            <div className="payment-card">
-              <span className="payment-card-label">Còn lại cần giải ngân</span>
-              <span className="payment-card-value">{fmtMoney(groupMetrics.totalRemaining)} ₫</span>
-              <span className="payment-card-sub">Dư địa hợp đồng</span>
-            </div>
-          </div>
-
           {/* Search & Actions Toolbar */}
           <div className="payment-toolbar">
             <div className="payment-search-box">
-              <span className="search-icon">🔍</span>
+              <span className="search-icon"><Search size={15} /></span>
               <input
                 type="text"
                 className="payment-input"
@@ -1085,7 +1021,7 @@ export function ContractManagement({
                   className="clear-search-btn"
                   onClick={() => setGroupSearch("")}
                 >
-                  ✕
+                  <X size={14} />
                 </button>
               )}
             </div>
@@ -1104,8 +1040,9 @@ export function ContractManagement({
                       note: "",
                     })
                   }
+                  style={{ display: "inline-flex", alignItems: "center", gap: "5px" }}
                 >
-                  ＋ Thêm nhóm hợp đồng mới
+                  <Plus size={15} /> Thêm nhóm
                 </button>
               )}
             </div>
@@ -1245,22 +1182,22 @@ export function ContractManagement({
                           <td style={{ fontSize: "12px", color: "#64748b" }} title={g.note || ""}>{g.note || "—"}</td>
                           {!readOnly && (
                             <td style={{ textAlign: "center" }}>
-                              <div style={{ display: "flex", gap: "4px", justifyContent: "center" }}>
+                              <div style={{ display: "flex", gap: "6px", justifyContent: "center" }}>
                                 <button
                                   type="button"
-                                  className="payment-btn payment-btn-sm"
+                                  className="btn-icon"
                                   onClick={() => setEditingGroup(g)}
                                   title="Sửa nhóm hợp đồng"
                                 >
-                                  ✏️
+                                  <Pencil size={15} />
                                 </button>
                                 <button
                                   type="button"
-                                  className="payment-btn payment-btn-sm payment-btn-danger"
+                                  className="btn-icon btn-icon-danger"
                                   onClick={() => handleDeleteGroup(g.id)}
                                   title="Xóa nhóm hợp đồng"
                                 >
-                                  🗑️
+                                  <Trash2 size={15} />
                                 </button>
                               </div>
                             </td>
@@ -2678,8 +2615,9 @@ export function ContractManagement({
                 type="button"
                 className="payment-btn btn-primary"
                 onClick={handleSaveContract}
+                style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}
               >
-                ✓ Lưu và kích hoạt hợp đồng
+                <Check size={16} /> Lưu hợp đồng
               </button>
             </div>
           </div>

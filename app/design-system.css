@@ -316,6 +316,80 @@ body {
   background-color: #b91c1c;
 }
 
+/* Standard Icon Buttons for Table Rows & Toolbars */
+.btn-icon {
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--slate-600);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-icon:hover:not(:disabled) {
+  background-color: var(--slate-100);
+  color: var(--slate-900);
+  border-color: var(--slate-200);
+}
+
+.btn-icon.primary-ghost {
+  color: var(--primary-600);
+}
+
+.btn-icon.primary-ghost:hover:not(:disabled) {
+  background-color: var(--primary-50);
+  color: var(--primary-700);
+  border-color: var(--primary-200);
+}
+
+.btn-icon.info-ghost {
+  color: #0284c7;
+}
+
+.btn-icon.info-ghost:hover:not(:disabled) {
+  background-color: #f0f9ff;
+  color: #0369a1;
+  border-color: #bae6fd;
+}
+
+.btn-icon.accent-ghost {
+  color: #c2410c;
+}
+
+.btn-icon.accent-ghost:hover:not(:disabled) {
+  background-color: #fff7ed;
+  color: #9a3412;
+  border-color: #fed7aa;
+}
+
+.btn-icon.danger-ghost,
+.btn-icon.btn-icon-danger {
+  color: #ef4444;
+}
+
+.btn-icon.danger-ghost:hover:not(:disabled),
+.btn-icon.btn-icon-danger:hover:not(:disabled) {
+  background-color: #fee2e2;
+  color: #b91c1c;
+  border-color: #fca5a5;
+}
+
+/* Ensure buttons with icons align neatly */
+.btn, button.primary, button.ghost, button.row-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  line-height: 1;
+}
+
 /* 2. FORM INPUTS & CONTROLS */
 .form-input,
 .form-select {

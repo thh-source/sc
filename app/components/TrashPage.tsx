@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { RotateCcw, Trash2 } from "lucide-react";
 import { TrashItem } from "../types";
 import { dateVN } from "../utils";
 
@@ -16,13 +17,11 @@ export function TrashPage({
     <section className="content trash-page">
       <div className="heading">
         <div>
-          <em>LƯU TRỮ TẠM THỜI 30 NGÀY</em>
           <h1>Thùng rác</h1>
-          <p>PR, PO và hợp đồng đã xóa có thể được phục hồi trước ngày hết hạn.</p>
         </div>
       </div>
       <div className="trash-notice">
-        <i>♲</i>
+        <i><Trash2 size={20} /></i>
         <div><b>{entries.length} bản ghi đang lưu tạm</b><span>Hệ thống tự loại khỏi thùng rác sau 30 ngày.</span></div>
       </div>
       <div className="trash-table">
@@ -36,7 +35,7 @@ export function TrashPage({
                 <td><b>{entry.label}</b></td>
                 <td>{dateVN(entry.deletedAt)}</td>
                 <td><span className="expiry-badge">{daysLeft(entry.expiresAt)} ngày</span></td>
-                <td><button className="restore-action" onClick={() => onRestore(entry)}>↶ Phục hồi</button></td>
+                <td><button className="restore-action" onClick={() => onRestore(entry)} style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}><RotateCcw size={14} /> Phục hồi</button></td>
               </tr>
             ))}
           </tbody>
