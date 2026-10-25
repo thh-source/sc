@@ -5,6 +5,7 @@ export interface AppRoute {
   id?: number;
   prId?: number;
   poId?: number;
+  tab?: string;
   modal?: string;
   isPrint?: boolean;
 }
@@ -50,8 +51,12 @@ export function parseRouteFromHash(hashString?: string): AppRoute {
   const rawView = (params.get("view") || "").toLowerCase().trim();
 
   const rawId = params.get("id");
-  const rawPr = params.get("pr");
-  const rawPo = params.get("po");
+  const rawTab = params.get("tab")?.toLowerCase().trim();
+  const rawPr =
+    params.get("pr") ||
+    params.get("prId") ||
+    (rawTab === "comparison" || rawTab === "compare" ? rawId : null);
+  const rawPo = params.get("po") || params.get("poId");
   const isPrint =
     params.get("print") === "1" ||
     params.get("print") === "true" ||
@@ -71,7 +76,7 @@ export function parseRouteFromHash(hashString?: string): AppRoute {
 
     case "prs":
     case "pr":
-      if (prId || id) {
+      if (rawTab === "comparison" || rawTab === "compare" || prId || id) {
         view = "compare";
       } else {
         view = "prs";
@@ -83,6 +88,7 @@ export function parseRouteFromHash(hashString?: string): AppRoute {
       view = "create";
       break;
 
+    case "pr-compare":
     case "compare":
     case "comparison":
       view = "compare";
@@ -158,8 +164,9 @@ export function parseRouteFromHash(hashString?: string): AppRoute {
   return {
     view,
     id: resolvedId,
-    prId: prId || (view === "compare" ? id : undefined),
+    prId: prId || (view === "compare" ? (id || resolvedId) : undefined),
     poId: poId || (view === "po-detail" ? id : undefined),
+    tab: rawTab,
     modal,
     isPrint,
   };
@@ -175,16 +182,20 @@ export function buildHashFromRoute(route: AppRoute): string {
     return "#view=dashboard";
   }
 
-  params.set("view", route.view);
+  if (route.view === "compare") {
+    const prParam = route.prId || route.id;
+    params.set("view", "pr-compare");
+    if (prParam) {
+      params.set("prId", String(prParam));
+    }
+  } else {
+    params.set("view", route.view);
+  }
 
   if (route.view === "approval") {
     if (route.id) params.set("id", String(route.id));
     if (route.prId) params.set("pr", String(route.prId));
     if (route.isPrint) params.set("print", "1");
-  } else if (route.view === "compare") {
-    if (route.prId || route.id) {
-      params.set("pr", String(route.prId || route.id));
-    }
   } else if (route.view === "po-detail") {
     if (route.id || route.poId) {
       params.set("id", String(route.id || route.poId));

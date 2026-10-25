@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Plus, ArrowRight, Trash2, Search, CheckCircle2, Circle } from "lucide-react";
+import { Plus, ArrowRight, Trash2, Search, CheckCircle2, Circle, Scale } from "lucide-react";
 import { PR, PO, ApprovalRequest, PaymentRequestEntry, PaymentHandoverItem } from "../types";
 import { fmt, dateVN } from "../utils";
 import { useTranslation } from "../i18n";
@@ -101,22 +101,44 @@ export function PRList({
                 <div style={{ marginTop: "8px", paddingTop: "8px", borderTop: "1px dashed #e2e8f0" }}>
                   <DocFlowLinks flow={flow} currentView="prs" onNavigate={onNavigate} compact />
                 </div>
-                <footer>
-                  <button className="btn-icon primary-ghost" onClick={() => onOpen(pr)} title="Mở PR / So sánh giá">
-                    <ArrowRight size={16} />
+                <footer style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-xs"
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "4px",
+                      padding: "4px 10px",
+                      fontSize: "12px",
+                      fontWeight: 600,
+                      color: "#0369a1",
+                      backgroundColor: "#f0f9ff",
+                      border: "1px solid #bae6fd",
+                      borderRadius: "4px",
+                      cursor: "pointer",
+                    }}
+                    onClick={() => onOpen(pr)}
+                  >
+                    <Scale size={14} /> So sánh giá
                   </button>
-                  {onDelete && (
-                    <button className="btn-icon danger-ghost" onClick={() => onDelete(pr)} title="Xóa PR">
-                      <Trash2 size={16} />
+                  <div style={{ display: "inline-flex", gap: "6px" }}>
+                    <button className="btn-icon primary-ghost" onClick={() => onOpen(pr)} title="Mở PR / So sánh giá">
+                      <ArrowRight size={16} />
                     </button>
-                  )}
+                    {onDelete && (
+                      <button className="btn-icon danger-ghost" onClick={() => onDelete(pr)} title="Xóa PR">
+                        <Trash2 size={16} />
+                      </button>
+                    )}
+                  </div>
                 </footer>
               </article>
             );
           })}
         </div>
         <div className="pr-table" style={{ width: "100%", overflowX: "auto" }}>
-          <table style={{ width: "100%", minWidth: "1020px", tableLayout: "auto" }}>
+          <table style={{ width: "100%", minWidth: "1120px", tableLayout: "auto" }}>
             <colgroup>
               <col style={{ width: "115px" }} />
               <col style={{ width: "100px" }} />
@@ -126,7 +148,7 @@ export function PRList({
               <col style={{ width: "125px" }} />
               <col style={{ width: "125px" }} />
               <col style={{ width: "210px" }} />
-              <col style={{ width: "75px" }} />
+              <col style={{ width: "170px" }} />
             </colgroup>
             <thead>
               <tr>
@@ -138,7 +160,7 @@ export function PRList({
                 <th className="cell-right">{t("table.est_amount")}</th>
                 <th className="cell-center">{t("table.status")}</th>
                 <th className="cell-left">Tiến độ luồng</th>
-                <th className="cell-center"></th>
+                <th className="cell-center">Thao tác</th>
               </tr>
             </thead>
             <tbody>
@@ -183,7 +205,29 @@ export function PRList({
                       <DocFlowLinks flow={flow} currentView="prs" onNavigate={onNavigate} compact />
                     </td>
                     <td className="cell-center">
-                      <div className="row-actions" style={{ display: "inline-flex", gap: "4px" }}>
+                      <div className="row-actions" style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
+                        <button
+                          type="button"
+                          className="btn btn-secondary btn-xs"
+                          style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: "4px",
+                            padding: "3px 8px",
+                            fontSize: "11.5px",
+                            fontWeight: 600,
+                            color: "#0369a1",
+                            backgroundColor: "#f0f9ff",
+                            border: "1px solid #bae6fd",
+                            borderRadius: "4px",
+                            cursor: "pointer",
+                            whiteSpace: "nowrap",
+                          }}
+                          onClick={() => onOpen(pr)}
+                          title="Mở Bảng so sánh báo giá của PR này"
+                        >
+                          <Scale size={13} /> So sánh giá
+                        </button>
                         <button className="btn-icon primary-ghost" onClick={() => onOpen(pr)} title="Mở PR / So sánh giá">
                           <ArrowRight size={16} />
                         </button>

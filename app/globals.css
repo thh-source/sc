@@ -1059,3 +1059,24 @@ tbody tr:hover td {
   transform: translateY(-1px);
 }
 
+/* Contextual Comparison Breadcrumb & Sub-view Styles */
+.compare-page {
+  padding-top: 20px;
+}
+.compare-breadcrumb-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 8px 14px;
+  transition: all 0.2s ease;
+}
+.compare-breadcrumb-bar nav button:hover {
+  text-decoration: underline;
+  color: #1d4ed8;
+}
+

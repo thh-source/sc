@@ -36,6 +36,8 @@ import { POList } from "./components/POList";
 import { PODetail } from "./components/PODetail";
 import { PRList } from "./components/PRList";
 import { KnowledgeBase, KnowledgeBaseDrawer } from "./components/KnowledgeBase";
+import { DocFlowLinks } from "./components/DocFlowLinks";
+import { resolveDocFlow } from "./utils/docFlow";
 import {
   isPRCompleted,
   isPOCompleted,
@@ -56,6 +58,7 @@ import { I18nProvider, useTranslation, LanguageSwitcher } from "./i18n";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import {
   ArrowLeft,
+  ChevronRight,
   Plus,
   Users,
   Check,
@@ -1691,6 +1694,10 @@ function ProcurementAppInner({
           if (foundPR) {
             loadComparePR(foundPR);
           }
+        } else if (selectedPR?.id) {
+          loadComparePR(selectedPR);
+        } else if (prs.length > 0) {
+          loadComparePR(prs[0]);
         }
       } else if (route.view === "po-detail") {
         const targetPoId = route.id || route.poId;
@@ -1748,9 +1755,8 @@ function ProcurementAppInner({
 
   const isNavActive = (id: string) => {
     if (view === "dashboard" && id === "dashboard") return true;
-    if (view === "compare" && id === "compare") return true;
     if (view === "approval" && id === "approval") return true;
-    if ((view === "prs" || view === "create") && id === "prs") return true;
+    if ((view === "prs" || view === "create" || view === "compare") && id === "prs") return true;
     if ((view === "po-list" || view === "po-detail" || view === "contracts") && id === "po-list") return true;
     if (view === "payment" && id === "payment") return true;
     if (view === "handover" && id === "handover") return true;
@@ -1765,18 +1771,6 @@ function ProcurementAppInner({
   const nav = [
     { id: "dashboard", icon: <LayoutDashboard size={18} />, name: t("nav.dashboard"), action: () => navigateTo({ view: "dashboard" }) },
     { id: "prs", icon: <FileText size={18} />, name: t("nav.prs"), action: () => navigateTo({ view: "prs" }) },
-    {
-      id: "compare",
-      icon: <Scale size={18} />,
-      name: t("nav.compare"),
-      action: () => {
-        if (selectedPR?.id) {
-          navigateTo({ view: "compare", prId: selectedPR.id });
-        } else {
-          navigateTo({ view: "compare" });
-        }
-      },
-    },
     {
       id: "approval",
       icon: <CheckSquare size={18} />,
@@ -1819,7 +1813,6 @@ function ProcurementAppInner({
         [
           "dashboard",
           "prs",
-          "compare",
           "approval",
           "po-list",
           "payment",
@@ -2008,7 +2001,7 @@ function ProcurementAppInner({
             onCreateApproval={() => navigateTo({ view: "approval" })}
             onCreatePO={() => navigateTo({ view: "po-list" })}
             onSelectPR={(pr) => {
-              setSelectedPR(pr);
+              loadComparePR(pr);
               navigateTo({ view: "compare", prId: pr.id });
             }}
             onSelectPO={(po) => {
@@ -2313,17 +2306,119 @@ function ProcurementAppInner({
           </ErrorBoundary>
         )}
         {view === "compare" && (
-          <section className="content">
+          <section className="content compare-page">
+            {/* Contextual PR Comparison Breadcrumb Header */}
+            <div
+              className="compare-breadcrumb-bar"
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                flexWrap: "wrap",
+                gap: "10px",
+                marginBottom: compactCompare ? "10px" : "14px",
+                padding: "8px 14px",
+                backgroundColor: "#f8fafc",
+                border: "1px solid #e2e8f0",
+                borderRadius: "8px",
+              }}
+            >
+              <nav
+                aria-label="Breadcrumb"
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "8px",
+                  fontSize: "13px",
+                  fontWeight: 500,
+                  flexWrap: "wrap",
+                }}
+              >
+                <button
+                  type="button"
+                  onClick={() => navigateTo({ view: "prs" })}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    padding: 0,
+                    cursor: "pointer",
+                    color: "#2563eb",
+                    fontWeight: 600,
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "5px",
+                  }}
+                  title="Quay lại Danh sách PR"
+                >
+                  <FileText size={15} /> Danh sách PR
+                </button>
+                <ChevronRight size={14} style={{ color: "#94a3b8" }} />
+                <span
+                  style={{
+                    backgroundColor: "#e2e8f0",
+                    color: "#0f172a",
+                    fontWeight: 600,
+                    padding: "2px 8px",
+                    borderRadius: "4px",
+                    fontSize: "12.5px",
+                  }}
+                >
+                  PR #{selectedPR?.number || "Chưa chọn PR"}
+                </span>
+                <ChevronRight size={14} style={{ color: "#94a3b8" }} />
+                <span
+                  style={{
+                    color: "#0369a1",
+                    fontWeight: 600,
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "5px",
+                  }}
+                >
+                  <Scale size={15} style={{ color: "#0284c7" }} /> Bảng so sánh báo giá
+                </span>
+              </nav>
+
+              <div style={{ display: "inline-flex", alignItems: "center", gap: "8px" }}>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => navigateTo({ view: "prs" })}
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "6px",
+                    padding: "5px 12px",
+                    fontSize: "12.5px",
+                    fontWeight: 600,
+                    backgroundColor: "#ffffff",
+                    border: "1px solid #cbd5e1",
+                    borderRadius: "6px",
+                    cursor: "pointer",
+                  }}
+                  title="Quay lại Danh sách PR"
+                >
+                  <ArrowLeft size={15} /> Quay lại PR
+                </button>
+              </div>
+            </div>
+
             {!compactCompare && (
               <>
-                <div className="heading">
+                <div className="heading" style={{ marginTop: "4px" }}>
                   <div>
-                    <h1>{t("compare.title")}</h1>
+                    <h1>Bảng so sánh báo giá · {selectedPR.number || "PR"}</h1>
+                    <p style={{ margin: "4px 0 0", color: "#64748b", fontSize: "13px" }}>
+                      Bộ phận: <b>{selectedPR.department || "Chưa rõ"}</b> · Mục đích: <i>{selectedPR.purpose || "Chưa có"}</i>
+                    </p>
                   </div>
                   <div className="actions">
-                    <button className="btn btn-secondary" onClick={() => navigateTo({ view: "prs" })}>
-                      <ArrowLeft size={16} /> Quay lại
-                    </button>
+                    <DocFlowLinks
+                      flow={resolveDocFlow({ pr: selectedPR }, { prs, pos, approvalRequests, paymentRequests, paymentHandovers })}
+                      currentView="compare"
+                      onNavigate={(route: any) => navigateTo(route)}
+                      compact
+                    />
                   </div>
                 </div>
                 <section className="common-note-card">
