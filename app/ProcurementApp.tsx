@@ -1929,16 +1929,30 @@ function ProcurementAppInner({
           <Dashboard
             prs={prs}
             pos={pos}
+            approvalRequests={approvalRequests}
+            paymentRequests={paymentRequests}
             suppliers={suppliers}
             purchaseHistory={purchaseHistory}
-            onPR={() => navigateTo({ view: "prs" })}
-            onPO={() => navigateTo({ view: "po-list" })}
-            onCompare={() => {
-              if (selectedPR?.id) {
-                navigateTo({ view: "compare", prId: selectedPR.id });
-              } else {
-                navigateTo({ view: "compare" });
-              }
+            onNavigate={(route) => navigateTo(route)}
+            onOpenSpotlight={() => setSpotlightOpen(true)}
+            onCreatePR={() => navigateTo({ view: "create" })}
+            onCreateApproval={() => navigateTo({ view: "approval" })}
+            onCreatePO={() => navigateTo({ view: "po-list" })}
+            onSelectPR={(pr) => {
+              setSelectedPR(pr);
+              navigateTo({ view: "compare", prId: pr.id });
+            }}
+            onSelectPO={(po) => {
+              setCurrentPO(po);
+              navigateTo({ view: "po-detail", id: po.id });
+            }}
+            onSelectApproval={(id) => {
+              setActiveApprovalId(id);
+              navigateTo({ view: "approval", id });
+            }}
+            onSelectPayment={(id) => {
+              if (id) setSpotlightPaymentActiveId(id);
+              navigateTo({ view: "payment", id });
             }}
           />
         )}
