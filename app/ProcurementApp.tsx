@@ -1276,35 +1276,45 @@ function ProcurementAppInner({
 
   const handleCreatePOFromApproval = (req: ApprovalRequest, chosenVatRate: number = 10, customPoNumber?: string) => {
     const selectedCol =
-      req.supplierColumns.find((c) => c.isSelected) || req.supplierColumns[0];
-    if (!selectedCol) return;
+      req.supplierColumns.find((c) => c.isSelected) ||
+      (req.recommendedSupplierName
+        ? req.supplierColumns.find(
+            (c) =>
+              c.supplierName &&
+              c.supplierName.trim().toLowerCase() === req.recommendedSupplierName.trim().toLowerCase()
+          )
+        : undefined) ||
+      req.supplierColumns[0];
+
+    const supName =
+      req.recommendedSupplierName?.trim() ||
+      selectedCol?.supplierName?.trim() ||
+      "Nhà cung cấp được phê duyệt";
 
     // Tìm hoặc tạo mới NCC trong danh mục suppliers
     let targetSupplier =
-      (selectedCol.supplierId !== undefined
+      (selectedCol?.supplierId !== undefined
         ? suppliers.find((s) => s.id === selectedCol.supplierId)
         : undefined) ||
       suppliers.find(
         (s) =>
-          s.name.trim().toLowerCase() ===
-            req.recommendedSupplierName.trim().toLowerCase() ||
-          s.name.trim().toLowerCase() ===
-            selectedCol.supplierName.trim().toLowerCase(),
+          (req.recommendedSupplierName &&
+            s.name.trim().toLowerCase() === req.recommendedSupplierName.trim().toLowerCase()) ||
+          (selectedCol?.supplierName &&
+            s.name.trim().toLowerCase() === selectedCol.supplierName.trim().toLowerCase()) ||
+          (selectedCol?.shortName &&
+            s.shortName &&
+            s.shortName.trim().toLowerCase() === selectedCol.shortName.trim().toLowerCase())
       );
 
     if (!targetSupplier) {
       const newSup: Supplier = {
         id: makeId(),
         code: `NCC-${String(suppliers.length + 1).padStart(3, "0")}`,
-        name:
-          req.recommendedSupplierName ||
-          selectedCol.supplierName ||
-          "Nhà cung cấp được phê duyệt",
+        name: supName,
         shortName:
-          selectedCol.shortName ||
-          generateShortName(
-            req.recommendedSupplierName || selectedCol.supplierName,
-          ),
+          selectedCol?.shortName ||
+          generateShortName(supName),
         bankAccount: "",
         bank: "",
         address: "",

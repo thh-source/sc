@@ -33,7 +33,7 @@ import {
   isPONumberExists,
 } from "../types";
 import { fmt as formatVND } from "../utils/format";
-import { PHENIKAA_PHARMA_LOGO_BASE64 } from "../payment-utils";
+import { PHENIKAA_PHARMA_LOGO_BASE64, localToday } from "../payment-utils";
 import {
   cleanExcelNumber,
   createApprovalFromCompare,
@@ -183,18 +183,44 @@ export default function ApprovalManagement({
   const [poCreateNumberManual, setPoCreateNumberManual] = useState<boolean>(false);
 
   const handleOpenPOCreateModal = (req: ApprovalRequest) => {
-    const selectedCol = req.supplierColumns.find((c) => c.isSelected) || req.supplierColumns[0];
-    const sup =
-      (selectedCol?.supplierId !== undefined ? suppliers.find((s) => s.id === selectedCol.supplierId) : undefined) ||
+    const selectedCol =
+      req.supplierColumns.find((c) => c.isSelected) ||
+      (req.recommendedSupplierName
+        ? req.supplierColumns.find(
+            (c) =>
+              c.supplierName &&
+              c.supplierName.trim().toLowerCase() === req.recommendedSupplierName.trim().toLowerCase()
+          )
+        : undefined) ||
+      req.supplierColumns[0];
+
+    const supName =
+      req.recommendedSupplierName?.trim() ||
+      selectedCol?.supplierName?.trim() ||
+      "Nhà cung cấp được phê duyệt";
+
+    const matchedSupplier =
+      (selectedCol?.supplierId !== undefined
+        ? suppliers.find((s) => s.id === selectedCol.supplierId)
+        : undefined) ||
       suppliers.find(
         (s) =>
-          s.name.trim().toLowerCase() === (req.recommendedSupplierName || "").trim().toLowerCase() ||
-          s.name.trim().toLowerCase() === (selectedCol?.supplierName || "").trim().toLowerCase()
-      ) || {
-        shortName: selectedCol?.shortName,
-        name: req.recommendedSupplierName || selectedCol?.supplierName,
-      };
-    const todayDate = new Date().toISOString().slice(0, 10);
+          (req.recommendedSupplierName &&
+            s.name.trim().toLowerCase() === req.recommendedSupplierName.trim().toLowerCase()) ||
+          (selectedCol?.supplierName &&
+            s.name.trim().toLowerCase() === selectedCol.supplierName.trim().toLowerCase()) ||
+          (selectedCol?.shortName &&
+            s.shortName &&
+            s.shortName.trim().toLowerCase() === selectedCol.shortName.trim().toLowerCase())
+      );
+
+    const sup = matchedSupplier || {
+      shortName: selectedCol?.shortName || "",
+      name: supName,
+      code: selectedCol?.colId || "",
+    };
+
+    const todayDate = localToday();
     const autoCode = generatePOCode(sup, todayDate, pos, trash);
     setPoCreateCustomNumber(autoCode);
     setPoCreateNumberManual(false);
@@ -1174,8 +1200,7 @@ export default function ApprovalManagement({
                                   type="button"
                                   className="btn-icon accent-ghost"
                                   onClick={() => {
-                                    setPoCreateVatRate(10);
-                                    setPoCreateModalReq(req);
+                                    handleOpenPOCreateModal(req);
                                   }}
                                   title="Phát hành đơn mua hàng (PO) từ phiếu đã duyệt này"
                                 >
@@ -1270,8 +1295,7 @@ export default function ApprovalManagement({
             currentView="approval"
             onNavigate={onNavigate}
             onCreatePOFromApproval={() => {
-            setPoCreateVatRate(10);
-            setPoCreateModalReq(activeRequest);
+            handleOpenPOCreateModal(activeRequest);
           }}
           />
         </div>
@@ -1379,8 +1403,7 @@ export default function ApprovalManagement({
                     : "Đẩy thông tin Nhà cung cấp được lựa chọn sang Đơn Mua Hàng (PO)"
                 }
                 onClick={() => {
-                setPoCreateVatRate(10);
-                setPoCreateModalReq(activeRequest);
+                handleOpenPOCreateModal(activeRequest);
               }}
               >
                 <PackagePlus size={16} /> Tạo PO (
@@ -3489,78 +3512,199 @@ export default function ApprovalManagement({
     if (!poCreateModalReq) return null;
     const selectedCol =
       poCreateModalReq.supplierColumns.find((c) => c.isSelected) ||
+      (poCreateModalReq.recommendedSupplierName
+        ? poCreateModalReq.supplierColumns.find(
+            (c) =>
+              c.supplierName &&
+              c.supplierName.trim().toLowerCase() === poCreateModalReq.recommendedSupplierName.trim().toLowerCase()
+          )
+        : undefined) ||
       poCreateModalReq.supplierColumns[0];
+
     const supName =
-      poCreateModalReq.recommendedSupplierName ||
-      selectedCol?.supplierName ||
+      poCreateModalReq.recommendedSupplierName?.trim() ||
+      selectedCol?.supplierName?.trim() ||
       "Nhà cung cấp được phê duyệt";
+
+    const matchedSupplier =
+      (selectedCol?.supplierId !== undefined
+        ? suppliers.find((s) => s.id === selectedCol.supplierId)
+        : undefined) ||
+      suppliers.find(
+        (s) =>
+          (poCreateModalReq.recommendedSupplierName &&
+            s.name.trim().toLowerCase() === poCreateModalReq.recommendedSupplierName.trim().toLowerCase()) ||
+          (selectedCol?.supplierName &&
+            s.name.trim().toLowerCase() === selectedCol.supplierName.trim().toLowerCase()) ||
+          (selectedCol?.shortName &&
+            s.shortName &&
+            s.shortName.trim().toLowerCase() === selectedCol.shortName.trim().toLowerCase())
+      );
+
+    const targetSup = matchedSupplier || {
+      shortName: selectedCol?.shortName || "",
+      name: supName,
+      code: selectedCol?.colId || "",
+    };
+
+    const todayDate = localToday();
+    const fallbackAutoCode = generatePOCode(targetSup, todayDate, pos, trash);
+    const effectivePoNumber = (poCreateCustomNumber && poCreateCustomNumber.trim())
+      ? poCreateCustomNumber.trim()
+      : fallbackAutoCode;
+
     const subtotal = selectedCol
       ? computeSupplierTotal(poCreateModalReq, selectedCol.colId)
       : 0;
     const vatAmount = Math.round(subtotal * (poCreateVatRate / 100));
     const totalWithVat = subtotal + vatAmount;
-    const isDuplicatePO = isPONumberExists(poCreateCustomNumber.trim(), pos, trash);
+    const isDuplicatePO = Boolean(effectivePoNumber && isPONumberExists(effectivePoNumber, pos, trash));
+    const isButtonDisabled = !effectivePoNumber || isDuplicatePO;
 
     return (
       <div
-        className="backdrop no-print"
-        style={{ zIndex: 10000 }}
+        className="payment-modal-overlay no-print"
+        style={{
+          position: "fixed",
+          inset: 0,
+          background: "rgba(15, 23, 42, 0.7)",
+          backdropFilter: "blur(4px)",
+          zIndex: 99999,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: 16,
+        }}
         onClick={() => setPoCreateModalReq(null)}
       >
         <div
-          className="modal-panel"
-          style={{ width: "min(560px, 95vw)" }}
+          className="payment-modal-card"
+          style={{
+            maxWidth: "580px",
+            width: "100%",
+            background: "#ffffff",
+            borderRadius: "12px",
+            boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.35)",
+            overflow: "hidden",
+          }}
           onClick={(e) => e.stopPropagation()}
         >
-          <div className="modal-header">
-            <div>
-              <h3 className="modal-title">
-                📦 Phát hành Đơn mua hàng (PO)
-              </h3>
-              <p className="modal-desc">
-                Căn cứ Đề nghị phê duyệt: <strong>{poCreateModalReq.prNumber || poCreateModalReq.requestNumber}</strong>
-              </p>
+          {/* Header */}
+          <div
+            style={{
+              padding: "16px 20px",
+              background: "#0f172a",
+              color: "#ffffff",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <div
+                style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: 8,
+                  background: "#1e293b",
+                  color: "#38bdf8",
+                  display: "grid",
+                  placeItems: "center",
+                }}
+              >
+                <PackagePlus size={20} />
+              </div>
+              <div>
+                <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "#f8fafc" }}>
+                  Phát hành Đơn mua hàng (PO)
+                </h3>
+                <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 2 }}>
+                  Căn cứ ĐNPD: <b>{poCreateModalReq.prNumber || poCreateModalReq.requestNumber}</b>
+                </div>
+              </div>
             </div>
             <button
               type="button"
-              className="btn-close"
               onClick={() => setPoCreateModalReq(null)}
+              style={{
+                width: 32,
+                height: 32,
+                borderRadius: 6,
+                border: 0,
+                background: "#1e293b",
+                color: "#94a3b8",
+                fontSize: 18,
+                cursor: "pointer",
+                display: "grid",
+                placeItems: "center",
+              }}
             >
-              ×
+              ✕
             </button>
           </div>
 
-          <div className="modal-body" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-            <div style={{ background: "#f8fafc", padding: 12, borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 13 }}>
-              <div style={{ marginBottom: 6 }}>
-                <span style={{ color: "#64748b" }}>Nhà cung cấp được chọn: </span>
-                <strong style={{ color: "#0f172a" }}>{supName}</strong>
+          <div style={{ padding: 20, display: "flex", flexDirection: "column", gap: 16 }}>
+            {/* Box NCC & Số mặt hàng */}
+            <div
+              style={{
+                background: "#f8fafc",
+                padding: "12px 14px",
+                borderRadius: 8,
+                border: "1px solid #e2e8f0",
+                fontSize: 13,
+              }}
+            >
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                <div>
+                  <span style={{ color: "#64748b" }}>Nhà cung cấp được chọn: </span>
+                  <strong style={{ color: "#0f172a", fontSize: 14 }}>{supName}</strong>
+                </div>
+                <span
+                  style={{
+                    padding: "2px 8px",
+                    borderRadius: 12,
+                    fontSize: 11,
+                    fontWeight: 700,
+                    background: "#ecfdf5",
+                    color: "#059669",
+                    border: "1px solid #a7f3d0",
+                  }}
+                >
+                  ✓ Đã chọn
+                </span>
               </div>
-              <div>
-                <span style={{ color: "#64748b" }}>Số lượng mặt hàng: </span>
-                <strong>{poCreateModalReq.rows.length} mặt hàng</strong>
+              <div style={{ display: "flex", justifyContent: "space-between", color: "#64748b", fontSize: 12.5 }}>
+                <span>Số lượng mặt hàng: <strong style={{ color: "#0f172a" }}>{poCreateModalReq.rows.length} mặt hàng</strong></span>
+                <span>Tiền tố mã PO: <strong style={{ color: "#0284c7" }}>{targetSup.shortName || "NCC"}</strong></span>
               </div>
             </div>
 
+            {/* Dòng Số PO */}
             <div>
-              <label style={{ display: "block", fontSize: 13, fontWeight: 600, color: "#334155", marginBottom: 6 }}>
-                Số PO (Tự động gợi ý duy nhất, có thể sửa): <span style={{ color: "#ef4444" }}>*</span>
-              </label>
-              <div style={{ display: "flex", gap: 6 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 6 }}>
+                <label style={{ fontSize: 13, fontWeight: 700, color: "#1e293b" }}>
+                  Số PO (Tự động gợi ý duy nhất, có thể sửa): <span style={{ color: "#ef4444" }}>*</span>
+                </label>
+              </div>
+
+              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                 <input
                   type="text"
                   className="cell-input"
                   style={{
                     flex: 1,
+                    height: 40,
                     fontSize: 14,
                     fontWeight: 700,
                     color: isDuplicatePO ? "#dc2626" : "#0284c7",
-                    padding: "8px 12px",
-                    border: `1px solid ${isDuplicatePO ? "#ef4444" : "#cbd5e1"}`,
+                    padding: "0 12px",
+                    border: `1.5px solid ${isDuplicatePO ? "#ef4444" : "#93c5fd"}`,
                     borderRadius: 6,
-                    background: isDuplicatePO ? "#fef2f2" : "#fff",
+                    background: isDuplicatePO ? "#fef2f2" : "#ffffff",
+                    boxSizing: "border-box",
+                    outline: "none",
                   }}
-                  value={poCreateCustomNumber}
+                  value={poCreateCustomNumber || effectivePoNumber}
                   onChange={(e) => {
                     setPoCreateCustomNumber(e.target.value);
                     setPoCreateNumberManual(true);
@@ -3570,52 +3714,61 @@ export default function ApprovalManagement({
                 <button
                   type="button"
                   className="btn"
-                  style={{ padding: "0 10px", fontSize: 12, background: "#f8fafc", border: "1px solid #cbd5e1", whiteSpace: "nowrap" }}
+                  style={{
+                    height: 40,
+                    padding: "0 14px",
+                    fontSize: 12.5,
+                    fontWeight: 600,
+                    background: "#f1f5f9",
+                    border: "1px solid #cbd5e1",
+                    borderRadius: 6,
+                    whiteSpace: "nowrap",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 6,
+                    cursor: "pointer",
+                    color: "#334155",
+                    flexShrink: 0,
+                  }}
                   title="Tạo lại mã tự động theo chuẩn NCC và ngày"
                   onClick={() => {
-                    const targetSup =
-                      (selectedCol?.supplierId !== undefined ? suppliers.find((s) => s.id === selectedCol.supplierId) : undefined) ||
-                      suppliers.find(
-                        (s) =>
-                          s.name.trim().toLowerCase() === (poCreateModalReq.recommendedSupplierName || "").trim().toLowerCase() ||
-                          s.name.trim().toLowerCase() === (selectedCol?.supplierName || "").trim().toLowerCase()
-                      ) || {
-                        shortName: selectedCol?.shortName,
-                        name: poCreateModalReq.recommendedSupplierName || selectedCol?.supplierName,
-                      };
-                    const todayDate = new Date().toISOString().slice(0, 10);
                     const autoCode = generatePOCode(targetSup, todayDate, pos, trash);
                     setPoCreateCustomNumber(autoCode);
                     setPoCreateNumberManual(false);
                   }}
                 >
-                  <RotateCcw size={13} /> Tự động
+                  <RotateCcw size={14} /> Tự động
                 </button>
               </div>
+
               {isDuplicatePO ? (
-                <div style={{ color: "#ef4444", fontSize: 12, marginTop: 4, fontWeight: 600 }}>
+                <div style={{ color: "#ef4444", fontSize: 12, marginTop: 5, fontWeight: 600 }}>
                   ⚠ Số PO này đã tồn tại trên hệ thống, vui lòng chọn số khác!
                 </div>
               ) : (
                 <div style={{ color: "#64748b", fontSize: 11.5, marginTop: 4 }}>
-                  Mã duy nhất, tự động tăng hậu tố (-02, -03...) nếu trùng NCC trong ngày.
+                  ✓ Mã duy nhất, tự động tăng hậu tố (-02, -03...) nếu có nhiều đơn cùng NCC trong ngày.
                 </div>
               )}
             </div>
+
+            {/* Mức thuế VAT */}
             <div>
-              <label style={{ display: "block", fontSize: 13, fontWeight: 600, color: "#334155", marginBottom: 6 }}>
+              <label style={{ display: "block", fontSize: 13, fontWeight: 700, color: "#1e293b", marginBottom: 6 }}>
                 Chọn mức thuế suất VAT:
               </label>
               <select
                 className="cell-input"
                 style={{
                   width: "100%",
-                  fontSize: 14,
+                  height: 38,
+                  fontSize: 13.5,
                   fontWeight: 600,
-                  padding: "8px 12px",
-                  border: "1px solid #cbd5e1",
+                  padding: "0 10px",
+                  border: "1.5px solid #cbd5e1",
                   borderRadius: 6,
                   background: "#fff",
+                  boxSizing: "border-box",
                 }}
                 value={poCreateVatRate}
                 onChange={(e) => setPoCreateVatRate(Number(e.target.value))}
@@ -3651,17 +3804,30 @@ export default function ApprovalManagement({
               </div>
             </div>
 
+            {/* Nút hành động */}
             <div
               style={{
                 display: "flex",
                 justifyContent: "flex-end",
                 gap: 10,
-                marginTop: 8,
+                marginTop: 6,
+                paddingTop: 14,
+                borderTop: "1px solid #e2e8f0",
               }}
             >
               <button
                 type="button"
                 className="btn"
+                style={{
+                  height: 38,
+                  padding: "0 16px",
+                  borderRadius: 6,
+                  border: "1px solid #cbd5e1",
+                  background: "#ffffff",
+                  color: "#475569",
+                  fontWeight: 600,
+                  cursor: "pointer",
+                }}
                 onClick={() => setPoCreateModalReq(null)}
               >
                 Hủy
@@ -3670,14 +3836,24 @@ export default function ApprovalManagement({
                 type="button"
                 className="btn btn-primary"
                 style={{
-                  background: isDuplicatePO || !poCreateCustomNumber.trim() ? "#94a3b8" : "#16a34a",
-                  borderColor: isDuplicatePO || !poCreateCustomNumber.trim() ? "#94a3b8" : "#16a34a",
-                  cursor: isDuplicatePO || !poCreateCustomNumber.trim() ? "not-allowed" : "pointer",
+                  height: 38,
+                  padding: "0 20px",
+                  borderRadius: 6,
+                  border: "none",
+                  fontWeight: 700,
+                  fontSize: 13.5,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 6,
+                  background: isButtonDisabled ? "#94a3b8" : "#16a34a",
+                  color: "#ffffff",
+                  cursor: isButtonDisabled ? "not-allowed" : "pointer",
+                  boxShadow: isButtonDisabled ? "none" : "0 2px 8px rgba(22, 163, 74, 0.35)",
                 }}
-                disabled={isDuplicatePO || !poCreateCustomNumber.trim()}
+                disabled={isButtonDisabled}
                 onClick={() => {
-                  if (isDuplicatePO || !poCreateCustomNumber.trim()) return;
-                  onCreatePOFromApproval(poCreateModalReq, poCreateVatRate, poCreateCustomNumber.trim());
+                  if (isButtonDisabled) return;
+                  onCreatePOFromApproval(poCreateModalReq, poCreateVatRate, effectivePoNumber);
                   setPoCreateModalReq(null);
                 }}
               >
@@ -3690,7 +3866,7 @@ export default function ApprovalManagement({
     );
   }
 
-  function renderPRSourceModal() {
+    function renderPRSourceModal() {
     return (
       <div
         className="backdrop no-print"
