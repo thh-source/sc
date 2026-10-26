@@ -10,6 +10,7 @@ import {
   RotateCcw,
   CreditCard,
   FileDown,
+  Printer,
   ClipboardCheck,
   Table,
   LayoutGrid,
@@ -59,6 +60,8 @@ export function PODetail({
   onStatus,
   onCreateHandover,
   onCreatePaymentRequest,
+  onOpenGeneralPaymentRequest,
+  onPrintPaymentRequest,
   onNavigateToPayment,
   onSave,
   onAddSupplier,
@@ -66,6 +69,7 @@ export function PODetail({
   prs = [],
   paymentRequests = [],
   paymentHandovers = [],
+  paymentTemplate,
   onNavigate,
   onDelete,
 }: {
@@ -81,6 +85,9 @@ export function PODetail({
   onStatus?: (message: string) => void;
   onCreateHandover?: (po: PO) => void;
   onCreatePaymentRequest?: (po: PO, payment: Payment) => void;
+  onOpenGeneralPaymentRequest?: (po: PO) => void;
+  onPrintPaymentRequest?: (paymentRequestId: number) => void;
+  paymentTemplate?: any;
   onNavigateToPayment?: (reqId?: number) => void;
   onSave?: () => Promise<void> | void;
   onAddSupplier?: (supplier: Supplier) => void;
@@ -807,6 +814,36 @@ export function PODetail({
               title="Tạo biên bản bàn giao cho các mặt hàng trong đơn này"
             >
               <Truck size={16} /> Bàn giao
+            </button>
+          )}
+          {(onCreatePaymentRequest || onOpenGeneralPaymentRequest) && (
+            <button
+              type="button"
+              className="btn btn-teal btn-md"
+              onClick={() => {
+                if (onOpenGeneralPaymentRequest) {
+                  onOpenGeneralPaymentRequest(po);
+                } else if (onCreatePaymentRequest && po.payments && po.payments.length > 0) {
+                  onCreatePaymentRequest(po, po.payments[0]);
+                }
+              }}
+              title="Lập Đề nghị thanh toán (ĐNTT) và mở ngay bản in Mẫu 01-TT"
+              style={{
+                height: "38px",
+                padding: "0 14px",
+                fontSize: "12.5px",
+                fontWeight: 600,
+                cursor: "pointer",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "5px",
+                background: "#0284c7",
+                color: "#ffffff",
+                border: "none",
+                borderRadius: "6px",
+              }}
+            >
+              <CreditCard size={15} /> Tạo ĐNTT
             </button>
           )}
           {!readOnly && (
@@ -1891,7 +1928,25 @@ export function PODetail({
                         <div className="po-payment-req-linked">
                           <span>✓ Đã liên kết Đề nghị thanh toán #{p.paymentRequestId}</span>
                         </div>
-                        <div style={{ display: "flex", gap: "8px" }}>
+                        <div style={{ display: "flex", gap: "6px", alignItems: "center", flexWrap: "wrap" }}>
+                          {onPrintPaymentRequest && (
+                            <button
+                              type="button"
+                              className="po-create-payment-req-btn"
+                              onClick={() => onPrintPaymentRequest(p.paymentRequestId!)}
+                              style={{
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: "5px",
+                                background: "#0284c7",
+                                color: "#ffffff",
+                                border: "none",
+                              }}
+                              title="Mở trực tiếp bản in Giấy đề nghị thanh toán (Mẫu 01-TT)"
+                            >
+                              <Printer size={13} /> In phiếu ĐNTT
+                            </button>
+                          )}
                           <button
                             type="button"
                             className="po-create-payment-req-btn"
@@ -1924,9 +1979,17 @@ export function PODetail({
                             type="button"
                             className="po-create-payment-req-btn"
                             onClick={() => onCreatePaymentRequest(po, p)}
-                            style={{ display: "inline-flex", alignItems: "center", gap: "5px" }}
+                            style={{
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: "5px",
+                              background: "#16a34a",
+                              color: "#ffffff",
+                              border: "none",
+                            }}
+                            title="Lập Đề nghị thanh toán và mở trực tiếp bản in Mẫu 01-TT"
                           >
-                            <CreditCard size={14} /> Lập ĐNTT
+                            <CreditCard size={14} /> Lập ĐNTT & In
                           </button>
                         )}
                       </div>

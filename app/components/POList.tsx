@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from "react";
-import { Plus, ArrowRight, Trash2, Truck, Search, CheckCircle2, Circle, Pencil, RotateCcw } from "lucide-react";
+import { Plus, ArrowRight, Trash2, Truck, Search, CheckCircle2, Circle, Pencil, RotateCcw, CreditCard } from "lucide-react";
 import { Supplier, PO, PR, Item, ApprovalRequest, PaymentRequestEntry, PaymentHandoverItem, getPOContractInfo, formatPONumber, generatePOCode, isPONumberExists, TrashItem, calcPOTotal } from "../types";
 import { fmt, dateVN, makeId } from "../utils";
 import { SupplierSearchCombobox } from "./SupplierSearchCombobox";
@@ -39,6 +39,7 @@ export function POList({
   onAddSupplier,
   onAddProduct,
   onCreateHandover,
+  onCreatePaymentRequest,
   onNavigate,
   onToggleComplete,
   onUpdatePO,
@@ -58,6 +59,7 @@ export function POList({
   onAddSupplier?: (supplier: Supplier) => void;
   onAddProduct?: (product: Item) => void;
   onCreateHandover?: (po: PO) => void;
+  onCreatePaymentRequest?: (po: PO) => void;
   onNavigate?: (route: any) => void;
   onToggleComplete?: (po: PO) => void;
   onUpdatePO?: (po: PO, oldNumber?: string) => void;
@@ -611,6 +613,17 @@ export function POList({
                       <Truck size={16} />
                     </button>
                   )}
+                  {onCreatePaymentRequest && (
+                    <button
+                      type="button"
+                      className="btn-icon"
+                      onClick={() => onCreatePaymentRequest(po)}
+                      title="Lập Đề nghị thanh toán (ĐNTT)"
+                      style={{ color: "#0284c7" }}
+                    >
+                      <CreditCard size={16} />
+                    </button>
+                  )}
                   {onDelete && (
                     <button className="btn-icon danger-ghost" onClick={() => onDelete(po)} title="Xóa PO">
                       <Trash2 size={16} />
@@ -800,6 +813,17 @@ export function POList({
                             title="Tạo biên bản bàn giao cho PO này"
                           >
                             <Truck size={16} />
+                          </button>
+                        )}
+                        {onCreatePaymentRequest && (
+                          <button
+                            type="button"
+                            className="btn-icon"
+                            onClick={() => onCreatePaymentRequest(po)}
+                            title="Lập Đề nghị thanh toán (ĐNTT) và mở ngay bản in Mẫu 01-TT"
+                            style={{ color: "#0284c7" }}
+                          >
+                            <CreditCard size={16} />
                           </button>
                         )}
                         {onDelete && (

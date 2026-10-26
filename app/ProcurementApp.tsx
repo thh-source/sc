@@ -54,6 +54,10 @@ const ProductCatalog = lazy(() => import("./components/ProductCatalog").then(m =
 const SupplierManagement = lazy(() => import("./components/SupplierManagement").then(m => ({ default: m.SupplierManagement })));
 import { GlobalSpotlightModal } from "./components/GlobalSpotlightModal";
 import { POHandoverPickerModal } from "./components/POHandoverPickerModal";
+import { HandoverPrintPreviewModal } from "./components/HandoverPrintPreviewModal";
+import { PaymentPrintPreviewModal } from "./components/PaymentPrintPreviewModal";
+import { SupplierQuickBankModal } from "./components/SupplierQuickBankModal";
+import { PaymentStagePickerModal } from "./components/PaymentStagePickerModal";
 import { SettingsModal } from "./components/SettingsModal";
 import { CatalogManagement } from "./components/CatalogManagement";
 import { I18nProvider, useTranslation, LanguageSwitcher } from "./i18n";
@@ -185,6 +189,23 @@ function ProcurementAppInner({
   const [spotlightHandoverSearch, setSpotlightHandoverSearch] = useState<string>("");
   const [handoverPickerPO, setHandoverPickerPO] = useState<PO | null>(null);
   const [showHandoverPickerModal, setShowHandoverPickerModal] = useState(false);
+  const [printHandoverData, setPrintHandoverData] = useState<{
+    isOpen: boolean;
+    items: PaymentHandoverItem[];
+    po: PO | null;
+    department?: string;
+    handoverDate?: string;
+    senderName?: string;
+    receiverName?: string;
+  } | null>(null);
+  const [printPaymentRequest, setPrintPaymentRequest] = useState<PaymentRequestEntry | null>(null);
+  const [supplierQuickBankState, setSupplierQuickBankState] = useState<{
+    isOpen: boolean;
+    supplier: Supplier;
+    pendingPO: PO;
+    pendingPayment: Payment;
+  } | null>(null);
+  const [paymentStagePickerPO, setPaymentStagePickerPO] = useState<PO | null>(null);
   const [helpDrawerOpen, setHelpDrawerOpen] = useState(false);
   const [settingsModalOpen, setSettingsModalOpen] = useState(false);
   const [catalogSubTab, setCatalogSubTab] = useState<"products" | "suppliers">("products");
@@ -1660,10 +1681,55 @@ function ProcurementAppInner({
       };
     });
 
+    // Update PO delivery progress & status immediately
+    const updatedItems = (handoverPickerPO.items || []).map((it) => {
+      const entry = payload.items.find((x) => x.item.id === it.id);
+      if (!entry) return it;
+      const addQty = Number(entry.qtyPass) || Number(entry.qtyDoc) || 0;
+      const nextDelivered = (Number(it.deliveredQty) || 0) + addQty;
+      const reqQty = Number(it.qty) || 0;
+      const nextStatus =
+        nextDelivered >= reqQty
+          ? "Đã giao"
+          : nextDelivered > 0
+          ? "Giao một phần"
+          : it.deliveryStatus || "Chưa giao";
+      return {
+        ...it,
+        deliveredQty: nextDelivered,
+        deliveryStatus: nextStatus as any,
+        deliveryDate: payload.handoverDate || localToday(),
+      };
+    });
+
+    const allDone = updatedItems.length > 0 && updatedItems.every((i) => (Number(i.deliveredQty) || 0) >= (Number(i.qty) || 0));
+    const someDone = updatedItems.some((i) => (Number(i.deliveredQty) || 0) > 0);
+    const nextPoStatus = allDone ? "Đã giao đủ" : someDone ? "Đang giao hàng" : handoverPickerPO.status;
+
+    const updatedPO: PO = {
+      ...handoverPickerPO,
+      status: nextPoStatus,
+      items: updatedItems,
+    };
+    updatePO(updatedPO);
+    if (currentPO?.id === handoverPickerPO.id) {
+      setCurrentPO(updatedPO);
+    }
+
     setPaymentHandovers((prev) => [...newHandovers, ...prev]);
     setSpotlightHandoverSearch(handoverPickerPO.number);
-    navigateTo({ view: "handover" });
-    setStorageStatus(`Đã bàn giao ${newHandovers.length} mặt hàng cho ${payload.department} từ ${docTypeLabel} #${handoverPickerPO.number}`);
+
+    // Mở trực tiếp Modal Preview Bản in Biên bản bàn giao, không redirect tab
+    setPrintHandoverData({
+      isOpen: true,
+      items: newHandovers,
+      po: updatedPO,
+      department: payload.department,
+      handoverDate: payload.handoverDate,
+      senderName: payload.senderName,
+      receiverName: payload.receiverName,
+    });
+    setStorageStatus(`✓ Đã bàn giao ${newHandovers.length} mặt hàng cho ${payload.department} từ ${docTypeLabel} #${handoverPickerPO.number}. Mở bản in biên bản.`);
   };
 
   const handleCreatePaymentRequestFromHandover = (newReq: PaymentRequestEntry) => {
@@ -1674,26 +1740,12 @@ function ProcurementAppInner({
     setStorageStatus(`Đã tạo Đề nghị thanh toán #${newReq.legacy_stt} từ ${newReq.lines?.length || 0} vật tư bàn giao!`);
   };
 
-  const handleCreatePaymentRequestFromPOPayment = (po: PO, payment: Payment) => {
-    if (payment.paymentRequestId) {
-      const existing = paymentRequests.find((r) => r.id === payment.paymentRequestId);
-      if (existing) {
-        const go = confirm(
-          `Đợt "${payment.phase}" đã liên kết với Đề nghị thanh toán #${existing.legacy_stt || existing.id}.\n\n` +
-          `• Bấm [OK] để chuyển sang xem ĐNTT này.\n` +
-          `• Bấm [Hủy] để tiếp tục ở lại.`
-        );
-        if (go) {
-          setSpotlightPaymentActiveId(existing.id);
-          navigateTo({ view: "payment", id: existing.id });
-        }
-        return;
-      }
-    }
-
+  const executeCreatePaymentRequest = (
+    po: PO,
+    payment: Payment,
+    customInfo?: { address?: string; bankAccount?: string; bank?: string }
+  ) => {
     const supplier = suppliers.find((s) => s.id === po.supplierId);
-    const total = po.items.reduce((s, i) => s + i.qty * i.price, 0);
-    const docTypeLabel = isContractPO(po) ? "Hợp đồng" : "PO";
     const maxId = Math.max(0, ...paymentRequests.map((r) => Number(r.id) || 0)) + 1;
     const todayStr = localToday();
     const condition = payment.condition || "post";
@@ -1703,6 +1755,30 @@ function ProcurementAppInner({
         ? "Yêu cầu NCC bổ sung hóa đơn VAT đầy đủ sau khi giao hàng"
         : (payment.note || "");
 
+    const finalAddress = customInfo?.address || supplier?.address || "";
+    const finalAccount = customInfo?.bankAccount || supplier?.bankAccount || "";
+    const finalBank = customInfo?.bank || supplier?.bank || "";
+
+    const pctFactor = payment.percent ? payment.percent / 100 : 1;
+    const lines: PaymentDetailLine[] =
+      po.items && po.items.length > 0
+        ? po.items.map((it) => ({
+            description: `${it.name}${it.spec ? " (" + it.spec + ")" : ""}`,
+            invoice_no: payment.invoiceNo || "",
+            invoice_date: payment.invoiceDate || "",
+            amount: Math.round(Number(it.qty || 0) * Number(it.price || 0) * pctFactor),
+            note: it.note || "",
+          }))
+        : [
+            {
+              description: po.items?.map((i) => i.name).slice(0, 3).join(", ") || payment.phase,
+              invoice_no: payment.invoiceNo || "",
+              invoice_date: payment.invoiceDate || "",
+              amount: payment.amount,
+              note: payment.note || "",
+            },
+          ];
+
     const newRequest: PaymentRequestEntry = {
       id: maxId,
       legacy_stt: maxId,
@@ -1711,42 +1787,130 @@ function ProcurementAppInner({
       group_code: po.number,
       description: buildPOPaymentDescription(po, payment),
       item_name: po.items?.map((i) => i.name).slice(0, 3).join(", ") + (po.items?.length > 3 ? "..." : "") || payment.phase,
-      invoice_no: "",
-      invoice_date: "",
+      invoice_no: payment.invoiceNo || "",
+      invoice_date: payment.invoiceDate || "",
       amount: payment.amount,
       currency: "VND",
-      documents: [],
+      documents: ["Hợp đồng / PO", "Biên bản bàn giao nghiệm thu", "Hóa đơn GTGT"],
       request_date: payment.date || todayStr,
       payment_type: condition === "advance" ? "Tạm ứng" : "Thanh toán công nợ",
       status: "Chờ duyệt",
       doc_supplement: docSupplement,
-      address: supplier?.address || "",
-      account_no: supplier?.bankAccount || "",
-      bank: supplier?.bank || "",
+      address: finalAddress,
+      account_no: finalAccount,
+      bank: finalBank,
       created_by_name: "Phòng Cung ứng",
       due_date: payment.date || todayStr,
-      lines: [],
+      lines,
     };
 
-    // Update PO payment stage with the new paymentRequestId
+    // Cập nhật payment stage trong PO với paymentRequestId mới
     const updatedPayments = (po.payments || []).map((p) =>
       p.id === payment.id ? { ...p, paymentRequestId: maxId, status: "Đang xử lý" as const } : p
     );
     const updatedPO = { ...po, payments: updatedPayments };
     updatePO(updatedPO);
+    if (currentPO?.id === po.id) {
+      setCurrentPO(updatedPO);
+    }
 
-    // Add to paymentRequests state
+    // Lưu vào state paymentRequests
     setPaymentRequests((prev) => [newRequest, ...prev]);
-    setStorageStatus(`Đã tạo Đề nghị thanh toán #${maxId} cho ${payment.phase}`);
+    setStorageStatus(`✓ Đã tạo Đề nghị thanh toán #${maxId} cho ${payment.phase}. Mở bản in Mẫu 01-TT.`);
 
-    const go = confirm(
-      `✓ Đã lập Đề nghị thanh toán #${maxId} thành công cho đợt "${payment.phase}" (Số tiền: ${fmt(payment.amount)} ₫).\n\n` +
-      `• Bấm [OK] để chuyển ngay sang tab "Quản lý thanh toán" để duyệt và in phiếu.\n` +
-      `• Bấm [Hủy] để tiếp tục ở lại đơn hàng này.`
-    );
-    if (go) {
-      setSpotlightPaymentActiveId(maxId);
-      navigateTo({ view: "payment", id: maxId });
+    // Mở trực tiếp trang in/modal xem trước bản in Giấy đề nghị thanh toán
+    setPrintPaymentRequest(newRequest);
+  };
+
+  const handleCreatePaymentRequestFromPOPayment = (
+    po: PO,
+    payment: Payment,
+    customSupplierInfo?: { address?: string; bankAccount?: string; bank?: string }
+  ) => {
+    // Nếu đợt thanh toán này đã có ĐNTT liên kết -> mở trực tiếp bản in ĐNTT đó
+    if (payment.paymentRequestId) {
+      const existing = paymentRequests.find((r) => r.id === payment.paymentRequestId);
+      if (existing) {
+        setPrintPaymentRequest(existing);
+        return;
+      }
+    }
+
+    const supplier = suppliers.find((s) => s.id === po.supplierId);
+    const hasAddress = Boolean(customSupplierInfo?.address || supplier?.address?.trim());
+    const hasAccount = Boolean(customSupplierInfo?.bankAccount || supplier?.bankAccount?.trim());
+    const hasBank = Boolean(customSupplierInfo?.bank || supplier?.bank?.trim());
+
+    // Kiểm tra thông tin NCC: Địa chỉ, Số tài khoản ngân hàng, Tên ngân hàng
+    if (!hasAddress || !hasAccount || !hasBank) {
+      setSupplierQuickBankState({
+        isOpen: true,
+        supplier: supplier || {
+          id: po.supplierId || Date.now(),
+          code: "",
+          name: "Nhà cung cấp",
+          address: "",
+          bankAccount: "",
+          bank: "",
+          contact: "",
+          phone: "",
+        },
+        pendingPO: po,
+        pendingPayment: payment,
+      });
+      return;
+    }
+
+    executeCreatePaymentRequest(po, payment, customSupplierInfo);
+  };
+
+  const handleConfirmQuickBank = (info: {
+    bankAccount: string;
+    bank: string;
+    address: string;
+    saveToCatalog: boolean;
+  }) => {
+    if (!supplierQuickBankState) return;
+    const { supplier, pendingPO, pendingPayment } = supplierQuickBankState;
+
+    if (info.saveToCatalog && supplier.id) {
+      setSuppliers((prev) =>
+        prev.map((s) =>
+          s.id === supplier.id
+            ? { ...s, bankAccount: info.bankAccount, bank: info.bank, address: info.address }
+            : s
+        )
+      );
+    }
+
+    setSupplierQuickBankState(null);
+    executeCreatePaymentRequest(pendingPO, pendingPayment, info);
+  };
+
+  const handleOpenGeneralPaymentRequestFromPO = (po: PO) => {
+    const payments = po.payments || [];
+    if (payments.length === 0) {
+      const defaultStage: Payment = {
+        id: Date.now(),
+        phase: "Thanh toán 100%",
+        percent: 100,
+        amount: calcPOTotal(po),
+        status: "Chưa thanh toán",
+        date: localToday(),
+        condition: "post",
+      };
+      const updatedPO = { ...po, payments: [defaultStage] };
+      updatePO(updatedPO);
+      if (currentPO?.id === po.id) setCurrentPO(updatedPO);
+      handleCreatePaymentRequestFromPOPayment(updatedPO, defaultStage);
+      return;
+    }
+
+    const unlinked = payments.filter((p) => !p.paymentRequestId);
+    if (unlinked.length === 1) {
+      handleCreatePaymentRequestFromPOPayment(po, unlinked[0]);
+    } else {
+      setPaymentStagePickerPO(po);
     }
   };
   const activeContracts = pos.filter((po) => !hiddenContractIds.includes(po.id));
@@ -2152,6 +2316,7 @@ function ProcurementAppInner({
                 navigateTo({ view: "payment" });
               }}
               onCreateHandover={handleCreateHandoverFromPO}
+              onCreatePaymentRequest={handleOpenGeneralPaymentRequestFromPO}
             />
           </ErrorBoundary>
         )}
@@ -2363,6 +2528,7 @@ function ProcurementAppInner({
               }}
               onDelete={reportMode ? undefined : (po) => requestDelete("PO", po)}
               onCreateHandover={handleCreateHandoverFromPO}
+              onCreatePaymentRequest={handleOpenGeneralPaymentRequestFromPO}
               readOnly={reportMode}
             />
           </ErrorBoundary>
@@ -2385,6 +2551,12 @@ function ProcurementAppInner({
               onStatus={setStorageStatus}
               onCreateHandover={handleCreateHandoverFromPO}
               onCreatePaymentRequest={handleCreatePaymentRequestFromPOPayment}
+              onOpenGeneralPaymentRequest={handleOpenGeneralPaymentRequestFromPO}
+              onPrintPaymentRequest={(reqId) => {
+                const req = paymentRequests.find((r) => r.id === reqId);
+                if (req) setPrintPaymentRequest(req);
+              }}
+              paymentTemplate={paymentTemplate}
               onNavigateToPayment={(reqId) => {
                 if (reqId) setSpotlightPaymentActiveId(reqId);
                 navigateTo({ view: "payment", id: reqId });
@@ -3006,6 +3178,85 @@ function ProcurementAppInner({
         suppliers={suppliers}
         existingHandovers={paymentHandovers}
       />
+
+      {/* Handover Print Preview Modal */}
+      {printHandoverData && (
+        <HandoverPrintPreviewModal
+          isOpen={printHandoverData.isOpen}
+          onClose={() => setPrintHandoverData(null)}
+          items={printHandoverData.items}
+          po={printHandoverData.po}
+          department={printHandoverData.department}
+          handoverDate={printHandoverData.handoverDate}
+          senderName={printHandoverData.senderName}
+          receiverName={printHandoverData.receiverName}
+          onNavigateToHandoverTab={() => {
+            setPrintHandoverData(null);
+            navigateTo({ view: "handover" });
+          }}
+        />
+      )}
+
+      {/* Payment Request Print Preview Modal */}
+      {printPaymentRequest && (
+        <PaymentPrintPreviewModal
+          isOpen={Boolean(printPaymentRequest)}
+          onClose={() => setPrintPaymentRequest(null)}
+          paymentRequest={printPaymentRequest}
+          paymentTemplate={paymentTemplate}
+          suppliers={suppliers}
+          onNavigateToPaymentTab={(id) => {
+            setPrintPaymentRequest(null);
+            setSpotlightPaymentActiveId(id);
+            navigateTo({ view: "payment", id });
+          }}
+        />
+      )}
+
+      {/* Supplier Quick Bank Info Modal */}
+      {supplierQuickBankState && (
+        <SupplierQuickBankModal
+          isOpen={supplierQuickBankState.isOpen}
+          onClose={() => setSupplierQuickBankState(null)}
+          supplier={supplierQuickBankState.supplier}
+          onConfirm={handleConfirmQuickBank}
+        />
+      )}
+
+      {/* Payment Stage Picker Modal */}
+      {paymentStagePickerPO && (
+        <PaymentStagePickerModal
+          isOpen={Boolean(paymentStagePickerPO)}
+          onClose={() => setPaymentStagePickerPO(null)}
+          po={paymentStagePickerPO}
+          paymentRequests={paymentRequests}
+          onSelectStageToCreate={(p) => {
+            handleCreatePaymentRequestFromPOPayment(paymentStagePickerPO, p);
+          }}
+          onPrintExistingRequest={(reqId) => {
+            const req = paymentRequests.find((r) => r.id === reqId);
+            if (req) setPrintPaymentRequest(req);
+          }}
+          onAddAndCreateStage={() => {
+            const defaultStage: Payment = {
+              id: Date.now(),
+              phase: "Thanh toán 100%",
+              percent: 100,
+              amount: calcPOTotal(paymentStagePickerPO),
+              status: "Chưa thanh toán",
+              date: localToday(),
+              condition: "post",
+            };
+            const updatedPO = {
+              ...paymentStagePickerPO,
+              payments: [...(paymentStagePickerPO.payments || []), defaultStage],
+            };
+            updatePO(updatedPO);
+            if (currentPO?.id === paymentStagePickerPO.id) setCurrentPO(updatedPO);
+            handleCreatePaymentRequestFromPOPayment(updatedPO, defaultStage);
+          }}
+        />
+      )}
     </div>
   );
 }

@@ -42,6 +42,7 @@ export interface ContractManagementProps {
   onAddSupplier?: (supplier: Supplier) => void;
   onAddProduct?: (product: Item) => void;
   onCreateHandover?: (po: PO) => void;
+  onCreatePaymentRequest?: (po: PO) => void;
 }
 
 export function ContractManagement({
@@ -63,6 +64,7 @@ export function ContractManagement({
   onAddSupplier,
   onAddProduct,
   onCreateHandover,
+  onCreatePaymentRequest,
 }: ContractManagementProps) {
   const { t } = useTranslation();
   // Main tab switcher: PO Contracts vs Contract Groups

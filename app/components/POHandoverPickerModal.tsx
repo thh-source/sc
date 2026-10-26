@@ -666,7 +666,7 @@ export function POHandoverPickerModal({
                 boxShadow: selectedCount > 0 ? "0 2px 8px rgba(22, 163, 74, 0.3)" : "none",
               }}
             >
-              <span>✓ Xác nhận bàn giao ({selectedCount})</span>
+              <span>✓ Lưu & In biên bản ({selectedCount})</span>
             </button>
           </div>
         </div>
