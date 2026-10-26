@@ -18,6 +18,7 @@ export async function GET(request: Request) {
   const items = await db.select().from(prItems).where(inArray(prItems.prId, prIds));
   
   const result = prList.map(pr => ({
+    scan_file_url: (pr as any).scanFileUrl || (pr as any).scan_file_url || null,
     ...pr,
     items: items.filter(i => i.prId === pr.id).map(i => ({
       id: i.originalId,
@@ -58,7 +59,8 @@ export async function POST(request: Request) {
       department: pr.department,
       purpose: pr.purpose,
       status: pr.status,
-      note: pr.note
+      note: pr.note,
+      scanFileUrl: pr.scan_file_url || pr.scanFileUrl || null
     })));
 
     const allItems = data.flatMap((pr: any) => (pr.items || []).map((i: any) => ({

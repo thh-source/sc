@@ -1,5 +1,7 @@
 import React, { useState } from "react";
-import { Plus, ArrowRight, Trash2, Search, CheckCircle2, Circle, Scale } from "lucide-react";
+import { Plus, ArrowRight, Trash2, Search, CheckCircle2, Circle, Scale, Eye, Printer, Paperclip, Loader2 } from "lucide-react";
+import { compressImageIfNeeded } from "../utils/compressImage";
+import { PRScanPreviewModal } from "./PRScanPreviewModal";
 import { PR, PO, ApprovalRequest, PaymentRequestEntry, PaymentHandoverItem } from "../types";
 import { fmt, dateVN } from "../utils";
 import { useTranslation } from "../i18n";
@@ -18,6 +20,7 @@ export function PRList({
   onDelete,
   onNavigate,
   onToggleComplete,
+  onUpdateScanUrl,
 }: {
   prs: PR[];
   pos?: PO[];
@@ -29,9 +32,109 @@ export function PRList({
   onDelete?: (pr: PR) => void;
   onNavigate?: (route: any) => void;
   onToggleComplete?: (pr: PR) => void;
+  onUpdateScanUrl?: (prId: number, scanUrl: string) => void;
 }) {
   const { t } = useTranslation();
   const [q, setQ] = useState("");
+  const [previewScanPR, setPreviewScanPR] = useState<PR | null>(null);
+  const [uploadingPrId, setUploadingPrId] = useState<number | null>(null);
+  const [targetUploadPR, setTargetUploadPR] = useState<PR | null>(null);
+  const rowScanInputRef = React.useRef<HTMLInputElement>(null);
+
+  const handleUploadScanForPR = async (pr: PR, file: File) => {
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024 && file.type === "application/pdf") {
+      alert("File PDF vượt quá 5MB. Vui lòng chọn file nhẹ hơn.");
+      return;
+    }
+
+    setUploadingPrId(pr.id);
+    try {
+      const finalFile = await compressImageIfNeeded(file);
+      if (finalFile.size > 5 * 1024 * 1024) {
+        alert("Ảnh sau khi nén vẫn vượt quá 5MB. Vui lòng chọn ảnh dung lượng vừa phải hơn.");
+        setUploadingPrId(null);
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append("file", finalFile);
+      formData.append("pr_code", pr.number);
+      formData.append("prId", String(pr.id));
+
+      const res = await fetch("/api/upload-scan", {
+        method: "POST",
+        body: formData,
+      });
+
+      const data: any = await res.json();
+      if (!res.ok || !data.ok) {
+        throw new Error(data.error || "Tải lên bản scan thất bại");
+      }
+
+      pr.scan_file_url = data.scan_file_url;
+      onUpdateScanUrl?.(pr.id, data.scan_file_url);
+    } catch (err: any) {
+      alert(err.message || "Lỗi tải lên bản scan");
+    } finally {
+      setUploadingPrId(null);
+      setTargetUploadPR(null);
+    }
+  };
+
+  const handleQuickPrint = (pr: PR) => {
+    if (!pr.scan_file_url) return;
+    const scanUrl = pr.scan_file_url;
+    const isPdf =
+      scanUrl.toLowerCase().includes(".pdf") ||
+      (scanUrl.toLowerCase().includes("key=") && scanUrl.toLowerCase().includes(".pdf"));
+
+    if (isPdf) {
+      const printFrame = document.createElement("iframe");
+      printFrame.style.position = "fixed";
+      printFrame.style.right = "0";
+      printFrame.style.bottom = "0";
+      printFrame.style.width = "0";
+      printFrame.style.height = "0";
+      printFrame.style.border = "none";
+      printFrame.src = scanUrl;
+      document.body.appendChild(printFrame);
+      printFrame.onload = () => {
+        try {
+          printFrame.contentWindow?.focus();
+          printFrame.contentWindow?.print();
+        } catch {
+          window.open(scanUrl, "_blank");
+        }
+        setTimeout(() => {
+          try {
+            document.body.removeChild(printFrame);
+          } catch {}
+        }, 60000);
+      };
+    } else {
+      const printWindow = window.open("", "_blank");
+      if (printWindow) {
+        printWindow.document.write(`
+          <!DOCTYPE html>
+          <html>
+            <head>
+              <title>Bản scan PR #${pr.number}</title>
+              <style>
+                @page { size: auto; margin: 8mm; }
+                body { margin: 0; padding: 0; display: flex; justify-content: center; align-items: flex-start; background: #fff; }
+                img { max-width: 100%; height: auto; object-fit: contain; }
+              </style>
+            </head>
+            <body>
+              <img src="${scanUrl}" onload="window.print(); setTimeout(() => window.close(), 1000);" />
+            </body>
+          </html>
+        `);
+        printWindow.document.close();
+      }
+    }
+  };
   const shown = prs
     .filter((p) =>
       (p.number + p.department + p.purpose)
@@ -122,7 +225,67 @@ export function PRList({
                   >
                     <Scale size={14} /> So sánh giá
                   </button>
-                  <div style={{ display: "inline-flex", gap: "6px" }}>
+                  <div style={{ display: "inline-flex", gap: "6px", alignItems: "center" }}>
+                    {pr.scan_file_url ? (
+                      <div style={{ display: "inline-flex", gap: "4px", alignItems: "center" }}>
+                        <button
+                          type="button"
+                          className="btn-icon primary-ghost"
+                          onClick={() => setPreviewScanPR(pr)}
+                          title="Xem bản scan PR"
+                          style={{
+                            color: "#0284c7",
+                            backgroundColor: "#f0f9ff",
+                            border: "1px solid #bae6fd",
+                            borderRadius: "4px",
+                            padding: "4px 6px",
+                            display: "inline-flex",
+                            alignItems: "center",
+                          }}
+                        >
+                          <Eye size={15} />
+                        </button>
+                        <button
+                          type="button"
+                          className="btn-icon secondary-ghost"
+                          onClick={() => handleQuickPrint(pr)}
+                          title="In bản scan"
+                          style={{
+                            color: "#475569",
+                            backgroundColor: "#f8fafc",
+                            border: "1px solid #cbd5e1",
+                            borderRadius: "4px",
+                            padding: "4px 6px",
+                            display: "inline-flex",
+                            alignItems: "center",
+                          }}
+                        >
+                          <Printer size={15} />
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        className="btn-icon"
+                        onClick={() => {
+                          setTargetUploadPR(pr);
+                          rowScanInputRef.current?.click();
+                        }}
+                        title="Tải lên bản scan PR"
+                        disabled={uploadingPrId === pr.id}
+                        style={{
+                          color: "#94a3b8",
+                          backgroundColor: "transparent",
+                          border: "1px dashed #cbd5e1",
+                          borderRadius: "4px",
+                          padding: "4px 6px",
+                          display: "inline-flex",
+                          alignItems: "center",
+                        }}
+                      >
+                        {uploadingPrId === pr.id ? <Loader2 size={14} className="animate-spin text-sky-600" /> : <Paperclip size={14} />}
+                      </button>
+                    )}
                     <button className="btn-icon primary-ghost" onClick={() => onOpen(pr)} title="Mở PR / So sánh giá">
                       <ArrowRight size={16} />
                     </button>
@@ -148,7 +311,7 @@ export function PRList({
               <col style={{ width: "125px" }} />
               <col style={{ width: "125px" }} />
               <col style={{ width: "210px" }} />
-              <col style={{ width: "170px" }} />
+              <col style={{ width: "235px" }} />
             </colgroup>
             <thead>
               <tr>
@@ -206,6 +369,69 @@ export function PRList({
                     </td>
                     <td className="cell-center">
                       <div className="row-actions" style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
+                        {pr.scan_file_url ? (
+                          <div style={{ display: "inline-flex", gap: "4px", alignItems: "center" }}>
+                            <button
+                              type="button"
+                              className="btn-icon primary-ghost"
+                              onClick={() => setPreviewScanPR(pr)}
+                              title="Xem bản scan PR"
+                              style={{
+                                color: "#0284c7",
+                                backgroundColor: "#f0f9ff",
+                                border: "1px solid #bae6fd",
+                                borderRadius: "4px",
+                                padding: "4px 6px",
+                                display: "inline-flex",
+                                alignItems: "center",
+                                cursor: "pointer",
+                              }}
+                            >
+                              <Eye size={15} />
+                            </button>
+                            <button
+                              type="button"
+                              className="btn-icon secondary-ghost"
+                              onClick={() => handleQuickPrint(pr)}
+                              title="In bản scan"
+                              style={{
+                                color: "#475569",
+                                backgroundColor: "#f8fafc",
+                                border: "1px solid #cbd5e1",
+                                borderRadius: "4px",
+                                padding: "4px 6px",
+                                display: "inline-flex",
+                                alignItems: "center",
+                                cursor: "pointer",
+                              }}
+                            >
+                              <Printer size={15} />
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            className="btn-icon"
+                            onClick={() => {
+                              setTargetUploadPR(pr);
+                              rowScanInputRef.current?.click();
+                            }}
+                            title="Tải lên bản scan PR"
+                            disabled={uploadingPrId === pr.id}
+                            style={{
+                              color: "#94a3b8",
+                              backgroundColor: "transparent",
+                              border: "1px dashed #cbd5e1",
+                              borderRadius: "4px",
+                              padding: "4px 6px",
+                              display: "inline-flex",
+                              alignItems: "center",
+                              cursor: "pointer",
+                            }}
+                          >
+                            {uploadingPrId === pr.id ? <Loader2 size={14} className="animate-spin text-sky-600" /> : <Paperclip size={14} />}
+                          </button>
+                        )}
                         <button
                           type="button"
                           className="btn btn-secondary btn-xs"
@@ -245,6 +471,26 @@ export function PRList({
           </table>
         </div>
       </div>
+      <input
+        ref={rowScanInputRef}
+        type="file"
+        accept="application/pdf,image/png,image/jpeg,image/webp"
+        hidden
+        onChange={(e) => {
+          const f = e.target.files?.[0];
+          if (f && targetUploadPR) {
+            handleUploadScanForPR(targetUploadPR, f);
+          }
+          e.target.value = "";
+        }}
+      />
+
+      {previewScanPR && (
+        <PRScanPreviewModal
+          pr={previewScanPR}
+          onClose={() => setPreviewScanPR(null)}
+        />
+      )}
     </section>
   );
 }

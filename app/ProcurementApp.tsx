@@ -214,12 +214,21 @@ function ProcurementAppInner({
     [compareFilterOpen, setCompareFilterOpen] = useState<ColumnKey | null>(
       null,
     );
-  const [draft, setDraft] = useState({
+  const [draft, setDraft] = useState<{
+    number: string;
+    date: string;
+    department: string;
+    purpose: string;
+    note: string;
+    scan_file_url?: string;
+    items: Item[];
+  }>({
     number: "",
     date: new Date().toISOString().slice(0, 10),
     department: "",
     purpose: "",
     note: "",
+    scan_file_url: "",
     items: [emptyItem(0), emptyItem(1)],
   });
   useEffect(() => {
@@ -909,6 +918,12 @@ function ProcurementAppInner({
       list.map((pr) => (pr.id === selectedPR.id ? updated : pr)),
     );
   };
+  const handleUpdatePRScan = (prId: number, scanUrl: string) => {
+    setPrs((list) =>
+      list.map((pr) => (pr.id === prId ? { ...pr, scan_file_url: scanUrl } : pr))
+    );
+  };
+
   const savePR = () => {
     if (
       !draft.number.trim() ||
@@ -927,6 +942,7 @@ function ProcurementAppInner({
       note: draft.note.trim(),
       items: valid,
       status: "Chờ xử lý",
+      scan_file_url: (draft as any).scan_file_url || undefined,
     };
     setPrs((p) => [pr, ...p]);
     setProducts((current) => [
@@ -941,6 +957,7 @@ function ProcurementAppInner({
       department: "",
       purpose: "",
       note: "",
+      scan_file_url: "",
       items: [emptyItem(0)],
     });
     setImportMessage("");
@@ -2225,6 +2242,7 @@ function ProcurementAppInner({
             onDelete={reportMode ? undefined : (pr) => requestDelete("PR", pr)}
             onNavigate={(route) => navigateTo(route)}
             onToggleComplete={handleToggleCompletePR}
+            onUpdateScanUrl={handleUpdatePRScan}
           />
         )}
         {view === "create" && (
@@ -2243,6 +2261,7 @@ function ProcurementAppInner({
                 department: "",
                 purpose: "",
                 note: "",
+                scan_file_url: "",
                 items: [emptyItem(0)],
               });
               navigateTo({ view: "prs" });

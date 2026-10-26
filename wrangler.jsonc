@@ -19,6 +19,10 @@
     {
       "binding": "BUCKET",
       "bucket_name": "mua-hang-files"
+    },
+    {
+      "binding": "R2_BUCKET",
+      "bucket_name": "mua-hang-files"
     }
   ]
 }

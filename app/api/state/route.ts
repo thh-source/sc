@@ -111,6 +111,7 @@ export async function GET(request: Request) {
   
           data.prs = dbPrs.map(pr => ({
               ...pr,
+              scan_file_url: (pr as any).scanFileUrl || (pr as any).scan_file_url || undefined,
               items: filteredPrItems.filter(i => i.prId === pr.id).map(i => ({ ...i, id: i.originalId }))
           }));
           

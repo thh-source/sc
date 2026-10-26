@@ -67,6 +67,7 @@ export type PR = {
   isCompleted?: boolean;
   note?: string;
   quoteCustomColumns?: string[];
+  scan_file_url?: string;
 };
 
 export type POAllocation = {

@@ -96,6 +96,7 @@ export const prs = sqliteTable("prs", {
   purpose: text("purpose"),
   status: text("status"),
   note: text("note"),
+  scanFileUrl: text("scan_file_url"),
 });
 
 export const prItems = sqliteTable("pr_items", {
