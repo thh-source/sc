@@ -11,39 +11,60 @@ import {
 /**
  * Làm sạch chuỗi số khi paste từ Excel (hỗ trợ cả định dạng VN 1.930.000 và US 1,930,000)
  */
-export function cleanExcelNumber(raw: string): number {
+export function cleanExcelNumber(raw: string | number): number {
+  if (typeof raw === "number") return Number.isFinite(raw) ? raw : 0;
   if (!raw) return 0;
-  let s = String(raw)
-    .trim()
-    .replace(/[^\d.,-]/g, "");
+  let s = String(raw).trim();
   if (!s) return 0;
 
-  // Nếu có cả dấu chấm và dấu phẩy
+  // Xóa các ký tự tiền tệ hoặc chữ (đ, VND, đ/cái...)
+  s = s.replace(/[₫đĐVNDvnd\s]/g, "");
+  // Xóa đuôi thập phân .00 hoặc ,00
+  s = s.replace(/[.,]00$/, "");
+
+  // Nếu có cả dấu chấm và dấu phẩy (vd: 1.250.000,50 hoặc 1,250,000.50)
   if (s.includes(".") && s.includes(",")) {
     const lastDot = s.lastIndexOf(".");
     const lastComma = s.lastIndexOf(",");
     if (lastComma > lastDot) {
-      // Dạng 1.930.000,50 -> bỏ dấu chấm, thay phẩy bằng chấm
       s = s.replace(/\./g, "").replace(",", ".");
     } else {
-      // Dạng 1,930,000.50 -> bỏ dấu phẩy
       s = s.replace(/,/g, "");
     }
-  } else if (s.includes(".")) {
+    const num = parseFloat(s);
+    return Number.isFinite(num) ? Math.round(num) : 0;
+  }
+
+  // Nếu có dấu chấm:
+  if (s.includes(".")) {
     const parts = s.split(".");
-    // Nếu có nhiều dấu chấm (1.930.000) hoặc phần sau dấu chấm có đúng 3 chữ số (100.000) -> dấu phân cách hàng nghìn
-    if (parts.length > 2 || (parts.length === 2 && parts[1].length === 3)) {
-      s = s.replace(/\./g, "");
+    // Khi người dùng gõ vào ô format VND (vd: 1.234 gõ thêm 5 thành 1.2345 hoặc 12.3456 hoặc 1.500.000)
+    // Các dấu chấm đều là phân cách hàng nghìn.
+    // Chỉ xem là số thập phân nếu đúng 1 dấu chấm và phần trước dấu chấm là "0" (vd: "0.5")
+    if (parts.length === 2 && parts[0] === "0") {
+      const num = parseFloat(s);
+      return Number.isFinite(num) ? num : 0;
     }
-  } else if (s.includes(",")) {
+    // Ngược lại, trong kế toán VN và đơn giá hàng hóa VND, tất cả dấu chấm đều là phân cách hàng nghìn
+    s = s.replace(/\./g, "");
+  }
+
+  // Nếu có dấu phẩy:
+  if (s.includes(",")) {
     const parts = s.split(",");
+    // Nếu có dạng phân cách hàng nghìn (1,500,000 hoặc 100,000)
     if (parts.length > 2 || (parts.length === 2 && parts[1].length === 3)) {
       s = s.replace(/,/g, "");
-    } else {
+    } else if (parts.length === 2 && (parts[0] === "0" || parts[1].length <= 2)) {
+      // Phẩy thập phân (0,5 hoặc 12,5)
       s = s.replace(",", ".");
+    } else {
+      s = s.replace(/,/g, "");
     }
   }
 
+  // Giữ lại chỉ số và dấu trừ nếu có
+  s = s.replace(/[^\d.-]/g, "");
   const num = Number(s);
   return Number.isFinite(num) ? num : 0;
 }

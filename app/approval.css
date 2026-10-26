@@ -642,49 +642,78 @@
   margin-left: 3px;
 }
 
+/* Seamless Inline Cell Design (Thuần ô bảng tính Excel, không viền kép, không resize) */
+.phenikaa-approval-grid td.cell-item-name,
+.phenikaa-approval-grid td.cell-sub-spec {
+  padding: 0 !important;
+  vertical-align: top;
+}
+
+.phenikaa-approval-grid td.cell-sub-price,
+.phenikaa-approval-grid td.cell-qty,
+.phenikaa-approval-grid td.cell-sub-qty,
+.phenikaa-approval-grid td.cell-unit {
+  padding: 0 !important;
+  vertical-align: middle;
+}
+
 .cell-textarea {
-  width: 100%;
+  width: 100% !important;
   min-width: 0 !important;
   max-width: 100%;
-  border: 1px solid transparent;
-  background: transparent;
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+  background: transparent !important;
   font-family: inherit;
   font-size: 10pt;
   color: #000000;
-  resize: vertical;
-  padding: 1px 2px;
-  line-height: 1.18;
+  resize: none !important;
+  padding: 6px 8px !important;
+  line-height: 1.35;
   white-space: pre-wrap;
   word-break: break-word;
   overflow-wrap: break-word;
+  overflow: hidden;
   box-sizing: border-box;
+  display: block;
 }
 
-.cell-textarea:hover,
+.cell-textarea:hover {
+  background: rgba(241, 245, 249, 0.45) !important;
+}
+
 .cell-textarea:focus {
-  border-color: #94a3b8;
-  background: #ffffff;
-  outline: none;
+  border: none !important;
+  outline: none !important;
+  box-shadow: inset 0 0 0 2px #2563eb !important;
+  background: #ffffff !important;
 }
 
 .cell-input {
-  width: 100%;
+  width: 100% !important;
   min-width: 0 !important;
   max-width: 100%;
-  border: 1px solid transparent;
-  background: transparent;
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+  background: transparent !important;
   font-family: inherit;
   font-size: 10pt;
   color: #000000;
-  padding: 1px 2px;
+  padding: 6px 8px !important;
   box-sizing: border-box;
 }
 
-.cell-input:hover,
+.cell-input:hover {
+  background: rgba(241, 245, 249, 0.45) !important;
+}
+
 .cell-input:focus {
-  border-color: #94a3b8;
-  background: #ffffff;
-  outline: none;
+  border: none !important;
+  outline: none !important;
+  box-shadow: inset 0 0 0 2px #2563eb !important;
+  background: #ffffff !important;
 }
 
 .cell-input.center {

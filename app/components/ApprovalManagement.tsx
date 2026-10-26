@@ -51,7 +51,7 @@ interface ApprovalManagementProps {
   onSaveApproval: (req: ApprovalRequest) => void;
   onDeleteApproval: (id: number) => void;
   onRestoreSamples: () => void;
-  onCreatePOFromApproval: (req: ApprovalRequest) => void;
+  onCreatePOFromApproval: (req: ApprovalRequest, vatRate?: number) => void;
   prs: PR[];
   suppliers: Supplier[];
   quotesByPr: Record<number, Quote>;
@@ -172,6 +172,8 @@ export default function ApprovalManagement({
   const [showExcelPasteModal, setShowExcelPasteModal] = useState(false);
   const [rawExcelModalText, setRawExcelModalText] = useState("");
   const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
+  const [poCreateModalReq, setPoCreateModalReq] = useState<ApprovalRequest | null>(null);
+  const [poCreateVatRate, setPoCreateVatRate] = useState<number>(10);
 
   useEffect(() => {
     setMounted(true);
@@ -1111,7 +1113,10 @@ export default function ApprovalManagement({
                               flow={resolveDocFlow({ approval: req }, { prs, pos, approvalRequests })}
                               currentView="approval"
                               onNavigate={onNavigate}
-                              onCreatePOFromApproval={() => onCreatePOFromApproval(req)}
+                              onCreatePOFromApproval={() => {
+                                setPoCreateVatRate(10);
+                                setPoCreateModalReq(req);
+                              }}
                               compact
                             />
                           </div>
@@ -1141,7 +1146,10 @@ export default function ApprovalManagement({
                                 <button
                                   type="button"
                                   className="btn-icon accent-ghost"
-                                  onClick={() => onCreatePOFromApproval(req)}
+                                  onClick={() => {
+                                    setPoCreateVatRate(10);
+                                    setPoCreateModalReq(req);
+                                  }}
                                   title="Phát hành đơn mua hàng (PO) từ phiếu đã duyệt này"
                                 >
                                   <PackagePlus size={16} />
@@ -1178,6 +1186,9 @@ export default function ApprovalManagement({
 
         {/* Modal Chọn PR khi tạo từ So sánh giá hoặc tạo từ PR */}
         {sourceModalMode && renderPRSourceModal()}
+
+        {/* Modal Chọn VAT khi tạo PO từ Danh sách */}
+        {poCreateModalReq && renderPOCreateModal()}
       </section>
     );
   }
@@ -1231,7 +1242,10 @@ export default function ApprovalManagement({
             flow={resolveDocFlow({ approval: activeRequest }, { prs, pos, approvalRequests })}
             currentView="approval"
             onNavigate={onNavigate}
-            onCreatePOFromApproval={() => onCreatePOFromApproval(activeRequest)}
+            onCreatePOFromApproval={() => {
+            setPoCreateVatRate(10);
+            setPoCreateModalReq(activeRequest);
+          }}
           />
         </div>
 
@@ -1337,7 +1351,10 @@ export default function ApprovalManagement({
                     ? "Vui lòng bấm 'Duyệt phiếu' sang trạng thái Đã phê duyệt trước khi tạo PO"
                     : "Đẩy thông tin Nhà cung cấp được lựa chọn sang Đơn Mua Hàng (PO)"
                 }
-                onClick={() => onCreatePOFromApproval(activeRequest)}
+                onClick={() => {
+                setPoCreateVatRate(10);
+                setPoCreateModalReq(activeRequest);
+              }}
               >
                 <PackagePlus size={16} /> Tạo PO (
                 {activeRequest.supplierColumns.find((c) => c.isSelected)
@@ -3354,6 +3371,9 @@ export default function ApprovalManagement({
         )}
 
       {/* MODAL DÁN NHANH VÙNG DỮ LIỆU TỪ EXCEL */}
+      {/* Modal Chọn VAT khi tạo PO từ Chi tiết */}
+      {poCreateModalReq && renderPOCreateModal()}
+
       {showExcelPasteModal && (
         <div
           className="backdrop no-print"
@@ -3429,6 +3449,144 @@ export default function ApprovalManagement({
       )}
     </section>
   );
+
+  function renderPOCreateModal() {
+    if (!poCreateModalReq) return null;
+    const selectedCol =
+      poCreateModalReq.supplierColumns.find((c) => c.isSelected) ||
+      poCreateModalReq.supplierColumns[0];
+    const supName =
+      poCreateModalReq.recommendedSupplierName ||
+      selectedCol?.supplierName ||
+      "Nhà cung cấp được phê duyệt";
+    const subtotal = selectedCol
+      ? computeSupplierTotal(poCreateModalReq, selectedCol.colId)
+      : 0;
+    const vatAmount = Math.round(subtotal * (poCreateVatRate / 100));
+    const totalWithVat = subtotal + vatAmount;
+
+    return (
+      <div
+        className="backdrop no-print"
+        style={{ zIndex: 10000 }}
+        onClick={() => setPoCreateModalReq(null)}
+      >
+        <div
+          className="modal-panel"
+          style={{ width: "min(560px, 95vw)" }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="modal-header">
+            <div>
+              <h3 className="modal-title">
+                📦 Phát hành Đơn mua hàng (PO)
+              </h3>
+              <p className="modal-desc">
+                Căn cứ Đề nghị phê duyệt: <strong>{poCreateModalReq.prNumber || poCreateModalReq.requestNumber}</strong>
+              </p>
+            </div>
+            <button
+              type="button"
+              className="btn-close"
+              onClick={() => setPoCreateModalReq(null)}
+            >
+              ×
+            </button>
+          </div>
+
+          <div className="modal-body" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+            <div style={{ background: "#f8fafc", padding: 12, borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 13 }}>
+              <div style={{ marginBottom: 6 }}>
+                <span style={{ color: "#64748b" }}>Nhà cung cấp được chọn: </span>
+                <strong style={{ color: "#0f172a" }}>{supName}</strong>
+              </div>
+              <div>
+                <span style={{ color: "#64748b" }}>Số lượng mặt hàng: </span>
+                <strong>{poCreateModalReq.rows.length} mặt hàng</strong>
+              </div>
+            </div>
+
+            <div>
+              <label style={{ display: "block", fontSize: 13, fontWeight: 600, color: "#334155", marginBottom: 6 }}>
+                Chọn mức thuế suất VAT:
+              </label>
+              <select
+                className="cell-input"
+                style={{
+                  width: "100%",
+                  fontSize: 14,
+                  fontWeight: 600,
+                  padding: "8px 12px",
+                  border: "1px solid #cbd5e1",
+                  borderRadius: 6,
+                  background: "#fff",
+                }}
+                value={poCreateVatRate}
+                onChange={(e) => setPoCreateVatRate(Number(e.target.value))}
+              >
+                <option value={10}>10% - Thuế GTGT chuẩn (10%)</option>
+                <option value={8}>8% - Thuế GTGT ưu đãi (8%)</option>
+                <option value={5}>5% - Thuế GTGT 5%</option>
+                <option value={0}>0% - Không chịu thuế / Miễn thuế (0%)</option>
+              </select>
+            </div>
+
+            {/* Khối tính toán trực quan (Live Calculation Preview) */}
+            <div
+              style={{
+                background: "#f0fdf4",
+                border: "1px solid #86efac",
+                borderRadius: 8,
+                padding: 14,
+                fontSize: 13,
+              }}
+            >
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+                <span style={{ color: "#475569" }}>Tổng tiền trước VAT:</span>
+                <span style={{ fontWeight: 600, color: "#0f172a" }}>{formatVND(subtotal)} ₫</span>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8, paddingBottom: 8, borderBottom: "1px dashed #bbf7d0" }}>
+                <span style={{ color: "#475569" }}>Tiền thuế VAT ({poCreateVatRate}%):</span>
+                <span style={{ fontWeight: 600, color: "#0284c7" }}>+{formatVND(vatAmount)} ₫</span>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+                <span style={{ fontWeight: 700, color: "#166534", fontSize: 14 }}>TỔNG THANH TOÁN (SAU VAT):</span>
+                <span style={{ fontWeight: 800, color: "#15803d", fontSize: 18 }}>{formatVND(totalWithVat)} ₫</span>
+              </div>
+            </div>
+
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "flex-end",
+                gap: 10,
+                marginTop: 8,
+              }}
+            >
+              <button
+                type="button"
+                className="btn"
+                onClick={() => setPoCreateModalReq(null)}
+              >
+                Hủy
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary"
+                style={{ background: "#16a34a", borderColor: "#16a34a" }}
+                onClick={() => {
+                  onCreatePOFromApproval(poCreateModalReq, poCreateVatRate);
+                  setPoCreateModalReq(null);
+                }}
+              >
+                <PackagePlus size={16} /> Xác nhận tạo PO
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   function renderPRSourceModal() {
     return (

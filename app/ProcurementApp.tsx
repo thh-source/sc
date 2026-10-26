@@ -1236,7 +1236,7 @@ function ProcurementAppInner({
     navigateTo({ view: "approval", id: newReq.id });
   };
 
-  const handleCreatePOFromApproval = (req: ApprovalRequest) => {
+  const handleCreatePOFromApproval = (req: ApprovalRequest, chosenVatRate: number = 10) => {
     const selectedCol =
       req.supplierColumns.find((c) => c.isSelected) || req.supplierColumns[0];
     if (!selectedCol) return;
@@ -1316,7 +1316,7 @@ function ProcurementAppInner({
           qty: effQty,
           estimate: unitPrice,
           price: unitPrice,
-          vatRate: 8,
+          vatRate: chosenVatRate,
           note: "",
           deliveryStatus: "Chưa giao",
           deliveredQty: 0,
@@ -1580,7 +1580,7 @@ function ProcurementAppInner({
         quantity_doc: String(entry.qtyDoc),
         quantity_pass: String(entry.qtyPass),
         quantity_fail: "",
-        note: `Nhận từ ${docTypeLabel} #${handoverPickerPO.number}${suppPart}${specPart}${customNote}`,
+        note: entry.note?.trim() || "",
         handover_date: payload.handoverDate || localToday(),
         sender_name: payload.senderName || "Trần Hải Hà",
         sender_dept: "Phòng Cung ứng",

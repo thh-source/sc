@@ -101,7 +101,7 @@ export function POHandoverPickerModal({
         initSel[it.id] = true;
         initDoc[it.id] = totalQty;
         initPass[it.id] = deliv > 0 ? deliv : totalQty;
-        initNote[it.id] = it.note || "";
+        initNote[it.id] = "";
       });
 
       setSelectedMap(initSel);

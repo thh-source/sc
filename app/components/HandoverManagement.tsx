@@ -716,7 +716,7 @@ export function HandoverManagement({
         quantity_doc: String(it.qty),
         quantity_pass: String(actualQty),
         quantity_fail: "",
-        note: `Nhận từ ${docTypeLabel} #${activeDoc.number}${suppPart}${specPart}`,
+        note: "",
         handover_date: localToday(),
         sender_name: "Trần Hải Hà",
         sender_dept: "Phòng Cung ứng",

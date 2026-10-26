@@ -22,6 +22,7 @@ interface DraftPOItem {
   unit: string;
   qty: number;
   price: number;
+  vatRate?: number;
 }
 
 export function POList({
@@ -72,6 +73,7 @@ export function POList({
   const [draftCreatedDate, setDraftCreatedDate] = useState("");
   const [draftExpectedDate, setDraftExpectedDate] = useState("");
   const [draftNote, setDraftNote] = useState("");
+  const [draftVatRate, setDraftVatRate] = useState<number>(10);
   const [draftItems, setDraftItems] = useState<DraftPOItem[]>([]);
   const [itemError, setItemError] = useState("");
   const [customProductInput, setCustomProductInput] = useState("");
@@ -187,6 +189,7 @@ export function POList({
     setDraftCreatedDate(todayStr);
     setDraftExpectedDate("");
     setDraftNote("Tạo trực tiếp không qua so sánh báo giá");
+    setDraftVatRate(10);
     setCustomProductInput("");
     setDraftItems([
       {
@@ -359,10 +362,12 @@ export function POList({
     setCustomProductInput("");
   };
 
-  const draftTotal = draftItems.reduce(
+  const draftSubtotal = draftItems.reduce(
     (sum, item) => sum + (Number(item.qty) || 0) * (Number(item.price) || 0),
     0
   );
+  const draftVatAmount = Math.round(draftSubtotal * (draftVatRate / 100));
+  const draftTotal = draftSubtotal + draftVatAmount;
 
   const handleSavePO = (openDetail: boolean) => {
     if (!draftNumber.trim()) {
@@ -405,6 +410,7 @@ export function POList({
         qty: Number(item.qty) || 1,
         estimate: Number(item.price) || 0,
         price: Number(item.price) || 0,
+        vatRate: draftVatRate,
         deliveryStatus: "Chưa giao",
         deliveredQty: 0,
         deliveryDate: "",
@@ -413,7 +419,7 @@ export function POList({
       payments: [
         {
           id: makeId(),
-          phase: "Tạm ứng",
+          phase: "Tạm ứng (50%)",
           percent: 50,
           amount: Math.round(draftTotal * 0.5),
           condition: "advance",
@@ -423,13 +429,13 @@ export function POList({
         },
         {
           id: makeId(),
-          phase: "Quyết toán / Hoàn tất",
+          phase: "Quyết toán / Hoàn tất (50%)",
           percent: 50,
           amount: draftTotal - Math.round(draftTotal * 0.5),
           condition: "post",
           status: "Chưa thanh toán",
           date: "",
-          note: "",
+          note: `Thanh toán số tiền còn lại sau thuế VAT (${draftVatRate}%)`,
         },
       ],
       note: draftNote.trim(),
@@ -947,6 +953,31 @@ export function POList({
                     value={draftExpectedDate}
                     onChange={(e) => setDraftExpectedDate(e.target.value)}
                   />
+                </div>
+
+                <div>
+                  <label
+                    style={{
+                      display: "block",
+                      fontSize: 12,
+                      fontWeight: 600,
+                      color: "#475569",
+                      marginBottom: 4,
+                    }}
+                  >
+                    Thuế suất VAT
+                  </label>
+                  <select
+                    className="payment-input"
+                    style={{ width: "100%", fontWeight: 600 }}
+                    value={draftVatRate}
+                    onChange={(e) => setDraftVatRate(Number(e.target.value))}
+                  >
+                    <option value={10}>10% - Thuế GTGT chuẩn (10%)</option>
+                    <option value={8}>8% - Thuế GTGT ưu đãi (8%)</option>
+                    <option value={5}>5% - Thuế GTGT 5%</option>
+                    <option value={0}>0% - Không chịu thuế / Miễn thuế (0%)</option>
+                  </select>
                 </div>
 
                 <div style={{ gridColumn: "1 / -1" }}>
@@ -1528,22 +1559,23 @@ export function POList({
                       <tr
                         style={{
                           background: "#f8fafc",
-                          fontWeight: 700,
+                          fontWeight: 600,
                           borderTop: "2px solid #cbd5e1",
+                          color: "#475569",
                         }}
                       >
                         <td
                           colSpan={4}
                           style={{
-                            padding: "8px 12px",
+                            padding: "6px 12px",
                             textAlign: "right",
                           }}
                         >
-                          TỔNG GIÁ TRỊ ĐƠN HÀNG (PO):
+                          Tổng tiền hàng trước VAT:
                         </td>
                         <td
                           style={{
-                            padding: "8px 6px",
+                            padding: "6px 6px",
                             textAlign: "right",
                           }}
                         >
@@ -1555,10 +1587,67 @@ export function POList({
                         <td></td>
                         <td
                           style={{
+                            padding: "6px 8px",
+                            textAlign: "right",
+                            fontSize: 13,
+                            color: "#0f172a",
+                          }}
+                        >
+                          {fmt(draftSubtotal)} ₫
+                        </td>
+                        <td></td>
+                      </tr>
+                      <tr
+                        style={{
+                          background: "#f8fafc",
+                          fontWeight: 600,
+                          color: "#0284c7",
+                        }}
+                      >
+                        <td
+                          colSpan={6}
+                          style={{
+                            padding: "4px 12px",
+                            textAlign: "right",
+                          }}
+                        >
+                          Tiền thuế VAT ({draftVatRate}%):
+                        </td>
+                        <td
+                          style={{
+                            padding: "4px 8px",
+                            textAlign: "right",
+                            fontSize: 13,
+                          }}
+                        >
+                          +{fmt(draftVatAmount)} ₫
+                        </td>
+                        <td></td>
+                      </tr>
+                      <tr
+                        style={{
+                          background: "#f0fdf4",
+                          fontWeight: 800,
+                          borderTop: "1px solid #bbf7d0",
+                        }}
+                      >
+                        <td
+                          colSpan={6}
+                          style={{
+                            padding: "8px 12px",
+                            textAlign: "right",
+                            color: "#166534",
+                            fontSize: 13,
+                          }}
+                        >
+                          TỔNG THANH TOÁN (SAU VAT):
+                        </td>
+                        <td
+                          style={{
                             padding: "8px 8px",
                             textAlign: "right",
-                            color: "#0284c7",
-                            fontSize: 13,
+                            color: "#15803d",
+                            fontSize: 15,
                           }}
                         >
                           {fmt(draftTotal)} ₫
