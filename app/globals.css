@@ -1218,3 +1218,19 @@ tbody tr:hover td {
   color: #1d4ed8;
 }
 
+/* ============================================================
+   PRINT RULES - ẨN TRỢ LÝ ẢO NỔI, POPUP AI & WIDGET KHI IN
+   ============================================================ */
+@media print {
+  /* Ẩn extension trợ lý AI và các widget nổi khi in */
+  #phenikaa-ai-host,
+  [id^="phenikaa-ai"],
+  .pka-fab-btn,
+  .pka-chat-panel,
+  .no-print {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+  }
+}
+

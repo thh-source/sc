@@ -1099,8 +1099,15 @@ table.payment-table td .smart-cell-textarea:focus {
   .modal-overlay,
   .payment-modal-overlay,
   .cloud-status,
-  .report-banner {
+  .report-banner,
+  #phenikaa-ai-host,
+  [id^="phenikaa-ai"],
+  .pka-fab-btn,
+  .pka-chat-panel,
+  .no-print {
     display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
   }
 
   /* Chỉ hiển thị duy nhất khu vực in được portal ra body */

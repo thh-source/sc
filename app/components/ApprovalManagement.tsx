@@ -2880,8 +2880,16 @@ export default function ApprovalManagement({
                   padding: 0 !important;
                   background: #ffffff !important;
                 }
-                .app, #paymentPrintPortal {
+                .app,
+                #paymentPrintPortal,
+                #phenikaa-ai-host,
+                [id^="phenikaa-ai"],
+                .pka-fab-btn,
+                .pka-chat-panel,
+                .no-print {
                   display: none !important;
+                  visibility: hidden !important;
+                  opacity: 0 !important;
                 }
                 #approvalPrintPortal {
                   display: block !important;
