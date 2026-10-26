@@ -9,7 +9,7 @@ import { cleanExcelNumber, parseExcelClipboard } from "../utils/approvalSamples"
 import { useTranslation } from "../i18n";
 import { DocFlowLinks } from "./DocFlowLinks";
 import { resolveDocFlow } from "../utils/docFlow";
-import { isPOCompleted } from "../utils/paymentSync";
+import { isPOCompleted, calcPODeliveryStats } from "../utils/paymentSync";
 import "../payment.css";
 
 interface DraftPOItem {
@@ -514,9 +514,10 @@ export function POList({
             const supplier = suppliers.find((s) => Number(s.id) === Number(po.supplierId));
             const items = po.items || [];
             const total = calcPOTotal(po);
-            const delivered = items.filter((item) => item.deliveryStatus === "Đã giao").length;
+            const deliveryStats = calcPODeliveryStats(po, paymentHandovers);
+            const delivered = deliveryStats.fullyDeliveredItemsCount;
             const flow = resolveDocFlow({ po }, { prs, pos, approvalRequests, paymentRequests, paymentHandovers });
-            const isDone = isPOCompleted(po);
+            const isDone = isPOCompleted(po, paymentHandovers);
             return (
               <article key={po.id} className={isDone ? "row-completed" : ""}>
                 <header>
@@ -658,16 +659,15 @@ export function POList({
                 const docs = po.docs || [];
                 const payments = po.payments || [];
                 const contractInfo = getPOContractInfo(po);
-                const delivered = items.filter(
-                  (i) => i.deliveryStatus === "Đã giao"
-                ).length;
+                const deliveryStats = calcPODeliveryStats(po, paymentHandovers);
+                const delivered = deliveryStats.fullyDeliveredItemsCount;
                 const docsCount = docs.filter((d) => d.status === "Đã đủ").length;
                 const paid = payments
                   .filter((p) => p.status === "Đã thanh toán")
                   .reduce((n, p) => n + (Number(p.amount) || 0), 0);
                 const total = calcPOTotal(po);
                 const flow = resolveDocFlow({ po }, { prs, pos, approvalRequests, paymentRequests, paymentHandovers });
-                const isDone = isPOCompleted(po);
+                const isDone = isPOCompleted(po, paymentHandovers);
                 return (
                   <tr key={po.id} className={isDone ? "row-completed" : ""}>
                     <td style={{ whiteSpace: "nowrap" }}>
@@ -772,12 +772,17 @@ export function POList({
                       <span className="mini-progress" style={{ margin: "0 auto 4px" }}>
                         <i
                           style={{
-                            width: `${items.length ? (delivered / items.length) * 100 : 0}%`,
+                            width: `${deliveryStats.overallProgressPercent}%`,
+                            background: deliveryStats.isFullyDelivered ? "#16a34a" : undefined,
                           }}
                         />
                       </span>
-                      <small>
-                        {delivered}/{items.length} mặt hàng
+                      <small style={{ color: deliveryStats.isFullyDelivered ? "#15803d" : undefined, fontWeight: deliveryStats.isFullyDelivered ? 700 : undefined }}>
+                        {deliveryStats.isFullyDelivered ? (
+                          "✓ Đã giao đủ"
+                        ) : (
+                          `${delivered}/${items.length} mặt hàng (${deliveryStats.overallProgressPercent}%)`
+                        )}
                       </small>
                     </td>
                     <td style={{ textAlign: "center" }}>

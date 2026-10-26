@@ -549,6 +549,7 @@ export type PaymentHandoverItem = {
   source_number?: string;
   specification?: string;
   isCompleted?: boolean;
+  po_item_id?: number;
 };
 
 export type PaymentPrintTemplate = {

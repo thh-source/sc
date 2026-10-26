@@ -20,6 +20,7 @@ import {
   Package,
 } from "lucide-react";
 import { PaymentHandoverItem, PR, PO, Supplier, PaymentRequestEntry } from "../types";
+import { calcPODeliveryStats } from "../utils/paymentSync";
 import { navigateTo } from "../utils/navigation";
 import {
   normName,
@@ -643,10 +644,17 @@ export function HandoverManagement({
     }
     if (doc) {
       const items = doc.items || [];
-      setSelectedItemIds(new Set(items.map((it) => it.id)));
+      const isPO = importDocType !== "pr" && "items" in doc;
+      const stats = isPO ? calcPODeliveryStats(doc as PO, paymentHandovers) : null;
+      const remainingItems = items.filter((it: any) => {
+        if (!stats) return true;
+        return (stats.itemsStats[it.id]?.quantityRemaining ?? it.qty) > 0;
+      });
+      setSelectedItemIds(new Set(remainingItems.map((it: any) => it.id)));
       const qtyMap: Record<string | number, number> = {};
-      items.forEach((it) => {
-        qtyMap[it.id] = it.qty;
+      items.forEach((it: any) => {
+        const rem = stats ? (stats.itemsStats[it.id]?.quantityRemaining ?? it.qty) : it.qty;
+        qtyMap[it.id] = rem;
       });
       setItemCustomQty(qtyMap);
       if ("department" in doc && doc.department) {
@@ -723,6 +731,8 @@ export function HandoverManagement({
         receiver_name: "",
         source_type: docTypeLabel,
         source_number: activeDoc.number,
+        specification: it.spec || "",
+        po_item_id: it.id,
       };
     });
 

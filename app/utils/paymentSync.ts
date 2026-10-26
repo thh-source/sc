@@ -1,5 +1,5 @@
-import { PO, Payment, PaymentRequestEntry, PR, ApprovalRequest, PaymentHandoverItem } from "../types";
-import { PAID_STATUSES } from "../payment-utils";
+import { PO, POItem, Payment, PaymentRequestEntry, PR, ApprovalRequest, PaymentHandoverItem } from "../types";
+import { PAID_STATUSES, normName } from "../payment-utils";
 
 /**
  * Kiểm tra xem một khoản đề nghị thanh toán đã hoàn thành chưa
@@ -12,13 +12,26 @@ export function isPaymentCompleted(r: PaymentRequestEntry | null | undefined): b
 /**
  * Kiểm tra xem một đơn hàng PO đã hoàn thành chưa
  */
-export function isPOCompleted(po: PO | null | undefined): boolean {
+export function isPOCompleted(
+  po: PO | null | undefined,
+  paymentHandovers?: PaymentHandoverItem[]
+): boolean {
   if (!po) return false;
-  if (po.isCompleted === true || po.status === "Đã hoàn thành" || po.status === "Hoàn thành") {
+  if (
+    po.isCompleted === true ||
+    po.status === "Đã hoàn thành" ||
+    po.status === "Hoàn thành" ||
+    po.status === "Đã giao đủ"
+  ) {
     return true;
   }
   const items = po.items || [];
-  return items.length > 0 && items.every((it) => it.deliveryStatus === "Đã giao");
+  if (items.length === 0) return false;
+  if (paymentHandovers && paymentHandovers.length > 0) {
+    const stats = calcPODeliveryStats(po, paymentHandovers);
+    return stats.isFullyDelivered;
+  }
+  return items.every((it) => it.deliveryStatus === "Đã giao");
 }
 
 /**
@@ -183,4 +196,150 @@ export function isPaymentPaidToday(r: PaymentRequestEntry | null | undefined, to
   if (!r || !r.paidAt) return false;
   const targetDate = todayStr || new Date().toISOString().slice(0, 10);
   return r.paidAt.slice(0, 10) === targetDate;
+}
+
+
+export interface POItemDeliveryStats {
+  itemId: number;
+  itemName: string;
+  unit: string;
+  quantityOrdered: number;    // quantity_ordered: Số lượng đặt mua theo PO
+  quantityDelivered: number;  // quantity_delivered: Tổng số lượng lũy kế đã được bàn giao qua các đợt trước đó
+  quantityRemaining: number;  // quantity_remaining = max(0, quantity_ordered - quantity_delivered)
+  isFullyDelivered: boolean;  // quantityRemaining === 0 && quantityOrdered > 0
+  deliveryStatus: "Chưa giao" | "Giao một phần" | "Đã giao";
+}
+
+export interface PODeliveryStats {
+  poNumber: string;
+  totalItems: number;
+  fullyDeliveredItemsCount: number;
+  partialItemsCount: number;
+  undeliveredItemsCount: number;
+  totalQuantityOrdered: number;
+  totalQuantityDelivered: number;
+  totalQuantityRemaining: number;
+  isFullyDelivered: boolean;       // Tất cả mặt hàng trong PO đã giao đủ 100%
+  overallProgressPercent: number;  // Tiến độ phần trăm tổng thể 0 - 100%
+  itemsStats: Record<number, POItemDeliveryStats>;
+}
+
+export function calcPOItemDeliveryStats(
+  it: POItem,
+  po: PO,
+  paymentHandovers: PaymentHandoverItem[] = []
+): POItemDeliveryStats {
+  const quantityOrdered = Math.max(0, Number(it.qty) || 0);
+
+  // Lọc các bản ghi bàn giao liên kết với PO này
+  const poNum = (po.number || "").trim().toLowerCase();
+  const matchingHandovers = (paymentHandovers || []).filter((h) => {
+    const hSource = (h.source_number || "").trim().toLowerCase();
+    if (!hSource || hSource !== poNum) return false;
+    if (h.po_item_id !== undefined && h.po_item_id !== null) {
+      return Number(h.po_item_id) === Number(it.id);
+    }
+    return normName(h.item_name) === normName(it.name);
+  });
+
+  const sumHandovers = matchingHandovers.reduce((sum, h) => {
+    const pass = Number(h.quantity_pass);
+    const doc = Number(h.quantity_doc);
+    const validQty = !isNaN(pass) && pass > 0 ? pass : !isNaN(doc) && doc > 0 ? doc : 0;
+    return sum + validQty;
+  }, 0);
+
+  // Nguồn dữ liệu số lượng đã giao:
+  // - Nếu có bản ghi trong paymentHandovers liên kết với PO này, lấy tổng từ các phiếu bàn giao
+  // - Nếu chưa có phiếu nào trong paymentHandovers, fallback vào it.deliveredQty đã lưu
+  const rawDelivered = matchingHandovers.length > 0
+    ? sumHandovers
+    : Math.max(0, Number(it.deliveredQty) || 0);
+
+  // Chống giao vượt quá: số lượng đã giao không thể vượt quá số lượng đặt mua
+  const quantityDelivered = Math.min(quantityOrdered, rawDelivered);
+  const quantityRemaining = Math.max(0, quantityOrdered - quantityDelivered);
+  const isFullyDelivered = quantityOrdered > 0 && quantityRemaining === 0;
+
+  const deliveryStatus: "Chưa giao" | "Giao một phần" | "Đã giao" =
+    isFullyDelivered
+      ? "Đã giao"
+      : quantityDelivered > 0
+      ? "Giao một phần"
+      : "Chưa giao";
+
+  return {
+    itemId: it.id,
+    itemName: it.name,
+    unit: it.unit || "Cái",
+    quantityOrdered,
+    quantityDelivered,
+    quantityRemaining,
+    isFullyDelivered,
+    deliveryStatus,
+  };
+}
+
+export function calcPODeliveryStats(
+  po: PO | null | undefined,
+  paymentHandovers: PaymentHandoverItem[] = []
+): PODeliveryStats {
+  if (!po || !po.items || po.items.length === 0) {
+    return {
+      poNumber: po?.number || "",
+      totalItems: 0,
+      fullyDeliveredItemsCount: 0,
+      partialItemsCount: 0,
+      undeliveredItemsCount: 0,
+      totalQuantityOrdered: 0,
+      totalQuantityDelivered: 0,
+      totalQuantityRemaining: 0,
+      isFullyDelivered: false,
+      overallProgressPercent: 0,
+      itemsStats: {},
+    };
+  }
+
+  const itemsStats: Record<number, POItemDeliveryStats> = {};
+  let fullyDeliveredItemsCount = 0;
+  let partialItemsCount = 0;
+  let undeliveredItemsCount = 0;
+  let totalQuantityOrdered = 0;
+  let totalQuantityDelivered = 0;
+
+  for (const it of po.items) {
+    const stat = calcPOItemDeliveryStats(it, po, paymentHandovers);
+    itemsStats[it.id] = stat;
+    totalQuantityOrdered += stat.quantityOrdered;
+    totalQuantityDelivered += stat.quantityDelivered;
+
+    if (stat.isFullyDelivered) {
+      fullyDeliveredItemsCount++;
+    } else if (stat.quantityDelivered > 0) {
+      partialItemsCount++;
+    } else {
+      undeliveredItemsCount++;
+    }
+  }
+
+  const totalQuantityRemaining = Math.max(0, totalQuantityOrdered - totalQuantityDelivered);
+  const isFullyDelivered = po.items.length > 0 && fullyDeliveredItemsCount === po.items.length;
+  const overallProgressPercent =
+    totalQuantityOrdered > 0
+      ? Math.min(100, Math.round((totalQuantityDelivered / totalQuantityOrdered) * 100))
+      : 0;
+
+  return {
+    poNumber: po.number,
+    totalItems: po.items.length,
+    fullyDeliveredItemsCount,
+    partialItemsCount,
+    undeliveredItemsCount,
+    totalQuantityOrdered,
+    totalQuantityDelivered,
+    totalQuantityRemaining,
+    isFullyDelivered,
+    overallProgressPercent,
+    itemsStats,
+  };
 }

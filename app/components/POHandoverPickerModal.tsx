@@ -6,6 +6,7 @@ import { localToday, normName } from "../payment-utils";
 import { fmt, dateVN } from "../utils";
 import { useIsMobile } from "../useIsMobile";
 import { addNewDepartment, getUnifiedDepartments } from "../utils/departments";
+import { calcPODeliveryStats, PODeliveryStats, POItemDeliveryStats } from "../utils/paymentSync";
 
 export interface HandoverConfirmedItem {
   item: POItem;
@@ -32,6 +33,7 @@ interface POHandoverPickerModalProps {
   prs?: PR[];
   suppliers?: Supplier[];
   existingHandovers?: PaymentHandoverItem[];
+  onOpenExistingHandoverPreview?: (po: PO) => void;
 }
 
 export function POHandoverPickerModal({
@@ -42,6 +44,7 @@ export function POHandoverPickerModal({
   prs = [],
   suppliers = [],
   existingHandovers = [],
+  onOpenExistingHandoverPreview,
 }: POHandoverPickerModalProps) {
   const isMobile = useIsMobile(768);
 
@@ -80,9 +83,26 @@ export function POHandoverPickerModal({
   const [qtyPassMap, setQtyPassMap] = useState<Record<number, number>>({});
   const [noteMap, setNoteMap] = useState<Record<number, string>>({});
 
-  // Reset when opening
+  // 1. Cơ chế tính toán Số lượng còn lại (Remaining Quantity Tracking)
+  const deliveryStats: PODeliveryStats | null = useMemo(() => {
+    if (!po) return null;
+    return calcPODeliveryStats(po, existingHandovers);
+  }, [po, existingHandovers]);
+
+  const isFullyDelivered = deliveryStats?.isFullyDelivered ?? false;
+
+  // Lọc các biên bản đã bàn giao từ PO này
+  const existingHandoversForThisPO = useMemo(() => {
+    if (!po?.number) return [];
+    const cleanNum = po.number.trim().toLowerCase();
+    return existingHandovers.filter(
+      (h) => (h.source_number || "").trim().toLowerCase() === cleanNum
+    );
+  }, [po?.number, existingHandovers]);
+
+  // Reset & Khởi tạo khi mở modal
   useEffect(() => {
-    if (isOpen && po) {
+    if (isOpen && po && deliveryStats) {
       const today = localToday();
       const defaultDept = linkedPR?.department || "Phòng Cung ứng";
       setDepartment(defaultDept);
@@ -96,11 +116,14 @@ export function POHandoverPickerModal({
       const initNote: Record<number, string> = {};
 
       (po.items || []).forEach((it) => {
-        const totalQty = Number(it.qty) || 0;
-        const deliv = Number(it.deliveredQty) || 0;
-        initSel[it.id] = true;
-        initDoc[it.id] = totalQty;
-        initPass[it.id] = deliv > 0 ? deliv : totalQty;
+        const stat = deliveryStats.itemsStats[it.id];
+        const rem = stat ? stat.quantityRemaining : Math.max(0, Number(it.qty) || 0);
+
+        // Chỉ tích chọn các mặt hàng còn hàng cần giao (rem > 0)
+        initSel[it.id] = rem > 0;
+        initDoc[it.id] = rem > 0 ? rem : Number(it.qty) || 0;
+        // Mặc định điền sẵn bằng đúng quantity_remaining
+        initPass[it.id] = rem;
         initNote[it.id] = "";
       });
 
@@ -109,37 +132,84 @@ export function POHandoverPickerModal({
       setQtyPassMap(initPass);
       setNoteMap(initNote);
     }
-  }, [isOpen, po, linkedPR]);
+  }, [isOpen, po, linkedPR, deliveryStats]);
 
   if (!isOpen || !po) return null;
 
   const items = po.items || [];
-  const selectedCount = items.filter((it) => selectedMap[it.id]).length;
+  const selectedCount = items.filter((it) => selectedMap[it.id] && (deliveryStats?.itemsStats[it.id]?.quantityRemaining ?? 0) > 0).length;
   const docTypeLabel = isContractPO(po) ? "Hợp đồng" : "PO";
 
-  const handleSelectAll = (val: boolean) => {
+  // Kiểm tra có dòng nào đã chọn nhưng số lượng không hợp lệ hay không
+  const isAnySelectedInvalid = items.some((it) => {
+    if (!selectedMap[it.id]) return false;
+    const stat = deliveryStats?.itemsStats[it.id];
+    const rem = stat ? stat.quantityRemaining : 0;
+    if (rem <= 0) return true; // Không được chọn hàng đã giao đủ
+    const qPass = qtyPassMap[it.id];
+    return qPass === undefined || qPass === null || isNaN(qPass) || qPass < 1 || qPass > rem;
+  });
+
+  const isButtonDisabled = isFullyDelivered || selectedCount === 0 || isAnySelectedInvalid;
+
+  const handleSelectAllRemaining = (val: boolean) => {
     const next: Record<number, boolean> = {};
     items.forEach((it) => {
-      next[it.id] = val;
+      const stat = deliveryStats?.itemsStats[it.id];
+      const rem = stat ? stat.quantityRemaining : 0;
+      // Chỉ cho phép chọn các mặt hàng còn hàng cần giao (rem > 0)
+      if (rem > 0) {
+        next[it.id] = val;
+      } else {
+        next[it.id] = false;
+      }
     });
     setSelectedMap(next);
   };
 
   const handleConfirm = () => {
-    const chosenItems = items.filter((it) => selectedMap[it.id]);
-    if (chosenItems.length === 0) {
-      alert("Vui lòng chọn ít nhất 1 mặt hàng để bàn giao!");
+    if (isFullyDelivered) {
+      alert("Đơn hàng này đã được bàn giao đủ toàn bộ số lượng (100%). Không thể tạo thêm đợt bàn giao mới!");
       return;
     }
+
+    const chosenItems = items.filter(
+      (it) => selectedMap[it.id] && (deliveryStats?.itemsStats[it.id]?.quantityRemaining ?? 0) > 0
+    );
+
+    if (chosenItems.length === 0) {
+      alert("Vui lòng chọn ít nhất 1 mặt hàng còn thiếu để bàn giao!");
+      return;
+    }
+
     const cleanDept = department.trim();
     if (!cleanDept) {
       alert("Vui lòng chọn hoặc nhập Bộ phận nhận bàn giao!");
       return;
     }
 
+    // Validation chặn cứng: kiểm tra từng mặt hàng
+    for (const it of chosenItems) {
+      const stat = deliveryStats?.itemsStats[it.id];
+      const rem = stat ? stat.quantityRemaining : 0;
+      const qPass = qtyPassMap[it.id] ?? rem;
+      if (qPass <= 0) {
+        alert(`Số lượng bàn giao của "${it.name}" phải lớn hơn 0!`);
+        return;
+      }
+      if (qPass > rem) {
+        alert(
+          `Số lượng bàn giao của "${it.name}" (${qPass} ${it.unit || "cái"}) vượt quá số lượng còn lại (${rem} ${it.unit || "cái"})!`
+        );
+        return;
+      }
+    }
+
     const payloadItems: HandoverConfirmedItem[] = chosenItems.map((it) => {
-      const qDoc = qtyDocMap[it.id] ?? Number(it.qty) ?? 0;
-      const qPass = qtyPassMap[it.id] ?? Number(it.deliveredQty) ?? qDoc;
+      const stat = deliveryStats?.itemsStats[it.id];
+      const rem = stat ? stat.quantityRemaining : Number(it.qty) || 0;
+      const qPass = Math.min(rem, Math.max(1, qtyPassMap[it.id] ?? rem));
+      const qDoc = qtyDocMap[it.id] ?? qPass;
       return {
         item: it,
         qtyDoc: qDoc,
@@ -168,7 +238,7 @@ export function POHandoverPickerModal({
       style={{
         position: "fixed",
         inset: 0,
-        background: "rgba(15, 23, 42, 0.65)",
+        background: "rgba(15, 23, 42, 0.7)",
         backdropFilter: "blur(4px)",
         zIndex: 9999,
         display: "flex",
@@ -181,12 +251,12 @@ export function POHandoverPickerModal({
         className="po-handover-modal-card"
         style={{
           background: "#ffffff",
-          width: isMobile ? "100vw" : "min(1240px, 96vw)",
-          maxHeight: isMobile ? "92vh" : "88vh",
+          width: isMobile ? "100vw" : "min(1280px, 96vw)",
+          maxHeight: isMobile ? "94vh" : "90vh",
           borderRadius: isMobile ? "16px 16px 0 0" : "12px",
           display: "flex",
           flexDirection: "column",
-          boxShadow: "0 25px 50px -12px rgba(0,0,0,0.3)",
+          boxShadow: "0 25px 50px -12px rgba(0,0,0,0.35)",
           overflow: "hidden",
         }}
       >
@@ -234,10 +304,108 @@ export function POHandoverPickerModal({
           </button>
         </div>
 
+        {/* Cảnh báo khi PO đã hoàn thành 100% */}
+        {isFullyDelivered ? (
+          <div
+            style={{
+              padding: "12px 18px",
+              background: "#fef2f2",
+              borderBottom: "1.5px solid #fecaca",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: "12px",
+              flexShrink: 0,
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+              <span style={{ fontSize: "22px" }}>🛡️</span>
+              <div>
+                <div style={{ fontSize: "13.5px", fontWeight: 700, color: "#991b1b" }}>
+                  Đơn hàng này đã được bàn giao đủ toàn bộ số lượng (100%).
+                </div>
+                <div style={{ fontSize: "12px", color: "#b91c1c" }}>
+                  Tất cả {deliveryStats?.totalItems} mặt hàng trong PO đã hoàn tất giao nhận. Không thể tạo thêm đợt bàn giao mới để chống giao vượt và tránh tạo dòng trùng lặp.
+                </div>
+              </div>
+            </div>
+            {existingHandoversForThisPO.length > 0 && onOpenExistingHandoverPreview && (
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  onOpenExistingHandoverPreview(po);
+                }}
+                style={{
+                  padding: "6px 14px",
+                  fontSize: "12.5px",
+                  fontWeight: 700,
+                  background: "#ffffff",
+                  border: "1.5px solid #dc2626",
+                  color: "#b91c1c",
+                  borderRadius: "6px",
+                  cursor: "pointer",
+                  whiteSpace: "nowrap",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "6px",
+                }}
+              >
+                <span>📄 Xem lại biên bản đã giao</span>
+              </button>
+            )}
+          </div>
+        ) : (
+          /* Thanh tiến độ PO tổng thể */
+          <div
+            style={{
+              padding: "10px 18px",
+              background: "#f0fdf4",
+              borderBottom: "1px solid #bbf7d0",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              flexWrap: "wrap",
+              gap: "8px",
+              fontSize: "12.5px",
+              flexShrink: 0,
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: "8px", color: "#166534", fontWeight: 600 }}>
+              <span>📦</span>
+              <span>
+                Tiến độ giao hàng: Đã giao <b>{deliveryStats?.totalQuantityDelivered}/{deliveryStats?.totalQuantityOrdered}</b> sản phẩm ({deliveryStats?.overallProgressPercent}%) · Còn thiếu <b>{deliveryStats?.totalQuantityRemaining}</b> sản phẩm ({deliveryStats ? deliveryStats.totalItems - deliveryStats.fullyDeliveredItemsCount : 0} mặt hàng).
+              </span>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <div
+                style={{
+                  width: "120px",
+                  height: "8px",
+                  background: "#dcfce7",
+                  borderRadius: "999px",
+                  overflow: "hidden",
+                  border: "1px solid #86efac",
+                }}
+              >
+                <div
+                  style={{
+                    width: `${deliveryStats?.overallProgressPercent || 0}%`,
+                    height: "100%",
+                    background: "#16a34a",
+                    transition: "width 0.3s ease",
+                  }}
+                />
+              </div>
+              <b style={{ color: "#166534", fontSize: "12px" }}>{deliveryStats?.overallProgressPercent}%</b>
+            </div>
+          </div>
+        )}
+
         {/* General Settings: Bộ phận nhận, Ngày bàn giao, Người giao/nhận */}
         <div
           style={{
-            padding: "14px 18px",
+            padding: "12px 18px",
             background: "#f8fafc",
             borderBottom: "1px solid #e2e8f0",
             display: "grid",
@@ -253,6 +421,7 @@ export function POHandoverPickerModal({
             </label>
             <select
               value={department}
+              disabled={isFullyDelivered}
               onChange={(e) => {
                 const val = e.target.value;
                 if (val === "__ADD_NEW__") {
@@ -273,10 +442,10 @@ export function POHandoverPickerModal({
                 fontWeight: 600,
                 borderRadius: "6px",
                 border: "1.5px solid #93c5fd",
-                background: "#ffffff",
+                background: isFullyDelivered ? "#f1f5f9" : "#ffffff",
                 color: "#0f172a",
                 outline: "none",
-                cursor: "pointer",
+                cursor: isFullyDelivered ? "not-allowed" : "pointer",
               }}
             >
               <option value="">-- Chọn bộ phận tiếp nhận --</option>
@@ -297,6 +466,7 @@ export function POHandoverPickerModal({
             <input
               type="date"
               value={handoverDate}
+              disabled={isFullyDelivered}
               onChange={(e) => setHandoverDate(e.target.value)}
               style={{
                 width: "100%",
@@ -306,7 +476,7 @@ export function POHandoverPickerModal({
                 fontWeight: 600,
                 borderRadius: "6px",
                 border: "1px solid #cbd5e1",
-                background: "#ffffff",
+                background: isFullyDelivered ? "#f1f5f9" : "#ffffff",
                 color: "#0f172a",
               }}
             />
@@ -320,6 +490,7 @@ export function POHandoverPickerModal({
             <input
               type="text"
               value={receiverName}
+              disabled={isFullyDelivered}
               onChange={(e) => setReceiverName(e.target.value)}
               placeholder="Họ tên người nhận (nếu có)..."
               style={{
@@ -329,7 +500,7 @@ export function POHandoverPickerModal({
                 fontSize: "13px",
                 borderRadius: "6px",
                 border: "1px solid #cbd5e1",
-                background: "#ffffff",
+                background: isFullyDelivered ? "#f1f5f9" : "#ffffff",
               }}
             />
           </div>
@@ -350,44 +521,46 @@ export function POHandoverPickerModal({
           }}
         >
           <div style={{ fontSize: "13px", fontWeight: 700, color: "#1e3a8a" }}>
-            Tích chọn mặt hàng bàn giao ({selectedCount}/{items.length} mặt hàng)
+            Tích chọn mặt hàng bàn giao đợt này ({selectedCount}/{items.filter((it) => (deliveryStats?.itemsStats[it.id]?.quantityRemaining ?? 0) > 0).length} mặt hàng còn thiếu)
           </div>
-          <div style={{ display: "flex", gap: "6px" }}>
-            <button
-              type="button"
-              onClick={() => handleSelectAll(true)}
-              style={{
-                height: "30px",
-                padding: "0 10px",
-                fontSize: "12px",
-                fontWeight: 600,
-                background: "#ffffff",
-                border: "1px solid #93c5fd",
-                borderRadius: "5px",
-                color: "#1d4ed8",
-                cursor: "pointer",
-              }}
-            >
-              ☑️ Chọn tất cả
-            </button>
-            <button
-              type="button"
-              onClick={() => handleSelectAll(false)}
-              style={{
-                height: "30px",
-                padding: "0 10px",
-                fontSize: "12px",
-                fontWeight: 600,
-                background: "#ffffff",
-                border: "1px solid #cbd5e1",
-                borderRadius: "5px",
-                color: "#475569",
-                cursor: "pointer",
-              }}
-            >
-              Bỏ chọn
-            </button>
-          </div>
+          {!isFullyDelivered && (
+            <div style={{ display: "flex", gap: "6px" }}>
+              <button
+                type="button"
+                onClick={() => handleSelectAllRemaining(true)}
+                style={{
+                  height: "30px",
+                  padding: "0 10px",
+                  fontSize: "12px",
+                  fontWeight: 600,
+                  background: "#ffffff",
+                  border: "1px solid #93c5fd",
+                  borderRadius: "5px",
+                  color: "#1d4ed8",
+                  cursor: "pointer",
+                }}
+              >
+                ☑️ Chọn tất cả còn thiếu
+              </button>
+              <button
+                type="button"
+                onClick={() => handleSelectAllRemaining(false)}
+                style={{
+                  height: "30px",
+                  padding: "0 10px",
+                  fontSize: "12px",
+                  fontWeight: 600,
+                  background: "#ffffff",
+                  border: "1px solid #cbd5e1",
+                  borderRadius: "5px",
+                  color: "#475569",
+                  cursor: "pointer",
+                }}
+              >
+                Bỏ chọn
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Main List of Items */}
@@ -406,43 +579,91 @@ export function POHandoverPickerModal({
           ) : isMobile ? (
             /* Mobile Cards */
             <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-              {items.map((it, idx) => {
-                const isChecked = Boolean(selectedMap[it.id]);
-                const qDoc = qtyDocMap[it.id] ?? Number(it.qty) ?? 0;
-                const qPass = qtyPassMap[it.id] ?? Number(it.deliveredQty) ?? qDoc;
+              {items.map((it) => {
+                const stat = deliveryStats?.itemsStats[it.id];
+                const rem = stat ? stat.quantityRemaining : 0;
+                const ordered = stat ? stat.quantityOrdered : (Number(it.qty) || 0);
+                const delivered = stat ? stat.quantityDelivered : (Number(it.deliveredQty) || 0);
+                const isItemDone = stat ? stat.isFullyDelivered : rem === 0;
+                const isChecked = Boolean(selectedMap[it.id]) && !isItemDone;
+                const qDoc = qtyDocMap[it.id] ?? rem;
+                const qPass = qtyPassMap[it.id] ?? rem;
+                const isOverLimit = qPass > rem;
+                const isUnderLimit = qPass < 1;
 
                 return (
                   <div
                     key={it.id}
                     style={{
-                      border: `1.5px solid ${isChecked ? "#3b82f6" : "#e2e8f0"}`,
-                      background: isChecked ? "#f0f9ff" : "#ffffff",
+                      border: `1.5px solid ${isItemDone ? "#86efac" : isChecked ? "#3b82f6" : "#e2e8f0"}`,
+                      background: isItemDone ? "#f8fafc" : isChecked ? "#f0f9ff" : "#ffffff",
                       borderRadius: "8px",
                       padding: "10px 12px",
+                      opacity: isItemDone ? 0.75 : 1,
                     }}
                   >
                     <div style={{ display: "flex", alignItems: "flex-start", gap: "10px" }}>
                       <input
                         type="checkbox"
                         checked={isChecked}
+                        disabled={isItemDone || isFullyDelivered}
                         onChange={(e) =>
                           setSelectedMap((prev) => ({ ...prev, [it.id]: e.target.checked }))
                         }
-                        style={{ width: "20px", height: "20px", marginTop: "2px", accentColor: "#0284c7" }}
+                        style={{
+                          width: "20px",
+                          height: "20px",
+                          marginTop: "2px",
+                          accentColor: "#0284c7",
+                          cursor: isItemDone ? "not-allowed" : "pointer",
+                        }}
                       />
                       <div style={{ flex: 1 }}>
                         <div style={{ fontWeight: 700, fontSize: "14px", color: "#0f172a" }}>
                           {it.name}
                         </div>
                         {it.spec && <div style={{ fontSize: "11.5px", color: "#64748b" }}>{it.spec}</div>}
-                        <div style={{ fontSize: "11.5px", color: "#475569", marginTop: "2px" }}>
-                          ĐVT: <b>{it.unit || "Cái"}</b> · SL Đặt PO: <b>{it.qty}</b>
-                          {it.deliveredQty > 0 ? ` · Đã giao: ${it.deliveredQty}` : ""}
+
+                        {/* Status Badge */}
+                        <div style={{ marginTop: "4px" }}>
+                          {isItemDone ? (
+                            <span
+                              style={{
+                                display: "inline-block",
+                                fontSize: "11px",
+                                fontWeight: 700,
+                                color: "#15803d",
+                                background: "#dcfce7",
+                                border: "1px solid #86efac",
+                                padding: "2px 8px",
+                                borderRadius: "4px",
+                              }}
+                            >
+                              ✓ Đã giao đủ ({delivered}/{ordered} {it.unit || "Cái"})
+                            </span>
+                          ) : (
+                            <span
+                              style={{
+                                display: "inline-block",
+                                fontSize: "11px",
+                                fontWeight: 700,
+                                color: delivered > 0 ? "#b45309" : "#0369a1",
+                                background: delivered > 0 ? "#fef3c7" : "#e0f2fe",
+                                border: `1px solid ${delivered > 0 ? "#fde68a" : "#bae6fd"}`,
+                                padding: "2px 8px",
+                                borderRadius: "4px",
+                              }}
+                            >
+                              {delivered > 0
+                                ? `⏳ Đã giao ${delivered}/${ordered} · Còn thiếu: ${rem} ${it.unit || "Cái"}`
+                                : `📦 Chưa giao · Cần giao: ${rem} ${it.unit || "Cái"}`}
+                            </span>
+                          )}
                         </div>
                       </div>
                     </div>
 
-                    {isChecked && (
+                    {isChecked && !isItemDone && (
                       <div
                         style={{
                           marginTop: "8px",
@@ -476,25 +697,46 @@ export function POHandoverPickerModal({
                         </div>
                         <div>
                           <label style={{ fontSize: "11px", color: "#166534", fontWeight: 700 }}>
-                            SL Bàn giao thực tế:
+                            SL Giao đợt này (Tối đa {rem}):
                           </label>
                           <input
                             type="number"
+                            min={1}
+                            max={rem}
                             value={qPass}
-                            onChange={(e) =>
-                              setQtyPassMap((prev) => ({ ...prev, [it.id]: Number(e.target.value) || 0 }))
-                            }
+                            onChange={(e) => {
+                              const val = Number(e.target.value);
+                              setQtyPassMap((prev) => ({ ...prev, [it.id]: val }));
+                            }}
+                            onBlur={() => {
+                              const current = qtyPassMap[it.id];
+                              if (current === undefined || isNaN(current) || current < 1) {
+                                setQtyPassMap((prev) => ({ ...prev, [it.id]: 1 }));
+                              } else if (current > rem) {
+                                setQtyPassMap((prev) => ({ ...prev, [it.id]: rem }));
+                              }
+                            }}
                             style={{
                               width: "100%",
                               height: "36px",
                               textAlign: "right",
                               fontWeight: 700,
                               borderRadius: "6px",
-                              border: "1.5px solid #16a34a",
+                              border: isOverLimit || isUnderLimit ? "1.5px solid #ef4444" : "1.5px solid #16a34a",
                               padding: "0 8px",
-                              color: "#166534",
+                              color: isOverLimit || isUnderLimit ? "#ef4444" : "#166534",
                             }}
                           />
+                          {isOverLimit && (
+                            <div style={{ color: "#ef4444", fontSize: "10.5px", fontWeight: 700, marginTop: "2px" }}>
+                              ⚠ Vượt quá SL còn lại ({rem})
+                            </div>
+                          )}
+                          {isUnderLimit && (
+                            <div style={{ color: "#ef4444", fontSize: "10.5px", fontWeight: 700, marginTop: "2px" }}>
+                              ⚠ Tối thiểu 1 {it.unit}
+                            </div>
+                          )}
                         </div>
                       </div>
                     )}
@@ -506,91 +748,173 @@ export function POHandoverPickerModal({
             /* Desktop Table */
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
               <thead>
-                <tr style={{ background: "#f8fafc", textAlign: "left", borderBottom: "1px solid #e2e8f0" }}>
+                <tr style={{ background: "#f8fafc", textAlign: "left", borderBottom: "1.5px solid #e2e8f0" }}>
                   <th style={{ padding: "10px", width: "48px", textAlign: "center" }}>Chọn</th>
-                  <th style={{ padding: "10px", minWidth: "300px" }}>Tên hàng hóa / Quy cách</th>
-                  <th style={{ padding: "10px", width: "80px", textAlign: "center" }}>ĐVT</th>
-                  <th style={{ padding: "10px", width: "90px", textAlign: "right" }}>SL Đặt PO</th>
-                  <th style={{ padding: "10px", width: "130px", textAlign: "right" }}>SL Chứng từ</th>
-                  <th style={{ padding: "10px", width: "150px", textAlign: "right" }}>SL Bàn giao thực tế</th>
-                  <th style={{ padding: "10px", minWidth: "200px" }}>Ghi chú</th>
+                  <th style={{ padding: "10px", minWidth: "260px" }}>Tên hàng hóa / Quy cách</th>
+                  <th style={{ padding: "10px", width: "70px", textAlign: "center" }}>ĐVT</th>
+                  <th style={{ padding: "10px", width: "95px", textAlign: "right" }}>SL Đặt PO</th>
+                  <th style={{ padding: "10px", width: "110px", textAlign: "right" }}>Đã giao lũy kế</th>
+                  <th style={{ padding: "10px", width: "100px", textAlign: "right" }}>Còn lại</th>
+                  <th style={{ padding: "10px", width: "140px", textAlign: "right" }}>SL Giao đợt này</th>
+                  <th style={{ padding: "10px", minWidth: "160px" }}>Ghi chú đợt giao</th>
                 </tr>
               </thead>
               <tbody>
                 {items.map((it) => {
-                  const isChecked = Boolean(selectedMap[it.id]);
-                  const qDoc = qtyDocMap[it.id] ?? Number(it.qty) ?? 0;
-                  const qPass = qtyPassMap[it.id] ?? Number(it.deliveredQty) ?? qDoc;
+                  const stat = deliveryStats?.itemsStats[it.id];
+                  const rem = stat ? stat.quantityRemaining : 0;
+                  const ordered = stat ? stat.quantityOrdered : (Number(it.qty) || 0);
+                  const delivered = stat ? stat.quantityDelivered : (Number(it.deliveredQty) || 0);
+                  const isItemDone = stat ? stat.isFullyDelivered : rem === 0;
+                  const isChecked = Boolean(selectedMap[it.id]) && !isItemDone;
+                  const qDoc = qtyDocMap[it.id] ?? rem;
+                  const qPass = qtyPassMap[it.id] ?? rem;
+                  const isOverLimit = qPass > rem;
+                  const isUnderLimit = qPass < 1;
 
                   return (
                     <tr
                       key={it.id}
                       style={{
                         borderBottom: "1px solid #e2e8f0",
-                        background: isChecked ? "#f0f9ff" : "#ffffff",
+                        background: isItemDone ? "#f8fafc" : isChecked ? "#f0f9ff" : "#ffffff",
+                        opacity: isItemDone ? 0.75 : 1,
                       }}
                     >
                       <td style={{ padding: "8px", textAlign: "center" }}>
                         <input
                           type="checkbox"
                           checked={isChecked}
+                          disabled={isItemDone || isFullyDelivered}
                           onChange={(e) =>
                             setSelectedMap((prev) => ({ ...prev, [it.id]: e.target.checked }))
                           }
-                          style={{ width: "18px", height: "18px", cursor: "pointer", accentColor: "#0284c7" }}
+                          style={{
+                            width: "18px",
+                            height: "18px",
+                            cursor: isItemDone || isFullyDelivered ? "not-allowed" : "pointer",
+                            accentColor: "#0284c7",
+                          }}
                         />
                       </td>
                       <td style={{ padding: "8px" }}>
                         <div style={{ fontWeight: 700, color: "#0f172a" }}>{it.name}</div>
                         {it.spec && <div style={{ fontSize: "11.5px", color: "#64748b" }}>{it.spec}</div>}
+                        <div style={{ marginTop: "3px" }}>
+                          {isItemDone ? (
+                            <span
+                              style={{
+                                display: "inline-block",
+                                fontSize: "10.5px",
+                                fontWeight: 700,
+                                color: "#15803d",
+                                background: "#dcfce7",
+                                border: "1px solid #86efac",
+                                padding: "1px 6px",
+                                borderRadius: "4px",
+                              }}
+                            >
+                              ✓ Đã giao đủ (100%)
+                            </span>
+                          ) : delivered > 0 ? (
+                            <span
+                              style={{
+                                display: "inline-block",
+                                fontSize: "10.5px",
+                                fontWeight: 700,
+                                color: "#b45309",
+                                background: "#fef3c7",
+                                border: "1px solid #fde68a",
+                                padding: "1px 6px",
+                                borderRadius: "4px",
+                              }}
+                            >
+                              ⏳ Giao một phần ({delivered}/{ordered})
+                            </span>
+                          ) : (
+                            <span
+                              style={{
+                                display: "inline-block",
+                                fontSize: "10.5px",
+                                fontWeight: 600,
+                                color: "#0369a1",
+                                background: "#e0f2fe",
+                                border: "1px solid #bae6fd",
+                                padding: "1px 6px",
+                                borderRadius: "4px",
+                              }}
+                            >
+                              📦 Chưa giao
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td style={{ padding: "8px", textAlign: "center" }}>{it.unit || "Cái"}</td>
-                      <td style={{ padding: "8px", textAlign: "right", color: "#64748b" }}>{it.qty}</td>
-                      <td style={{ padding: "8px" }}>
-                        <input
-                          type="number"
-                          disabled={!isChecked}
-                          value={qDoc}
-                          onChange={(e) =>
-                            setQtyDocMap((prev) => ({ ...prev, [it.id]: Number(e.target.value) || 0 }))
-                          }
-                          style={{
-                            width: "100%",
-                            height: "32px",
-                            textAlign: "right",
-                            fontWeight: 600,
-                            border: "1px solid #cbd5e1",
-                            borderRadius: "4px",
-                            padding: "0 6px",
-                          }}
-                        />
+                      <td style={{ padding: "8px", textAlign: "right", fontWeight: 600, color: "#475569" }}>
+                        {ordered}
+                      </td>
+                      <td style={{ padding: "8px", textAlign: "right", fontWeight: 700, color: delivered > 0 ? "#15803d" : "#94a3b8" }}>
+                        {delivered}
+                      </td>
+                      <td style={{ padding: "8px", textAlign: "right", fontWeight: 700, color: rem > 0 ? "#b45309" : "#15803d" }}>
+                        {rem > 0 ? rem : <span style={{ color: "#16a34a" }}>0</span>}
                       </td>
                       <td style={{ padding: "8px" }}>
-                        <input
-                          type="number"
-                          disabled={!isChecked}
-                          value={qPass}
-                          onChange={(e) =>
-                            setQtyPassMap((prev) => ({ ...prev, [it.id]: Number(e.target.value) || 0 }))
-                          }
-                          style={{
-                            width: "100%",
-                            height: "32px",
-                            textAlign: "right",
-                            fontWeight: 700,
-                            border: "1.5px solid #16a34a",
-                            borderRadius: "4px",
-                            padding: "0 6px",
-                            color: "#166534",
-                          }}
-                        />
+                        {isItemDone ? (
+                          <div style={{ textAlign: "right", color: "#94a3b8", fontSize: "12px", fontStyle: "italic" }}>
+                            Đã hoàn tất
+                          </div>
+                        ) : (
+                          <div>
+                            <input
+                              type="number"
+                              disabled={!isChecked || isFullyDelivered}
+                              min={1}
+                              max={rem}
+                              value={qPass}
+                              onChange={(e) => {
+                                const val = Number(e.target.value);
+                                setQtyPassMap((prev) => ({ ...prev, [it.id]: val }));
+                              }}
+                              onBlur={() => {
+                                const current = qtyPassMap[it.id];
+                                if (current === undefined || isNaN(current) || current < 1) {
+                                  setQtyPassMap((prev) => ({ ...prev, [it.id]: 1 }));
+                                } else if (current > rem) {
+                                  setQtyPassMap((prev) => ({ ...prev, [it.id]: rem }));
+                                }
+                              }}
+                              style={{
+                                width: "100%",
+                                height: "32px",
+                                textAlign: "right",
+                                fontWeight: 700,
+                                border: isOverLimit || isUnderLimit ? "1.5px solid #ef4444" : "1.5px solid #16a34a",
+                                borderRadius: "4px",
+                                padding: "0 6px",
+                                color: isOverLimit || isUnderLimit ? "#ef4444" : "#166534",
+                                background: !isChecked ? "#f1f5f9" : "#ffffff",
+                              }}
+                            />
+                            {isOverLimit && isChecked && (
+                              <div style={{ color: "#ef4444", fontSize: "10.5px", fontWeight: 700, marginTop: "2px", textAlign: "right" }}>
+                                ⚠ Tối đa {rem} {it.unit}
+                              </div>
+                            )}
+                            {isUnderLimit && isChecked && (
+                              <div style={{ color: "#ef4444", fontSize: "10.5px", fontWeight: 700, marginTop: "2px", textAlign: "right" }}>
+                                ⚠ Tối thiểu 1 {it.unit}
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </td>
                       <td style={{ padding: "8px" }}>
                         <input
                           type="text"
-                          disabled={!isChecked}
+                          disabled={!isChecked || isItemDone || isFullyDelivered}
                           value={noteMap[it.id] || ""}
-                          placeholder="Ghi chú..."
+                          placeholder={isItemDone ? "Đã giao đủ" : "Ghi chú đợt giao..."}
                           onChange={(e) =>
                             setNoteMap((prev) => ({ ...prev, [it.id]: e.target.value }))
                           }
@@ -601,6 +925,7 @@ export function POHandoverPickerModal({
                             border: "1px solid #cbd5e1",
                             borderRadius: "4px",
                             padding: "0 6px",
+                            background: !isChecked || isItemDone ? "#f1f5f9" : "#ffffff",
                           }}
                         />
                       </td>
@@ -626,7 +951,15 @@ export function POHandoverPickerModal({
           }}
         >
           <div style={{ fontSize: "12.5px", color: "#475569" }}>
-            Đang chọn: <b style={{ color: "#0284c7" }}>{selectedCount}</b> mặt hàng
+            {isFullyDelivered ? (
+              <span style={{ color: "#16a34a", fontWeight: 700 }}>
+                ✓ Đơn hàng đã bàn giao đủ 100%. Không có mặt hàng nào cần giao tiếp.
+              </span>
+            ) : (
+              <span>
+                Đang chọn: <b style={{ color: "#0284c7" }}>{selectedCount}</b> mặt hàng còn thiếu để bàn giao đợt này
+              </span>
+            )}
           </div>
 
           <div style={{ display: "flex", gap: "8px" }}>
@@ -644,29 +977,35 @@ export function POHandoverPickerModal({
                 cursor: "pointer",
               }}
             >
-              Hủy
+              {isFullyDelivered ? "Đóng" : "Hủy"}
             </button>
             <button
               type="button"
-              disabled={selectedCount === 0}
+              disabled={isButtonDisabled}
               onClick={handleConfirm}
               style={{
                 height: "38px",
                 padding: "0 20px",
                 borderRadius: "6px",
                 border: "none",
-                background: selectedCount > 0 ? "#16a34a" : "#cbd5e1",
+                background: isButtonDisabled ? "#94a3b8" : "#16a34a",
                 color: "#ffffff",
                 fontWeight: 700,
                 fontSize: "13.5px",
-                cursor: selectedCount > 0 ? "pointer" : "not-allowed",
+                cursor: isButtonDisabled ? "not-allowed" : "pointer",
                 display: "inline-flex",
                 alignItems: "center",
                 gap: "6px",
-                boxShadow: selectedCount > 0 ? "0 2px 8px rgba(22, 163, 74, 0.3)" : "none",
+                boxShadow: isButtonDisabled ? "none" : "0 2px 8px rgba(22, 163, 74, 0.3)",
               }}
             >
-              <span>✓ Lưu & In biên bản ({selectedCount})</span>
+              {isFullyDelivered ? (
+                <span>✓ Đã giao đủ 100%</span>
+              ) : isAnySelectedInvalid ? (
+                <span>⚠ Vui lòng kiểm tra lại số lượng</span>
+              ) : (
+                <span>✓ Lưu & In biên bản ({selectedCount})</span>
+              )}
             </button>
           </div>
         </div>

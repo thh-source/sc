@@ -44,7 +44,7 @@ import VisualTimeline from "./VisualTimeline";
 import DocumentManager from "./DocumentManager";
 import { DocFlowLinks } from "./DocFlowLinks";
 import { resolveDocFlow } from "../utils/docFlow";
-import { isPOCompleted } from "../utils/paymentSync";
+import { isPOCompleted, calcPODeliveryStats, calcPOItemDeliveryStats } from "../utils/paymentSync";
 import { PODeliveryModal, POItemsMobileCards, DeliveryConfirmPayload } from "./PODeliveryMobileSheet";
 
 export function PODetail({
@@ -100,6 +100,10 @@ export function PODetail({
 }) {
   const [saving, setSaving] = useState(false);
   const [savedNotice, setSavedNotice] = useState(false);
+
+  const poDeliveryStats = useMemo(() => {
+    return calcPODeliveryStats(po, paymentHandovers);
+  }, [po, paymentHandovers]);
   const savedNoticeTimerRef = useRef<any>(null);
 
   useEffect(() => {
@@ -809,11 +813,12 @@ export function PODetail({
           {onCreateHandover && (
             <button
               type="button"
-              className="btn btn-primary btn-md"
+              className={poDeliveryStats.isFullyDelivered ? "btn btn-md" : "btn btn-primary btn-md"}
+              style={poDeliveryStats.isFullyDelivered ? { background: "#f8fafc", color: "#15803d", border: "1.5px solid #86efac", fontWeight: 700 } : undefined}
               onClick={() => onCreateHandover(po)}
-              title="Tạo biên bản bàn giao cho các mặt hàng trong đơn này"
+              title={poDeliveryStats.isFullyDelivered ? "Đơn hàng đã bàn giao đủ 100% (Bấm để xem biên bản)" : "Tạo biên bản bàn giao cho các mặt hàng trong đơn này"}
             >
-              <Truck size={16} /> Bàn giao
+              <Truck size={16} /> {poDeliveryStats.isFullyDelivered ? "Đã giao đủ (100%)" : "Bàn giao"}
             </button>
           )}
           {(onCreatePaymentRequest || onOpenGeneralPaymentRequest) && (
@@ -2303,10 +2308,11 @@ export function PODetail({
               ) : (
                 items.map((i, idx) => {
                   const rowTotal = calcPOItemTotal(i);
-                  const delivQty = Number(i.deliveredQty) || 0;
-                  const orderQty = Number(i.qty) || 0;
-                  const isDone = orderQty > 0 && delivQty >= orderQty;
-                  const isPartial = delivQty > 0 && delivQty < orderQty;
+                  const stat = calcPOItemDeliveryStats(i, po, paymentHandovers);
+                  const delivQty = stat.quantityDelivered;
+                  const orderQty = stat.quantityOrdered;
+                  const isDone = stat.isFullyDelivered;
+                  const isPartial = stat.quantityDelivered > 0 && !stat.isFullyDelivered;
                   const historyList = i.deliveryHistory || [];
                   return (
                     <tr key={i.id}>
@@ -2439,7 +2445,7 @@ export function PODetail({
                             {isDone
                               ? `✓ Đã giao đủ (${delivQty}/${orderQty})`
                               : isPartial
-                              ? `⏳ Đã giao ${delivQty}/${orderQty}`
+                              ? `⏳ Đã giao ${delivQty}/${orderQty} (Thiếu ${stat.quantityRemaining})`
                               : "Chưa giao"}
                           </div>
                           {historyList.length > 0 ? (

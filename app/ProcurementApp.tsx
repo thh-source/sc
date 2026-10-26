@@ -19,7 +19,7 @@ import "./vat-quote.css";
 
 import { PaymentManagement } from "./components/PaymentManagement";
 import { BANK_SUGGESTIONS, DEFAULT_PAYMENT_TEMPLATE, localToday } from "./payment-utils";
-import { Item, Supplier, PurchaseHistory, QuoteMode, QuoteEntry, Quote, PR, POItem, POCartLine, ApprovalRow, ApprovalDraft, ApprovalRequest, PODoc, Payment, PO, TrashItem, View, ColumnKey, SortState, PaymentDetailLine, PaymentRequestEntry, PaymentGroup, PaymentBeneficiary, PaymentHandoverItem, PaymentPrintTemplate, StoredState, isContractPO, buildPOPaymentDescription, formatPONumber, generatePOCode, isPONumberExists, calcPOTotal } from "./types";
+import { Item, Supplier, PurchaseHistory, QuoteMode, QuoteEntry, Quote, PR, POItem, POCartLine, ApprovalRow, ApprovalDraft, ApprovalRequest, PODoc, Payment, PO, TrashItem, View, ColumnKey, SortState, PaymentDetailLine, PaymentRequestEntry, PaymentGroup, PaymentBeneficiary, PaymentHandoverItem, PaymentPrintTemplate, StoredState, isContractPO, buildPOPaymentDescription, formatPONumber, generatePOCode, isPONumberExists, calcPOTotal, PODeliveryLog } from "./types";
 import { BASE_COLUMNS, reorder, applyTools, makeId, emptyItem, fmt, dateVN, DEFAULT_VAT_RATE, quoteDefaults, quoteBeforeVat, quoteAfterVat, quoteComparePrice, mergeHistorySeed, PurchaseHistorySeed, excelNumber, emptyPR, emptyPO, generateShortName } from "./utils";
 import { items0, suppliers0, purchaseHistory0, quotes0, prs0, pos0, HISTORY_SEED_ID } from "./seed";
 import { AdvancedItemsTable } from "./components/AdvancedItemsTable";
@@ -44,6 +44,7 @@ import {
   isApprovalCompleted,
   isPaymentCompleted,
   syncPaymentCompletionToPO,
+  calcPODeliveryStats,
 } from "./utils/paymentSync";
 
 const AdminSettings = lazy(() => import("./components/AdminSettings").then(m => ({ default: m.AdminSettings })));
@@ -1666,13 +1667,11 @@ function ProcurementAppInner({
     let curId = maxId;
 
     const supplier = suppliers.find((s) => s.id === handoverPickerPO.supplierId);
-    const suppPart = supplier?.name ? ` - NCC: ${supplier.name}` : "";
     const docTypeLabel = isContractPO(handoverPickerPO) ? "Hợp đồng" : "PO";
 
+    // 1. Tạo các bản ghi bàn giao cho ĐÚNG số lượng thực tế đợt này
     const newHandovers: PaymentHandoverItem[] = payload.items.map((entry) => {
       const it = entry.item;
-      const specPart = it.spec ? ` (${it.spec})` : "";
-      const customNote = entry.note ? ` - ${entry.note}` : "";
       return {
         id: curId++,
         department: payload.department,
@@ -1688,31 +1687,61 @@ function ProcurementAppInner({
         receiver_name: payload.receiverName || "",
         source_type: docTypeLabel,
         source_number: handoverPickerPO.number,
+        specification: it.spec || "",
+        po_item_id: it.id,
       };
     });
 
-    // Update PO delivery progress & status immediately
+    // 2. Tính toán chính xác số lượng lũy kế và trạng thái từng mặt hàng dựa trên deliveryStats
+    const currentDeliveryStats = calcPODeliveryStats(handoverPickerPO, paymentHandovers);
+
     const updatedItems = (handoverPickerPO.items || []).map((it) => {
       const entry = payload.items.find((x) => x.item.id === it.id);
-      if (!entry) return it;
-      const addQty = Number(entry.qtyPass) || Number(entry.qtyDoc) || 0;
-      const nextDelivered = (Number(it.deliveredQty) || 0) + addQty;
-      const reqQty = Number(it.qty) || 0;
+      const prevStat = currentDeliveryStats.itemsStats[it.id];
+      const prevDelivered = prevStat ? prevStat.quantityDelivered : (Number(it.deliveredQty) || 0);
+      const reqQty = Math.max(0, Number(it.qty) || 0);
+
+      if (!entry) {
+        // Dòng hàng này không giao trong đợt này: giữ nguyên số lượng lũy kế
+        const isDone = prevDelivered >= reqQty && reqQty > 0;
+        return {
+          ...it,
+          deliveredQty: prevDelivered,
+          deliveryStatus: (isDone ? "Đã giao" : prevDelivered > 0 ? "Giao một phần" : "Chưa giao") as any,
+        };
+      }
+
+      // Dòng hàng được giao trong đợt này
+      const batchDelivered = Number(entry.qtyPass) || 0;
+      const nextDelivered = Math.min(reqQty, prevDelivered + batchDelivered);
       const nextStatus =
         nextDelivered >= reqQty
           ? "Đã giao"
           : nextDelivered > 0
           ? "Giao một phần"
-          : it.deliveryStatus || "Chưa giao";
+          : "Chưa giao";
+
+      const newHistoryEntry: PODeliveryLog = {
+        date: payload.handoverDate || localToday(),
+        qty: batchDelivered,
+        note: entry.note || undefined,
+        senderName: payload.senderName || undefined,
+        receiverName: payload.receiverName || undefined,
+      };
+
       return {
         ...it,
         deliveredQty: nextDelivered,
         deliveryStatus: nextStatus as any,
         deliveryDate: payload.handoverDate || localToday(),
+        deliveryHistory: [...(it.deliveryHistory || []), newHistoryEntry],
       };
     });
 
-    const allDone = updatedItems.length > 0 && updatedItems.every((i) => (Number(i.deliveredQty) || 0) >= (Number(i.qty) || 0));
+    // 3. Đánh giá trạng thái tổng thể của PO
+    const allDone = updatedItems.length > 0 && updatedItems.every(
+      (i) => (Number(i.deliveredQty) || 0) >= (Number(i.qty) || 0)
+    );
     const someDone = updatedItems.some((i) => (Number(i.deliveredQty) || 0) > 0);
     const nextPoStatus = allDone ? "Đã giao đủ" : someDone ? "Đang giao hàng" : handoverPickerPO.status;
 
@@ -1720,7 +1749,9 @@ function ProcurementAppInner({
       ...handoverPickerPO,
       status: nextPoStatus,
       items: updatedItems,
+      isCompleted: allDone ? true : handoverPickerPO.isCompleted,
     };
+
     updatePO(updatedPO);
     if (currentPO?.id === handoverPickerPO.id) {
       setCurrentPO(updatedPO);
@@ -1740,6 +1771,27 @@ function ProcurementAppInner({
       receiverName: payload.receiverName,
     });
     setStorageStatus(`✓ Đã bàn giao ${newHandovers.length} mặt hàng cho ${payload.department} từ ${docTypeLabel} #${handoverPickerPO.number}. Mở bản in biên bản.`);
+  };
+
+  const handleOpenExistingHandoverPreview = (targetPO: PO) => {
+    const cleanNum = targetPO.number.trim().toLowerCase();
+    const matching = paymentHandovers.filter(
+      (h) => (h.source_number || "").trim().toLowerCase() === cleanNum
+    );
+    if (matching.length === 0) {
+      alert(`Chưa có biên bản bàn giao nào cho đơn hàng #${targetPO.number}.`);
+      return;
+    }
+    const firstDept = matching[0]?.department || "Phòng Cung ứng";
+    setPrintHandoverData({
+      isOpen: true,
+      items: matching,
+      po: targetPO,
+      department: firstDept,
+      handoverDate: matching[0]?.handover_date || localToday(),
+      senderName: matching[0]?.sender_name || "Trần Hải Hà",
+      receiverName: matching[0]?.receiver_name || "",
+    });
   };
 
   const handleCreatePaymentRequestFromHandover = (newReq: PaymentRequestEntry) => {
@@ -3187,6 +3239,7 @@ function ProcurementAppInner({
         prs={prs}
         suppliers={suppliers}
         existingHandovers={paymentHandovers}
+        onOpenExistingHandoverPreview={handleOpenExistingHandoverPreview}
       />
 
       {/* Handover Print Preview Modal */}
