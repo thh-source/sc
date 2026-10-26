@@ -127,7 +127,7 @@ export function CreatePRCatalog({
   };
 
   return (
-    <section className="content create-page">
+    <section className="content create-page w-full min-h-screen overflow-y-auto pb-28" style={{ width: "100%", minHeight: "100%", overflowY: "auto", paddingBottom: "120px" }}>
       <div className="heading">
         <div>
           <h1>Tạo PR mới</h1>
@@ -151,36 +151,64 @@ export function CreatePRCatalog({
           </button>
         </div>
       </div>
-      <div className="form-card">
-        <div className="section-title">
-          <span className="section-step">1</span>
-          <div>
-            <h2>Thông tin PR</h2>
-            <p>Các thông tin nhận diện và mục đích sử dụng</p>
-          </div>
+      <div className="form-card pr-info-card" style={{ padding: "12px 16px", marginBottom: "12px", background: "#ffffff", borderRadius: "8px", border: "1px solid #e2e8f0" }}>
+        <div className="section-title" style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px" }}>
+          <span className="section-step" style={{ width: "22px", height: "22px", borderRadius: "5px", fontSize: "11px", fontWeight: 700, background: "#0f172a", color: "#ffffff", display: "grid", placeItems: "center" }}>1</span>
+          <h2 style={{ fontSize: "14px", fontWeight: 700, margin: 0, color: "#0f172a" }}>Thông tin PR</h2>
+          <span style={{ fontSize: "11.5px", color: "#64748b" }}>· Nhận diện, mục đích & bản scan</span>
         </div>
-        <div className="form-grid">
-          <label>
-            Số PR <b>*</b>
+
+        {/* Hàng 1: 4 cột ngang trên 1 dòng */}
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))",
+            gap: "10px",
+            marginBottom: "8px",
+          }}
+        >
+          <label style={{ display: "flex", flexDirection: "column", gap: "3px", fontSize: "12px", fontWeight: 600, color: "#475569" }}>
+            <span>Số PR <b style={{ color: "#ef4444" }}>*</b></span>
             <input
+              type="text"
               value={draft.number}
-              onChange={(e) =>
-                setDraft((d) => ({ ...d, number: e.target.value }))
-              }
+              onChange={(e) => setDraft((d) => ({ ...d, number: e.target.value }))}
+              style={{
+                height: "36px",
+                border: "1px solid #cbd5e1",
+                borderRadius: "6px",
+                padding: "0 10px",
+                fontSize: "13px",
+                fontWeight: 600,
+                color: "#0f172a",
+                outline: 0,
+                background: "#ffffff",
+              }}
+              placeholder="VD: PR-2026-0001"
             />
           </label>
-          <label>
-            Ngày PR <b>*</b>
+
+          <label style={{ display: "flex", flexDirection: "column", gap: "3px", fontSize: "12px", fontWeight: 600, color: "#475569" }}>
+            <span>Ngày PR <b style={{ color: "#ef4444" }}>*</b></span>
             <input
               type="date"
               value={draft.date}
-              onChange={(e) =>
-                setDraft((d) => ({ ...d, date: e.target.value }))
-              }
+              onChange={(e) => setDraft((d) => ({ ...d, date: e.target.value }))}
+              style={{
+                height: "36px",
+                border: "1px solid #cbd5e1",
+                borderRadius: "6px",
+                padding: "0 10px",
+                fontSize: "13px",
+                color: "#1e293b",
+                outline: 0,
+                background: "#ffffff",
+              }}
             />
           </label>
-          <label>
-            Đơn vị <b>*</b>
+
+          <label style={{ display: "flex", flexDirection: "column", gap: "3px", fontSize: "12px", fontWeight: 600, color: "#475569" }}>
+            <span>Đơn vị / Phòng ban <b style={{ color: "#ef4444" }}>*</b></span>
             <select
               value={draft.department}
               onChange={(e) => {
@@ -196,17 +224,18 @@ export function CreatePRCatalog({
                 setDraft((d) => ({ ...d, department: val }));
               }}
               style={{
-                height: "42px",
-                border: "1px solid #ccd8e5",
+                height: "36px",
+                border: "1px solid #cbd5e1",
                 borderRadius: "6px",
-                padding: "0 11px",
+                padding: "0 10px",
+                fontSize: "13px",
+                color: "#1e293b",
                 outline: 0,
-                color: "var(--ink)",
-                background: "white",
+                background: "#ffffff",
                 cursor: "pointer",
               }}
             >
-              <option value="">-- Chọn đơn vị / phòng ban --</option>
+              <option value="">-- Chọn đơn vị --</option>
               {sysDepts.map((d) => (
                 <option key={d} value={d}>
                   {d}
@@ -215,152 +244,98 @@ export function CreatePRCatalog({
               <option value="__ADD_NEW__">＋ Thêm phòng ban mới...</option>
             </select>
           </label>
-          <label className="purpose-input">
-            Mục đích sử dụng <b>*</b>
-            <textarea
-              rows={3}
-              value={draft.purpose}
-              onChange={(e) =>
-                setDraft((d) => ({ ...d, purpose: e.target.value }))
-              }
-            />
-          </label>
-          <label className="common-note-input">
-            Ghi chú chung PR
-            <textarea
-              rows={4}
-              value={draft.note}
-              placeholder="Nhập diễn giải tự do, lưu ý xử lý hoặc thông tin liên quan..."
-              onChange={(e) =>
-                setDraft((d) => ({ ...d, note: e.target.value }))
-              }
-            />
-          </label>
 
-          {/* Ô tải lên bản PR scan (PDF/Ảnh) */}
-          <div
-            className="scan-upload-field"
-            style={{
-              gridColumn: "1 / -1",
-              borderTop: "1px dashed #cbd5e1",
-              paddingTop: "14px",
-              marginTop: "4px",
-            }}
-          >
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                marginBottom: "8px",
-                flexWrap: "wrap",
-                gap: "6px",
+          <div style={{ display: "flex", flexDirection: "column", gap: "3px" }}>
+            <span style={{ fontSize: "12px", fontWeight: 600, color: "#475569", display: "inline-flex", alignItems: "center", gap: "4px" }}>
+              <Paperclip size={13} style={{ color: "#0284c7" }} /> Bản scan PR (PDF/Ảnh)
+            </span>
+            <input
+              ref={scanInputRef}
+              type="file"
+              accept="application/pdf,image/png,image/jpeg,image/webp"
+              hidden
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) handleScanUpload(f);
               }}
-            >
-              <label
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: "6px",
-                  fontSize: "13px",
-                  fontWeight: 700,
-                  color: "#1e293b",
-                }}
-              >
-                <Paperclip size={16} style={{ color: "#0284c7" }} />
-                Tải lên bản PR scan (PDF/Ảnh)
-              </label>
-              <small style={{ color: "#64748b", fontSize: "12px" }}>
-                Hỗ trợ PDF, JPG, PNG (tối đa 5MB, tự động nén ảnh giữ nét tài liệu)
-              </small>
-            </div>
-
+            />
             {draft.scan_file_url ? (
               <div
                 style={{
+                  height: "36px",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "space-between",
-                  padding: "10px 14px",
+                  padding: "0 8px",
                   background: "#f0fdf4",
                   border: "1px solid #86efac",
-                  borderRadius: "8px",
-                  flexWrap: "wrap",
-                  gap: "10px",
+                  borderRadius: "6px",
+                  fontSize: "12px",
                 }}
               >
-                <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                  <span
-                    style={{
-                      width: "32px",
-                      height: "32px",
-                      borderRadius: "6px",
-                      background: "#dcfce7",
-                      color: "#16a34a",
-                      display: "inline-flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      fontWeight: 700,
-                      fontSize: "16px",
-                    }}
-                  >
-                    ✓
-                  </span>
-                  <div>
-                    <div style={{ fontWeight: 600, fontSize: "13px", color: "#166534" }}>
-                      {scanFileName || "Bản scan PR đã tải lên thành công"}
-                    </div>
-                    <small style={{ color: "#15803d", fontSize: "11.5px" }}>
-                      Đã lưu trữ an toàn trên Cloudflare R2 & D1
-                    </small>
-                  </div>
-                </div>
-
-                <div style={{ display: "inline-flex", gap: "6px" }}>
+                <span
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "4px",
+                    color: "#166534",
+                    fontWeight: 600,
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                    maxWidth: "115px",
+                  }}
+                  title={scanFileName || "Bản scan PR"}
+                >
+                  <span style={{ color: "#16a34a", fontWeight: 700 }}>✓</span> {scanFileName || "Đã có scan"}
+                </span>
+                <div style={{ display: "inline-flex", gap: "4px" }}>
                   <button
                     type="button"
-                    className="btn btn-secondary btn-xs"
+                    onClick={() => setShowPreviewModal(true)}
+                    title="Xem trực tiếp bản scan"
                     style={{
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: "4px",
-                      padding: "5px 10px",
-                      fontSize: "12px",
+                      padding: "3px 6px",
+                      fontSize: "11px",
                       fontWeight: 600,
                       color: "#0369a1",
-                      backgroundColor: "#f0f9ff",
+                      backgroundColor: "#ffffff",
                       border: "1px solid #bae6fd",
-                      borderRadius: "5px",
+                      borderRadius: "4px",
+                      cursor: "pointer",
+                      display: "inline-flex",
+                      alignItems: "center",
                     }}
-                    onClick={() => setShowPreviewModal(true)}
                   >
-                    <Eye size={14} /> Xem trực tiếp
+                    <Eye size={13} />
                   </button>
                   <button
                     type="button"
-                    className="btn btn-secondary btn-xs"
-                    style={{
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: "4px",
-                      padding: "5px 10px",
-                      fontSize: "12px",
-                      color: "#dc2626",
-                      backgroundColor: "#fef2f2",
-                      border: "1px solid #fecaca",
-                      borderRadius: "5px",
-                    }}
                     onClick={() => {
                       setDraft((d) => ({ ...d, scan_file_url: "" }));
                       setScanFileName("");
                     }}
+                    title="Xóa file scan"
+                    style={{
+                      padding: "3px 6px",
+                      fontSize: "11px",
+                      color: "#dc2626",
+                      backgroundColor: "#ffffff",
+                      border: "1px solid #fecaca",
+                      borderRadius: "4px",
+                      cursor: "pointer",
+                      display: "inline-flex",
+                      alignItems: "center",
+                    }}
                   >
-                    <Trash2 size={14} /> Xóa file
+                    <Trash2 size={13} />
                   </button>
                 </div>
               </div>
             ) : (
-              <div
+              <button
+                type="button"
+                onClick={() => scanInputRef.current?.click()}
                 onDragOver={(e) => {
                   e.preventDefault();
                   setIsDragging(true);
@@ -372,74 +347,103 @@ export function CreatePRCatalog({
                   const f = e.dataTransfer.files?.[0];
                   if (f) handleScanUpload(f);
                 }}
-                onClick={() => scanInputRef.current?.click()}
+                disabled={uploadingScan}
                 style={{
-                  border: `2px dashed ${isDragging ? "#0284c7" : "#cbd5e1"}`,
-                  borderRadius: "8px",
-                  padding: "16px 20px",
-                  textAlign: "center",
-                  background: isDragging ? "#f0f9ff" : "#f8fafc",
+                  height: "36px",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: "6px",
+                  border: `1px dashed ${isDragging ? "#0284c7" : "#0284c7"}`,
+                  background: isDragging ? "#e0f2fe" : "#f0f9ff",
+                  borderRadius: "6px",
+                  color: "#0369a1",
+                  fontSize: "12px",
+                  fontWeight: 600,
                   cursor: "pointer",
+                  padding: "0 8px",
+                  width: "100%",
                   transition: "all 0.15s ease",
                 }}
+                title="Bấm để chọn file scan hoặc kéo thả trực tiếp (tối đa 5MB)"
               >
-                <input
-                  ref={scanInputRef}
-                  type="file"
-                  accept="application/pdf,image/png,image/jpeg,image/webp"
-                  hidden
-                  onChange={(e) => {
-                    const f = e.target.files?.[0];
-                    if (f) handleScanUpload(f);
-                  }}
-                />
                 {uploadingScan ? (
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      gap: "8px",
-                      color: "#0284c7",
-                      padding: "10px 0",
-                    }}
-                  >
-                    <Loader2 size={20} className="animate-spin" />
-                    <span style={{ fontSize: "13px", fontWeight: 600 }}>
-                      Đang nén & lưu bản scan lên Cloudflare R2...
-                    </span>
-                  </div>
+                  <>
+                    <Loader2 size={14} className="animate-spin text-sky-600" />
+                    <span>Đang nén & lưu...</span>
+                  </>
                 ) : (
-                  <div>
-                    <div
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        gap: "6px",
-                        color: "#334155",
-                        marginBottom: "4px",
-                      }}
-                    >
-                      <Paperclip size={18} style={{ color: "#0284c7" }} />
-                      <strong style={{ fontSize: "13px" }}>
-                        Kéo thả file scan vào đây hoặc bấm để chọn file
-                      </strong>
-                    </div>
-                    <p style={{ margin: 0, fontSize: "12px", color: "#64748b" }}>
-                      Hỗ trợ chụp trực tiếp từ camera điện thoại hoặc tải file PDF / Ảnh (tối đa 5MB)
-                    </p>
-                  </div>
+                  <>
+                    <Paperclip size={14} />
+                    <span>Đính kèm scan PR</span>
+                  </>
                 )}
-              </div>
-            )}
-
-            {scanError && (
-              <div style={{ color: "#ef4444", fontSize: "12px", marginTop: "6px", fontWeight: 600 }}>
-                ⚠ {scanError}
-              </div>
+              </button>
             )}
           </div>
+        </div>
+
+        {scanError && (
+          <div style={{ color: "#ef4444", fontSize: "11.5px", marginBottom: "6px", fontWeight: 600 }}>
+            ⚠ {scanError}
+          </div>
+        )}
+
+        {/* Hàng 2: Gộp Mục đích & Ghi chú thành 2 cột song song */}
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+            gap: "10px",
+          }}
+        >
+          <label style={{ display: "flex", flexDirection: "column", gap: "3px", fontSize: "12px", fontWeight: 600, color: "#475569" }}>
+            <span>Mục đích sử dụng <b style={{ color: "#ef4444" }}>*</b></span>
+            <textarea
+              rows={2}
+              value={draft.purpose}
+              onChange={(e) => setDraft((d) => ({ ...d, purpose: e.target.value }))}
+              placeholder="Nhập mục đích sử dụng (bắt buộc)..."
+              style={{
+                height: "56px",
+                minHeight: "56px",
+                maxHeight: "120px",
+                border: "1px solid #cbd5e1",
+                borderRadius: "6px",
+                padding: "6px 10px",
+                fontSize: "13px",
+                lineHeight: 1.35,
+                color: "#1e293b",
+                outline: 0,
+                resize: "vertical",
+                background: "#ffffff",
+              }}
+            />
+          </label>
+
+          <label style={{ display: "flex", flexDirection: "column", gap: "3px", fontSize: "12px", fontWeight: 600, color: "#475569" }}>
+            <span>Ghi chú chung PR</span>
+            <textarea
+              rows={2}
+              value={draft.note}
+              onChange={(e) => setDraft((d) => ({ ...d, note: e.target.value }))}
+              placeholder="Nhập ghi chú hoặc thông tin bổ sung (nếu có)..."
+              style={{
+                height: "56px",
+                minHeight: "56px",
+                maxHeight: "120px",
+                border: "1px solid #cbd5e1",
+                borderRadius: "6px",
+                padding: "6px 10px",
+                fontSize: "13px",
+                lineHeight: 1.35,
+                color: "#1e293b",
+                outline: 0,
+                resize: "vertical",
+                background: "#ffffff",
+              }}
+            />
+          </label>
         </div>
       </div>
       <div className="form-card items-card">
