@@ -127,7 +127,15 @@ export function CreatePRCatalog({
   };
 
   return (
-    <section className="content create-page w-full min-h-screen overflow-y-auto pb-28" style={{ width: "100%", minHeight: "100%", overflowY: "auto", paddingBottom: "120px" }}>
+    <div
+      className="create-page w-full min-h-full p-4 md:p-6 pb-32 space-y-4"
+      style={{
+        width: "100%",
+        minHeight: "100%",
+        paddingBottom: "140px",
+        boxSizing: "border-box",
+      }}
+    >
       <div className="heading">
         <div>
           <h1>Tạo PR mới</h1>
@@ -152,10 +160,12 @@ export function CreatePRCatalog({
         </div>
       </div>
       <div className="form-card pr-info-card" style={{ padding: "12px 16px", marginBottom: "12px", background: "#ffffff", borderRadius: "8px", border: "1px solid #e2e8f0" }}>
-        <div className="section-title" style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px" }}>
-          <span className="section-step" style={{ width: "22px", height: "22px", borderRadius: "5px", fontSize: "11px", fontWeight: 700, background: "#0f172a", color: "#ffffff", display: "grid", placeItems: "center" }}>1</span>
-          <h2 style={{ fontSize: "14px", fontWeight: 700, margin: 0, color: "#0f172a" }}>Thông tin PR</h2>
-          <span style={{ fontSize: "11.5px", color: "#64748b" }}>· Nhận diện, mục đích & bản scan</span>
+        <div className="section-title" style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "8px" }}>
+          <span className="section-step" style={{ width: "24px", height: "24px", minWidth: "24px", borderRadius: "6px", fontSize: "12px", fontWeight: 700, background: "#0f172a", color: "#ffffff", display: "grid", placeItems: "center", flexShrink: 0 }}>1</span>
+          <div style={{ display: "flex", alignItems: "baseline", gap: "8px", flexWrap: "wrap" }}>
+            <h2 style={{ fontSize: "14px", fontWeight: 700, margin: 0, color: "#0f172a" }}>Thông tin PR</h2>
+            <p style={{ fontSize: "12px", color: "#64748b", margin: 0, fontWeight: 400 }}>· Nhận diện, mục đích & bản scan</p>
+          </div>
         </div>
 
         {/* Hàng 1: 4 cột ngang trên 1 dòng */}
@@ -604,7 +614,7 @@ export function CreatePRCatalog({
           onClose={() => setShowPreviewModal(false)}
         />
       )}
-    </section>
+    </div>
   );
 }
 

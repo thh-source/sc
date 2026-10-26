@@ -1981,7 +1981,7 @@ function ProcurementAppInner({
           onClick={() => setCollapsed(true)}
         />
       )}
-      <main className={view === "create" ? "main-scrollable" : ""}>
+      <main className="flex-1 h-screen overflow-y-auto overflow-x-hidden bg-slate-50 relative pb-28">
         <div className="mobile-header">
           <button className="hamb" onClick={() => setCollapsed(!collapsed)}>
             ☰
