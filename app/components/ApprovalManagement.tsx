@@ -28,6 +28,9 @@ import {
   PO,
   Quote,
   Supplier,
+  TrashItem,
+  generatePOCode,
+  isPONumberExists,
 } from "../types";
 import { fmt as formatVND } from "../utils/format";
 import { PHENIKAA_PHARMA_LOGO_BASE64 } from "../payment-utils";
@@ -51,7 +54,8 @@ interface ApprovalManagementProps {
   onSaveApproval: (req: ApprovalRequest) => void;
   onDeleteApproval: (id: number) => void;
   onRestoreSamples: () => void;
-  onCreatePOFromApproval: (req: ApprovalRequest, vatRate?: number) => void;
+  onCreatePOFromApproval: (req: ApprovalRequest, vatRate?: number, customPoNumber?: string) => void;
+  trash?: TrashItem[];
   prs: PR[];
   suppliers: Supplier[];
   quotesByPr: Record<number, Quote>;
@@ -158,6 +162,7 @@ export default function ApprovalManagement({
   onBackToCompare,
   autoPrint = false,
   pos = [],
+  trash = [],
   onNavigate,
   onToggleComplete,
 }: ApprovalManagementProps) {
@@ -174,6 +179,28 @@ export default function ApprovalManagement({
   const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
   const [poCreateModalReq, setPoCreateModalReq] = useState<ApprovalRequest | null>(null);
   const [poCreateVatRate, setPoCreateVatRate] = useState<number>(10);
+  const [poCreateCustomNumber, setPoCreateCustomNumber] = useState<string>("");
+  const [poCreateNumberManual, setPoCreateNumberManual] = useState<boolean>(false);
+
+  const handleOpenPOCreateModal = (req: ApprovalRequest) => {
+    const selectedCol = req.supplierColumns.find((c) => c.isSelected) || req.supplierColumns[0];
+    const sup =
+      (selectedCol?.supplierId !== undefined ? suppliers.find((s) => s.id === selectedCol.supplierId) : undefined) ||
+      suppliers.find(
+        (s) =>
+          s.name.trim().toLowerCase() === (req.recommendedSupplierName || "").trim().toLowerCase() ||
+          s.name.trim().toLowerCase() === (selectedCol?.supplierName || "").trim().toLowerCase()
+      ) || {
+        shortName: selectedCol?.shortName,
+        name: req.recommendedSupplierName || selectedCol?.supplierName,
+      };
+    const todayDate = new Date().toISOString().slice(0, 10);
+    const autoCode = generatePOCode(sup, todayDate, pos, trash);
+    setPoCreateCustomNumber(autoCode);
+    setPoCreateNumberManual(false);
+    setPoCreateVatRate(10);
+    setPoCreateModalReq(req);
+  };
 
   useEffect(() => {
     setMounted(true);
@@ -3472,6 +3499,7 @@ export default function ApprovalManagement({
       : 0;
     const vatAmount = Math.round(subtotal * (poCreateVatRate / 100));
     const totalWithVat = subtotal + vatAmount;
+    const isDuplicatePO = isPONumberExists(poCreateCustomNumber.trim(), pos, trash);
 
     return (
       <div
@@ -3514,6 +3542,66 @@ export default function ApprovalManagement({
               </div>
             </div>
 
+            <div>
+              <label style={{ display: "block", fontSize: 13, fontWeight: 600, color: "#334155", marginBottom: 6 }}>
+                Số PO (Tự động gợi ý duy nhất, có thể sửa): <span style={{ color: "#ef4444" }}>*</span>
+              </label>
+              <div style={{ display: "flex", gap: 6 }}>
+                <input
+                  type="text"
+                  className="cell-input"
+                  style={{
+                    flex: 1,
+                    fontSize: 14,
+                    fontWeight: 700,
+                    color: isDuplicatePO ? "#dc2626" : "#0284c7",
+                    padding: "8px 12px",
+                    border: `1px solid ${isDuplicatePO ? "#ef4444" : "#cbd5e1"}`,
+                    borderRadius: 6,
+                    background: isDuplicatePO ? "#fef2f2" : "#fff",
+                  }}
+                  value={poCreateCustomNumber}
+                  onChange={(e) => {
+                    setPoCreateCustomNumber(e.target.value);
+                    setPoCreateNumberManual(true);
+                  }}
+                  placeholder="VD: PHUCVINH-26102026-02"
+                />
+                <button
+                  type="button"
+                  className="btn"
+                  style={{ padding: "0 10px", fontSize: 12, background: "#f8fafc", border: "1px solid #cbd5e1", whiteSpace: "nowrap" }}
+                  title="Tạo lại mã tự động theo chuẩn NCC và ngày"
+                  onClick={() => {
+                    const targetSup =
+                      (selectedCol?.supplierId !== undefined ? suppliers.find((s) => s.id === selectedCol.supplierId) : undefined) ||
+                      suppliers.find(
+                        (s) =>
+                          s.name.trim().toLowerCase() === (poCreateModalReq.recommendedSupplierName || "").trim().toLowerCase() ||
+                          s.name.trim().toLowerCase() === (selectedCol?.supplierName || "").trim().toLowerCase()
+                      ) || {
+                        shortName: selectedCol?.shortName,
+                        name: poCreateModalReq.recommendedSupplierName || selectedCol?.supplierName,
+                      };
+                    const todayDate = new Date().toISOString().slice(0, 10);
+                    const autoCode = generatePOCode(targetSup, todayDate, pos, trash);
+                    setPoCreateCustomNumber(autoCode);
+                    setPoCreateNumberManual(false);
+                  }}
+                >
+                  <RotateCcw size={13} /> Tự động
+                </button>
+              </div>
+              {isDuplicatePO ? (
+                <div style={{ color: "#ef4444", fontSize: 12, marginTop: 4, fontWeight: 600 }}>
+                  ⚠ Số PO này đã tồn tại trên hệ thống, vui lòng chọn số khác!
+                </div>
+              ) : (
+                <div style={{ color: "#64748b", fontSize: 11.5, marginTop: 4 }}>
+                  Mã duy nhất, tự động tăng hậu tố (-02, -03...) nếu trùng NCC trong ngày.
+                </div>
+              )}
+            </div>
             <div>
               <label style={{ display: "block", fontSize: 13, fontWeight: 600, color: "#334155", marginBottom: 6 }}>
                 Chọn mức thuế suất VAT:
@@ -3581,9 +3669,15 @@ export default function ApprovalManagement({
               <button
                 type="button"
                 className="btn btn-primary"
-                style={{ background: "#16a34a", borderColor: "#16a34a" }}
+                style={{
+                  background: isDuplicatePO || !poCreateCustomNumber.trim() ? "#94a3b8" : "#16a34a",
+                  borderColor: isDuplicatePO || !poCreateCustomNumber.trim() ? "#94a3b8" : "#16a34a",
+                  cursor: isDuplicatePO || !poCreateCustomNumber.trim() ? "not-allowed" : "pointer",
+                }}
+                disabled={isDuplicatePO || !poCreateCustomNumber.trim()}
                 onClick={() => {
-                  onCreatePOFromApproval(poCreateModalReq, poCreateVatRate);
+                  if (isDuplicatePO || !poCreateCustomNumber.trim()) return;
+                  onCreatePOFromApproval(poCreateModalReq, poCreateVatRate, poCreateCustomNumber.trim());
                   setPoCreateModalReq(null);
                 }}
               >

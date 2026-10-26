@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from "react";
-import { Plus, ArrowRight, Trash2, Truck, Search, CheckCircle2, Circle } from "lucide-react";
-import { Supplier, PO, PR, Item, ApprovalRequest, PaymentRequestEntry, PaymentHandoverItem, getPOContractInfo, formatPONumber, calcPOTotal } from "../types";
+import { Plus, ArrowRight, Trash2, Truck, Search, CheckCircle2, Circle, Pencil, RotateCcw } from "lucide-react";
+import { Supplier, PO, PR, Item, ApprovalRequest, PaymentRequestEntry, PaymentHandoverItem, getPOContractInfo, formatPONumber, generatePOCode, isPONumberExists, TrashItem, calcPOTotal } from "../types";
 import { fmt, dateVN, makeId } from "../utils";
 import { SupplierSearchCombobox } from "./SupplierSearchCombobox";
 import { TreeProductPickerModal, SelectedItemData } from "./TreeProductPickerModal";
@@ -41,6 +41,8 @@ export function POList({
   onCreateHandover,
   onNavigate,
   onToggleComplete,
+  onUpdatePO,
+  trash = [],
   readOnly = false,
 }: {
   pos: PO[];
@@ -58,6 +60,8 @@ export function POList({
   onCreateHandover?: (po: PO) => void;
   onNavigate?: (route: any) => void;
   onToggleComplete?: (po: PO) => void;
+  onUpdatePO?: (po: PO, oldNumber?: string) => void;
+  trash?: TrashItem[];
   readOnly?: boolean;
 }) {
   const { t } = useTranslation();
@@ -65,6 +69,13 @@ export function POList({
 
   // Create Direct PO Modal State
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [editingPONumberModal, setEditingPONumberModal] = useState<PO | null>(null);
+  const [editNewNumber, setEditNewNumber] = useState("");
+
+  const handleOpenEditNumber = (targetPO: PO) => {
+    setEditingPONumberModal(targetPO);
+    setEditNewNumber(targetPO.number || "");
+  };
   const [draftNumber, setDraftNumber] = useState("");
   const [draftNumberManual, setDraftNumberManual] = useState(false);
   const [draftSupplierId, setDraftSupplierId] = useState<number | "">("");
@@ -181,7 +192,7 @@ export function POList({
 
   const resetDraft = () => {
     const todayStr = new Date().toISOString().slice(0, 10);
-    setDraftNumber(formatPONumber(null, todayStr));
+    setDraftNumber(generatePOCode(null, todayStr, pos, trash));
     setDraftNumberManual(false);
     setDraftSupplierId("");
     setDraftPrId("");
@@ -526,6 +537,42 @@ export function POList({
                       </button>
                     )}
                     <button onClick={() => onOpen(po)}>{po.number}</button>
+                    {!readOnly && onUpdatePO && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleOpenEditNumber(po);
+                        }}
+                        style={{ marginLeft: 4, background: "none", border: "none", color: "#64748b", cursor: "pointer", padding: "2px" }}
+                        title="Chỉnh sửa mã Số PO này"
+                      >
+                        <Pencil size={12} />
+                      </button>
+                    )}
+                    {pos.filter((p) => p.number && p.number.trim().toLowerCase() === (po.number || "").trim().toLowerCase()).length > 1 && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleOpenEditNumber(po);
+                        }}
+                        style={{
+                          marginLeft: 4,
+                          padding: "1px 5px",
+                          fontSize: "10px",
+                          fontWeight: 700,
+                          color: "#b45309",
+                          background: "#fef3c7",
+                          border: "1px solid #fde68a",
+                          borderRadius: 4,
+                          cursor: "pointer",
+                        }}
+                        title="Số PO này đang trùng với đơn khác! Bấm để sửa mã"
+                      >
+                        ⚠ Trùng
+                      </button>
+                    )}
                   </div>
                   <span className={`status ${isDone ? "done" : "progress"}`}>
                     {isDone ? "Đã hoàn thành" : po.status || "Đang xử lý"}
@@ -632,6 +679,51 @@ export function POList({
                         <button className="pr-link" onClick={() => onOpen(po)}>
                           {po.number}
                         </button>
+                        {!readOnly && onUpdatePO && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleOpenEditNumber(po);
+                            }}
+                            style={{
+                              marginLeft: 6,
+                              padding: "2px 4px",
+                              background: "none",
+                              border: "none",
+                              color: "#64748b",
+                              cursor: "pointer",
+                              display: "inline-flex",
+                              alignItems: "center",
+                            }}
+                            title="Chỉnh sửa mã Số PO này"
+                          >
+                            <Pencil size={12} />
+                          </button>
+                        )}
+                        {pos.filter((p) => p.number && p.number.trim().toLowerCase() === (po.number || "").trim().toLowerCase()).length > 1 && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleOpenEditNumber(po);
+                            }}
+                            style={{
+                              marginLeft: 6,
+                              padding: "1px 6px",
+                              fontSize: "10.5px",
+                              fontWeight: 700,
+                              color: "#b45309",
+                              background: "#fef3c7",
+                              border: "1px solid #fde68a",
+                              borderRadius: 4,
+                              cursor: "pointer",
+                            }}
+                            title="Số PO này đang trùng với đơn khác! Bấm để sửa mã"
+                          >
+                            ⚠ Trùng mã
+                          </button>
+                        )}
                       </div>
                       {contractInfo.hasContract && (
                         <div style={{ marginTop: "3px" }}>
@@ -784,18 +876,44 @@ export function POList({
                   >
                     Số PO (Tự động: Tên viết tắt NCC - Ngày tạo, có thể sửa) <span style={{ color: "#ef4444" }}>*</span>
                   </label>
-                  <input
-                    type="text"
-                    required
-                    className="payment-input"
-                    style={{ width: "100%", fontWeight: 600 }}
-                    value={draftNumber}
-                    onChange={(e) => {
-                      setDraftNumber(e.target.value);
-                      setDraftNumberManual(true);
-                    }}
-                    placeholder="VD: MERCK-24102026"
-                  />
+                  <div style={{ display: "flex", gap: 6 }}>
+                    <input
+                      type="text"
+                      required
+                      className="payment-input"
+                      style={{
+                        flex: 1,
+                        fontWeight: 700,
+                        color: isPONumberExists(draftNumber.trim(), pos, trash) ? "#dc2626" : "#0284c7",
+                        border: isPONumberExists(draftNumber.trim(), pos, trash) ? "1px solid #ef4444" : "1px solid #cbd5e1",
+                        background: isPONumberExists(draftNumber.trim(), pos, trash) ? "#fef2f2" : "#fff",
+                      }}
+                      value={draftNumber}
+                      onChange={(e) => {
+                        setDraftNumber(e.target.value);
+                        setDraftNumberManual(true);
+                      }}
+                      placeholder="VD: MERCK-24102026"
+                    />
+                    <button
+                      type="button"
+                      className="btn"
+                      style={{ padding: "0 10px", fontSize: 11.5, background: "#f8fafc", border: "1px solid #cbd5e1", whiteSpace: "nowrap" }}
+                      title="Gợi ý lại mã duy nhất tự động"
+                      onClick={() => {
+                        const chosenSup = suppliers.find((s) => Number(s.id) === Number(draftSupplierId));
+                        setDraftNumber(generatePOCode(chosenSup, draftCreatedDate, pos, trash));
+                        setDraftNumberManual(false);
+                      }}
+                    >
+                      <RotateCcw size={12} /> Tự động
+                    </button>
+                  </div>
+                  {isPONumberExists(draftNumber.trim(), pos, trash) && (
+                    <div style={{ color: "#ef4444", fontSize: 12, marginTop: 4, fontWeight: 600 }}>
+                      ⚠ Số PO này đã tồn tại, vui lòng chọn số khác!
+                    </div>
+                  )}
                 </div>
 
                 <div>
@@ -806,7 +924,7 @@ export function POList({
                       setDraftSupplierId(id);
                       const chosenSup = suppliers.find((s) => Number(s.id) === Number(id));
                       if (!draftNumberManual) {
-                        setDraftNumber(formatPONumber(chosenSup, draftCreatedDate));
+                        setDraftNumber(generatePOCode(chosenSup, draftCreatedDate, pos, trash));
                       }
                     }}
                     onAddSupplier={onAddSupplier}
@@ -928,7 +1046,7 @@ export function POList({
                       setDraftCreatedDate(val);
                       if (!draftNumberManual) {
                         const chosenSup = suppliers.find((s) => Number(s.id) === Number(draftSupplierId));
-                        setDraftNumber(formatPONumber(chosenSup, val));
+                        setDraftNumber(generatePOCode(chosenSup, val, pos, trash));
                       }
                     }}
                   />
@@ -1735,6 +1853,141 @@ export function POList({
         onAddProduct={onAddProduct}
         title="Tạo đơn PO: Chọn sản phẩm theo Cây thư mục PR & Danh mục"
       />
-    </section>
+            {editingPONumberModal && renderEditPONumberModal()}
+</section>
   );
+
+  function renderEditPONumberModal() {
+    if (!editingPONumberModal) return null;
+    const sup = suppliers.find((s) => Number(s.id) === Number(editingPONumberModal.supplierId));
+    const isDupEdit = isPONumberExists(editNewNumber.trim(), pos, trash, editingPONumberModal.id);
+    const subtotal = (editingPONumberModal.items || []).reduce((s, i) => s + (i.qty * i.price), 0);
+    const vat = (editingPONumberModal.items || []).reduce((s, i) => s + Math.round(i.qty * i.price * ((i.vatRate || 0) / 100)), 0);
+    const total = subtotal + vat;
+
+    return (
+      <div
+        className="backdrop no-print"
+        style={{ zIndex: 10000 }}
+        onClick={() => setEditingPONumberModal(null)}
+      >
+        <div
+          className="modal-panel"
+          style={{ width: "min(500px, 95vw)" }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="modal-header">
+            <div>
+              <h3 className="modal-title">✏️ Chỉnh sửa mã Số PO</h3>
+              <p className="modal-desc">
+                Cập nhật mã PO và đồng bộ liên kết chứng từ toàn hệ thống
+              </p>
+            </div>
+            <button
+              type="button"
+              className="btn-close"
+              onClick={() => setEditingPONumberModal(null)}
+            >
+              ×
+            </button>
+          </div>
+
+          <div className="modal-body" style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            <div style={{ background: "#f8fafc", padding: 12, borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 13 }}>
+              <div style={{ marginBottom: 4 }}>
+                <span style={{ color: "#64748b" }}>Nhà cung cấp: </span>
+                <strong style={{ color: "#0f172a" }}>{sup?.name || "Chưa có NCC"}</strong>
+              </div>
+              <div style={{ marginBottom: 4 }}>
+                <span style={{ color: "#64748b" }}>Ngày tạo PO: </span>
+                <strong>{dateVN(editingPONumberModal.createdDate)}</strong>
+                <span style={{ color: "#64748b", marginLeft: 12 }}>Tổng giá trị: </span>
+                <strong style={{ color: "#0284c7" }}>{fmt(total)} ₫</strong>
+              </div>
+              <div>
+                <span style={{ color: "#64748b" }}>Mã PO hiện tại: </span>
+                <code style={{ background: "#e2e8f0", padding: "2px 6px", borderRadius: 4, fontWeight: 700 }}>
+                  {editingPONumberModal.number}
+                </code>
+              </div>
+            </div>
+
+            <div>
+              <label style={{ display: "block", fontSize: 13, fontWeight: 600, color: "#334155", marginBottom: 6 }}>
+                Số PO mới: <span style={{ color: "#ef4444" }}>*</span>
+              </label>
+              <div style={{ display: "flex", gap: 6 }}>
+                <input
+                  type="text"
+                  className="payment-input"
+                  style={{
+                    flex: 1,
+                    fontSize: 14,
+                    fontWeight: 700,
+                    color: isDupEdit ? "#dc2626" : "#0284c7",
+                    border: `1px solid ${isDupEdit ? "#ef4444" : "#cbd5e1"}`,
+                    background: isDupEdit ? "#fef2f2" : "#fff",
+                  }}
+                  value={editNewNumber}
+                  onChange={(e) => setEditNewNumber(e.target.value)}
+                  placeholder="VD: PHUCVINH-26102026-02"
+                />
+                <button
+                  type="button"
+                  className="btn"
+                  style={{ padding: "0 10px", fontSize: 12, background: "#f8fafc", border: "1px solid #cbd5e1", whiteSpace: "nowrap" }}
+                  title="Gợi ý mã chuẩn tự động tránh trùng lặp"
+                  onClick={() => {
+                    const autoCode = generatePOCode(sup, editingPONumberModal.createdDate, pos, trash, editingPONumberModal.id);
+                    setEditNewNumber(autoCode);
+                  }}
+                >
+                  <RotateCcw size={13} /> Gợi ý mã
+                </button>
+              </div>
+
+              {isDupEdit ? (
+                <div style={{ color: "#ef4444", fontSize: 12, marginTop: 4, fontWeight: 600 }}>
+                  ⚠ Số PO này đã tồn tại, vui lòng chọn số khác!
+                </div>
+              ) : (
+                <div style={{ color: "#64748b", fontSize: 11.5, marginTop: 4 }}>
+                  Mã PO nên theo định dạng [Tên NCC]-[ddMMyyyy] hoặc có thêm hậu tố (-02, -03) nếu tạo nhiều đơn trong ngày.
+                </div>
+              )}
+            </div>
+
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 10 }}>
+              <button
+                type="button"
+                className="btn"
+                onClick={() => setEditingPONumberModal(null)}
+              >
+                Hủy
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary"
+                disabled={!editNewNumber.trim() || isDupEdit || editNewNumber.trim() === editingPONumberModal.number}
+                style={{
+                  background: !editNewNumber.trim() || isDupEdit || editNewNumber.trim() === editingPONumberModal.number ? "#94a3b8" : "#0284c7",
+                  borderColor: !editNewNumber.trim() || isDupEdit || editNewNumber.trim() === editingPONumberModal.number ? "#94a3b8" : "#0284c7",
+                  cursor: !editNewNumber.trim() || isDupEdit || editNewNumber.trim() === editingPONumberModal.number ? "not-allowed" : "pointer",
+                }}
+                onClick={() => {
+                  if (!editNewNumber.trim() || isDupEdit) return;
+                  const updated = { ...editingPONumberModal, number: editNewNumber.trim() };
+                  onUpdatePO?.(updated, editingPONumberModal.number);
+                  setEditingPONumberModal(null);
+                }}
+              >
+                Lưu thay đổi mã PO
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
 }

@@ -31,6 +31,9 @@ import {
   calcPOItemTotal,
   calcPOTotal,
   formatPONumber,
+  generatePOCode,
+  isPONumberExists,
+  TrashItem,
 } from "../types";
 import { fmt, dateVN, makeId, generateShortName } from "../utils";
 import { cleanExcelNumber, parseExcelClipboard } from "../utils/approvalSamples";
@@ -45,6 +48,8 @@ import { PODeliveryModal, POItemsMobileCards, DeliveryConfirmPayload } from "./P
 
 export function PODetail({
   po,
+  pos = [],
+  trash = [],
   suppliers,
   setSuppliers,
   onUpdate,
@@ -65,6 +70,8 @@ export function PODetail({
   onDelete,
 }: {
   po: PO;
+  pos?: PO[];
+  trash?: TrashItem[];
   suppliers: Supplier[];
   setSuppliers: React.Dispatch<React.SetStateAction<Supplier[]>>;
   onUpdate: (po: PO) => void;
@@ -108,6 +115,7 @@ export function PODetail({
   const [itemsViewMode, setItemsViewMode] = useState<"auto" | "table" | "card">("auto");
 
   const supplier = suppliers.find((s) => Number(s.id) === Number(po.supplierId));
+  const isDuplicateNumber = isPONumberExists(po.number, pos, trash, po.id);
   const items = po.items || [];
   const subtotal = items.reduce((s, i) => s + calcPOItemSubtotal(i), 0);
   const total = calcPOTotal(po);
@@ -673,12 +681,15 @@ export function PODetail({
                 disabled={readOnly}
                 placeholder="VD: MERCK-24102026"
                 style={{
-                  width: "165px",
+                  width: "175px",
                   height: "30px",
                   fontSize: "12.5px",
                   fontWeight: 700,
-                  color: "#0284c7",
+                  color: isDuplicateNumber ? "#dc2626" : "#0284c7",
                   padding: "2px 8px",
+                  border: isDuplicateNumber ? "1px solid #ef4444" : "1px solid #cbd5e1",
+                  background: isDuplicateNumber ? "#fef2f2" : "#ffffff",
+                  borderRadius: "4px",
                 }}
                 onChange={(e) => onUpdate({ ...po, number: e.target.value })}
               />
@@ -696,16 +707,21 @@ export function PODetail({
                     borderRadius: "4px",
                     cursor: "pointer",
                   }}
-                  title="Tạo lại Số PO theo quy tắc: Tên viết tắt NCC - Ngày tạo PO (abcd-xyz)"
+                  title="Tạo lại Số PO tự động theo NCC và ngày tạo (tự tăng hậu tố nếu trùng)"
                   onClick={() =>
                     onUpdate({
                       ...po,
-                      number: formatPONumber(supplier, po.createdDate),
+                      number: generatePOCode(supplier, po.createdDate, pos, trash, po.id),
                     })
                   }
                 >
                   <RotateCcw size={12} style={{ display: "inline-block", verticalAlign: "middle", marginRight: "3px" }} /> Tạo mã
                 </button>
+              )}
+              {isDuplicateNumber && (
+                <span style={{ color: "#ef4444", fontSize: "11px", fontWeight: 700, marginLeft: 4 }} title="Mã này đang trùng với đơn khác trên hệ thống">
+                  ⚠ Trùng mã!
+                </span>
               )}
             </label>
 

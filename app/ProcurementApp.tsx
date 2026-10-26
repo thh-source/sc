@@ -19,7 +19,7 @@ import "./vat-quote.css";
 
 import { PaymentManagement } from "./components/PaymentManagement";
 import { BANK_SUGGESTIONS, DEFAULT_PAYMENT_TEMPLATE, localToday } from "./payment-utils";
-import { Item, Supplier, PurchaseHistory, QuoteMode, QuoteEntry, Quote, PR, POItem, POCartLine, ApprovalRow, ApprovalDraft, ApprovalRequest, PODoc, Payment, PO, TrashItem, View, ColumnKey, SortState, PaymentDetailLine, PaymentRequestEntry, PaymentGroup, PaymentBeneficiary, PaymentHandoverItem, PaymentPrintTemplate, StoredState, isContractPO, buildPOPaymentDescription, formatPONumber, calcPOTotal } from "./types";
+import { Item, Supplier, PurchaseHistory, QuoteMode, QuoteEntry, Quote, PR, POItem, POCartLine, ApprovalRow, ApprovalDraft, ApprovalRequest, PODoc, Payment, PO, TrashItem, View, ColumnKey, SortState, PaymentDetailLine, PaymentRequestEntry, PaymentGroup, PaymentBeneficiary, PaymentHandoverItem, PaymentPrintTemplate, StoredState, isContractPO, buildPOPaymentDescription, formatPONumber, generatePOCode, isPONumberExists, calcPOTotal } from "./types";
 import { BASE_COLUMNS, reorder, applyTools, makeId, emptyItem, fmt, dateVN, DEFAULT_VAT_RATE, quoteDefaults, quoteBeforeVat, quoteAfterVat, quoteComparePrice, mergeHistorySeed, PurchaseHistorySeed, excelNumber, emptyPR, emptyPO, generateShortName } from "./utils";
 import { items0, suppliers0, purchaseHistory0, quotes0, prs0, pos0, HISTORY_SEED_ID } from "./seed";
 import { AdvancedItemsTable } from "./components/AdvancedItemsTable";
@@ -1253,7 +1253,7 @@ function ProcurementAppInner({
     navigateTo({ view: "approval", id: newReq.id });
   };
 
-  const handleCreatePOFromApproval = (req: ApprovalRequest, chosenVatRate: number = 10) => {
+  const handleCreatePOFromApproval = (req: ApprovalRequest, chosenVatRate: number = 10, customPoNumber?: string) => {
     const selectedCol =
       req.supplierColumns.find((c) => c.isSelected) || req.supplierColumns[0];
     if (!selectedCol) return;
@@ -1347,9 +1347,13 @@ function ProcurementAppInner({
     const isAdvance = req.paymentTerms.toLowerCase().includes("trước");
     const todayDate = new Date().toISOString().slice(0, 10);
 
+    const poNumber = (customPoNumber && customPoNumber.trim())
+      ? customPoNumber.trim()
+      : generatePOCode(targetSupplier, todayDate, pos, trash);
+
     const newPO: PO = {
       id: makeId(),
-      number: formatPONumber(targetSupplier, todayDate),
+      number: poNumber,
       prNumber: req.prNumber || req.requestNumber,
       supplierId: targetSupplier.id,
       createdDate: todayDate,
@@ -1431,7 +1435,7 @@ function ProcurementAppInner({
     const todayDate = new Date().toISOString().slice(0, 10);
     const po: PO = {
       id: makeId(),
-      number: formatPONumber(supplier, todayDate),
+      number: generatePOCode(supplier, todayDate, pos, trash),
       prNumber:
         sourcePRs.length === 1 ? sourcePRs[0] : `Nhiều PR (${sourcePRs.length})`,
       supplierId: supplier.id,
@@ -1503,9 +1507,58 @@ function ProcurementAppInner({
     setPoCartOpen(false);
     navigateTo({ view: "po-detail", id: po.id });
   };
+  const handleUpdatePONumber = (updatedPO: PO, oldNumber?: string) => {
+    const prevNumber = oldNumber || pos.find((p) => p.id === updatedPO.id)?.number;
+    setPos((list) => list.map((p) => (p.id === updatedPO.id ? updatedPO : p)));
+    if (currentPO?.id === updatedPO.id) {
+      setCurrentPO(updatedPO);
+    }
+    if (prevNumber && prevNumber !== updatedPO.number) {
+      // 1. Cascade to ApprovalRequests
+      setApprovalRequests((list) =>
+        list.map((a) =>
+          a.linkedPoId === updatedPO.id || a.linkedPoNumber === prevNumber
+            ? { ...a, linkedPoNumber: updatedPO.number }
+            : a
+        )
+      );
+      // 2. Cascade to PaymentRequests where group_code === prevNumber or description matches
+      setPaymentRequests((list) =>
+        list.map((pr) => {
+          let modified = false;
+          let newGroup = pr.group_code;
+          let newDesc = pr.description;
+          if (pr.group_code === prevNumber) {
+            newGroup = updatedPO.number;
+            modified = true;
+          }
+          if (newDesc && newDesc.includes(prevNumber)) {
+            newDesc = newDesc.replaceAll(prevNumber, updatedPO.number);
+            modified = true;
+          }
+          return modified ? { ...pr, group_code: newGroup, description: newDesc } : pr;
+        })
+      );
+      // 3. Cascade to PaymentHandovers where source_number === prevNumber
+      setPaymentHandovers((list) =>
+        list.map((h) =>
+          h.source_number === prevNumber
+            ? { ...h, source_number: updatedPO.number }
+            : h
+        )
+      );
+    }
+    setStorageStatus(`Đã đổi số PO thành ${updatedPO.number}`);
+  };
+
   const updatePO = (po: PO) => {
-    setCurrentPO(po);
-    setPos((list) => list.map((x) => (x.id === po.id ? po : x)));
+    const existing = pos.find((p) => p.id === po.id);
+    if (existing && existing.number !== po.number) {
+      handleUpdatePONumber(po, existing.number);
+    } else {
+      setCurrentPO(po);
+      setPos((list) => list.map((x) => (x.id === po.id ? po : x)));
+    }
   };
 
   const handleUpdatePaymentRequest = useCallback((updatedReq: PaymentRequestEntry) => {
@@ -2196,6 +2249,7 @@ function ProcurementAppInner({
                 }
               }}
               pos={pos}
+              trash={trash}
               onNavigate={(route) => navigateTo(route)}
               onToggleComplete={handleToggleCompleteApproval}
             />
@@ -2274,6 +2328,7 @@ function ProcurementAppInner({
           <ErrorBoundary key="po-list" fallbackTitle="Lỗi hiển thị danh sách Đơn mua hàng (PO)" onReset={() => navigateTo({ view: "dashboard" })}>
             <POList
               pos={pos}
+              trash={trash}
               suppliers={suppliers}
               prs={prs}
               products={products}
@@ -2284,6 +2339,7 @@ function ProcurementAppInner({
               onToggleComplete={handleToggleCompletePO}
               onAddSupplier={handleAddSupplier}
               onAddProduct={handleAddProduct}
+              onUpdatePO={handleUpdatePONumber}
               onCreatePO={(newPO, openDetail, sourcePrId) => {
                 setPos((list) => [newPO, ...list]);
                 setCurrentPO(newPO);
@@ -2318,6 +2374,8 @@ function ProcurementAppInner({
           <ErrorBoundary key="po-detail" fallbackTitle="Lỗi hiển thị chi tiết Đơn mua hàng (PO)" onReset={() => navigateTo({ view: "po-list" })}>
             <PODetail
               po={currentPO?.id ? currentPO : ((pos && pos.length > 0) ? pos[0] : emptyPO)}
+              pos={pos}
+              trash={trash}
               suppliers={suppliers}
               setSuppliers={setSuppliers}
               onUpdate={updatePO}

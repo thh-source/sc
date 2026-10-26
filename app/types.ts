@@ -166,6 +166,96 @@ export const formatPONumber = (
   return `${abcd}-${xyz}`;
 };
 
+/**
+ * Kiểm tra xem một mã Số PO đã tồn tại trong danh sách PO hiện hành hoặc thùng rác hay chưa
+ */
+export const isPONumberExists = (
+  candidateNumber: string,
+  existingPOs: { id?: number | string; number?: string }[] = [],
+  trash: { type?: string; data?: any; id?: string }[] = [],
+  excludePoId?: number | string,
+): boolean => {
+  const clean = (candidateNumber || "").trim().toLowerCase();
+  if (!clean) return false;
+
+  for (const po of existingPOs) {
+    if (excludePoId !== undefined && excludePoId !== null && String(po.id) === String(excludePoId)) continue;
+    if ((po.number || "").trim().toLowerCase() === clean) return true;
+  }
+
+  for (const t of trash) {
+    if (t.type === "PO") {
+      const poData = t.data as any;
+      if (excludePoId !== undefined && excludePoId !== null && String(poData?.id || t.id) === String(excludePoId)) continue;
+      if ((poData?.number || "").trim().toLowerCase() === clean) return true;
+    }
+  }
+
+  return false;
+};
+
+/**
+ * Thuật toán sinh mã PO tự động duy nhất 100% (Auto-Increment Suffix):
+ * - Tiền tố cơ sở: baseCode = `${supplierCode}-${dateStr}` (ví dụ: PHUCVINH-26102026).
+ * - Nếu baseCode chưa tồn tại: trả về baseCode.
+ * - Nếu baseCode đã tồn tại: tìm tất cả đơn có tiền tố bắt đầu bằng baseCode, lấy số thứ tự lớn nhất + 1:
+ *   - Đơn thứ 2: PHUCVINH-26102026-02
+ *   - Đơn thứ 3: PHUCVINH-26102026-03...
+ */
+export const generatePOCode = (
+  supplier: { shortName?: string; code?: string; name?: string } | null | undefined,
+  createdDate?: string,
+  existingPOs: { id?: number | string; number?: string }[] = [],
+  trash: { type?: string; data?: any; id?: string }[] = [],
+  excludePoId?: number | string,
+): string => {
+  const baseCode = formatPONumber(supplier, createdDate);
+  const baseLower = baseCode.toLowerCase();
+
+  const allCodes = new Set<string>();
+  const matchingIndices: number[] = [];
+
+  const checkCode = (num?: string, id?: number | string) => {
+    if (!num) return;
+    if (excludePoId !== undefined && excludePoId !== null && String(id) === String(excludePoId)) return;
+    const clean = num.trim();
+    const cleanLower = clean.toLowerCase();
+    allCodes.add(cleanLower);
+
+    if (cleanLower === baseLower) {
+      matchingIndices.push(1);
+    } else if (cleanLower.startsWith(`${baseLower}-`)) {
+      const suffix = clean.slice(baseCode.length + 1);
+      const parsed = parseInt(suffix, 10);
+      if (!isNaN(parsed) && parsed > 0) {
+        matchingIndices.push(parsed);
+      }
+    }
+  };
+
+  existingPOs.forEach((p) => checkCode(p.number, p.id));
+  trash.forEach((t) => {
+    if (t.type === "PO") {
+      const poData = t.data as any;
+      checkCode(poData?.number, poData?.id || t.id);
+    }
+  });
+
+  if (matchingIndices.length === 0 && !allCodes.has(baseLower)) {
+    return baseCode;
+  }
+
+  let nextIdx = Math.max(1, ...matchingIndices) + 1;
+  let candidate = `${baseCode}-${String(nextIdx).padStart(2, "0")}`;
+
+  while (allCodes.has(candidate.toLowerCase())) {
+    nextIdx++;
+    candidate = `${baseCode}-${String(nextIdx).padStart(2, "0")}`;
+  }
+
+  return candidate;
+};
+
 export type POCartLine = {
   id: string;
   item: Item;
