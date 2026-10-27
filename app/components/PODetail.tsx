@@ -16,6 +16,8 @@ import {
   LayoutGrid,
   CheckCircle2,
   Circle,
+  Link2,
+  AlertCircle,
 } from "lucide-react";
 import {
   Supplier,
@@ -43,6 +45,8 @@ import { SupplierSearchCombobox } from "./SupplierSearchCombobox";
 import VisualTimeline from "./VisualTimeline";
 import DocumentManager from "./DocumentManager";
 import { DocFlowLinks } from "./DocFlowLinks";
+import { POPaymentLinkModal } from "./POPaymentLinkModal";
+import { isPaymentCompleted } from "../utils/paymentSync";
 import { resolveDocFlow } from "../utils/docFlow";
 import { isPOCompleted, calcPODeliveryStats, calcPOItemDeliveryStats } from "../utils/paymentSync";
 import { PODeliveryModal, POItemsMobileCards, DeliveryConfirmPayload } from "./PODeliveryMobileSheet";
@@ -72,6 +76,7 @@ export function PODetail({
   paymentTemplate,
   onNavigate,
   onDelete,
+  onUpdatePaymentRequest,
 }: {
   po: PO;
   pos?: PO[];
@@ -97,9 +102,11 @@ export function PODetail({
   paymentHandovers?: PaymentHandoverItem[];
   onNavigate?: (route: any) => void;
   onDelete?: (po: PO) => void;
+  onUpdatePaymentRequest?: (updated: PaymentRequestEntry) => void;
 }) {
   const [saving, setSaving] = useState(false);
   const [savedNotice, setSavedNotice] = useState(false);
+  const [linkingStage, setLinkingStage] = useState<Payment | null>(null);
 
   const poDeliveryStats = useMemo(() => {
     return calcPODeliveryStats(po, paymentHandovers);
@@ -628,6 +635,37 @@ export function PODetail({
         return updated;
       }),
     });
+  };
+
+  const handleConfirmLinkPaymentRequest = (req: PaymentRequestEntry) => {
+    if (!linkingStage) return;
+
+    const patch: Partial<Payment> = {
+      paymentRequestId: req.id,
+      status: isPaymentCompleted(req) ? "Đã thanh toán" : "Đang xử lý",
+    };
+
+    // Đồng bộ số hóa đơn từ ĐNTT sang PO nếu PO chưa có mà ĐNTT đã có
+    if (!linkingStage.invoiceNo && req.invoice_no) {
+      patch.invoiceNo = req.invoice_no;
+      patch.invoiceDate = req.invoice_date || linkingStage.invoiceDate;
+    }
+
+    handleUpdatePaymentStage(linkingStage.id, patch);
+
+    // Đồng bộ ĐNTT: gán group_code = po.number nếu chưa có, hoặc cập nhật HĐ nếu PO có mà ĐNTT chưa có
+    const updatedReq: PaymentRequestEntry = {
+      ...req,
+      group_code: req.group_code || po.number,
+      invoice_no: req.invoice_no || linkingStage.invoiceNo || "",
+      invoice_date: req.invoice_date || linkingStage.invoiceDate || "",
+    };
+    if (onUpdatePaymentRequest) {
+      onUpdatePaymentRequest(updatedReq);
+    }
+
+    onStatus?.(`✓ Đã liên kết đợt "${linkingStage.phase}" với Đề nghị thanh toán #${req.legacy_stt || req.id}`);
+    setLinkingStage(null);
   };
 
   const events = [
@@ -1860,7 +1898,7 @@ export function PODetail({
                         <div style={{ display: "flex", alignItems: "flex-start", gap: "6px" }}>
                           <span style={{ fontSize: "14px" }}>📄</span>
                           <div>
-                            <b>Quy định trả sau: Yêu cầu nhập hóa đơn đã xuất</b>
+                            <b>Quy định trả sau: Bắt buộc nhập Số hóa đơn GTGT trước khi lập ĐNTT</b>
                             <p style={{ margin: "2px 0 0 0", color: "#14532d" }}>
                               Đợt thanh toán trả sau (sau giao hàng / công nợ). Yêu cầu nhập đầy đủ thông tin Hóa đơn GTGT do NCC đã phát hành trước khi giải ngân.
                             </p>
@@ -1869,11 +1907,15 @@ export function PODetail({
                         <div className="po-invoice-row">
                           <div>
                             <span style={{ display: "block", fontSize: "11px", fontWeight: 600, marginBottom: "2px", color: !p.invoiceNo ? "#b91c1c" : "#166534" }}>
-                              Số HĐ GTGT đã xuất: {!p.invoiceNo && "(Cần nhập)"}
+                              Số HĐ GTGT đã xuất: {!p.invoiceNo ? "(BẮT BUỘC ĐỂ LẬP ĐNTT)" : "✓ Đã nhập"}
                             </span>
                             <input
+                              id={`invoice-no-input-${p.id}`}
                               placeholder="Ví dụ: 0012345, 1C24T..."
-                              style={{ borderColor: !p.invoiceNo ? "#f87171" : "#86efac" }}
+                              style={{
+                                borderColor: !p.invoiceNo ? "#ef4444" : "#86efac",
+                                background: !p.invoiceNo ? "#fff1f2" : "#ffffff",
+                              }}
                               value={p.invoiceNo || ""}
                               onChange={(e) => handleUpdatePaymentStage(p.id, { invoiceNo: e.target.value })}
                             />
@@ -1906,21 +1948,38 @@ export function PODetail({
                       <div className="po-condition-box-other">
                         <span style={{ fontWeight: 600 }}>Tùy chọn chứng từ hóa đơn:</span>
                         <div className="po-invoice-row">
-                          <input
-                            placeholder="Số hóa đơn (nếu có)..."
-                            value={p.invoiceNo || ""}
-                            onChange={(e) => handleUpdatePaymentStage(p.id, { invoiceNo: e.target.value })}
-                          />
-                          <input
-                            type="date"
-                            value={p.invoiceDate || ""}
-                            onChange={(e) => handleUpdatePaymentStage(p.id, { invoiceDate: e.target.value })}
-                          />
-                          <input
-                            placeholder="Ghi chú điều khoản thanh toán..."
-                            value={p.note || ""}
-                            onChange={(e) => handleUpdatePaymentStage(p.id, { note: e.target.value })}
-                          />
+                          <div>
+                            <span style={{ display: "block", fontSize: "11px", fontWeight: 600, marginBottom: "2px", color: !p.invoiceNo ? "#b91c1c" : "#166534" }}>
+                              Số hóa đơn GTGT: {!p.invoiceNo ? "(Bắt buộc nếu trả sau)" : "✓ Đã có"}
+                            </span>
+                            <input
+                              id={`invoice-no-input-${p.id}`}
+                              placeholder="Số hóa đơn (nếu có)..."
+                              style={{ borderColor: !p.invoiceNo ? "#ef4444" : "#cbd5e1" }}
+                              value={p.invoiceNo || ""}
+                              onChange={(e) => handleUpdatePaymentStage(p.id, { invoiceNo: e.target.value })}
+                            />
+                          </div>
+                          <div>
+                            <span style={{ display: "block", fontSize: "11px", fontWeight: 600, marginBottom: "2px" }}>
+                              Ngày hóa đơn:
+                            </span>
+                            <input
+                              type="date"
+                              value={p.invoiceDate || ""}
+                              onChange={(e) => handleUpdatePaymentStage(p.id, { invoiceDate: e.target.value })}
+                            />
+                          </div>
+                          <div>
+                            <span style={{ display: "block", fontSize: "11px", fontWeight: 600, marginBottom: "2px" }}>
+                              Ghi chú điều khoản:
+                            </span>
+                            <input
+                              placeholder="Ghi chú điều khoản thanh toán..."
+                              value={p.note || ""}
+                              onChange={(e) => handleUpdatePaymentStage(p.id, { note: e.target.value })}
+                            />
+                          </div>
                         </div>
                       </div>
                     )}
@@ -1965,10 +2024,11 @@ export function PODetail({
                             style={{ padding: "4px 8px", background: "transparent", border: "1px solid #cbd5e1", borderRadius: "4px", fontSize: "11px", color: "#64748b", cursor: "pointer" }}
                             onClick={() => {
                               if (confirm("Bạn có muốn hủy liên kết ĐNTT này khỏi đợt thanh toán không?")) {
-                                handleUpdatePaymentStage(p.id, { paymentRequestId: undefined });
+                                handleUpdatePaymentStage(p.id, { paymentRequestId: undefined, status: "Chưa thanh toán" });
+                                onStatus?.(`Đã hủy liên kết ĐNTT cho đợt "${p.phase}"`);
                               }
                             }}
-                            title="Hủy liên kết để có thể lập lại ĐNTT mới nếu cần"
+                            title="Hủy liên kết để có thể lập lại ĐNTT mới hoặc liên kết với phiếu ĐNTT khác"
                           >
                             Hủy liên kết
                           </button>
@@ -1976,27 +2036,81 @@ export function PODetail({
                       </div>
                     ) : (
                       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", gap: "8px", flexWrap: "wrap" }}>
-                        <span style={{ fontSize: "12px", color: "#64748b" }}>
-                          Chưa lập ĐNTT cho đợt này ({fmt(p.amount)} ₫).
-                        </span>
-                        {onCreatePaymentRequest && (
+                        <div>
+                          <span style={{ fontSize: "12px", color: "#64748b" }}>
+                            Chưa lập ĐNTT cho đợt này ({fmt(p.amount)} ₫).
+                          </span>
+                          {condition !== "advance" && (!p.invoiceNo || !p.invoiceNo.trim()) && (
+                            <div style={{ fontSize: "11.5px", color: "#dc2626", fontWeight: 600, marginTop: "2px", display: "flex", alignItems: "center", gap: "4px" }}>
+                              <AlertCircle size={13} /> Bắt buộc nhập Số HĐ GTGT để lập ĐNTT trả sau
+                            </div>
+                          )}
+                        </div>
+                        <div style={{ display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" }}>
+                          {/* Nút Liên kết với phiếu ĐNTT tự tạo */}
                           <button
                             type="button"
-                            className="po-create-payment-req-btn"
-                            onClick={() => onCreatePaymentRequest(po, p)}
+                            className="po-link-payment-req-btn"
+                            onClick={() => setLinkingStage(p)}
                             style={{
                               display: "inline-flex",
                               alignItems: "center",
                               gap: "5px",
-                              background: "#16a34a",
-                              color: "#ffffff",
-                              border: "none",
+                              padding: "6px 12px",
+                              background: "#f1f5f9",
+                              color: "#0f172a",
+                              border: "1px solid #cbd5e1",
+                              borderRadius: "6px",
+                              fontSize: "12px",
+                              fontWeight: 600,
+                              cursor: "pointer",
                             }}
-                            title="Lập Đề nghị thanh toán và mở trực tiếp bản in Mẫu 01-TT"
+                            title="Liên kết đợt thanh toán này với một Phiếu Đề nghị thanh toán đã tự tạo sẵn"
                           >
-                            <CreditCard size={14} /> Lập ĐNTT & In
+                            <Link2 size={13} /> Liên kết ĐNTT có sẵn
                           </button>
-                        )}
+
+                          {/* Nút Lập ĐNTT & In mới */}
+                          {onCreatePaymentRequest && (
+                            <button
+                              type="button"
+                              className="po-create-payment-req-btn"
+                              onClick={() => {
+                                const isPost = condition !== "advance";
+                                const hasInv = Boolean(p.invoiceNo && p.invoiceNo.trim());
+                                if (isPost && !hasInv) {
+                                  alert(
+                                    `Đợt thanh toán trả sau "${p.phase}" bắt buộc phải có thông tin Số hóa đơn GTGT.\n\n` +
+                                    `Vui lòng nhập Số hóa đơn vào ô "Số HĐ GTGT đã xuất" bên trên trước khi lập ĐNTT, hoặc bấm nút "Liên kết ĐNTT có sẵn" nếu đã có phiếu tự tạo!`
+                                  );
+                                  const inputEl = document.getElementById(`invoice-no-input-${p.id}`);
+                                  if (inputEl) {
+                                    inputEl.scrollIntoView({ behavior: "smooth", block: "center" });
+                                    inputEl.focus();
+                                  }
+                                  return;
+                                }
+                                onCreatePaymentRequest(po, p);
+                              }}
+                              style={{
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: "5px",
+                                background: condition !== "advance" && (!p.invoiceNo || !p.invoiceNo.trim()) ? "#94a3b8" : "#16a34a",
+                                color: "#ffffff",
+                                border: "none",
+                                opacity: condition !== "advance" && (!p.invoiceNo || !p.invoiceNo.trim()) ? 0.85 : 1,
+                              }}
+                              title={
+                                condition !== "advance" && (!p.invoiceNo || !p.invoiceNo.trim())
+                                  ? "Yêu cầu nhập Số hóa đơn trước khi lập ĐNTT trả sau"
+                                  : "Lập Đề nghị thanh toán và mở trực tiếp bản in Mẫu 01-TT"
+                              }
+                            >
+                              <CreditCard size={14} /> Lập ĐNTT & In
+                            </button>
+                          )}
+                        </div>
                       </div>
                     )}
                   </div>
@@ -2744,6 +2858,19 @@ export function PODetail({
             </button>
           </div>
         </div>
+      )}
+
+      {/* Popup Liên kết Đợt thanh toán PO với Phiếu ĐNTT có sẵn / tự tạo */}
+      {linkingStage && (
+        <POPaymentLinkModal
+          isOpen={Boolean(linkingStage)}
+          onClose={() => setLinkingStage(null)}
+          po={po}
+          stage={linkingStage}
+          paymentRequests={paymentRequests}
+          pos={pos}
+          onConfirmLink={handleConfirmLinkPaymentRequest}
+        />
       )}
     </section>
   );

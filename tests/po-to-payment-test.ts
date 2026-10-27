@@ -93,7 +93,7 @@ const mockPO: PO = {
   assert.equal(req.documents.length, 0, "Phần hồ sơ hoàn toàn rỗng để người dùng tự chọn");
 
   // Kiểm tra 4: item_name không chứa danh sách sản phẩm
-  assert.equal(req.item_name.includes("Acetone"), false, "item_name không chứa danh sách sản phẩm");
+  assert.equal(Boolean(req.item_name && req.item_name.includes("Acetone")), false, "item_name không chứa danh sách sản phẩm");
 
   console.log("✓ Test Case 1 đạt chuẩn: ĐNTT có hóa đơn, không copy danh sách sản phẩm, hồ sơ rỗng.");
 }

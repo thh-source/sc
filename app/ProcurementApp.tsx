@@ -59,6 +59,7 @@ import { HandoverPrintPreviewModal } from "./components/HandoverPrintPreviewModa
 import { PaymentPrintPreviewModal } from "./components/PaymentPrintPreviewModal";
 import { SupplierQuickBankModal } from "./components/SupplierQuickBankModal";
 import { PaymentStagePickerModal } from "./components/PaymentStagePickerModal";
+import { POPaymentLinkModal } from "./components/POPaymentLinkModal";
 import { SettingsModal } from "./components/SettingsModal";
 import { CatalogManagement } from "./components/CatalogManagement";
 import { I18nProvider, useTranslation, LanguageSwitcher } from "./i18n";
@@ -207,6 +208,7 @@ function ProcurementAppInner({
     pendingPayment: Payment;
   } | null>(null);
   const [paymentStagePickerPO, setPaymentStagePickerPO] = useState<PO | null>(null);
+  const [linkModalFromPicker, setLinkModalFromPicker] = useState<{ po: PO; stage: Payment } | null>(null);
   const [helpDrawerOpen, setHelpDrawerOpen] = useState(false);
   const [settingsModalOpen, setSettingsModalOpen] = useState(false);
   const [catalogSubTab, setCatalogSubTab] = useState<"products" | "suppliers">("products");
@@ -1944,6 +1946,22 @@ function ProcurementAppInner({
       }
     }
 
+    // Yêu cầu bắt buộc Hóa đơn GTGT đối với đợt thanh toán trả sau (sau giao hàng / công nợ)
+    const isPostPayment = payment.condition !== "advance";
+    const hasInvoice = Boolean(payment.invoiceNo && payment.invoiceNo.trim());
+    if (isPostPayment && !hasInvoice) {
+      alert(
+        `Đợt thanh toán trả sau "${payment.phase}" bắt buộc phải có thông tin Số hóa đơn GTGT trước khi lập Đề nghị thanh toán.\n\n` +
+        `Vui lòng nhập Số hóa đơn tại mục Đợt thanh toán của PO hoặc liên kết với phiếu ĐNTT tự tạo!`
+      );
+      const inputEl = document.getElementById(`invoice-no-input-${payment.id}`);
+      if (inputEl) {
+        inputEl.scrollIntoView({ behavior: "smooth", block: "center" });
+        inputEl.focus();
+      }
+      return;
+    }
+
     const supplier = suppliers.find((s) => s.id === po.supplierId);
     const hasAddress = Boolean(customSupplierInfo?.address || supplier?.address?.trim());
     const hasAccount = Boolean(customSupplierInfo?.bankAccount || supplier?.bankAccount?.trim());
@@ -2010,13 +2028,38 @@ function ProcurementAppInner({
       const updatedPO = { ...po, payments: [defaultStage] };
       updatePO(updatedPO);
       if (currentPO?.id === po.id) setCurrentPO(updatedPO);
-      handleCreatePaymentRequestFromPOPayment(updatedPO, defaultStage);
+      alert(
+        `Đã tạo đợt thanh toán 100% cho đơn hàng ${po.number}.\n\n` +
+        `Vì đây là đợt thanh toán trả sau, bắt buộc phải nhập Số hóa đơn GTGT trước khi lập Đề nghị thanh toán. Vui lòng nhập Số hóa đơn tại mục Đợt thanh toán của PO bên dưới!`
+      );
+      setTimeout(() => {
+        const inputEl = document.getElementById(`invoice-no-input-${defaultStage.id}`);
+        if (inputEl) {
+          inputEl.scrollIntoView({ behavior: "smooth", block: "center" });
+          inputEl.focus();
+        }
+      }, 200);
       return;
     }
 
     const unlinked = payments.filter((p) => !p.paymentRequestId);
     if (unlinked.length === 1) {
-      handleCreatePaymentRequestFromPOPayment(po, unlinked[0]);
+      const single = unlinked[0];
+      const isPost = single.condition !== "advance";
+      const hasInv = Boolean(single.invoiceNo && single.invoiceNo.trim());
+      if (isPost && !hasInv) {
+        alert(
+          `Đợt thanh toán trả sau "${single.phase}" bắt buộc phải có thông tin Số hóa đơn GTGT trước khi lập Đề nghị thanh toán.\n\n` +
+          `Vui lòng nhập Số hóa đơn tại mục Đợt thanh toán của PO hoặc liên kết với phiếu ĐNTT tự tạo!`
+        );
+        const inputEl = document.getElementById(`invoice-no-input-${single.id}`);
+        if (inputEl) {
+          inputEl.scrollIntoView({ behavior: "smooth", block: "center" });
+          inputEl.focus();
+        }
+        return;
+      }
+      handleCreatePaymentRequestFromPOPayment(po, single);
     } else {
       setPaymentStagePickerPO(po);
     }
@@ -2677,6 +2720,7 @@ function ProcurementAppInner({
               paymentRequests={paymentRequests}
               paymentHandovers={paymentHandovers}
               onNavigate={(route) => navigateTo(route)}
+              onUpdatePaymentRequest={handleUpdatePaymentRequest}
               onDelete={
                 reportMode
                   ? undefined
@@ -3351,6 +3395,9 @@ function ProcurementAppInner({
             const req = paymentRequests.find((r) => r.id === reqId);
             if (req) setPrintPaymentRequest(req);
           }}
+          onOpenLinkModal={(stage) => {
+            setLinkModalFromPicker({ po: paymentStagePickerPO, stage });
+          }}
           onAddAndCreateStage={() => {
             const defaultStage: Payment = {
               id: Date.now(),
@@ -3367,7 +3414,50 @@ function ProcurementAppInner({
             };
             updatePO(updatedPO);
             if (currentPO?.id === paymentStagePickerPO.id) setCurrentPO(updatedPO);
-            handleCreatePaymentRequestFromPOPayment(updatedPO, defaultStage);
+            alert(
+              `Đã tạo đợt thanh toán 100% cho đơn hàng ${paymentStagePickerPO.number}.\n\n` +
+              `Vì đây là đợt thanh toán trả sau, bắt buộc phải nhập Số hóa đơn GTGT trước khi lập Đề nghị thanh toán. Vui lòng nhập Số hóa đơn tại mục Đợt thanh toán của PO!`
+            );
+          }}
+        />
+      )}
+
+      {/* Popup Liên kết Đợt thanh toán PO với Phiếu ĐNTT có sẵn khi kích hoạt từ Picker */}
+      {linkModalFromPicker && (
+        <POPaymentLinkModal
+          isOpen={Boolean(linkModalFromPicker)}
+          onClose={() => setLinkModalFromPicker(null)}
+          po={linkModalFromPicker.po}
+          stage={linkModalFromPicker.stage}
+          paymentRequests={paymentRequests}
+          pos={pos}
+          onConfirmLink={(req) => {
+            const { po: targetPO, stage } = linkModalFromPicker;
+            const updatedPayments = (targetPO.payments || []).map((p) => {
+              if (p.id !== stage.id) return p;
+              const patch: Partial<Payment> = {
+                paymentRequestId: req.id,
+                status: (req.status === "Đã thanh toán" || req.status === "Hoàn thành") ? "Đã thanh toán" : "Đang xử lý",
+              };
+              if (!stage.invoiceNo && req.invoice_no) {
+                patch.invoiceNo = req.invoice_no;
+                patch.invoiceDate = req.invoice_date || stage.invoiceDate;
+              }
+              return { ...p, ...patch };
+            });
+            const updatedPO = { ...targetPO, payments: updatedPayments };
+            updatePO(updatedPO);
+            if (currentPO?.id === targetPO.id) setCurrentPO(updatedPO);
+
+            const updatedReq: PaymentRequestEntry = {
+              ...req,
+              group_code: req.group_code || targetPO.number,
+              invoice_no: req.invoice_no || stage.invoiceNo || "",
+              invoice_date: req.invoice_date || stage.invoiceDate || "",
+            };
+            handleUpdatePaymentRequest(updatedReq);
+            setStorageStatus(`✓ Đã liên kết đợt "${stage.phase}" với ĐNTT #${req.legacy_stt || req.id}`);
+            setLinkModalFromPicker(null);
           }}
         />
       )}

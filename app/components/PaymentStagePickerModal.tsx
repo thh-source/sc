@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { X, CreditCard, Printer, Check, ArrowRight, Plus } from "lucide-react";
+import { X, CreditCard, Printer, Check, ArrowRight, Plus, Link2 } from "lucide-react";
 import { PO, Payment, PaymentRequestEntry } from "../types";
 import { fmt } from "../utils";
 
@@ -13,6 +13,7 @@ interface PaymentStagePickerModalProps {
   onSelectStageToCreate: (payment: Payment) => void;
   onPrintExistingRequest: (requestId: number) => void;
   onAddAndCreateStage: () => void;
+  onOpenLinkModal?: (payment: Payment) => void;
 }
 
 export function PaymentStagePickerModal({
@@ -23,6 +24,7 @@ export function PaymentStagePickerModal({
   onSelectStageToCreate,
   onPrintExistingRequest,
   onAddAndCreateStage,
+  onOpenLinkModal,
 }: PaymentStagePickerModalProps) {
   if (!isOpen) return null;
 
@@ -182,6 +184,16 @@ export function PaymentStagePickerModal({
                       <div style={{ fontSize: "12.5px", color: "#475569", marginTop: "4px" }}>
                         Số tiền: <b style={{ color: "#0284c7" }}>{fmt(p.amount)} ₫</b> · Hạn: {p.date || "Chưa đặt"}
                       </div>
+                      {p.condition !== "advance" && (!p.invoiceNo || !p.invoiceNo.trim()) && !linkedReq && (
+                        <div style={{ fontSize: "11.5px", color: "#dc2626", marginTop: "3px", fontWeight: 600 }}>
+                          ⚠️ Chưa có HĐ VAT (Bắt buộc với trả sau)
+                        </div>
+                      )}
+                      {p.invoiceNo && (
+                        <div style={{ fontSize: "11.5px", color: "#166534", marginTop: "2px" }}>
+                          Số HĐ: <b>{p.invoiceNo}</b> {p.invoiceDate && `(${p.invoiceDate})`}
+                        </div>
+                      )}
                       {linkedReq && (
                         <div style={{ fontSize: "11.5px", color: "#16a34a", marginTop: "3px", fontWeight: 600 }}>
                           ✓ Đã lập ĐNTT #{linkedReq.legacy_stt || linkedReq.id} ({linkedReq.status})
@@ -189,7 +201,7 @@ export function PaymentStagePickerModal({
                       )}
                     </div>
 
-                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
                       {linkedReq ? (
                         <button
                           type="button"
@@ -216,30 +228,80 @@ export function PaymentStagePickerModal({
                           <Printer size={15} /> In phiếu ĐNTT
                         </button>
                       ) : (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            onClose();
-                            onSelectStageToCreate(p);
-                          }}
-                          style={{
-                            height: "36px",
-                            padding: "0 16px",
-                            borderRadius: "6px",
-                            border: "none",
-                            background: "#16a34a",
-                            color: "#ffffff",
-                            fontSize: "13px",
-                            fontWeight: 700,
-                            cursor: "pointer",
-                            display: "inline-flex",
-                            alignItems: "center",
-                            gap: "5px",
-                            boxShadow: "0 2px 6px rgba(22, 163, 74, 0.3)",
-                          }}
-                        >
-                          <CreditCard size={15} /> Lập ĐNTT & In
-                        </button>
+                        <>
+                          {onOpenLinkModal && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                onClose();
+                                onOpenLinkModal(p);
+                              }}
+                              style={{
+                                height: "36px",
+                                padding: "0 12px",
+                                borderRadius: "6px",
+                                border: "1px solid #cbd5e1",
+                                background: "#f1f5f9",
+                                color: "#0f172a",
+                                fontSize: "12.5px",
+                                fontWeight: 600,
+                                cursor: "pointer",
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: "4px",
+                              }}
+                              title="Liên kết đợt thanh toán này với một Phiếu ĐNTT có sẵn"
+                            >
+                              <Link2 size={14} /> Liên kết ĐNTT
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const isPost = p.condition !== "advance";
+                              const hasInv = Boolean(p.invoiceNo && p.invoiceNo.trim());
+                              if (isPost && !hasInv) {
+                                alert(
+                                  `Đợt thanh toán "${p.phase}" là đợt trả sau, bắt buộc phải có thông tin Số hóa đơn GTGT trước khi lập ĐNTT.\n\n` +
+                                  `Vui lòng nhập Số hóa đơn tại mục Đợt thanh toán của PO hoặc bấm nút "Liên kết ĐNTT" nếu đã có phiếu tự tạo!`
+                                );
+                                onClose();
+                                setTimeout(() => {
+                                  const el = document.getElementById(`invoice-no-input-${p.id}`);
+                                  if (el) {
+                                    el.scrollIntoView({ behavior: "smooth", block: "center" });
+                                    el.focus();
+                                  }
+                                }, 200);
+                                return;
+                              }
+                              onClose();
+                              onSelectStageToCreate(p);
+                            }}
+                            style={{
+                              height: "36px",
+                              padding: "0 16px",
+                              borderRadius: "6px",
+                              border: "none",
+                              background: p.condition !== "advance" && (!p.invoiceNo || !p.invoiceNo.trim()) ? "#94a3b8" : "#16a34a",
+                              color: "#ffffff",
+                              fontSize: "13px",
+                              fontWeight: 700,
+                              cursor: "pointer",
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: "5px",
+                              boxShadow: p.condition !== "advance" && (!p.invoiceNo || !p.invoiceNo.trim()) ? "none" : "0 2px 6px rgba(22, 163, 74, 0.3)",
+                            }}
+                            title={
+                              p.condition !== "advance" && (!p.invoiceNo || !p.invoiceNo.trim())
+                                ? "Bắt buộc có Số hóa đơn GTGT đối với đợt trả sau"
+                                : "Lập Đề nghị thanh toán và mở trực tiếp bản in Mẫu 01-TT"
+                            }
+                          >
+                            <CreditCard size={15} /> Lập ĐNTT & In
+                          </button>
+                        </>
                       )}
                     </div>
                   </div>
