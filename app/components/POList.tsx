@@ -516,6 +516,10 @@ export function POList({
             const total = calcPOTotal(po);
             const deliveryStats = calcPODeliveryStats(po, paymentHandovers);
             const delivered = deliveryStats.fullyDeliveredItemsCount;
+            const paid = (po.payments || [])
+              .filter((p) => p.status === "Đã thanh toán")
+              .reduce((n, p) => n + (Number(p.amount) || 0), 0);
+            const isFullyPaid = total > 0 && paid >= total;
             const flow = resolveDocFlow({ po }, { prs, pos, approvalRequests, paymentRequests, paymentHandovers });
             const isDone = isPOCompleted(po, paymentHandovers);
             return (
@@ -593,13 +597,26 @@ export function POList({
                   <div>
                     <dt>Giao hàng</dt>
                     <dd>
-                      {delivered}/{items.length}
+                      {deliveryStats.isFullyDelivered ? "✓ Đã giao đủ" : `${delivered}/${items.length} (${deliveryStats.overallProgressPercent}%)`}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>Thanh toán</dt>
+                    <dd>
+                      {isFullyPaid ? (
+                        <span style={{ color: "#166534", fontWeight: 700, fontSize: "11px", background: "#dcfce7", padding: "1px 6px", borderRadius: "4px" }}>
+                          ✓ Đã TT
+                        </span>
+                      ) : paid > 0 ? (
+                        <span style={{ color: "#0369a1", fontWeight: 600, fontSize: "11px", background: "#e0f2fe", padding: "1px 6px", borderRadius: "4px" }}>
+                          Đã TT {total > 0 ? Math.round((paid / total) * 100) : 0}%
+                        </span>
+                      ) : (
+                        <span style={{ color: "#64748b", fontSize: "11px" }}>Chưa thanh toán</span>
+                      )}
                     </dd>
                   </div>
                 </dl>
-                <div style={{ marginTop: "8px", paddingTop: "8px", borderTop: "1px dashed #e2e8f0" }}>
-                  <DocFlowLinks flow={flow} currentView="po-list" onNavigate={onNavigate} compact />
-                </div>
                 <footer className="m-card-footer">
                   <button
                     type="button"
@@ -649,18 +666,16 @@ export function POList({
         </div>
 
         <div className="pr-table" style={{ width: "100%", overflowX: "auto" }}>
-          <table style={{ width: "100%", minWidth: "1280px", tableLayout: "auto" }}>
+          <table style={{ width: "100%", minWidth: "1080px", tableLayout: "auto" }}>
             <thead>
               <tr>
-                <th style={{ width: "140px", whiteSpace: "nowrap" }}>{t("table.po_number")}</th>
-                <th style={{ width: "220px", whiteSpace: "nowrap" }}>Chứng từ liên kết</th>
-                <th style={{ minWidth: "240px" }}>{t("table.supplier")}</th>
-                <th style={{ width: "120px", whiteSpace: "nowrap" }}>{t("table.created_date")}</th>
-                <th style={{ width: "120px", whiteSpace: "nowrap" }}>{t("table.expected_delivery")}</th>
-                <th style={{ width: "140px", whiteSpace: "nowrap", textAlign: "right" }}>{t("table.po_value")}</th>
-                <th style={{ width: "130px", whiteSpace: "nowrap", textAlign: "center" }}>{t("table.delivery_progress")}</th>
-                <th style={{ width: "110px", whiteSpace: "nowrap", textAlign: "center" }}>{t("table.documents")}</th>
-                <th style={{ width: "110px", whiteSpace: "nowrap", textAlign: "center" }}>{t("table.payment")}</th>
+                <th style={{ width: "150px", whiteSpace: "nowrap" }}>{t("table.po_number")}</th>
+                <th style={{ minWidth: "220px" }}>{t("table.supplier")}</th>
+                <th style={{ width: "115px", whiteSpace: "nowrap" }}>{t("table.created_date")}</th>
+                <th style={{ width: "115px", whiteSpace: "nowrap" }}>{t("table.expected_delivery")}</th>
+                <th style={{ width: "135px", whiteSpace: "nowrap", textAlign: "right" }}>{t("table.po_value")}</th>
+                <th style={{ width: "175px", whiteSpace: "nowrap", textAlign: "center" }}>Giao hàng &amp; Thanh toán</th>
+                <th style={{ width: "105px", whiteSpace: "nowrap", textAlign: "center" }}>{t("table.documents")}</th>
                 <th style={{ width: "230px", minWidth: "230px", textAlign: "right", paddingRight: "16px" }}>{t("table.actions")}</th>
               </tr>
             </thead>
@@ -680,6 +695,63 @@ export function POList({
                 const total = calcPOTotal(po);
                 const flow = resolveDocFlow({ po }, { prs, pos, approvalRequests, paymentRequests, paymentHandovers });
                 const isDone = isPOCompleted(po, paymentHandovers);
+
+                // Tính toán trạng thái thanh toán hiển thị tại Dòng 2
+                const isFullyPaid = total > 0 && paid >= total;
+                let paymentStatusBadge: React.ReactNode = null;
+                if (isFullyPaid) {
+                  paymentStatusBadge = (
+                    <span
+                      style={{
+                        display: "inline-block",
+                        fontSize: "11px",
+                        fontWeight: 700,
+                        color: "#166534",
+                        background: "#dcfce7",
+                        padding: "1px 6px",
+                        borderRadius: "4px",
+                      }}
+                    >
+                      ✓ Đã TT
+                    </span>
+                  );
+                } else if (paid > 0) {
+                  const paidStages = payments.filter((p) => p.status === "Đã thanh toán");
+                  const lastPaid = paidStages[paidStages.length - 1];
+                  const paidPct = Math.round((paid / total) * 100);
+                  const stageText = lastPaid?.phase ? lastPaid.phase.replace(/Thanh toán/gi, "TT").trim() : `Đợt ${paidStages.length}`;
+                  paymentStatusBadge = (
+                    <span
+                      style={{
+                        display: "inline-block",
+                        fontSize: "11px",
+                        fontWeight: 600,
+                        color: "#0369a1",
+                        background: "#e0f2fe",
+                        padding: "1px 6px",
+                        borderRadius: "4px",
+                      }}
+                    >
+                      Đã TT {stageText} - {paidPct}%
+                    </span>
+                  );
+                } else {
+                  paymentStatusBadge = (
+                    <span
+                      style={{
+                        display: "inline-block",
+                        fontSize: "11px",
+                        color: "#64748b",
+                        background: "#f1f5f9",
+                        padding: "1px 6px",
+                        borderRadius: "4px",
+                      }}
+                    >
+                      Chưa thanh toán
+                    </span>
+                  );
+                }
+
                 return (
                   <tr key={po.id} className={isDone ? "row-completed" : ""}>
                     <td style={{ whiteSpace: "nowrap" }}>
@@ -770,9 +842,6 @@ export function POList({
                         </div>
                       )}
                     </td>
-                    <td style={{ whiteSpace: "nowrap" }}>
-                      <DocFlowLinks flow={flow} currentView="po-list" onNavigate={onNavigate} compact />
-                    </td>
                     <td>
                       <b>{s?.name || "Chưa có NCC"}</b>
                       {s?.code && <small className="supplier-code">{s.code}</small>}
@@ -780,22 +849,30 @@ export function POList({
                     <td style={{ whiteSpace: "nowrap" }}>{dateVN(po.createdDate)}</td>
                     <td style={{ whiteSpace: "nowrap" }}>{dateVN(po.expectedDate)}</td>
                     <td className="money" style={{ whiteSpace: "nowrap", textAlign: "right" }}>{fmt(total)} ₫</td>
-                    <td style={{ textAlign: "center" }}>
-                      <span className="mini-progress" style={{ margin: "0 auto 4px" }}>
-                        <i
-                          style={{
-                            width: `${deliveryStats.overallProgressPercent}%`,
-                            background: deliveryStats.isFullyDelivered ? "#16a34a" : undefined,
-                          }}
-                        />
-                      </span>
-                      <small style={{ color: deliveryStats.isFullyDelivered ? "#15803d" : undefined, fontWeight: deliveryStats.isFullyDelivered ? 700 : undefined }}>
-                        {deliveryStats.isFullyDelivered ? (
-                          "✓ Đã giao đủ"
-                        ) : (
-                          `${delivered}/${items.length} mặt hàng (${deliveryStats.overallProgressPercent}%)`
-                        )}
-                      </small>
+                    <td style={{ textAlign: "center", minWidth: "165px" }}>
+                      {/* Dòng 1: Tiến độ giao hàng */}
+                      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "2px", marginBottom: "4px" }}>
+                        <span className="mini-progress" style={{ margin: "0 auto 3px" }}>
+                          <i
+                            style={{
+                              width: `${deliveryStats.overallProgressPercent}%`,
+                              background: deliveryStats.isFullyDelivered ? "#16a34a" : undefined,
+                            }}
+                          />
+                        </span>
+                        <small style={{ color: deliveryStats.isFullyDelivered ? "#15803d" : "#475569", fontWeight: deliveryStats.isFullyDelivered ? 700 : 500, fontSize: "11px" }}>
+                          {deliveryStats.isFullyDelivered ? (
+                            "✓ Giao 100%"
+                          ) : (
+                            `Giao ${delivered}/${items.length} (${deliveryStats.overallProgressPercent}%)`
+                          )}
+                        </small>
+                      </div>
+
+                      {/* Dòng 2: Trạng thái thanh toán thực tế */}
+                      <div style={{ marginTop: "2px" }}>
+                        {paymentStatusBadge}
+                      </div>
                     </td>
                     <td style={{ textAlign: "center" }}>
                       {docs.length === 0 ? (
@@ -813,9 +890,6 @@ export function POList({
                           {docsCount}/{docs.length} đủ
                         </span>
                       )}
-                    </td>
-                    <td style={{ textAlign: "center" }}>
-                      <b>{total ? Math.round((paid / total) * 100) : 0}%</b>
                     </td>
                     <td style={{ width: "230px", minWidth: "230px", paddingRight: "16px" }}>
                       <div className="row-actions" style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: "6px", flexWrap: "nowrap" }}>

@@ -82,6 +82,7 @@ function validateCanCreatePaymentRequest(payment: Payment): { canCreate: boolean
     createdDate: "2026-10-27",
     expectedDate: "2026-11-05",
     status: "Đang giao hàng",
+    note: "",
     items: [],
     docs: [],
     payments: [

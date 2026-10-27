@@ -346,6 +346,9 @@ function ProcurementAppInner({
             currentVersion?: number;
             message?: string;
           } | null;
+          if (resData?.currentVersion) {
+            serverVersionRef.current = resData.currentVersion;
+          }
           setConflictModal({
             serverVersion: resData?.currentVersion || (serverVersionRef.current + 1),
             time: new Date().toLocaleTimeString("vi-VN"),
@@ -401,6 +404,11 @@ function ProcurementAppInner({
         approvalRequests,
       },
     };
+    try {
+      if (typeof window !== "undefined" && window.localStorage) {
+        window.localStorage.setItem(`scmh_backup_${workspaceId}`, JSON.stringify(latestSaveRef.current.payload));
+      }
+    } catch {}
   }, [approvalRequests, hiddenContractIds, items, paymentBeneficiaries, paymentGroups, paymentHandovers, paymentRequests, paymentTemplate, poCart, pos, products, prs, purchaseHistory, purchaseHistoryImportIds, quoteCompareMode, quoteSupplierIds, quoteSupplierIdsByPr, quotes, quotesByPr, suppliers, trash, workspaceId]);
   useEffect(() => {
     if (
@@ -429,7 +437,13 @@ function ProcurementAppInner({
         if (body.version) {
           serverVersionRef.current = body.version;
         }
-        const data = body.data as StoredState | null;
+        let data = body.data as StoredState | null;
+        if (!data) {
+          try {
+            const cached = window.localStorage?.getItem(`scmh_backup_${workspaceId}`);
+            if (cached) data = JSON.parse(cached);
+          } catch {}
+        }
         if (data) {
           previousPayloadRef.current = data;
           const firstPR = data.prs?.[0],
@@ -986,6 +1000,8 @@ function ProcurementAppInner({
     });
     setImportMessage("");
     navigateTo({ view: "prs" });
+    // Bắt buộc lưu vĩnh viễn vào D1 ngay lập tức khi tạo PR thành công
+    setTimeout(() => void persistState(false), 50);
   };
   const importExcel = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -1600,7 +1616,8 @@ function ProcurementAppInner({
       list.map((r) => (r.id === updatedReq.id ? updatedReq : r))
     );
     setStorageStatus(`Đã cập nhật hóa đơn thanh toán #${updatedReq.legacy_stt || updatedReq.id}`);
-  }, []);
+    setTimeout(() => void persistState(false), 50);
+  }, [persistState]);
 
   const handleToggleCompletePayment = useCallback((req: PaymentRequestEntry) => {
     const willComplete = !isPaymentCompleted(req);
@@ -1610,7 +1627,9 @@ function ProcurementAppInner({
     );
     setPos(updatedPOs);
     setStorageStatus(`Đã cập nhật thanh toán ${req.id} sang ${willComplete ? "Hoàn thành" : "Chưa hoàn thành"}`);
-  }, [pos]);
+    // Lưu ngay lập tức vào D1
+    setTimeout(() => void persistState(false), 50);
+  }, [pos, persistState]);
 
   const handleToggleCompletePR = useCallback((pr: PR) => {
     const willComplete = !isPRCompleted(pr);
@@ -2529,6 +2548,8 @@ function ProcurementAppInner({
                   }
                   return [updatedReq, ...prev];
                 });
+                // Bắt buộc lưu vĩnh viễn vào D1 ngay lập tức khi lưu ĐNPD
+                setTimeout(() => void persistState(false), 50);
               }}
               onDeleteApproval={(delId) => {
                 setApprovalRequests((prev) => {
@@ -2538,6 +2559,7 @@ function ProcurementAppInner({
                   }
                   return remaining;
                 });
+                setTimeout(() => void persistState(false), 50);
               }}
               onRestoreSamples={() => {
                 setApprovalRequests((prev) => {
@@ -2565,6 +2587,7 @@ function ProcurementAppInner({
                 }
               }}
               pos={pos}
+              paymentHandovers={paymentHandovers}
               trash={trash}
               onNavigate={(route) => navigateTo(route)}
               onToggleComplete={handleToggleCompleteApproval}
@@ -2670,6 +2693,8 @@ function ProcurementAppInner({
                   );
                 }
                 setStorageStatus(`Đã tạo đơn PO ${newPO.number}`);
+                // Bắt buộc lưu vĩnh viễn vào D1 ngay lập tức khi tạo PO thành công
+                setTimeout(() => void persistState(false), 50);
                 if (openDetail) {
                   navigateTo({ view: "po-detail", id: newPO.id });
                 }

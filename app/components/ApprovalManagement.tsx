@@ -46,7 +46,86 @@ import {
 import { addNewDepartment, getUnifiedDepartments } from "../utils/departments";
 import { DocFlowLinks } from "./DocFlowLinks";
 import { resolveDocFlow } from "../utils/docFlow";
-import { isApprovalCompleted } from "../utils/paymentSync";
+import { isApprovalCompleted, calcPODeliveryStats } from "../utils/paymentSync";
+import { calcPOTotal, PaymentHandoverItem } from "../types";
+
+export function getApprovalContextualStatus(
+  req: ApprovalRequest,
+  pos: PO[] = [],
+  paymentHandovers: PaymentHandoverItem[] = []
+): { text: string; badgeClass: string; style?: React.CSSProperties } {
+  const linkedPo = pos.find(
+    (p) =>
+      (req.linkedPoId && p.id === req.linkedPoId) ||
+      (req.linkedPoNumber && p.number === req.linkedPoNumber) ||
+      (req.prNumber && p.prNumber === req.prNumber) ||
+      (req.prId !== undefined && p.items?.some((it) => it.allocations?.some((al) => al.prId === req.prId)))
+  );
+
+  if (linkedPo) {
+    const poTotal = calcPOTotal(linkedPo);
+    const poPaid = (linkedPo.payments || [])
+      .filter((p) => p.status === "Đã thanh toán")
+      .reduce((n, p) => n + (Number(p.amount) || 0), 0);
+    const isPaid = (poTotal > 0 && poPaid >= poTotal) || linkedPo.status === "Đã thanh toán";
+    if (isPaid) {
+      return {
+        text: "Đã thanh toán",
+        badgeClass: "done",
+        style: { background: "#dcfce7", color: "#15803d", border: "1px solid #86efac" },
+      };
+    }
+
+    const deliveryStats = calcPODeliveryStats(linkedPo, paymentHandovers);
+    const isDelivered =
+      linkedPo.status === "Đã giao hàng" ||
+      deliveryStats.isFullyDelivered ||
+      (linkedPo.items.length > 0 && deliveryStats.fullyDeliveredItemsCount >= linkedPo.items.length);
+    if (isDelivered) {
+      return {
+        text: "Đã giao hàng",
+        badgeClass: "progress",
+        style: { background: "#e0f2fe", color: "#0369a1", border: "1px solid #7dd3fc" },
+      };
+    }
+
+    return {
+      text: "Đã tạo PO",
+      badgeClass: "progress",
+      style: { background: "#f0fdfa", color: "#0f766e", border: "1px solid #99f6e4" },
+    };
+  }
+
+  if (req.status === "Đã tạo PO") {
+    return {
+      text: "Đã tạo PO",
+      badgeClass: "progress",
+      style: { background: "#f0fdfa", color: "#0f766e", border: "1px solid #99f6e4" },
+    };
+  }
+
+  if (req.status === "Đã phê duyệt") {
+    return {
+      text: "Đã phê duyệt",
+      badgeClass: "done",
+      style: { background: "#ecfdf5", color: "#059669", border: "1px solid #a7f3d0" },
+    };
+  }
+
+  if ((req.status as string) === "Từ chối") {
+    return {
+      text: "Từ chối",
+      badgeClass: "waiting",
+      style: { background: "#fee2e2", color: "#b91c1c", border: "1px solid #fca5a5" },
+    };
+  }
+
+  return {
+    text: req.status || "Chờ phê duyệt",
+    badgeClass: "waiting",
+    style: { background: "#fff5dc", color: "#a86600", border: "1px solid #fde68a" },
+  };
+}
 
 interface ApprovalManagementProps {
   approvalRequests: ApprovalRequest[];
@@ -65,6 +144,7 @@ interface ApprovalManagementProps {
   onBackToCompare?: () => void;
   autoPrint?: boolean;
   pos?: PO[];
+  paymentHandovers?: PaymentHandoverItem[];
   onNavigate?: (route: any) => void;
   onToggleComplete?: (req: ApprovalRequest) => void;
 }
@@ -163,6 +243,7 @@ export default function ApprovalManagement({
   onBackToCompare,
   autoPrint = false,
   pos = [],
+  paymentHandovers = [],
   trash = [],
   onNavigate,
   onToggleComplete,
@@ -1072,6 +1153,7 @@ export default function ApprovalManagement({
                 const isDone = isApprovalCompleted(req);
                 const flow = resolveDocFlow({ approval: req }, { prs, pos, approvalRequests });
                 const canCreatePO = !isReportMode && (req.status === "Đã phê duyệt" || req.status === "Đã tạo PO");
+                const ctxStatus = getApprovalContextualStatus(req, pos, paymentHandovers);
 
                 return (
                   <article key={req.id} className={isDone ? "row-completed" : ""}>
@@ -1102,8 +1184,8 @@ export default function ApprovalManagement({
                           {req.prNumber || req.requestNumber}
                         </button>
                       </div>
-                      <span className={`status ${isDone ? "done" : req.status === "Chờ phê duyệt" ? "progress" : "waiting"}`}>
-                        {req.status}
+                      <span className={`status ${ctxStatus.badgeClass}`} style={ctxStatus.style}>
+                        {ctxStatus.text}
                       </span>
                     </header>
 
@@ -1133,18 +1215,7 @@ export default function ApprovalManagement({
                       </div>
                     </dl>
 
-                    <div style={{ marginTop: "8px", paddingTop: "8px", borderTop: "1px dashed #e2e8f0" }}>
-                      <DocFlowLinks
-                        flow={flow}
-                        currentView="approval"
-                        onNavigate={onNavigate}
-                        onCreatePOFromApproval={() => {
-                          setPoCreateVatRate(10);
-                          setPoCreateModalReq(req);
-                        }}
-                        compact
-                      />
-                    </div>
+                    
 
                     <footer className="m-card-footer">
                       <button
@@ -1235,11 +1306,7 @@ export default function ApprovalManagement({
                       ? computeSupplierTotal(req, selectedCol.colId)
                       : 0;
                     const isDone = isApprovalCompleted(req);
-                    const badgeClass = isDone
-                      ? "done"
-                      : req.status === "Chờ phê duyệt"
-                        ? "progress"
-                        : "waiting";
+                    const ctxStatus = getApprovalContextualStatus(req, pos, paymentHandovers);
 
                     return (
                       <tr
@@ -1298,21 +1365,9 @@ export default function ApprovalManagement({
                           {selectedTotal > 0 ? `${formatVND(selectedTotal)} ₫` : "-"}
                         </td>
                         <td>
-                          <span className={`status ${badgeClass}`}>
-                            {req.status}
+                          <span className={`status ${ctxStatus.badgeClass}`} style={ctxStatus.style}>
+                            {ctxStatus.text}
                           </span>
-                          <div style={{ marginTop: 4 }}>
-                            <DocFlowLinks
-                              flow={resolveDocFlow({ approval: req }, { prs, pos, approvalRequests })}
-                              currentView="approval"
-                              onNavigate={onNavigate}
-                              onCreatePOFromApproval={() => {
-                                setPoCreateVatRate(10);
-                                setPoCreateModalReq(req);
-                              }}
-                              compact
-                            />
-                          </div>
                         </td>
                         <td
                           style={{ textAlign: "right" }}

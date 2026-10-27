@@ -17,13 +17,14 @@ import {
   Layers,
   Sparkles,
   DollarSign,
+  TrendingUp,
   Filter,
   Package,
   FileCheck,
   X,
   Pencil,
 } from "lucide-react";
-import { PR, PO, Supplier, PurchaseHistory, ApprovalRequest, PaymentRequestEntry } from "../types";
+import { PR, PO, Supplier, PurchaseHistory, ApprovalRequest, PaymentRequestEntry, calcPOTotal } from "../types";
 import { fmt } from "../utils";
 import { fmtMoney } from "../payment-utils";
 import {
@@ -221,6 +222,36 @@ export function Dashboard({
       return score(b.urgency) - score(a.urgency);
     });
   }, [pos, suppliers, todayStr]);
+
+  // -------------------------------------------------------------
+  // KPI TỔNG HỢP DÒNG TIỀN & TIẾN ĐỘ THANH TOÁN (Real-time Reactivity)
+  // -------------------------------------------------------------
+  const paidTodayAmount = useMemo(() => {
+    return (paymentRequests || [])
+      .filter((r) => isPaymentCompleted(r) && r.paidAt?.slice(0, 10) === todayStr)
+      .reduce((sum, r) => sum + (Number(r.amount) || 0), 0);
+  }, [paymentRequests, todayStr]);
+
+  const { totalPOValue, totalPOPaid, poPaymentProgressPct, remainingDebt } = useMemo(() => {
+    let totalVal = 0;
+    let totalPaid = 0;
+    pos.forEach((po) => {
+      const poVal = calcPOTotal(po);
+      totalVal += poVal;
+      const poPaidAmt = (po.payments || [])
+        .filter((p) => p.status === "Đã thanh toán")
+        .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+      totalPaid += Math.min(poVal, poPaidAmt);
+    });
+    const pct = totalVal > 0 ? Math.round((totalPaid / totalVal) * 100) : 0;
+    const remaining = Math.max(0, totalVal - totalPaid);
+    return {
+      totalPOValue: totalVal,
+      totalPOPaid: totalPaid,
+      poPaymentProgressPct: pct,
+      remainingDebt: remaining,
+    };
+  }, [pos]);
 
   const filteredCashFlowItems = useMemo(() => {
     if (cashFlowFilter === "advance_urgent") {
@@ -1225,6 +1256,146 @@ export function Dashboard({
                 >
                   Quá hạn & Đến hạn
                 </button>
+              </div>
+            </div>
+
+            {/* KPI Tóm tắt Dòng tiền & Tiến độ thanh toán PO */}
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+                gap: "12px",
+                padding: "12px 16px",
+                backgroundColor: "#f8fafc",
+                borderBottom: "1px solid #e2e8f0",
+              }}
+            >
+              {/* 1. Đã chi trong ngày */}
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "12px",
+                  padding: "10px 14px",
+                  backgroundColor: "#ffffff",
+                  borderRadius: "8px",
+                  border: "1px solid #e2e8f0",
+                  boxShadow: "0 1px 2px rgba(0,0,0,0.03)",
+                }}
+              >
+                <div
+                  style={{
+                    width: 38,
+                    height: 38,
+                    borderRadius: "8px",
+                    backgroundColor: "#ecfdf5",
+                    color: "#059669",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    flexShrink: 0,
+                  }}
+                >
+                  <DollarSign size={20} />
+                </div>
+                <div>
+                  <div style={{ fontSize: "11px", color: "#64748b", fontWeight: 600, textTransform: "uppercase" }}>
+                    Đã chi trong ngày
+                  </div>
+                  <div style={{ fontSize: "16px", fontWeight: 800, color: "#0f172a" }}>
+                    {fmt(paidTodayAmount)} ₫
+                  </div>
+                  <div style={{ fontSize: "11px", color: "#10b981", fontWeight: 600 }}>
+                    {paidTodayPaymentsCount > 0 ? `${paidTodayPaymentsCount} khoản đã giải ngân` : "Chưa có khoản chi nào"}
+                  </div>
+                </div>
+              </div>
+
+              {/* 2. Tiến độ thanh toán theo PO */}
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "12px",
+                  padding: "10px 14px",
+                  backgroundColor: "#ffffff",
+                  borderRadius: "8px",
+                  border: "1px solid #e2e8f0",
+                  boxShadow: "0 1px 2px rgba(0,0,0,0.03)",
+                }}
+              >
+                <div
+                  style={{
+                    width: 38,
+                    height: 38,
+                    borderRadius: "8px",
+                    backgroundColor: "#eff6ff",
+                    color: "#2563eb",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    flexShrink: 0,
+                  }}
+                >
+                  <TrendingUp size={20} />
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+                    <span style={{ fontSize: "11px", color: "#64748b", fontWeight: 600, textTransform: "uppercase" }}>
+                      Tiến độ thanh toán PO
+                    </span>
+                    <span style={{ fontSize: "13px", fontWeight: 800, color: "#2563eb" }}>
+                      {poPaymentProgressPct}%
+                    </span>
+                  </div>
+                  <div style={{ fontSize: "15px", fontWeight: 800, color: "#0f172a" }}>
+                    {fmt(totalPOPaid)} ₫
+                  </div>
+                  <div style={{ fontSize: "11px", color: "#64748b" }}>
+                    trên tổng {fmt(totalPOValue)} ₫
+                  </div>
+                </div>
+              </div>
+
+              {/* 3. Công nợ còn lại */}
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "12px",
+                  padding: "10px 14px",
+                  backgroundColor: "#ffffff",
+                  borderRadius: "8px",
+                  border: "1px solid #e2e8f0",
+                  boxShadow: "0 1px 2px rgba(0,0,0,0.03)",
+                }}
+              >
+                <div
+                  style={{
+                    width: 38,
+                    height: 38,
+                    borderRadius: "8px",
+                    backgroundColor: "#fff7ed",
+                    color: "#ea580c",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    flexShrink: 0,
+                  }}
+                >
+                  <CreditCard size={20} />
+                </div>
+                <div>
+                  <div style={{ fontSize: "11px", color: "#64748b", fontWeight: 600, textTransform: "uppercase" }}>
+                    Công nợ còn lại
+                  </div>
+                  <div style={{ fontSize: "16px", fontWeight: 800, color: remainingDebt > 0 ? "#ea580c" : "#166534" }}>
+                    {fmt(remainingDebt)} ₫
+                  </div>
+                  <div style={{ fontSize: "11px", color: "#64748b" }}>
+                    {cashFlowItems.length} đợt chờ thanh toán
+                  </div>
+                </div>
               </div>
             </div>
 
