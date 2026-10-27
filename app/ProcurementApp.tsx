@@ -1645,6 +1645,42 @@ function ProcurementAppInner({
     setShowHandoverPickerModal(true);
   };
 
+  const handleCreateHandoverFromPR = (pr: PR) => {
+    if (!pr.items || pr.items.length === 0) {
+      alert("Yêu cầu mua sắm (PR) này chưa có sản phẩm nào để tạo biên bản bàn giao.");
+      return;
+    }
+    const pseudoPO: PO = {
+      id: -Math.abs(Number(pr.id) || 1),
+      number: pr.number,
+      createdDate: pr.date,
+      expectedDate: pr.date,
+      prNumber: pr.number,
+      supplierId: 0,
+      status: "PR",
+      items: pr.items.map((it) => ({
+        id: it.id,
+        code: it.code || "",
+        category: it.category || "",
+        name: it.name,
+        desc: it.desc || "",
+        spec: it.spec || "",
+        unit: it.unit || "Cái",
+        qty: it.qty,
+        estimate: it.estimate || 0,
+        price: it.estimate || 0,
+        deliveryStatus: "Chưa giao" as const,
+        deliveredQty: 0,
+        deliveryDate: pr.date,
+      })),
+      docs: [],
+      payments: [],
+      note: pr.purpose || "",
+    };
+    setHandoverPickerPO(pseudoPO);
+    setShowHandoverPickerModal(true);
+  };
+
   const handleConfirmHandoverFromPicker = (payload: {
     items: {
       item: POItem;
@@ -1667,7 +1703,8 @@ function ProcurementAppInner({
     let curId = maxId;
 
     const supplier = suppliers.find((s) => s.id === handoverPickerPO.supplierId);
-    const docTypeLabel = isContractPO(handoverPickerPO) ? "Hợp đồng" : "PO";
+    const isFromPR = handoverPickerPO.id < 0;
+    const docTypeLabel = isContractPO(handoverPickerPO) ? "Hợp đồng" : isFromPR ? "PR" : "PO";
 
     // 1. Tạo các bản ghi bàn giao cho ĐÚNG số lượng thực tế đợt này
     const newHandovers: PaymentHandoverItem[] = payload.items.map((entry) => {
@@ -1752,9 +1789,11 @@ function ProcurementAppInner({
       isCompleted: allDone ? true : handoverPickerPO.isCompleted,
     };
 
-    updatePO(updatedPO);
-    if (currentPO?.id === handoverPickerPO.id) {
-      setCurrentPO(updatedPO);
+    if (!isFromPR) {
+      updatePO(updatedPO);
+      if (currentPO?.id === handoverPickerPO.id) {
+        setCurrentPO(updatedPO);
+      }
     }
 
     setPaymentHandovers((prev) => [...newHandovers, ...prev]);
@@ -2524,6 +2563,7 @@ function ProcurementAppInner({
             onNavigate={(route) => navigateTo(route)}
             onToggleComplete={handleToggleCompletePR}
             onUpdateScanUrl={handleUpdatePRScan}
+            onCreateHandover={handleCreateHandoverFromPR}
           />
         )}
         {view === "create" && (

@@ -138,7 +138,8 @@ export function POHandoverPickerModal({
 
   const items = po.items || [];
   const selectedCount = items.filter((it) => selectedMap[it.id] && (deliveryStats?.itemsStats[it.id]?.quantityRemaining ?? 0) > 0).length;
-  const docTypeLabel = isContractPO(po) ? "Hợp đồng" : "PO";
+  const isFromPR = po.id < 0 || po.status === "PR";
+  const docTypeLabel = isContractPO(po) ? "Hợp đồng" : isFromPR ? "PR" : "PO";
 
   // Kiểm tra có dòng nào đã chọn nhưng số lượng không hợp lệ hay không
   const isAnySelectedInvalid = items.some((it) => {
@@ -962,19 +963,20 @@ export function POHandoverPickerModal({
             )}
           </div>
 
-          <div style={{ display: "flex", gap: "8px" }}>
+          <div style={{ display: "flex", gap: "8px", width: isMobile ? "100%" : "auto" }}>
             <button
               type="button"
               onClick={onClose}
               style={{
-                height: "38px",
+                height: isMobile ? "44px" : "38px",
                 padding: "0 16px",
-                borderRadius: "6px",
+                borderRadius: "8px",
                 border: "1px solid #cbd5e1",
                 background: "#ffffff",
                 fontWeight: 600,
                 color: "#475569",
                 cursor: "pointer",
+                flex: isMobile ? "0 0 75px" : undefined,
               }}
             >
               {isFullyDelivered ? "Đóng" : "Hủy"}
@@ -984,9 +986,9 @@ export function POHandoverPickerModal({
               disabled={isButtonDisabled}
               onClick={handleConfirm}
               style={{
-                height: "38px",
-                padding: "0 20px",
-                borderRadius: "6px",
+                height: isMobile ? "44px" : "38px",
+                padding: isMobile ? "0 14px" : "0 20px",
+                borderRadius: "8px",
                 border: "none",
                 background: isButtonDisabled ? "#94a3b8" : "#16a34a",
                 color: "#ffffff",
@@ -995,8 +997,10 @@ export function POHandoverPickerModal({
                 cursor: isButtonDisabled ? "not-allowed" : "pointer",
                 display: "inline-flex",
                 alignItems: "center",
+                justifyContent: "center",
                 gap: "6px",
                 boxShadow: isButtonDisabled ? "none" : "0 2px 8px rgba(22, 163, 74, 0.3)",
+                flex: isMobile ? 1 : undefined,
               }}
             >
               {isFullyDelivered ? (

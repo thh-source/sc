@@ -249,14 +249,14 @@
   .mobile-record-list {
     display: flex !important;
     flex-direction: column;
-    gap: 10px;
+    gap: 12px;
   }
   .mobile-record-list article {
     background: #ffffff;
     border: 1px solid var(--line, #cbd5e1);
-    border-radius: 10px;
-    padding: 12px 14px;
-    box-shadow: 0 2px 8px rgba(23, 50, 76, 0.05);
+    border-radius: 12px;
+    padding: 14px 16px;
+    box-shadow: 0 2px 10px rgba(15, 23, 42, 0.06);
   }
   .mobile-record-list article > header {
     position: static;
@@ -266,7 +266,7 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    gap: 8px;
+    gap: 10px;
   }
   .mobile-record-list header > button {
     border: 0;
@@ -274,30 +274,36 @@
     color: var(--blue, #0284c7);
     padding: 0;
     font-weight: 800;
-    font-size: 13.5px;
+    font-size: 15px;
     text-align: left;
     cursor: pointer;
+    min-height: 38px;
+    display: inline-flex;
+    align-items: center;
   }
   .mobile-record-list h3 {
-    font-size: 13px;
+    font-size: 14px;
+    font-weight: 700;
     margin: 8px 0 4px;
-    color: #1e293b;
+    color: #0f172a;
+    line-height: 1.4;
   }
   .mobile-record-list p {
     margin: 0;
     color: var(--muted, #64748b);
-    font-size: 11px;
-    line-height: 1.45;
+    font-size: 12px;
+    line-height: 1.5;
     white-space: normal;
   }
   .mobile-record-list dl {
     display: flex;
     flex-wrap: wrap;
-    gap: 10px 14px;
+    gap: 10px 16px;
     margin: 10px 0;
     background: #f8fafc;
-    padding: 8px 10px;
-    border-radius: 6px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    border: 1px solid #f1f5f9;
   }
   .mobile-record-list dl > div {
     display: flex;
@@ -305,28 +311,197 @@
     gap: 2px;
   }
   .mobile-record-list dt {
-    font-size: 9.5px;
+    font-size: 10.5px;
     color: var(--muted, #64748b);
     text-transform: uppercase;
-    font-weight: 600;
+    font-weight: 700;
+    letter-spacing: 0.3px;
   }
   .mobile-record-list dd {
     margin: 0;
-    font-size: 11px;
+    font-size: 12.5px;
     font-weight: 700;
     color: #0f172a;
   }
-  .mobile-record-list footer {
-    display: flex;
-    justify-content: flex-end;
-    gap: 8px;
-    border-top: 1px solid #edf1f5;
-    padding-top: 9px;
+
+  /* Mobile Record List Footer & Big Touch Buttons */
+  .mobile-record-list footer,
+  .m-card-footer {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    gap: 8px !important;
+    border-top: 1px solid #edf1f5 !important;
+    padding-top: 12px !important;
+    margin-top: 10px !important;
   }
   .mobile-record-list footer button {
-    min-height: 36px;
-    padding: 0 12px;
-    font-size: 11px;
+    min-height: 42px;
+    height: 42px;
+    padding: 0 14px;
+    font-size: 13.5px;
+    font-weight: 700;
+    border-radius: 8px;
+  }
+
+  /* Dedicated Mobile Action Button System */
+  .m-action-btn {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 6px !important;
+    min-height: 42px !important;
+    height: 42px !important;
+    padding: 0 14px !important;
+    font-size: 13.5px !important;
+    font-weight: 700 !important;
+    border-radius: 8px !important;
+    cursor: pointer !important;
+    text-decoration: none !important;
+    white-space: nowrap !important;
+    box-sizing: border-box !important;
+    touch-action: manipulation !important;
+    transition: background-color 0.15s ease, border-color 0.15s ease, transform 0.08s ease !important;
+    user-select: none !important;
+  }
+  .m-action-btn:active {
+    transform: scale(0.97) !important;
+  }
+
+  .m-btn-primary {
+    background: #0284c7 !important;
+    color: #ffffff !important;
+    border: 1px solid #0284c7 !important;
+    box-shadow: 0 2px 5px rgba(2, 132, 199, 0.28) !important;
+  }
+  .m-btn-primary:hover,
+  .m-btn-primary:active {
+    background: #0369a1 !important;
+    border-color: #0369a1 !important;
+  }
+
+  .m-btn-success {
+    background: #16a34a !important;
+    color: #ffffff !important;
+    border: 1px solid #16a34a !important;
+    box-shadow: 0 2px 5px rgba(22, 163, 74, 0.28) !important;
+  }
+  .m-btn-success:hover,
+  .m-btn-success:active {
+    background: #15803d !important;
+    border-color: #15803d !important;
+  }
+
+  .m-btn-outline-primary {
+    background: #f0f9ff !important;
+    color: #0284c7 !important;
+    border: 1.5px solid #7dd3fc !important;
+  }
+  .m-btn-outline-primary:hover,
+  .m-btn-outline-primary:active {
+    background: #e0f2fe !important;
+    border-color: #38bdf8 !important;
+  }
+
+  .m-btn-outline-success {
+    background: #f0fdf4 !important;
+    color: #15803d !important;
+    border: 1.5px solid #86efac !important;
+  }
+  .m-btn-outline-success:hover,
+  .m-btn-outline-success:active {
+    background: #dcfce7 !important;
+    border-color: #4ade80 !important;
+  }
+
+  .m-btn-outline-secondary {
+    background: #f8fafc !important;
+    color: #334155 !important;
+    border: 1.5px solid #cbd5e1 !important;
+  }
+  .m-btn-outline-secondary:hover,
+  .m-btn-outline-secondary:active {
+    background: #f1f5f9 !important;
+    border-color: #94a3b8 !important;
+  }
+
+  .m-btn-danger {
+    background: #fef2f2 !important;
+    color: #dc2626 !important;
+    border: 1.5px solid #fecaca !important;
+    width: 42px !important;
+    min-width: 42px !important;
+    padding: 0 !important;
+    margin-left: auto !important;
+  }
+  .m-btn-danger:hover,
+  .m-btn-danger:active {
+    background: #fee2e2 !important;
+    border-color: #f87171 !important;
+  }
+
+  /* Universal Mobile Touch Target Boosts */
+  .btn-icon {
+    width: 40px !important;
+    height: 40px !important;
+    min-width: 40px !important;
+    min-height: 40px !important;
+    border-radius: 8px !important;
+  }
+  .btn-icon svg {
+    width: 18px !important;
+    height: 18px !important;
+  }
+
+  .completion-toggle-btn {
+    min-width: 40px !important;
+    min-height: 40px !important;
+    width: 40px !important;
+    height: 40px !important;
+    padding: 0 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    background: transparent !important;
+    border: none !important;
+    cursor: pointer !important;
+  }
+  .completion-toggle-btn svg {
+    width: 22px !important;
+    height: 22px !important;
+  }
+
+  .doc-flow-badge {
+    min-height: 32px !important;
+    padding: 4px 10px !important;
+    font-size: 12px !important;
+    border-radius: 6px !important;
+    gap: 5px !important;
+  }
+  .doc-flow-badge svg {
+    width: 14px !important;
+    height: 14px !important;
+  }
+
+  .heading .actions button {
+    height: 42px !important;
+    font-size: 13px !important;
+    font-weight: 700 !important;
+    padding: 0 14px !important;
+    border-radius: 8px !important;
+  }
+
+  .po-save-btn,
+  .po-save-back-btn,
+  .po-detail .section-heading button,
+  .btn-approve-status,
+  .btn-create-po-from-approval {
+    min-height: 42px !important;
+    height: 42px !important;
+    font-size: 13.5px !important;
+    font-weight: 700 !important;
+    padding: 0 14px !important;
   }
 
   /* Modals & Popups */

@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Plus, ArrowRight, Trash2, Search, CheckCircle2, Circle, Scale, Eye, Printer, Paperclip, Loader2 } from "lucide-react";
+import { Plus, ArrowRight, Trash2, Search, CheckCircle2, Circle, Scale, Eye, Printer, Paperclip, Loader2, Truck } from "lucide-react";
 import { compressImageIfNeeded } from "../utils/compressImage";
 import { PRScanPreviewModal } from "./PRScanPreviewModal";
 import { PR, PO, ApprovalRequest, PaymentRequestEntry, PaymentHandoverItem } from "../types";
@@ -21,6 +21,7 @@ export function PRList({
   onNavigate,
   onToggleComplete,
   onUpdateScanUrl,
+  onCreateHandover,
 }: {
   prs: PR[];
   pos?: PO[];
@@ -33,6 +34,7 @@ export function PRList({
   onNavigate?: (route: any) => void;
   onToggleComplete?: (pr: PR) => void;
   onUpdateScanUrl?: (prId: number, scanUrl: string) => void;
+  onCreateHandover?: (pr: PR) => void;
 }) {
   const { t } = useTranslation();
   const [q, setQ] = useState("");
@@ -178,7 +180,7 @@ export function PRList({
             return (
               <article key={pr.id} className={isDone ? "row-completed" : ""}>
                 <header>
-                  <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                     {onToggleComplete && (
                       <button
                         type="button"
@@ -187,10 +189,10 @@ export function PRList({
                         onClick={() => onToggleComplete(pr)}
                         style={{ background: "transparent", border: "none", cursor: "pointer", display: "inline-flex", padding: 0 }}
                       >
-                        {isDone ? <CheckCircle2 size={16} className="text-emerald-600" /> : <Circle size={16} className="text-slate-400" />}
+                        {isDone ? <CheckCircle2 size={22} className="text-emerald-600 fill-emerald-100" /> : <Circle size={22} className="text-slate-400 hover:text-slate-600" />}
                       </button>
                     )}
-                    <button onClick={() => onOpen(pr)}>{pr.number}</button>
+                    <button onClick={() => onOpen(pr)} style={{ fontSize: "15px", fontWeight: 800 }}>{pr.number}</button>
                   </div>
                   <span className={`status ${isDone ? "done" : pr.status.includes("PO") || pr.status === "Đang lấy báo giá" ? "progress" : "waiting"}`}>{pr.status}</span>
                 </header>
@@ -204,97 +206,80 @@ export function PRList({
                 <div style={{ marginTop: "8px", paddingTop: "8px", borderTop: "1px dashed #e2e8f0" }}>
                   <DocFlowLinks flow={flow} currentView="prs" onNavigate={onNavigate} compact />
                 </div>
-                <footer style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <footer className="m-card-footer">
                   <button
                     type="button"
-                    className="btn btn-secondary btn-xs"
-                    style={{
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: "4px",
-                      padding: "4px 10px",
-                      fontSize: "12px",
-                      fontWeight: 600,
-                      color: "#0369a1",
-                      backgroundColor: "#f0f9ff",
-                      border: "1px solid #bae6fd",
-                      borderRadius: "4px",
-                      cursor: "pointer",
-                    }}
+                    className="m-action-btn m-btn-primary"
                     onClick={() => onOpen(pr)}
+                    title="Mở PR & So sánh giá"
                   >
-                    <Scale size={14} /> So sánh giá
+                    <Scale size={17} />
+                    <span>Mở & So sánh</span>
                   </button>
-                  <div style={{ display: "inline-flex", gap: "6px", alignItems: "center" }}>
-                    {pr.scan_file_url ? (
-                      <div style={{ display: "inline-flex", gap: "4px", alignItems: "center" }}>
-                        <button
-                          type="button"
-                          className="btn-icon primary-ghost"
-                          onClick={() => setPreviewScanPR(pr)}
-                          title="Xem bản scan PR"
-                          style={{
-                            color: "#0284c7",
-                            backgroundColor: "#f0f9ff",
-                            border: "1px solid #bae6fd",
-                            borderRadius: "4px",
-                            padding: "4px 6px",
-                            display: "inline-flex",
-                            alignItems: "center",
-                          }}
-                        >
-                          <Eye size={15} />
-                        </button>
-                        <button
-                          type="button"
-                          className="btn-icon secondary-ghost"
-                          onClick={() => handleQuickPrint(pr)}
-                          title="In bản scan"
-                          style={{
-                            color: "#475569",
-                            backgroundColor: "#f8fafc",
-                            border: "1px solid #cbd5e1",
-                            borderRadius: "4px",
-                            padding: "4px 6px",
-                            display: "inline-flex",
-                            alignItems: "center",
-                          }}
-                        >
-                          <Printer size={15} />
-                        </button>
-                      </div>
-                    ) : (
+
+                  {onCreateHandover && (
+                    <button
+                      type="button"
+                      className="m-action-btn m-btn-success"
+                      onClick={() => onCreateHandover(pr)}
+                      title="Tạo biên bản bàn giao từ các mặt hàng trong PR này"
+                    >
+                      <Truck size={17} />
+                      <span>Tạo biên bản</span>
+                    </button>
+                  )}
+
+                  {pr.scan_file_url ? (
+                    <>
                       <button
                         type="button"
-                        className="btn-icon"
-                        onClick={() => {
-                          setTargetUploadPR(pr);
-                          rowScanInputRef.current?.click();
-                        }}
-                        title="Tải lên bản scan PR"
-                        disabled={uploadingPrId === pr.id}
-                        style={{
-                          color: "#94a3b8",
-                          backgroundColor: "transparent",
-                          border: "1px dashed #cbd5e1",
-                          borderRadius: "4px",
-                          padding: "4px 6px",
-                          display: "inline-flex",
-                          alignItems: "center",
-                        }}
+                        className="m-action-btn m-btn-outline-primary"
+                        onClick={() => setPreviewScanPR(pr)}
+                        title="Xem trực tiếp bản scan PR"
                       >
-                        {uploadingPrId === pr.id ? <Loader2 size={14} className="animate-spin text-sky-600" /> : <Paperclip size={14} />}
+                        <Eye size={17} />
+                        <span>Bản scan</span>
                       </button>
-                    )}
-                    <button className="btn-icon primary-ghost" onClick={() => onOpen(pr)} title="Mở PR / So sánh giá">
-                      <ArrowRight size={16} />
+                      <button
+                        type="button"
+                        className="m-action-btn m-btn-outline-secondary"
+                        onClick={() => handleQuickPrint(pr)}
+                        title="In nhanh bản scan PR"
+                      >
+                        <Printer size={17} />
+                        <span>In</span>
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      type="button"
+                      className="m-action-btn m-btn-outline-secondary"
+                      onClick={() => {
+                        setTargetUploadPR(pr);
+                        rowScanInputRef.current?.click();
+                      }}
+                      title="Tải lên bản scan PR"
+                      disabled={uploadingPrId === pr.id}
+                    >
+                      {uploadingPrId === pr.id ? (
+                        <Loader2 size={17} className="animate-spin text-sky-600" />
+                      ) : (
+                        <Paperclip size={17} />
+                      )}
+                      <span>Tải scan</span>
                     </button>
-                    {onDelete && (
-                      <button className="btn-icon danger-ghost" onClick={() => onDelete(pr)} title="Xóa PR">
-                        <Trash2 size={16} />
-                      </button>
-                    )}
-                  </div>
+                  )}
+
+                  {onDelete && (
+                    <button
+                      type="button"
+                      className="m-action-btn m-btn-danger"
+                      onClick={() => onDelete(pr)}
+                      title="Xóa PR"
+                    >
+                      <Trash2 size={18} />
+                    </button>
+                  )}
                 </footer>
               </article>
             );
@@ -430,6 +415,30 @@ export function PRList({
                             }}
                           >
                             {uploadingPrId === pr.id ? <Loader2 size={14} className="animate-spin text-sky-600" /> : <Paperclip size={14} />}
+                          </button>
+                        )}
+                        {onCreateHandover && (
+                          <button
+                            type="button"
+                            className="btn btn-secondary btn-xs"
+                            style={{
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: "4px",
+                              padding: "3px 8px",
+                              fontSize: "11.5px",
+                              fontWeight: 600,
+                              color: "#15803d",
+                              backgroundColor: "#f0fdf4",
+                              border: "1px solid #86efac",
+                              borderRadius: "4px",
+                              cursor: "pointer",
+                              whiteSpace: "nowrap",
+                            }}
+                            onClick={() => onCreateHandover(pr)}
+                            title="Tạo biên bản bàn giao từ PR này"
+                          >
+                            <Truck size={13} /> Bàn giao
                           </button>
                         )}
                         <button

@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from "react";
-import { Plus, ArrowRight, Trash2, Truck, Search, CheckCircle2, Circle, Pencil, RotateCcw, CreditCard } from "lucide-react";
+import { Plus, ArrowRight, Trash2, Truck, Search, CheckCircle2, Circle, Pencil, RotateCcw, CreditCard, Eye } from "lucide-react";
 import { Supplier, PO, PR, Item, ApprovalRequest, PaymentRequestEntry, PaymentHandoverItem, getPOContractInfo, formatPONumber, generatePOCode, isPONumberExists, TrashItem, calcPOTotal } from "../types";
 import { fmt, dateVN, makeId } from "../utils";
 import { SupplierSearchCombobox } from "./SupplierSearchCombobox";
@@ -533,9 +533,9 @@ export function POList({
                         title={isDone ? "Đã hoàn thành (Bấm để mở lại)" : "Đang xử lý (Bấm để đánh dấu Hoàn thành)"}
                       >
                         {isDone ? (
-                          <CheckCircle2 size={18} className="text-emerald-600 fill-emerald-100" />
+                          <CheckCircle2 size={22} className="text-emerald-600 fill-emerald-100" />
                         ) : (
-                          <Circle size={18} className="text-slate-400 hover:text-slate-600" />
+                          <Circle size={22} className="text-slate-400 hover:text-slate-600" />
                         )}
                       </button>
                     )}
@@ -600,34 +600,46 @@ export function POList({
                 <div style={{ marginTop: "8px", paddingTop: "8px", borderTop: "1px dashed #e2e8f0" }}>
                   <DocFlowLinks flow={flow} currentView="po-list" onNavigate={onNavigate} compact />
                 </div>
-                <footer style={{ display: "flex", gap: "6px", alignItems: "center" }}>
-                  <button className="btn-icon primary-ghost" onClick={() => onOpen(po)} title="Chi tiết PO">
-                    <ArrowRight size={16} />
+                <footer className="m-card-footer">
+                  <button
+                    type="button"
+                    className="m-action-btn m-btn-primary"
+                    onClick={() => onOpen(po)}
+                    title="Mở xem chi tiết PO"
+                  >
+                    <Eye size={17} />
+                    <span>Mở PO</span>
                   </button>
                   {onCreateHandover && (
                     <button
                       type="button"
-                      className="btn-icon info-ghost"
+                      className={`m-action-btn ${deliveryStats.isFullyDelivered ? "m-btn-outline-success" : "m-btn-success"}`}
                       onClick={() => onCreateHandover(po)}
-                      title="Tạo biên bản bàn giao"
+                      title={deliveryStats.isFullyDelivered ? "Đơn hàng đã bàn giao đủ 100% (Bấm để xem biên bản)" : "Tạo biên bản bàn giao hàng hóa"}
                     >
-                      <Truck size={16} />
+                      <Truck size={17} />
+                      <span>{deliveryStats.isFullyDelivered ? "Đã giao đủ" : "Tạo biên bản"}</span>
                     </button>
                   )}
                   {onCreatePaymentRequest && (
                     <button
                       type="button"
-                      className="btn-icon"
+                      className="m-action-btn m-btn-outline-primary"
                       onClick={() => onCreatePaymentRequest(po)}
                       title="Lập Đề nghị thanh toán (ĐNTT)"
-                      style={{ color: "#0284c7" }}
                     >
-                      <CreditCard size={16} />
+                      <CreditCard size={17} />
+                      <span>ĐNTT</span>
                     </button>
                   )}
                   {onDelete && (
-                    <button className="btn-icon danger-ghost" onClick={() => onDelete(po)} title="Xóa PO">
-                      <Trash2 size={16} />
+                    <button
+                      type="button"
+                      className="m-action-btn m-btn-danger"
+                      onClick={() => onDelete(po)}
+                      title="Xóa PO"
+                    >
+                      <Trash2 size={18} />
                     </button>
                   )}
                 </footer>

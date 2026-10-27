@@ -18,6 +18,7 @@ import {
   Search,
   CheckCircle2,
   Circle,
+  Eye,
 } from "lucide-react";
 import {
   ApprovalItemRow,
@@ -1052,6 +1053,145 @@ export default function ApprovalManagement({
               </select>
             </div>
             <span>Hiển thị {filteredRequests.length} phiếu đề nghị phê duyệt</span>
+          </div>
+
+          {/* Danh sách thẻ hiển thị trên Mobile (thay thế pr-table khi màn hình nhỏ) */}
+          <div className="mobile-record-list">
+            {filteredRequests.length === 0 ? (
+              <div style={{ textAlign: "center", padding: "28px 16px", color: "#64748b", background: "#ffffff", borderRadius: "10px", border: "1px dashed #cbd5e1" }}>
+                Chưa có phiếu Đề nghị Phê duyệt nào khớp bộ lọc.
+              </div>
+            ) : (
+              filteredRequests.map((req) => {
+                const selectedCol =
+                  req.supplierColumns.find((c) => c.isSelected) ||
+                  req.supplierColumns[0];
+                const selectedTotal = selectedCol
+                  ? computeSupplierTotal(req, selectedCol.colId)
+                  : 0;
+                const isDone = isApprovalCompleted(req);
+                const flow = resolveDocFlow({ approval: req }, { prs, pos, approvalRequests });
+                const canCreatePO = !isReportMode && (req.status === "Đã phê duyệt" || req.status === "Đã tạo PO");
+
+                return (
+                  <article key={req.id} className={isDone ? "row-completed" : ""}>
+                    <header>
+                      <div style={{ display: "inline-flex", alignItems: "center", gap: "8px" }}>
+                        {onToggleComplete && (
+                          <button
+                            type="button"
+                            className="completion-toggle-btn"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onToggleComplete(req);
+                            }}
+                            title={isDone ? "Đã hoàn thành (Bấm để mở lại)" : "Đang xử lý (Bấm để đánh dấu Hoàn thành)"}
+                          >
+                            {isDone ? (
+                              <CheckCircle2 size={22} className="text-emerald-600 fill-emerald-100" />
+                            ) : (
+                              <Circle size={22} className="text-slate-400 hover:text-slate-600" />
+                            )}
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => setActiveApprovalId(req.id)}
+                          style={{ fontSize: "15px", fontWeight: 800, color: "#0284c7", background: "none", border: 0, padding: 0, cursor: "pointer" }}
+                        >
+                          {req.prNumber || req.requestNumber}
+                        </button>
+                      </div>
+                      <span className={`status ${isDone ? "done" : req.status === "Chờ phê duyệt" ? "progress" : "waiting"}`}>
+                        {req.status}
+                      </span>
+                    </header>
+
+                    <h3>{req.section1Title || "Đề nghị phê duyệt kết quả lựa chọn NCC"}</h3>
+                    <p>
+                      {req.department} · {req.createdDate}
+                    </p>
+
+                    <dl>
+                      <div>
+                        <dt>NCC đề xuất</dt>
+                        <dd style={{ color: "#0f2b5b" }}>
+                          {req.recommendedSupplierName || selectedCol?.supplierName || "Chưa chọn"}
+                        </dd>
+                      </div>
+                      <div>
+                        <dt>Tổng tiền</dt>
+                        <dd style={{ color: "#0284c7" }}>
+                          {selectedTotal > 0 ? `${formatVND(selectedTotal)} ₫` : "-"}
+                        </dd>
+                      </div>
+                      <div>
+                        <dt>Quy mô</dt>
+                        <dd>
+                          {req.supplierColumns.length} NCC · {req.rows.length} mục
+                        </dd>
+                      </div>
+                    </dl>
+
+                    <div style={{ marginTop: "8px", paddingTop: "8px", borderTop: "1px dashed #e2e8f0" }}>
+                      <DocFlowLinks
+                        flow={flow}
+                        currentView="approval"
+                        onNavigate={onNavigate}
+                        onCreatePOFromApproval={() => {
+                          setPoCreateVatRate(10);
+                          setPoCreateModalReq(req);
+                        }}
+                        compact
+                      />
+                    </div>
+
+                    <footer className="m-card-footer">
+                      <button
+                        type="button"
+                        className="m-action-btn m-btn-primary"
+                        onClick={() => setActiveApprovalId(req.id)}
+                        title="Mở xem phiếu đề nghị phê duyệt"
+                      >
+                        <Eye size={17} />
+                        <span>Mở phiếu</span>
+                      </button>
+
+                      {canCreatePO && (
+                        <button
+                          type="button"
+                          className="m-action-btn m-btn-success"
+                          onClick={() => handleOpenPOCreateModal(req)}
+                          title="Phát hành đơn mua hàng (PO) từ phiếu đã duyệt này"
+                        >
+                          <PackagePlus size={17} />
+                          <span>Tạo PO</span>
+                        </button>
+                      )}
+
+                      {!isReportMode && (
+                        <button
+                          type="button"
+                          className="m-action-btn m-btn-danger"
+                          onClick={() => {
+                            if (
+                              window.confirm(
+                                `Bạn có chắc muốn xóa phiếu Đề nghị phê duyệt "${req.prNumber || req.requestNumber}"?`
+                              )
+                            ) {
+                              onDeleteApproval(req.id);
+                            }
+                          }}
+                          title="Xóa phiếu"
+                        >
+                          <Trash2 size={18} />
+                        </button>
+                      )}
+                    </footer>
+                  </article>
+                );
+              })
+            )}
           </div>
 
           <div className="pr-table">
