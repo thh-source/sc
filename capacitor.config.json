@@ -3,11 +3,17 @@
   "appName": "Phenikaa Mua Hàng",
   "webDir": "dist",
   "server": {
-    "url": "https://quan-ly-mua-hang.sc-pnk.workers.dev",
     "androidScheme": "https",
     "cleartext": true
   },
   "android": {
     "allowMixedContent": true
+  },
+  "plugins": {
+    "CapacitorUpdater": {
+      "autoUpdate": false,
+      "statsUrl": "",
+      "resetWhenUpdate": false
+    }
   }
 }

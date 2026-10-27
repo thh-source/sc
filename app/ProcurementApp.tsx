@@ -66,6 +66,8 @@ import { I18nProvider, useTranslation, LanguageSwitcher } from "./i18n";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { useOfflineSync } from "./hooks/useOfflineSync";
 import { OfflineSyncBanner } from "./components/OfflineSyncBanner";
+import { useOtaUpdate } from "./hooks/useOtaUpdate";
+import { OtaUpdateBanner } from "./components/OtaUpdateBanner";
 import {
   enqueueOfflineAction,
   saveOfflineStateBackup,
@@ -203,6 +205,14 @@ function ProcurementAppInner({
     syncMessage,
     triggerSync,
   } = useOfflineSync();
+
+  // Hook quản lý Cập nhật từ xa tự động (OTA Update) cho Capacitor Android
+  const {
+    otaState,
+    toastVisible,
+    applyAndRestart,
+    dismissToast,
+  } = useOtaUpdate();
 
   // Global Spotlight Search (Ctrl + K)
   const [spotlightOpen, setSpotlightOpen] = useState(false);
@@ -3608,6 +3618,14 @@ function ProcurementAppInner({
         lastSyncStatus={lastSyncStatus}
         syncMessage={syncMessage}
         onTriggerSync={triggerSync}
+      />
+
+      {/* Floating OTA Update Notification Banner */}
+      <OtaUpdateBanner
+        otaState={otaState}
+        visible={toastVisible}
+        onApplyAndRestart={applyAndRestart}
+        onDismiss={dismissToast}
       />
     </div>
   );
