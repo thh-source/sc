@@ -212,3 +212,16 @@ export const trashItems = sqliteTable("trash_items", {
   expiresAt: text("expires_at"),
   data: text("data"), // JSON
 });
+
+
+export const personalTodos = sqliteTable("personal_todos", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").notNull().default("admin"),
+  content: text("content").notNull(),
+  isCompleted: integer("is_completed").notNull().default(0),
+  isPriority: integer("is_priority").notNull().default(0),
+  tags: text("tags"),
+  createdAt: text("created_at"),
+  updatedAt: text("updated_at"),
+  isDeleted: integer("is_deleted").notNull().default(0),
+});

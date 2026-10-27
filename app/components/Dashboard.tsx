@@ -35,6 +35,7 @@ import {
   isPOCompleted,
   isApprovalCompleted,
 } from "../utils/paymentSync";
+import { enqueueOfflineAction, checkIsOnline } from "../utils/offlineSync";
 
 // --- TYPES FOR DASHBOARD TO-DO WIDGET & MENTION SYSTEM ---
 export interface DashboardTodo {
@@ -345,50 +346,45 @@ export function Dashboard({
   };
 
   // -------------------------------------------------------------
-  // 3. TO-DO LIST & NOTES (Khu vực 3: Bảng công việc cá nhân)
+  // 3. TO-DO LIST & NOTES (Khu vực 3: Bảng công việc cá nhân đồng bộ D1)
   // -------------------------------------------------------------
   const [todos, setTodos] = useState<DashboardTodo[]>(() => {
     if (typeof window === "undefined") return [];
     try {
       const saved = localStorage.getItem(STORAGE_KEY_TODOS);
-      if (saved) return JSON.parse(saved);
+      if (saved !== null) return JSON.parse(saved);
     } catch {
       // fallback
     }
-    // Default initial seed tasks linking to real items
-    return [
-      {
-        id: "todo-1",
-        text: "Gọi điện giục NCC Minox gửi CO/CQ và hóa đơn cho @PO-001",
-        completed: false,
-        createdAt: new Date().toISOString(),
-        priority: "high",
-      },
-      {
-        id: "todo-2",
-        text: "Kiểm tra lại báo giá van bướm và lập so sánh giá cho #PR-001",
-        completed: false,
-        createdAt: new Date().toISOString(),
-        priority: "normal",
-      },
-      {
-        id: "todo-3",
-        text: "Nhắc phòng QA ký xác nhận biên bản nghiệm thu đợt 2 cho @PO-002",
-        completed: false,
-        createdAt: new Date().toISOString(),
-        priority: "normal",
-      },
-      {
-        id: "todo-4",
-        text: "Kiểm tra hồ sơ trình ký đề nghị phê duyệt @DNPD-001",
-        completed: true,
-        createdAt: new Date().toISOString(),
-        priority: "low",
-      },
-    ];
+    return [];
   });
 
-  // Save to localStorage whenever todos change
+  // Tự động tải danh sách công việc mới nhất từ Cloudflare D1
+  useEffect(() => {
+    let active = true;
+    fetch("/api/todos")
+      .then((res) => {
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        return res.json() as Promise<{ todos: DashboardTodo[] }>;
+      })
+      .then((data) => {
+        if (!active) return;
+        if (Array.isArray(data.todos)) {
+          setTodos(data.todos);
+          try {
+            localStorage.setItem(STORAGE_KEY_TODOS, JSON.stringify(data.todos));
+          } catch {}
+        }
+      })
+      .catch((err) => {
+        console.warn("Không thể tải danh sách công việc từ Cloudflare D1:", err);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  // Lưu cache localStorage dự phòng khi ngoại tuyến
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEY_TODOS, JSON.stringify(todos));
@@ -652,7 +648,7 @@ export function Dashboard({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const handleAddTodo = (e?: React.FormEvent) => {
+  const handleAddTodo = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     const trimmed = todoInput.trim();
     if (!trimmed) return;
@@ -669,20 +665,124 @@ export function Dashboard({
     setTodoInput("");
     setTodoPriority("normal");
     setMentionState((prev) => ({ ...prev, isOpen: false }));
+
+    // Đồng bộ ngay lập tức lên Cloudflare D1
+    try {
+      const isOnline = await checkIsOnline();
+      if (!isOnline) {
+        await enqueueOfflineAction({
+          endpoint: "/api/todos",
+          method: "POST",
+          data: newTodo,
+          description: `Thêm công việc: ${trimmed}`,
+        });
+      } else {
+        await fetch("/api/todos", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(newTodo),
+        });
+      }
+    } catch {
+      await enqueueOfflineAction({
+        endpoint: "/api/todos",
+        method: "POST",
+        data: newTodo,
+        description: `Thêm công việc: ${trimmed}`,
+      });
+    }
   };
 
-  const handleToggleTodo = (id: string) => {
+  const handleToggleTodo = async (id: string) => {
+    const target = todos.find((t) => t.id === id);
+    if (!target) return;
+    const willBeCompleted = !target.completed;
+
     setTodos((prev) =>
-      prev.map((t) => (t.id === id ? { ...t, completed: !t.completed } : t)),
+      prev.map((t) => (t.id === id ? { ...t, completed: willBeCompleted } : t)),
     );
+
+    // Đồng bộ trạng thái hoàn thành lên Cloudflare D1
+    try {
+      const isOnline = await checkIsOnline();
+      if (!isOnline) {
+        await enqueueOfflineAction({
+          endpoint: "/api/todos",
+          method: "PUT",
+          data: { id, completed: willBeCompleted },
+          description: `Cập nhật trạng thái công việc #${id}`,
+        });
+      } else {
+        await fetch("/api/todos", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id, completed: willBeCompleted }),
+        });
+      }
+    } catch {
+      await enqueueOfflineAction({
+        endpoint: "/api/todos",
+        method: "PUT",
+        data: { id, completed: willBeCompleted },
+        description: `Cập nhật trạng thái công việc #${id}`,
+      });
+    }
   };
 
-  const handleDeleteTodo = (id: string) => {
+  const handleDeleteTodo = async (id: string) => {
     setTodos((prev) => prev.filter((t) => t.id !== id));
+
+    // Đồng bộ thao tác xóa lên Cloudflare D1
+    try {
+      const isOnline = await checkIsOnline();
+      if (!isOnline) {
+        await enqueueOfflineAction({
+          endpoint: `/api/todos?id=${encodeURIComponent(id)}`,
+          method: "DELETE",
+          data: { id },
+          description: `Xóa công việc #${id}`,
+        });
+      } else {
+        await fetch(`/api/todos?id=${encodeURIComponent(id)}`, {
+          method: "DELETE",
+        });
+      }
+    } catch {
+      await enqueueOfflineAction({
+        endpoint: `/api/todos?id=${encodeURIComponent(id)}`,
+        method: "DELETE",
+        data: { id },
+        description: `Xóa công việc #${id}`,
+      });
+    }
   };
 
-  const handleClearCompletedTodos = () => {
+  const handleClearCompletedTodos = async () => {
     setTodos((prev) => prev.filter((t) => !t.completed));
+
+    // Đồng bộ dọn dẹp các việc đã xong lên Cloudflare D1
+    try {
+      const isOnline = await checkIsOnline();
+      if (!isOnline) {
+        await enqueueOfflineAction({
+          endpoint: "/api/todos?clearCompleted=true",
+          method: "DELETE",
+          data: { clearCompleted: true },
+          description: "Dọn dẹp các việc đã hoàn thành",
+        });
+      } else {
+        await fetch("/api/todos?clearCompleted=true", {
+          method: "DELETE",
+        });
+      }
+    } catch {
+      await enqueueOfflineAction({
+        endpoint: "/api/todos?clearCompleted=true",
+        method: "DELETE",
+        data: { clearCompleted: true },
+        description: "Dọn dẹp các việc đã hoàn thành",
+      });
+    }
   };
 
   // Smart tag click handlers
