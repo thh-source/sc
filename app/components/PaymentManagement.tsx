@@ -833,7 +833,7 @@ export function PaymentManagement({
       invoice_date: "",
       amount: "0",
       currency: "VND",
-      documents: ["ĐNTT", "Hóa đơn"],
+      documents: [],
       request_date: localToday(),
       payment_type: "TT trước 100%",
       status: "Đã giao KT, chờ đi tiền",
@@ -1026,7 +1026,7 @@ export function PaymentManagement({
         invoice_date: invoice_date || localToday(),
         amount: amount || "0",
         currency: "VND",
-        documents: ["ĐNTT", "Hóa đơn"],
+        documents: [],
         request_date: localToday(),
         payment_type: "TT sau 100%",
         status: "Đã giao KT, chờ đi tiền",
@@ -4194,7 +4194,7 @@ export function PaymentManagement({
                 </div>
 
                 <div className="doclabel">- {tpl.label_docs}:</div>
-                <div className="docs">{(req.documents || []).join(", ") || "Không có"}</div>
+                <div className="docs">{(req.documents || []).filter(Boolean).join(", ")}</div>
 
                 <div className="date">
                   {tpl.date_location}, ngày {dateParts ? dateParts.d : "...."} tháng {dateParts ? dateParts.m : "...."} năm {dateParts ? dateParts.y : "2026"}

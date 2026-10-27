@@ -14,6 +14,7 @@ interface PaymentPrintPreviewModalProps {
   paymentTemplate?: PaymentPrintTemplate;
   suppliers?: Supplier[];
   onNavigateToPaymentTab?: (id: number) => void;
+  onUpdatePaymentRequest?: (updated: PaymentRequestEntry) => void;
 }
 
 export function PaymentPrintPreviewModal({
@@ -23,8 +24,40 @@ export function PaymentPrintPreviewModal({
   paymentTemplate = DEFAULT_PAYMENT_TEMPLATE,
   suppliers = [],
   onNavigateToPaymentTab,
+  onUpdatePaymentRequest,
 }: PaymentPrintPreviewModalProps) {
   const [isPrinting, setIsPrinting] = useState(false);
+  const [selectedDocs, setSelectedDocs] = useState<string[]>(() => paymentRequest?.documents || []);
+  const [customDocInput, setCustomDocInput] = useState("");
+
+  useEffect(() => {
+    setSelectedDocs(paymentRequest?.documents || []);
+  }, [paymentRequest?.id, paymentRequest?.documents]);
+
+  const toggleDoc = (docName: string) => {
+    if (!paymentRequest) return;
+    const exists = selectedDocs.includes(docName);
+    const nextDocs = exists
+      ? selectedDocs.filter((d) => d !== docName)
+      : [...selectedDocs, docName];
+    setSelectedDocs(nextDocs);
+    if (onUpdatePaymentRequest) {
+      onUpdatePaymentRequest({ ...paymentRequest, documents: nextDocs });
+    }
+  };
+
+  const handleAddCustomDoc = () => {
+    if (!customDocInput.trim() || !paymentRequest) return;
+    const trimmed = customDocInput.trim();
+    if (!selectedDocs.includes(trimmed)) {
+      const nextDocs = [...selectedDocs, trimmed];
+      setSelectedDocs(nextDocs);
+      if (onUpdatePaymentRequest) {
+        onUpdatePaymentRequest({ ...paymentRequest, documents: nextDocs });
+      }
+    }
+    setCustomDocInput("");
+  };
 
   useEffect(() => {
     if (!isOpen) return;
@@ -159,7 +192,7 @@ export function PaymentPrintPreviewModal({
       </div>
 
       <div className="doclabel">- {tpl.label_docs}:</div>
-      <div className="docs">{(req.documents || []).join(", ") || "Hợp đồng / PO, Biên bản bàn giao nghiệm thu, Hóa đơn GTGT"}</div>
+      <div className="docs">{selectedDocs.filter(Boolean).join(", ")}</div>
 
       <div className="date">
         {tpl.date_location}, ngày {dateParts ? dateParts.d : "...."} tháng {dateParts ? dateParts.m : "...."} năm {dateParts ? dateParts.y : "2026"}
@@ -338,7 +371,114 @@ export function PaymentPrintPreviewModal({
 
         {/* Paper Container */}
         <div style={{ width: "100%", display: "flex", flexDirection: "column", alignItems: "center" }}>
-          {renderPaper()}
+          {/* Document Selection Checklist (No Print) */}
+        <div
+          className="no-print"
+          style={{
+            maxWidth: "860px",
+            width: "100%",
+            background: "#ffffff",
+            borderRadius: "10px",
+            padding: "12px 18px",
+            marginBottom: "16px",
+            boxShadow: "0 4px 12px rgba(0, 0, 0, 0.08)",
+            border: "1px solid #e2e8f0",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "8px", flexWrap: "wrap", gap: "6px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+              <span style={{ fontSize: "16px" }}>📎</span>
+              <span style={{ fontSize: "13px", fontWeight: 700, color: "#0f172a" }}>
+                Hồ sơ đính kèm (Người dùng tự chọn theo thực tế):
+              </span>
+            </div>
+            <span style={{ fontSize: "12px", color: selectedDocs.length > 0 ? "#15803d" : "#64748b", fontWeight: 600 }}>
+              {selectedDocs.length > 0 ? `✓ Đã chọn ${selectedDocs.length} chứng từ` : "Chưa chọn hồ sơ nào (để trống khi in)"}
+            </span>
+          </div>
+
+          <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", alignItems: "center" }}>
+            {[
+              "Hợp đồng / PO",
+              "Biên bản bàn giao nghiệm thu",
+              "Hóa đơn GTGT",
+              "Báo giá",
+              "Bản đề nghị thanh toán (ĐNTT)",
+              "CO / CQ",
+            ].map((docName) => {
+              const isChecked = selectedDocs.includes(docName);
+              return (
+                <button
+                  key={docName}
+                  type="button"
+                  onClick={() => toggleDoc(docName)}
+                  style={{
+                    padding: "5px 11px",
+                    borderRadius: "6px",
+                    border: `1.5px solid ${isChecked ? "#0284c7" : "#cbd5e1"}`,
+                    background: isChecked ? "#f0f9ff" : "#f8fafc",
+                    color: isChecked ? "#0284c7" : "#475569",
+                    fontWeight: isChecked ? 700 : 500,
+                    fontSize: "12px",
+                    cursor: "pointer",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "5px",
+                    transition: "all 0.15s ease",
+                  }}
+                  title={isChecked ? "Bấm để bỏ chọn hồ sơ này" : "Bấm để đính kèm hồ sơ này vào bản in"}
+                >
+                  <span style={{ fontSize: "13px" }}>{isChecked ? "☑" : "☐"}</span>
+                  <span>{docName}</span>
+                </button>
+              );
+            })}
+
+            <div style={{ display: "inline-flex", alignItems: "center", gap: "4px", marginLeft: "4px" }}>
+              <input
+                type="text"
+                placeholder="+ Thêm hồ sơ khác..."
+                value={customDocInput}
+                onChange={(e) => setCustomDocInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    handleAddCustomDoc();
+                  }
+                }}
+                style={{
+                  height: "30px",
+                  padding: "0 8px",
+                  fontSize: "12px",
+                  border: "1px dashed #94a3b8",
+                  borderRadius: "6px",
+                  width: "160px",
+                }}
+              />
+              {customDocInput.trim() && (
+                <button
+                  type="button"
+                  onClick={handleAddCustomDoc}
+                  style={{
+                    height: "30px",
+                    padding: "0 8px",
+                    fontSize: "12px",
+                    fontWeight: 600,
+                    borderRadius: "6px",
+                    border: "none",
+                    background: "#0284c7",
+                    color: "#ffffff",
+                    cursor: "pointer",
+                  }}
+                >
+                  Thêm
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {renderPaper()}
         </div>
       </div>
 

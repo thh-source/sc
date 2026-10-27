@@ -1860,25 +1860,32 @@ function ProcurementAppInner({
     const finalAccount = customInfo?.bankAccount || supplier?.bankAccount || "";
     const finalBank = customInfo?.bank || supplier?.bank || "";
 
-    const pctFactor = payment.percent ? payment.percent / 100 : 1;
-    const lines: PaymentDetailLine[] =
-      po.items && po.items.length > 0
-        ? po.items.map((it) => ({
-            description: `${it.name}${it.spec ? " (" + it.spec + ")" : ""}`,
-            invoice_no: payment.invoiceNo || "",
-            invoice_date: payment.invoiceDate || "",
-            amount: Math.round(Number(it.qty || 0) * Number(it.price || 0) * pctFactor),
-            note: it.note || "",
-          }))
-        : [
-            {
-              description: po.items?.map((i) => i.name).slice(0, 3).join(", ") || payment.phase,
-              invoice_no: payment.invoiceNo || "",
-              invoice_date: payment.invoiceDate || "",
-              amount: payment.amount,
-              note: payment.note || "",
-            },
-          ];
+    const desc = buildPOPaymentDescription(po, payment);
+
+    // Lấy thông tin hóa đơn nếu có từ payment stage hiện tại hoặc từ PO
+    const invoiceFromCurrent = payment.invoiceNo && payment.invoiceNo.trim();
+    const fallbackInvoice = (po.payments || []).find((p) => p.invoiceNo && p.invoiceNo.trim());
+    const finalInvoiceNo = invoiceFromCurrent
+      ? payment.invoiceNo!.trim()
+      : fallbackInvoice
+      ? fallbackInvoice.invoiceNo!.trim()
+      : "";
+    const finalInvoiceDate = invoiceFromCurrent
+      ? (payment.invoiceDate || "")
+      : fallbackInvoice
+      ? (fallbackInvoice.invoiceDate || "")
+      : "";
+
+    // Không cập nhật danh sách sản phẩm của PO vào DNTT, chỉ tạo dòng thanh toán tổng quát
+    const lines: PaymentDetailLine[] = [
+      {
+        description: desc || payment.phase || `Thanh toán theo đơn hàng ${po.number}`,
+        invoice_no: finalInvoiceNo,
+        invoice_date: finalInvoiceDate,
+        amount: payment.amount,
+        note: payment.note || "",
+      },
+    ];
 
     const newRequest: PaymentRequestEntry = {
       id: maxId,
@@ -1886,13 +1893,13 @@ function ProcurementAppInner({
       beneficiary_id: supplier?.id,
       payee_name: supplier?.name || "Chưa xác định",
       group_code: po.number,
-      description: buildPOPaymentDescription(po, payment),
-      item_name: po.items?.map((i) => i.name).slice(0, 3).join(", ") + (po.items?.length > 3 ? "..." : "") || payment.phase,
-      invoice_no: payment.invoiceNo || "",
-      invoice_date: payment.invoiceDate || "",
+      description: desc,
+      item_name: payment.phase || desc,
+      invoice_no: finalInvoiceNo,
+      invoice_date: finalInvoiceDate,
       amount: payment.amount,
       currency: "VND",
-      documents: ["Hợp đồng / PO", "Biên bản bàn giao nghiệm thu", "Hóa đơn GTGT"],
+      documents: [], // Phần hồ sơ không tự động thêm gì cả, để người dùng tự chọn
       request_date: payment.date || todayStr,
       payment_type: condition === "advance" ? "Tạm ứng" : "Thanh toán công nợ",
       status: "Chờ duyệt",
@@ -3312,6 +3319,10 @@ function ProcurementAppInner({
             setPrintPaymentRequest(null);
             setSpotlightPaymentActiveId(id);
             navigateTo({ view: "payment", id });
+          }}
+          onUpdatePaymentRequest={(updated) => {
+            setPrintPaymentRequest(updated);
+            setPaymentRequests((prev) => prev.map((r) => r.id === updated.id ? updated : r));
           }}
         />
       )}
