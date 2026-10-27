@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Phenikaa Mua Hàng</string>
+    <string name="title_activity_main">Phenikaa Mua Hàng</string>
+    <string name="package_name">com.phenikaa.procurement</string>
+    <string name="custom_url_scheme">com.phenikaa.procurement</string>
+</resources>

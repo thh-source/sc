@@ -90,6 +90,7 @@ import {
   Maximize2,
   BookOpen,
   HelpCircle,
+  Menu,
 } from "lucide-react";
 import {
   AppRoute,
@@ -3292,11 +3293,26 @@ function ProcurementAppInner({
       )}
       {!reportMode && (
         <nav className="mobile-bottom-nav" aria-label="Điều hướng điện thoại">
-          <button className={view === "dashboard" ? "active" : ""} onClick={() => navigateTo({ view: "dashboard" })}><span><Home size={18} /></span><b>{t("nav.dashboard")}</b></button>
-          <button className={view === "prs" || view === "create" ? "active" : ""} onClick={() => navigateTo({ view: "prs" })}><span><FileText size={18} /></span><b>PR</b></button>
-          <button className={view === "payment" ? "active" : ""} onClick={() => navigateTo({ view: "payment" })}><span><CreditCard size={18} /></span><b>{t("nav.payment")}</b></button>
-          <button className={view === "po-list" || view === "po-detail" ? "active" : ""} onClick={() => navigateTo({ view: "po-list" })}><span><Package size={18} /></span><b>PO</b></button>
-          <button onClick={() => setCollapsed(false)}><span>☰</span><b>Menu</b></button>
+          <button className={view === "dashboard" ? "active" : ""} onClick={() => navigateTo({ view: "dashboard" })}>
+            <span><Home size={18} /></span>
+            <b>Trang chủ</b>
+          </button>
+          <button className={view === "prs" || view === "create" ? "active" : ""} onClick={() => navigateTo({ view: "prs" })}>
+            <span><FileText size={18} /></span>
+            <b>PR</b>
+          </button>
+          <button className={view === "po-list" || view === "po-detail" ? "active" : ""} onClick={() => navigateTo({ view: "po-list" })}>
+            <span><Package size={18} /></span>
+            <b>PO</b>
+          </button>
+          <button className={view === "handover" ? "active" : ""} onClick={() => navigateTo({ view: "handover" })}>
+            <span><Truck size={18} /></span>
+            <b>Bàn giao</b>
+          </button>
+          <button onClick={() => setCollapsed(false)}>
+            <span><Menu size={18} /></span>
+            <b>Menu khác</b>
+          </button>
         </nav>
       )}
 

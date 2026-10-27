@@ -6,7 +6,7 @@ console.log("=== KIỂM THỬ PHẦN 3 & PHẦN 4: APPROVAL CONTEXTUAL STATUS & 
 
 // 1. Kiểm thử getApprovalContextualStatus
 {
-  const mockApproval: ApprovalRequest = {
+  const mockApproval = {
     id: 101,
     requestNumber: "DNPD-2026-0001",
     prNumber: "PR-2026-0010",
@@ -17,7 +17,7 @@ console.log("=== KIỂM THỬ PHẦN 3 & PHẦN 4: APPROVAL CONTEXTUAL STATUS & 
     status: "Đã phê duyệt",
     supplierColumns: [],
     rows: [],
-  };
+  } as unknown as ApprovalRequest;
 
   // Case 1.1: Chưa có PO, status Đã phê duyệt -> "Đã phê duyệt"
   let ctx = getApprovalContextualStatus(mockApproval, []);
@@ -26,7 +26,7 @@ console.log("=== KIỂM THỬ PHẦN 3 & PHẦN 4: APPROVAL CONTEXTUAL STATUS & 
   console.log("✓ Test Case 1.1 đạt: ĐNPD chưa có PO -> Đã phê duyệt");
 
   // Case 1.2: Đã có PO nhưng chưa giao, chưa thanh toán -> "Đã tạo PO"
-  const mockPO: PO = {
+  const mockPO = {
     id: 501,
     number: "PO-NCC-27102026",
     prNumber: "PR-2026-0010",
@@ -43,11 +43,9 @@ console.log("=== KIỂM THỬ PHẦN 3 & PHẦN 4: APPROVAL CONTEXTUAL STATUS & 
         unit: "cái",
         qty: 2,
         price: 15000000,
-        amount: 30000000,
         vat: 10,
         vatAmount: 3000000,
         deliveryStatus: "Chưa giao",
-        receivedQty: 0,
       },
     ],
     docs: [],
@@ -62,24 +60,23 @@ console.log("=== KIỂM THỬ PHẦN 3 & PHẦN 4: APPROVAL CONTEXTUAL STATUS & 
         date: "2026-11-05",
       },
     ],
-  };
+  } as unknown as PO;
 
   ctx = getApprovalContextualStatus(mockApproval, [mockPO]);
   assert.equal(ctx.text, "Đã tạo PO");
   console.log("✓ Test Case 1.2 đạt: ĐNPD đã có PO -> Đã tạo PO");
 
   // Case 1.3: PO đã giao hàng -> "Đã giao hàng"
-  const deliveredPO: PO = {
+  const deliveredPO = {
     ...mockPO,
     status: "Đã giao hàng",
     items: [
       {
         ...mockPO.items[0],
         deliveryStatus: "Đã giao",
-        receivedQty: 2,
       },
     ],
-  };
+  } as unknown as PO;
   ctx = getApprovalContextualStatus(mockApproval, [deliveredPO]);
   assert.equal(ctx.text, "Đã giao hàng");
   console.log("✓ Test Case 1.3 đạt: PO liên kết đã giao hàng -> Đã giao hàng");

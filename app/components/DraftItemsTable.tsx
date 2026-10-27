@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Trash2, ChevronDown } from "lucide-react";
+import { Trash2, ChevronDown, Minus, Plus } from "lucide-react";
 import { Item, ColumnKey, SortState } from "../types";
 import { fmt, reorder, BASE_COLUMNS, valueOf, emptyItem, makeId } from "../utils";
 import { cleanExcelNumber, parseExcelClipboard } from "../utils/approvalSamples";
@@ -299,6 +299,133 @@ export function DraftItemsTable({
           </tr>
         </tfoot>
       </table>
+
+      {/* Mobile Card View cho từng mặt hàng khi tạo PR */}
+      <div className="mobile-items-cards">
+        {visibleItems.length === 0 ? (
+          <div style={{ textAlign: "center", padding: "20px", color: "#64748b", background: "#f8fafc", borderRadius: "8px", border: "1px dashed #cbd5e1" }}>
+            Chưa có mặt hàng nào. Bấm <b>＋ Thêm dòng hàng hóa</b> bên dưới.
+          </div>
+        ) : (
+          visibleItems.map((i, r) => (
+            <div key={i.id} className="mobile-item-card">
+              <div className="mobile-item-header">
+                <span className="mobile-item-index">#{r + 1}</span>
+                <input
+                  type="text"
+                  className="mobile-item-name-input"
+                  placeholder="Tên mặt hàng (bắt buộc)..."
+                  value={i.name}
+                  onChange={(e) => itemChange(i.id, "name", e.target.value, true)}
+                />
+                <button
+                  type="button"
+                  className="mobile-item-del-btn"
+                  title="Xóa mặt hàng này khỏi PR"
+                  onClick={() =>
+                    setDraft((d) => ({
+                      ...d,
+                      items: d.items.filter((x) => x.id !== i.id),
+                    }))
+                  }
+                >
+                  <Trash2 size={18} />
+                </button>
+              </div>
+
+              <div className="mobile-item-grid">
+                <label className="mobile-item-field">
+                  <span>Mã hàng</span>
+                  <input
+                    type="text"
+                    placeholder="Mã..."
+                    value={i.code || ""}
+                    onChange={(e) => itemChange(i.id, "code", e.target.value, true)}
+                  />
+                </label>
+                <label className="mobile-item-field">
+                  <span>Đơn vị tính</span>
+                  <input
+                    type="text"
+                    list="commonUnitDatalist"
+                    placeholder="ĐVT..."
+                    value={i.unit || ""}
+                    onChange={(e) => itemChange(i.id, "unit", e.target.value, true)}
+                  />
+                </label>
+                <label className="mobile-item-field mobile-item-field-wide">
+                  <span>Đơn giá dự kiến (₫)</span>
+                  <input
+                    type="text"
+                    placeholder="0"
+                    value={i.estimate ? fmt(i.estimate) : ""}
+                    onChange={(e) => {
+                      const num = e.target.value.replace(/[^0-9]/g, "");
+                      itemChange(i.id, "estimate", num, true);
+                    }}
+                  />
+                </label>
+              </div>
+
+              <div className="mobile-item-bottom">
+                <div className="mobile-stepper-wrap">
+                  <span className="mobile-stepper-label">Số lượng:</span>
+                  <div className="mobile-stepper">
+                    <button
+                      type="button"
+                      className="step-btn"
+                      onClick={() => {
+                        const cur = Math.max(1, Number(i.qty) || 1);
+                        if (cur > 1) {
+                          itemChange(i.id, "qty", String(cur - 1), true);
+                        }
+                      }}
+                      title="Giảm 1"
+                    >
+                      <Minus size={16} />
+                    </button>
+                    <input
+                      type="number"
+                      className="step-input"
+                      value={i.qty || 1}
+                      min={1}
+                      onChange={(e) => itemChange(i.id, "qty", e.target.value, true)}
+                    />
+                    <button
+                      type="button"
+                      className="step-btn"
+                      onClick={() => {
+                        const cur = Math.max(1, Number(i.qty) || 1);
+                        itemChange(i.id, "qty", String(cur + 1), true);
+                      }}
+                      title="Tăng 1"
+                    >
+                      <Plus size={16} />
+                    </button>
+                  </div>
+                </div>
+
+                <div className="mobile-subtotal">
+                  <span className="subtotal-label">Thành tiền:</span>
+                  <strong className="subtotal-val">
+                    {fmt((Number(i.qty) || 0) * (Number(i.estimate) || 0))} ₫
+                  </strong>
+                </div>
+              </div>
+            </div>
+          ))
+        )}
+
+        <div className="mobile-items-summary-card">
+          <span>Tổng số: <b>{visibleItems.length}</b> mặt hàng</span>
+          <span>
+            Dự kiến:{" "}
+            <strong>
+              {fmt(visibleItems.reduce((s, i) => s + (Number(i.qty) || 0) * (Number(i.estimate) || 0), 0))} ₫
+            </strong>
+          </span>
+        </div>
+      </div>
     </div>
   );
 }
