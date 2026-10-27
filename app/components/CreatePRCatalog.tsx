@@ -1,11 +1,12 @@
 import React, { ChangeEvent, useState, useMemo, useEffect } from "react";
-import { ArrowLeft, Check, Plus, Download, Upload, Paperclip, Eye, Trash2, Loader2 } from "lucide-react";
+import { ArrowLeft, Check, Plus, Download, Upload, Paperclip, Eye, Trash2, Loader2, AlertTriangle, RotateCcw } from "lucide-react";
 import { compressImageIfNeeded } from "../utils/compressImage";
 import { PRScanPreviewModal } from "./PRScanPreviewModal";
 import { Item, ColumnKey, SortState } from "../types";
 import { fmt, makeId, emptyItem, applyTools, BASE_COLUMNS } from "../utils";
 import { DraftItemsTable } from "./DraftItemsTable";
 import { addNewDepartment, getUnifiedDepartments } from "../utils/departments";
+import { saveFormDraft, getFormDraft, clearFormDraft } from "../utils/offlineSync";
 
 export function CreatePRCatalog({
   draft,
@@ -64,6 +65,53 @@ export function CreatePRCatalog({
   const [isDragging, setIsDragging] = useState(false);
   const [showPreviewModal, setShowPreviewModal] = useState(false);
   const scanInputRef = React.useRef<HTMLInputElement>(null);
+
+  // Quản lý phục hồi & tự động lưu bản nháp Offline
+  const [draftPrompt, setDraftPrompt] = useState<{
+    data: typeof draft;
+    time: string;
+  } | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    getFormDraft<typeof draft>("pr_draft_form").then((saved) => {
+      if (!active || !saved || !saved.data) return;
+      const d = saved.data;
+      const hasContent = Boolean(
+        d.purpose ||
+        d.department ||
+        d.note ||
+        (d.items && d.items.length > 1) ||
+        (d.items && d.items[0] && (d.items[0].code || d.items[0].name))
+      );
+      // Nếu form hiện tại chưa nhập gì mà có bản nháp cũ -> gợi ý khôi phục
+      const currentEmpty = !draft.purpose && !draft.department && (!draft.items || draft.items.length <= 1);
+      if (hasContent && currentEmpty) {
+        setDraftPrompt({
+          data: d,
+          time: new Date(saved.updatedAt).toLocaleTimeString("vi-VN") + " " + new Date(saved.updatedAt).toLocaleDateString("vi-VN"),
+        });
+      }
+    });
+    return () => { active = false; };
+  }, []);
+
+  // Tự động lưu form nháp mỗi 3 giây khi có dữ liệu
+  useEffect(() => {
+    const hasContent = Boolean(
+      draft.purpose ||
+      draft.department ||
+      draft.note ||
+      (draft.items && draft.items.some((i) => i.code || i.name))
+    );
+    if (!hasContent) return;
+
+    const timer = setTimeout(() => {
+      void saveFormDraft("pr_draft_form", draft, `Bản nháp ${draft.number || "PR"}`);
+    }, 2500);
+
+    return () => clearTimeout(timer);
+  }, [draft]);
 
   const handleScanUpload = async (file: File) => {
     setScanError("");
@@ -159,6 +207,61 @@ export function CreatePRCatalog({
           </button>
         </div>
       </div>
+
+      {draftPrompt && (
+        <div
+          style={{
+            backgroundColor: "#fffbeb",
+            border: "1px solid #fde68a",
+            borderRadius: "8px",
+            padding: "10px 14px",
+            marginBottom: "12px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: "12px",
+            flexWrap: "wrap",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+            <AlertTriangle size={18} style={{ color: "#d97706", flexShrink: 0 }} />
+            <div>
+              <div style={{ fontSize: "13px", fontWeight: 600, color: "#92400e" }}>
+                Phát hiện bản nháp PR chưa hoàn thành (lưu lúc {draftPrompt.time})
+              </div>
+              <div style={{ fontSize: "11px", color: "#b45309" }}>
+                {draftPrompt.data.department ? `Bộ phận: ${draftPrompt.data.department} · ` : ""}
+                {draftPrompt.data.purpose ? `Mục đích: ${draftPrompt.data.purpose.slice(0, 40)}... · ` : ""}
+                {draftPrompt.data.items?.length || 0} mặt hàng
+              </div>
+            </div>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            <button
+              type="button"
+              className="btn btn-primary btn-sm"
+              style={{ fontSize: "12px", padding: "4px 10px" }}
+              onClick={() => {
+                setDraft(draftPrompt.data);
+                setDraftPrompt(null);
+              }}
+            >
+              <RotateCcw size={13} /> Khôi phục dữ liệu
+            </button>
+            <button
+              type="button"
+              className="btn btn-secondary btn-sm"
+              style={{ fontSize: "12px", padding: "4px 8px" }}
+              onClick={() => {
+                void clearFormDraft("pr_draft_form");
+                setDraftPrompt(null);
+              }}
+            >
+              Bỏ qua
+            </button>
+          </div>
+        </div>
+      )}
       <div className="form-card pr-info-card" style={{ padding: "12px 16px", marginBottom: "12px", background: "#ffffff", borderRadius: "8px", border: "1px solid #e2e8f0" }}>
         <div className="section-title" style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "8px" }}>
           <span className="section-step" style={{ width: "24px", height: "24px", minWidth: "24px", borderRadius: "6px", fontSize: "12px", fontWeight: 700, background: "#0f172a", color: "#ffffff", display: "grid", placeItems: "center", flexShrink: 0 }}>1</span>

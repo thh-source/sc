@@ -64,6 +64,15 @@ import { SettingsModal } from "./components/SettingsModal";
 import { CatalogManagement } from "./components/CatalogManagement";
 import { I18nProvider, useTranslation, LanguageSwitcher } from "./i18n";
 import { ErrorBoundary } from "./components/ErrorBoundary";
+import { useOfflineSync } from "./hooks/useOfflineSync";
+import { OfflineSyncBanner } from "./components/OfflineSyncBanner";
+import {
+  enqueueOfflineAction,
+  saveOfflineStateBackup,
+  getOfflineStateBackup,
+  clearFormDraft,
+  checkIsOnline,
+} from "./utils/offlineSync";
 import {
   ArrowLeft,
   ChevronRight,
@@ -184,6 +193,16 @@ function ProcurementAppInner({
       time: string;
     } | null>(null),
     [loadTrigger, setLoadTrigger] = useState(0);
+
+  // Hook quản lý Offline-first & Tự động đồng bộ
+  const {
+    isOnline,
+    isSyncing,
+    queueCount,
+    lastSyncStatus,
+    syncMessage,
+    triggerSync,
+  } = useOfflineSync();
 
   // Global Spotlight Search (Ctrl + K)
   const [spotlightOpen, setSpotlightOpen] = useState(false);
@@ -327,48 +346,81 @@ function ProcurementAppInner({
           payloadToSend = diff as StoredState;
         }
 
-        const response = await fetch(
-          `/api/state?workspace=${encodeURIComponent(job.workspaceId)}`,
-          {
+        // 1. Luôn sao lưu vào IndexedDB offline trước
+        void saveOfflineStateBackup(job.workspaceId, job.payload, serverVersionRef.current);
+
+        // 2. Kiểm tra nếu đang mất kết nối thì lưu vào queue offline
+        const online = await checkIsOnline();
+        if (!online) {
+          await enqueueOfflineAction({
+            endpoint: `/api/state?workspace=${encodeURIComponent(job.workspaceId)}`,
             method: "PUT",
-            headers: {
-              "Content-Type": "application/json",
-              ...(serverVersionRef.current > 0
-                ? { "x-expected-version": String(serverVersionRef.current) }
-                : {}),
-            },
-            body: JSON.stringify(payloadToSend),
-            keepalive,
-          },
-        );
-        if (response.status === 409) {
-          const resData = (await response.json().catch(() => null)) as {
-            error?: string;
-            currentVersion?: number;
-            message?: string;
-          } | null;
-          if (resData?.currentVersion) {
-            serverVersionRef.current = resData.currentVersion;
-          }
-          setConflictModal({
-            serverVersion: resData?.currentVersion || (serverVersionRef.current + 1),
-            time: new Date().toLocaleTimeString("vi-VN"),
+            data: payloadToSend,
+            expectedVersion: serverVersionRef.current > 0 ? serverVersionRef.current : undefined,
+            description: `Tự động lưu trạng thái (Revision ${job.revision})`,
           });
-          setStorageStatus(
-            "⚠️ Xung đột dữ liệu với phiên làm việc khác!",
+          savedRevisionRef.current = job.revision;
+          previousPayloadRef.current = job.payload;
+          setStorageStatus("Đã lưu tạm offline (chờ đồng bộ)");
+          continue;
+        }
+
+        try {
+          const response = await fetch(
+            `/api/state?workspace=${encodeURIComponent(job.workspaceId)}`,
+            {
+              method: "PUT",
+              headers: {
+                "Content-Type": "application/json",
+                ...(serverVersionRef.current > 0
+                  ? { "x-expected-version": String(serverVersionRef.current) }
+                  : {}),
+              },
+              body: JSON.stringify(payloadToSend),
+              keepalive,
+            },
           );
-          return;
+          if (response.status === 409) {
+            const resData = (await response.json().catch(() => null)) as {
+              error?: string;
+              currentVersion?: number;
+              message?: string;
+            } | null;
+            if (resData?.currentVersion) {
+              serverVersionRef.current = resData.currentVersion;
+            }
+            setConflictModal({
+              serverVersion: resData?.currentVersion || (serverVersionRef.current + 1),
+              time: new Date().toLocaleTimeString("vi-VN"),
+            });
+            setStorageStatus(
+              "⚠️ Xung đột dữ liệu với phiên làm việc khác!",
+            );
+            return;
+          }
+          if (!response.ok) throw new Error("SAVE_FAILED");
+          const resData = (await response.json().catch(() => null)) as { version?: number } | null;
+          if (resData?.version) {
+            serverVersionRef.current = resData.version;
+          }
+          savedRevisionRef.current = job.revision;
+          previousPayloadRef.current = job.payload;
+          setStorageStatus(
+            `Đã lưu lúc ${new Date().toLocaleTimeString("vi-VN")}`,
+          );
+        } catch {
+          // Lỗi mạng khi fetch: đưa vào hàng đợi offline
+          await enqueueOfflineAction({
+            endpoint: `/api/state?workspace=${encodeURIComponent(job.workspaceId)}`,
+            method: "PUT",
+            data: payloadToSend,
+            expectedVersion: serverVersionRef.current > 0 ? serverVersionRef.current : undefined,
+            description: `Tự động lưu trạng thái (Offline queue fallback)`,
+          });
+          savedRevisionRef.current = job.revision;
+          previousPayloadRef.current = job.payload;
+          setStorageStatus("Đã lưu tạm offline (mất kết nối mạng)");
         }
-        if (!response.ok) throw new Error("SAVE_FAILED");
-        const resData = (await response.json().catch(() => null)) as { version?: number } | null;
-        if (resData?.version) {
-          serverVersionRef.current = resData.version;
-        }
-        savedRevisionRef.current = job.revision;
-        previousPayloadRef.current = job.payload;
-        setStorageStatus(
-          `Đã lưu lúc ${new Date().toLocaleTimeString("vi-VN")}`,
-        );
       }
     } catch {
       setStorageStatus("Tự động lưu thất bại · Hệ thống sẽ thử lại");
@@ -409,6 +461,7 @@ function ProcurementAppInner({
       if (typeof window !== "undefined" && window.localStorage) {
         window.localStorage.setItem(`scmh_backup_${workspaceId}`, JSON.stringify(latestSaveRef.current.payload));
       }
+      void saveOfflineStateBackup(workspaceId, latestSaveRef.current.payload, serverVersionRef.current);
     } catch {}
   }, [approvalRequests, hiddenContractIds, items, paymentBeneficiaries, paymentGroups, paymentHandovers, paymentRequests, paymentTemplate, poCart, pos, products, prs, purchaseHistory, purchaseHistoryImportIds, quoteCompareMode, quoteSupplierIds, quoteSupplierIdsByPr, quotes, quotesByPr, suppliers, trash, workspaceId]);
   useEffect(() => {
@@ -425,6 +478,97 @@ function ProcurementAppInner({
   }, [currentUser, reportMode]);
   useEffect(() => {
     let active = true;
+
+    const applyLoadedData = (data: StoredState) => {
+      previousPayloadRef.current = data;
+      const firstPR = data.prs?.[0],
+        legacyQuoteItemIds = new Set(
+          Object.keys(data.quotes || {}).map(Number),
+        ),
+        legacyQuotePR =
+          data.prs?.find((pr: PR) =>
+            pr.items.some((item: Item) => legacyQuoteItemIds.has(item.id)),
+          ) || firstPR,
+        migratedQuotes =
+          data.quotesByPr ||
+          (legacyQuotePR && Object.keys(data.quotes || {}).length
+             ? { [legacyQuotePR.id]: data.quotes }
+            : {}),
+        migratedSupplierIds =
+          data.quoteSupplierIdsByPr ||
+          (legacyQuotePR && data.quoteSupplierIds?.length
+            ? { [legacyQuotePR.id]: data.quoteSupplierIds }
+            : {});
+      setPrs(data.prs || prs0);
+      setProducts(data.products || items0);
+      
+      const loadedSuppliers: Supplier[] = (data.suppliers || suppliers0).map((s: Supplier) => ({
+        ...s,
+        shortName: s.shortName || generateShortName(s.name),
+      }));
+      setSuppliers(loadedSuppliers);
+
+      setQuotesByPr(migratedQuotes);
+      setQuoteSupplierIdsByPr(migratedSupplierIds);
+      setQuotes(firstPR ? migratedQuotes[firstPR.id] || {} : {});
+      const loadedPos: PO[] = (data.pos || pos0).map((po: PO) => {
+        if (/^PO-\d{4}-\d{4}$/i.test((po.number || "").trim())) {
+          const sup = loadedSuppliers.find((s) => Number(s.id) === Number(po.supplierId));
+          return {
+            ...po,
+            number: formatPONumber(sup, po.createdDate),
+          };
+        }
+        return po;
+      });
+      setPos(loadedPos);
+      setItems(firstPR?.items || data.items || items0);
+      setQuoteSupplierIds(
+        firstPR ? migratedSupplierIds[firstPR.id] || [] : [],
+      );
+      const now = Date.now();
+      setTrash(
+        (data.trash || []).filter(
+          (entry: TrashItem) => new Date(entry.expiresAt).getTime() > now,
+        ),
+      );
+      setHiddenContractIds(data.hiddenContractIds || []);
+      setPoCart(data.poCart || []);
+      setQuoteCompareMode(data.quoteCompareMode || "before-vat");
+      setPurchaseHistory(data.purchaseHistory || purchaseHistory0);
+      setPurchaseHistoryImportIds(data.purchaseHistoryImportIds || []);
+      
+      const hasPaymentRequests = data.paymentRequests && data.paymentRequests.length > 0;
+      if (hasPaymentRequests) {
+        setPaymentRequests(data.paymentRequests || []);
+        setPaymentGroups(data.paymentGroups || []);
+        setPaymentBeneficiaries(data.paymentBeneficiaries || []);
+        setPaymentHandovers(data.paymentHandovers || []);
+        setPaymentTemplate(data.paymentTemplate || DEFAULT_PAYMENT_TEMPLATE);
+      } else {
+        fetch("/default-payment-seed.json")
+          .then((res) => res.json() as Promise<any>)
+          .then((seed) => {
+            if (!active) return;
+            setPaymentRequests(seed.defaultPaymentRequests || []);
+            setPaymentGroups(seed.defaultPaymentGroups || []);
+            setPaymentBeneficiaries(seed.defaultPaymentBeneficiaries || []);
+            setPaymentHandovers(seed.defaultPaymentHandovers || []);
+            if (seed.defaultPaymentTemplate) {
+              setPaymentTemplate(seed.defaultPaymentTemplate);
+            }
+          })
+          .catch((err) => console.error("Không thể tải payment seed:", err));
+      }
+      if (data.approvalRequests && data.approvalRequests.length > 0) {
+        setApprovalRequests(data.approvalRequests);
+      } else {
+        setApprovalRequests(SAMPLE_PHENIKAA_APPROVALS);
+      }
+      if (data.prs?.length) setSelectedPR(data.prs[0]);
+      if (data.pos?.length) setCurrentPO(data.pos[0]);
+    };
+
     const url = reportToken
       ? `/api/report-state?token=${encodeURIComponent(reportToken)}`
       : `/api/state?workspace=${encodeURIComponent(workspaceId)}`;
@@ -446,93 +590,8 @@ function ProcurementAppInner({
           } catch {}
         }
         if (data) {
-          previousPayloadRef.current = data;
-          const firstPR = data.prs?.[0],
-            legacyQuoteItemIds = new Set(
-              Object.keys(data.quotes || {}).map(Number),
-            ),
-            legacyQuotePR =
-              data.prs?.find((pr: PR) =>
-                pr.items.some((item: Item) => legacyQuoteItemIds.has(item.id)),
-              ) || firstPR,
-            migratedQuotes =
-              data.quotesByPr ||
-              (legacyQuotePR && Object.keys(data.quotes || {}).length
-                 ? { [legacyQuotePR.id]: data.quotes }
-                : {}),
-            migratedSupplierIds =
-              data.quoteSupplierIdsByPr ||
-              (legacyQuotePR && data.quoteSupplierIds?.length
-                ? { [legacyQuotePR.id]: data.quoteSupplierIds }
-                : {});
-          setPrs(data.prs || prs0);
-          setProducts(data.products || items0);
-          
-          const loadedSuppliers: Supplier[] = (data.suppliers || suppliers0).map((s: Supplier) => ({
-            ...s,
-            shortName: s.shortName || generateShortName(s.name),
-          }));
-          setSuppliers(loadedSuppliers);
-
-          setQuotesByPr(migratedQuotes);
-          setQuoteSupplierIdsByPr(migratedSupplierIds);
-          setQuotes(firstPR ? migratedQuotes[firstPR.id] || {} : {});
-          const loadedPos: PO[] = (data.pos || pos0).map((po: PO) => {
-            if (/^PO-\d{4}-\d{4}$/i.test((po.number || "").trim())) {
-              const sup = loadedSuppliers.find((s) => Number(s.id) === Number(po.supplierId));
-              return {
-                ...po,
-                number: formatPONumber(sup, po.createdDate),
-              };
-            }
-            return po;
-          });
-          setPos(loadedPos);
-          setItems(firstPR?.items || data.items || items0);
-          setQuoteSupplierIds(
-            firstPR ? migratedSupplierIds[firstPR.id] || [] : [],
-          );
-          const now = Date.now();
-          setTrash(
-            (data.trash || []).filter(
-              (entry: TrashItem) => new Date(entry.expiresAt).getTime() > now,
-            ),
-          );
-          setHiddenContractIds(data.hiddenContractIds || []);
-          setPoCart(data.poCart || []);
-          setQuoteCompareMode(data.quoteCompareMode || "before-vat");
-          setPurchaseHistory(data.purchaseHistory || purchaseHistory0);
-          setPurchaseHistoryImportIds(data.purchaseHistoryImportIds || []);
-          
-          const hasPaymentRequests = data.paymentRequests && data.paymentRequests.length > 0;
-          if (hasPaymentRequests) {
-            setPaymentRequests(data.paymentRequests || []);
-            setPaymentGroups(data.paymentGroups || []);
-            setPaymentBeneficiaries(data.paymentBeneficiaries || []);
-            setPaymentHandovers(data.paymentHandovers || []);
-            setPaymentTemplate(data.paymentTemplate || DEFAULT_PAYMENT_TEMPLATE);
-          } else {
-            fetch("/default-payment-seed.json")
-              .then((res) => res.json() as Promise<any>)
-              .then((seed) => {
-                if (!active) return;
-                setPaymentRequests(seed.defaultPaymentRequests || []);
-                setPaymentGroups(seed.defaultPaymentGroups || []);
-                setPaymentBeneficiaries(seed.defaultPaymentBeneficiaries || []);
-                setPaymentHandovers(seed.defaultPaymentHandovers || []);
-                if (seed.defaultPaymentTemplate) {
-                  setPaymentTemplate(seed.defaultPaymentTemplate);
-                }
-              })
-              .catch((err) => console.error("Không thể tải payment seed:", err));
-          }
-          if (data.approvalRequests && data.approvalRequests.length > 0) {
-            setApprovalRequests(data.approvalRequests);
-          } else {
-            setApprovalRequests(SAMPLE_PHENIKAA_APPROVALS);
-          }
-          if (data.prs?.length) setSelectedPR(data.prs[0]);
-          if (data.pos?.length) setCurrentPO(data.pos[0]);
+          void saveOfflineStateBackup(workspaceId, data, body.version);
+          applyLoadedData(data);
         } else {
           setPrs([]);
           setProducts([]);
@@ -575,7 +634,29 @@ function ProcurementAppInner({
         setStorageReady(true);
         setStorageStatus(data ? "Đã đồng bộ online" : "Sẵn sàng lưu online");
       })
-      .catch(() => setStorageStatus("Không thể kết nối dữ liệu"));
+      .catch(async () => {
+        if (!active) return;
+        // Chế độ Offline: Khôi phục dữ liệu từ IndexedDB offline_state_backup
+        try {
+          const offlineBackup = await getOfflineStateBackup(workspaceId);
+          let data = offlineBackup?.data as StoredState | null;
+          if (!data && typeof window !== "undefined" && window.localStorage) {
+            const cached = window.localStorage.getItem(`scmh_backup_${workspaceId}`);
+            if (cached) data = JSON.parse(cached);
+          }
+          if (data) {
+            if (offlineBackup?.version) {
+              serverVersionRef.current = offlineBackup.version;
+            }
+            applyLoadedData(data);
+            setStorageReady(true);
+            setStorageStatus("Chế độ ngoại tuyến (Offline)");
+            return;
+          }
+        } catch {}
+        setStorageReady(true);
+        setStorageStatus("Không thể kết nối dữ liệu");
+      });
     return () => {
       active = false;
     };
@@ -999,6 +1080,7 @@ function ProcurementAppInner({
       scan_file_url: "",
       items: [emptyItem(0)],
     });
+    void clearFormDraft("pr_draft_form");
     setImportMessage("");
     navigateTo({ view: "prs" });
     // Bắt buộc lưu vĩnh viễn vào D1 ngay lập tức khi tạo PR thành công
@@ -2408,10 +2490,25 @@ function ProcurementAppInner({
         ) : (
           <>
             <div
-              className={`cloud-status ${storageStatus.includes("thất bại") || storageStatus.includes("Không thể") ? "error" : ""}`}
+              className={`cloud-status ${
+                !isOnline
+                  ? "offline"
+                  : storageStatus.includes("thất bại") || storageStatus.includes("Không thể")
+                  ? "error"
+                  : ""
+              }`}
+              style={{
+                ...(!isOnline
+                  ? { backgroundColor: "#fef3c7", color: "#92400e", borderColor: "#fcd34d" }
+                  : {}),
+              }}
             >
-              <i>●</i>
-              {storageStatus}
+              <i style={{ color: !isOnline ? "#d97706" : undefined }}>●</i>
+              {!isOnline
+                ? `Chế độ Offline${queueCount > 0 ? ` (${queueCount} chờ lưu)` : ""}`
+                : isSyncing
+                ? "Đang đồng bộ..."
+                : storageStatus}
             </div>
           </>
         )}
@@ -3502,6 +3599,16 @@ function ProcurementAppInner({
           }}
         />
       )}
+
+      {/* Floating Offline Sync Status Banner */}
+      <OfflineSyncBanner
+        isOnline={isOnline}
+        isSyncing={isSyncing}
+        queueCount={queueCount}
+        lastSyncStatus={lastSyncStatus}
+        syncMessage={syncMessage}
+        onTriggerSync={triggerSync}
+      />
     </div>
   );
 }
