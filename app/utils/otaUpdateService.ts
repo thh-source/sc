@@ -114,6 +114,24 @@ export async function notifyAppReady(): Promise<void> {
 }
 
 /**
+ * Khởi tạo cập nhật OTA với timeout an toàn không bao giờ treo app
+ */
+export async function initOTAUpdates(): Promise<void> {
+  if (typeof window === "undefined") return;
+  try {
+    initCapacitorFetchProxy();
+    if (Capacitor.isNativePlatform()) {
+      await Promise.race([
+        notifyAppReady(),
+        new Promise<void>((resolve) => setTimeout(resolve, 2000)),
+      ]);
+    }
+  } catch (err) {
+    console.warn("Lỗi khởi tạo OTA:", err);
+  }
+}
+
+/**
  * Khởi động lại ứng dụng để kích hoạt phiên bản mới ngay lập tức
  */
 export async function reloadApp(): Promise<void> {

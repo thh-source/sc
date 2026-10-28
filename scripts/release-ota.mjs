@@ -94,7 +94,17 @@ fs.writeFileSync(path.join(rootDir, "app", "version.ts"), versionTsContent, "utf
 console.log("✓ Đã cập nhật metadata phiên bản vào app/version.ts.");
 
 // 2. Chạy Build production bundle
-console.log("\n[BƯỚC 1/4] Đang biên dịch bundle mới nhất (npm run build)...");
+console.log("\n[BƯỚC 1/4] Đang dọn dẹp và biên dịch bundle mới nhất (npm run build)...");
+const distDir = path.join(rootDir, "dist");
+if (fs.existsSync(distDir)) {
+  try {
+    fs.rmSync(distDir, { recursive: true, force: true });
+    console.log("✓ Đã dọn dẹp thư mục dist/ cũ.");
+  } catch (e) {
+    console.warn("Cảnh báo dọn dẹp dist/:", e.message);
+  }
+}
+
 try {
   execSync("npm run build", { cwd: rootDir, stdio: "inherit" });
 } catch (err) {
@@ -104,7 +114,6 @@ try {
 
 // 3. Chuẩn bị thư mục bundle hoàn chỉnh cho Capacitor & Capgo
 console.log("\n[BƯỚC 2/4] Chuẩn bị cấu trúc tài nguyên Offline-first trong dist/...");
-const distDir = path.join(rootDir, "dist");
 const distClientDir = path.join(distDir, "client");
 
 if (fs.existsSync(distClientDir)) {
@@ -115,16 +124,23 @@ if (fs.existsSync(distClientDir)) {
 // Đảm bảo file index.html offline-ready
 const indexHtmlPath = path.join(distDir, "index.html");
 
-// Tìm file css và js chính từ dist/assets
+// Tìm file css và js chính từ dist/assets (sắp xếp theo thời gian mới nhất)
 let mainCss = "";
 let mainJs = "";
 const assetsDir = path.join(distDir, "assets");
 if (fs.existsSync(assetsDir)) {
   const files = fs.readdirSync(assetsDir);
-  const cssFile = files.find((f) => f.startsWith("index-") && f.endsWith(".css"));
-  const jsFile = files.find((f) => f.startsWith("index-") && f.endsWith(".js"));
-  if (cssFile) mainCss = `./assets/${cssFile}`;
-  if (jsFile) mainJs = `./assets/${jsFile}`;
+  const cssFiles = files
+    .filter((f) => f.startsWith("index-") && f.endsWith(".css"))
+    .map((f) => ({ name: f, mtime: fs.statSync(path.join(assetsDir, f)).mtimeMs }))
+    .sort((a, b) => b.mtime - a.mtime);
+  const jsFiles = files
+    .filter((f) => f.startsWith("index-") && f.endsWith(".js"))
+    .map((f) => ({ name: f, mtime: fs.statSync(path.join(assetsDir, f)).mtimeMs }))
+    .sort((a, b) => b.mtime - a.mtime);
+
+  if (cssFiles.length > 0) mainCss = `./assets/${cssFiles[0].name}`;
+  if (jsFiles.length > 0) mainJs = `./assets/${jsFiles[0].name}`;
 }
 
 const offlineHtml = `<!DOCTYPE html>
@@ -149,16 +165,38 @@ const offlineHtml = `<!DOCTYPE html>
         };
       }
     })();
+
+    // Cơ chế khẩn cấp: Tự động gỡ màn hình chờ sau tối đa 3.5s để bảo vệ app không bao giờ bị treo
+    (function() {
+      var splashTimeout = setTimeout(function() {
+        var splash = document.getElementById("pka-splash-overlay");
+        if (splash) {
+          console.warn("Splash timeout an toàn (3.5s): Tự động gỡ màn hình chờ để hiển thị app.");
+          splash.style.transition = "opacity 0.4s ease";
+          splash.style.opacity = "0";
+          setTimeout(function() { if (splash && splash.parentNode) splash.parentNode.removeChild(splash); }, 400);
+        }
+      }, 3500);
+
+      window.__DISMISS_SPLASH__ = function() {
+        clearTimeout(splashTimeout);
+        var splash = document.getElementById("pka-splash-overlay");
+        if (splash) {
+          splash.style.transition = "opacity 0.3s ease";
+          splash.style.opacity = "0";
+          setTimeout(function() { if (splash && splash.parentNode) splash.parentNode.removeChild(splash); }, 300);
+        }
+      };
+    })();
   </script>
 </head>
 <body style="margin:0; background:#082f58; color:#ffffff; font-family:system-ui, -apple-system, sans-serif;">
-  <div id="root" style="min-height:100vh;">
-    <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:100vh; text-align:center;">
-      <h2 style="margin-bottom:8px; font-weight:800; font-size:24px; letter-spacing:1px;">PHENIKAA</h2>
-      <p style="margin:0; font-size:14px; opacity:0.85;">Hệ thống Quản lý Mua hàng v${version}</p>
-      <div style="margin-top:20px; font-size:12px; opacity:0.7;">Đang nạp ứng dụng offline...</div>
-    </div>
+  <div id="pka-splash-overlay" style="position:fixed; inset:0; z-index:99999; background:#082f58; color:#ffffff; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center;">
+    <h2 style="margin-bottom:8px; font-weight:800; font-size:24px; letter-spacing:1px;">PHENIKAA</h2>
+    <p style="margin:0; font-size:14px; opacity:0.85;">Hệ thống Quản lý Mua hàng v${version}</p>
+    <div style="margin-top:20px; font-size:12px; opacity:0.7;">Đang nạp ứng dụng offline...</div>
   </div>
+  <div id="root" style="min-height:100vh;"></div>
   ${mainJs ? `<script type="module" src="${mainJs}"></script>` : ""}
 </body>
 </html>`;

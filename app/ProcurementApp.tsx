@@ -69,12 +69,14 @@ import { useOfflineSync } from "./hooks/useOfflineSync";
 import { OfflineSyncBanner } from "./components/OfflineSyncBanner";
 import { useOtaUpdate } from "./hooks/useOtaUpdate";
 import { OtaUpdateBanner } from "./components/OtaUpdateBanner";
+import { initOTAUpdates } from "./utils/otaUpdateService";
 import {
   enqueueOfflineAction,
   saveOfflineStateBackup,
   getOfflineStateBackup,
   clearFormDraft,
   checkIsOnline,
+  initOfflineDB,
 } from "./utils/offlineSync";
 import {
   ArrowLeft,
@@ -191,11 +193,46 @@ function ProcurementAppInner({
     [paymentTemplate, setPaymentTemplate] = useState<PaymentPrintTemplate>(DEFAULT_PAYMENT_TEMPLATE);
   const [storageReady, setStorageReady] = useState(false),
     [storageStatus, setStorageStatus] = useState("Đang kết nối dữ liệu..."),
+    [isAppLoading, setIsAppLoading] = useState(true),
     [conflictModal, setConflictModal] = useState<{
       serverVersion: number;
       time: string;
     } | null>(null),
     [loadTrigger, setLoadTrigger] = useState(0);
+
+  // Khởi tạo ứng dụng với timeout an toàn và tắt màn hình splash
+  useEffect(() => {
+    let isMounted = true;
+
+    const initializeApp = async () => {
+      try {
+        // Khởi tạo Offline DB & OTA với timeout an toàn (3500ms)
+        await Promise.race([
+          Promise.all([
+            initOfflineDB(),
+            initOTAUpdates(),
+          ]),
+          new Promise((_, reject) =>
+            setTimeout(() => reject(new Error("Init timeout")), 3500)
+          ),
+        ]);
+      } catch (err) {
+        console.warn("Lỗi khởi tạo offline/OTA, chuyển sang nạp giao diện dự phòng:", err);
+      } finally {
+        if (isMounted) {
+          setIsAppLoading(false); // BẮT BUỘC TẮT MÀN HÌNH CHỜ DÙ CÓ LỖI HAY KHÔNG
+        }
+        if (typeof window !== "undefined" && (window as any).__DISMISS_SPLASH__) {
+          (window as any).__DISMISS_SPLASH__();
+        }
+      }
+    };
+
+    void initializeApp();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   // Hook quản lý Offline-first & Tự động đồng bộ
   const {
@@ -2380,6 +2417,22 @@ function ProcurementAppInner({
     <div
       className={`app ${collapsed ? "collapsed" : ""} ${reportMode ? "report-mode" : ""}`}
     >
+      {isAppLoading && (
+        <div
+          id="pka-app-splash"
+          className="fixed inset-0 z-[99999] bg-[#082f58] text-white flex flex-col items-center justify-center p-6 text-center select-none no-print"
+        >
+          <div className="w-16 h-16 rounded-2xl bg-white/10 flex items-center justify-center mb-4 border border-white/20 shadow-xl">
+            <span className="text-2xl font-black tracking-wider text-white">PK</span>
+          </div>
+          <h2 className="text-xl font-black tracking-widest mb-1 text-white">PHENIKAA</h2>
+          <p className="text-xs text-white/70 mb-6 font-medium">Hệ thống Quản lý Mua hàng (SCMH)</p>
+          <div className="flex items-center gap-2.5 px-4 py-2 rounded-full bg-white/10 border border-white/10 text-xs font-semibold text-white/90">
+            <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+            <span>Đang nạp ứng dụng offline...</span>
+          </div>
+        </div>
+      )}
       {!["payment", "handover", "compare"].includes(view) && (
         <SmartTableTools scopeKey={view} />
       )}

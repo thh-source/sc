@@ -35,7 +35,7 @@ const STORE_DRAFTS = "form_drafts";
 const STORE_BACKUP = "offline_state_backup";
 
 /**
- * Mở kết nối IndexedDB an toàn với fallback
+ * Mở kết nối IndexedDB an toàn với timeout và fallback
  */
 function openDB(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
@@ -43,29 +43,65 @@ function openDB(): Promise<IDBDatabase> {
       return reject(new Error("IndexedDB không khả dụng trong môi trường này"));
     }
 
-    const request = window.indexedDB.open(DB_NAME, DB_VERSION);
+    const timer = setTimeout(() => {
+      reject(new Error("Timeout khi mở IndexedDB (2000ms)"));
+    }, 2000);
 
-    request.onupgradeneeded = (event) => {
-      const db = (event.target as IDBOpenDBRequest).result;
+    try {
+      const request = window.indexedDB.open(DB_NAME, DB_VERSION);
 
-      if (!db.objectStoreNames.contains(STORE_QUEUE)) {
-        const queueStore = db.createObjectStore(STORE_QUEUE, { keyPath: "id" });
-        queueStore.createIndex("createdAt", "createdAt", { unique: false });
-        queueStore.createIndex("status", "status", { unique: false });
-      }
+      request.onblocked = () => {
+        clearTimeout(timer);
+        console.warn("IndexedDB mở bị blocked bởi kết nối khác, tiếp tục fallback");
+        reject(new Error("IndexedDB blocked"));
+      };
 
-      if (!db.objectStoreNames.contains(STORE_DRAFTS)) {
-        db.createObjectStore(STORE_DRAFTS, { keyPath: "key" });
-      }
+      request.onupgradeneeded = (event) => {
+        const db = (event.target as IDBOpenDBRequest).result;
 
-      if (!db.objectStoreNames.contains(STORE_BACKUP)) {
-        db.createObjectStore(STORE_BACKUP, { keyPath: "workspaceId" });
-      }
-    };
+        if (!db.objectStoreNames.contains(STORE_QUEUE)) {
+          const queueStore = db.createObjectStore(STORE_QUEUE, { keyPath: "id" });
+          queueStore.createIndex("createdAt", "createdAt", { unique: false });
+          queueStore.createIndex("status", "status", { unique: false });
+        }
 
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error);
+        if (!db.objectStoreNames.contains(STORE_DRAFTS)) {
+          db.createObjectStore(STORE_DRAFTS, { keyPath: "key" });
+        }
+
+        if (!db.objectStoreNames.contains(STORE_BACKUP)) {
+          db.createObjectStore(STORE_BACKUP, { keyPath: "workspaceId" });
+        }
+      };
+
+      request.onsuccess = () => {
+        clearTimeout(timer);
+        resolve(request.result);
+      };
+
+      request.onerror = () => {
+        clearTimeout(timer);
+        reject(request.error || new Error("Lỗi mở IndexedDB"));
+      };
+    } catch (err) {
+      clearTimeout(timer);
+      reject(err);
+    }
   });
+}
+
+/**
+ * Khởi tạo Offline DB an toàn với timeout
+ */
+export async function initOfflineDB(): Promise<boolean> {
+  if (typeof window === "undefined") return false;
+  try {
+    const db = await openDB();
+    return Boolean(db);
+  } catch (err) {
+    console.warn("Lỗi khởi tạo offline DB, chuyển sang fallback an toàn:", err);
+    return false;
+  }
 }
 
 // -------------------------------------------------------------
