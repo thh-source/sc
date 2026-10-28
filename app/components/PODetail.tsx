@@ -2688,6 +2688,9 @@ export function PODetail({
         workspaceId={workspaceId}
         onStatus={onStatus}
         hasHandoverFeature={Boolean(onCreateHandover)}
+        paymentHandovers={paymentHandovers}
+        onUpdateHandovers={onUpdateHandovers}
+        onUpdatePO={onUpdate}
       />
 
       {/* POPUP LẤY HÀNG HÓA TỪ ĐỀ NGHỊ PHÊ DUYỆT (ĐNPĐ) */}

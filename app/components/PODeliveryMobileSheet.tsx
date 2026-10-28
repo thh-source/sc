@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useState, useRef, useEffect, useMemo, ChangeEvent } from "react";
-import { PO, POItem, PODeliveryLog } from "../types";
+import { PO, POItem, PODeliveryLog, PaymentHandoverItem } from "../types";
+import { POHandoverBatchSection } from "./POHandoverBatchSection";
 import { fmt, dateVN } from "../utils";
 import { useIsMobile } from "../useIsMobile";
 
@@ -37,6 +38,9 @@ interface PODeliveryModalProps {
   workspaceId?: string;
   onStatus?: (msg: string) => void;
   hasHandoverFeature?: boolean;
+  paymentHandovers?: PaymentHandoverItem[];
+  onUpdateHandovers?: (handovers: PaymentHandoverItem[]) => void;
+  onUpdatePO?: (po: PO) => void;
 }
 
 export function PODeliveryModal({
@@ -47,6 +51,9 @@ export function PODeliveryModal({
   workspaceId,
   onStatus,
   hasHandoverFeature = true,
+  paymentHandovers = [],
+  onUpdateHandovers,
+  onUpdatePO,
 }: PODeliveryModalProps) {
   const isAutoMobile = useIsMobile(768);
   const [userViewMode, setUserViewMode] = useState<"mobile" | "table" | null>(null);
@@ -567,6 +574,17 @@ export function PODeliveryModal({
             background: "#f8fafc",
           }}
         >
+          {/* Lịch sử các đợt giao hàng trước đó và cho phép sửa / hủy đợt nếu ấn nhầm */}
+          {onUpdateHandovers && onUpdatePO && (
+            <div style={{ marginBottom: "14px" }}>
+              <POHandoverBatchSection
+                po={po}
+                paymentHandovers={paymentHandovers}
+                onUpdateHandovers={onUpdateHandovers}
+                onUpdatePO={onUpdatePO}
+              />
+            </div>
+          )}
           {filteredItems.length === 0 ? (
             <div
               style={{

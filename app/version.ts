@@ -13,13 +13,13 @@ export interface AppVersionMetadata {
 
 export const CURRENT_APP_VERSION: AppVersionMetadata = {
   appName: "Phenikaa Mua Hàng (SCMH)",
-  version: "1.0.2",
-  versionName: "Phenikaa SCMH v1.0.2 (Bản chính thức)",
-  buildNumber: "20261028.1036",
-  buildDate: "28/10/2026, 10:36:47",
+  version: "1.0.3",
+  versionName: "Phenikaa SCMH v1.0.3 (Bản chính thức)",
+  buildNumber: "20261028.1054",
+  buildDate: "28/10/2026, 10:54:11",
   releaseChannel: "Production",
-  gitCommit: "570d173",
-  releaseNotes: "Thống kê từng đợt bàn giao trong PO và cho phép chỉnh sửa lại số lượng bàn giao",
+  gitCommit: "7e3fca5",
+  releaseNotes: "Bo sung chuc nang Huy/Xoa dot giao hang an nham va dong bo toan bo lich su giao hang",
 };
 
 export function getAppPlatform(): {

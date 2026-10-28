@@ -15,6 +15,7 @@ export interface PODeliveryBatchItem {
   currentQuantityPass: number;       // Số lượng bàn giao hiện tại của đợt này
   quantityDoc: number;               // Số lượng chứng từ
   note: string;                      // Ghi chú
+  isSynthetic?: boolean;             // Được tạo từ deliveryHistory hoặc deliveredQty
 }
 
 export interface PODeliveryBatch {
@@ -29,6 +30,7 @@ export interface PODeliveryBatch {
   itemCount: number;
   items: PODeliveryBatchItem[];
   rawHandovers: PaymentHandoverItem[];
+  hasSyntheticItems?: boolean;
 }
 
 /**
@@ -66,7 +68,9 @@ function isSamePOItem(a: PaymentHandoverItem, b: PaymentHandoverItem): boolean {
 }
 
 /**
- * Trích xuất và phân nhóm toàn bộ các đợt bàn giao đã thực hiện của một PO
+ * Trích xuất và phân nhóm toàn bộ các đợt bàn giao đã thực hiện của một PO.
+ * Tự động hợp nhất cả từ paymentHandovers VÀ po.items[].deliveryHistory hoặc po.items[].deliveredQty,
+ * đảm bảo 100% các đợt giao hàng trước đó đều được hiển thị và quản lý.
  */
 export function getPODeliveryBatches(
   po: PO | null | undefined,
@@ -75,36 +79,113 @@ export function getPODeliveryBatches(
   if (!po || !po.number) return [];
 
   const cleanPoNum = po.number.trim().toLowerCase();
-  const poHandovers = paymentHandovers.filter(
+  const matchingHandovers = (paymentHandovers || []).filter(
     (h) => (h.source_number || "").trim().toLowerCase() === cleanPoNum
   );
 
-  if (poHandovers.length === 0) return [];
+  const combinedHandovers: PaymentHandoverItem[] = [...matchingHandovers];
 
-  // 1. Nhóm theo batch_id hoặc theo thuộc tính nhận dạng đợt
+  // 1. Kiểm tra po.items để bổ sung các đợt giao từ deliveryHistory chưa có trong paymentHandovers
+  let synthCounter = 1;
+  const items = po.items || [];
+
+  for (const it of items) {
+    const historyList = it.deliveryHistory || [];
+
+    if (historyList.length > 0) {
+      historyList.forEach((dh, idx) => {
+        const dhDate = dh.date || "";
+        const dhQty = Number(dh.qty) || 0;
+        if (dhQty <= 0) return;
+
+        // Kiểm tra xem đã có bản ghi trong paymentHandovers khớp với item này và ngày này chưa
+        const alreadyInHandovers = combinedHandovers.some((h) => {
+          const matchItem = h.po_item_id === it.id || normName(h.item_name) === normName(it.name);
+          const matchDate = !dhDate || !h.handover_date || h.handover_date === dhDate;
+          return matchItem && matchDate;
+        });
+
+        if (!alreadyInHandovers) {
+          const synthBatchId = dh.batchId || `DH_${cleanPoNum}_${dhDate || "NODATE"}_${dh.receiverName || ""}`;
+          combinedHandovers.push({
+            id: -1 * (Number(it.id) * 1000 + (idx + 1) * 10 + (synthCounter++)),
+            department: (po as any).department || "Phòng Cung ứng",
+            item_name: it.name,
+            unit: it.unit || "Cái",
+            quantity_doc: String(dhQty),
+            quantity_pass: String(dhQty),
+            quantity_fail: "0",
+            note: dh.note || dh.discrepancyReason || "",
+            handover_date: dhDate || po.deliveryDate || new Date().toISOString().slice(0, 10),
+            sender_name: dh.senderName || "Trần Hải Hà",
+            sender_dept: "Phòng Cung ứng",
+            receiver_name: dh.receiverName || "",
+            source_type: "PO",
+            source_number: po.number,
+            specification: it.spec || "",
+            po_item_id: it.id,
+            batch_id: synthBatchId,
+          });
+        }
+      });
+    } else if ((Number(it.deliveredQty) || 0) > 0) {
+      // Trường hợp có deliveredQty > 0 nhưng không có deliveryHistory và không có paymentHandovers
+      const delivQty = Number(it.deliveredQty) || 0;
+      const alreadyInHandovers = combinedHandovers.some(
+        (h) => h.po_item_id === it.id || normName(h.item_name) === normName(it.name)
+      );
+
+      if (!alreadyInHandovers) {
+        const defaultDate = it.deliveryDate || po.deliveryDate || po.date || new Date().toISOString().slice(0, 10);
+        const synthBatchId = `DELIV_${cleanPoNum}_${defaultDate}`;
+        combinedHandovers.push({
+          id: -1 * (Number(it.id) * 1000 + 999),
+          department: (po as any).department || "Phòng Cung ứng",
+          item_name: it.name,
+          unit: it.unit || "Cái",
+          quantity_doc: String(delivQty),
+          quantity_pass: String(delivQty),
+          quantity_fail: "0",
+          note: it.note || "",
+          handover_date: defaultDate,
+          sender_name: "Trần Hải Hà",
+          sender_dept: "Phòng Cung ứng",
+          receiver_name: "",
+          source_type: "PO",
+          source_number: po.number,
+          specification: it.spec || "",
+          po_item_id: it.id,
+          batch_id: synthBatchId,
+        });
+      }
+    }
+  }
+
+  if (combinedHandovers.length === 0) return [];
+
+  // 2. Nhóm theo batch_id hoặc theo thuộc tính nhận dạng đợt
   const groupMap = new Map<string, PaymentHandoverItem[]>();
-  for (const h of poHandovers) {
+  for (const h of combinedHandovers) {
     const key = getHandoverGroupKey(h);
     const existing = groupMap.get(key) || [];
     existing.push(h);
     groupMap.set(key, existing);
   }
 
-  // 2. Chuyển thành danh sách các nhóm
-  const rawBatches = Array.from(groupMap.entries()).map(([key, items]) => {
-    // Sắp xếp các item theo ID tăng dần
-    items.sort((a, b) => Number(a.id) - Number(b.id));
-    const first = items[0];
-    const earliestDate = items.reduce((min, cur) => {
+  // 3. Chuyển thành danh sách các nhóm đợt
+  const rawBatches = Array.from(groupMap.entries()).map(([key, bItems]) => {
+    bItems.sort((a, b) => Number(a.id) - Number(b.id));
+    const first = bItems[0];
+    const earliestDate = bItems.reduce((min, cur) => {
       const d = cur.handover_date || "";
       return (!min || (d && d < min)) ? d : min;
     }, first.handover_date || "");
 
-    const minId = items.reduce((min, cur) => Math.min(min, Number(cur.id) || 0), Number(first.id) || 0);
+    const minId = bItems.reduce((min, cur) => Math.min(min, Number(cur.id) || 0), Number(first.id) || 0);
 
     return {
       key,
-      items,
+      items: bItems,
       date: earliestDate || first.handover_date || "",
       department: first.department || "",
       senderName: first.sender_name || "",
@@ -113,7 +194,7 @@ export function getPODeliveryBatches(
     };
   });
 
-  // 3. Sắp xếp các đợt theo trình tự thời gian (ngày sớm nhất trước, nếu cùng ngày thì theo minId)
+  // 4. Sắp xếp các đợt theo trình tự thời gian tăng dần
   rawBatches.sort((a, b) => {
     if (a.date !== b.date) {
       return a.date.localeCompare(b.date);
@@ -121,17 +202,21 @@ export function getPODeliveryBatches(
     return a.minId - b.minId;
   });
 
-  // 4. Xây dựng chi tiết từng đợt
+  // 5. Xây dựng chi tiết từng đợt
   const result: PODeliveryBatch[] = [];
 
   rawBatches.forEach((b, index) => {
     const batchNumber = index + 1;
     const batchLabel = `Đợt ${batchNumber}`;
     const batchId = b.items[0]?.batch_id || b.key;
+    let hasSyntheticItems = false;
 
     const batchItems: PODeliveryBatchItem[] = b.items.map((h) => {
+      const isSynthetic = Number(h.id) < 0;
+      if (isSynthetic) hasSyntheticItems = true;
+
       // Tìm POItem tương ứng
-      const matchedPOItem = (po.items || []).find((it) => {
+      const matchedPOItem = items.find((it) => {
         if (h.po_item_id !== undefined && h.po_item_id !== null) {
           return Number(it.id) === Number(h.po_item_id);
         }
@@ -141,7 +226,7 @@ export function getPODeliveryBatches(
       const quantityOrdered = matchedPOItem ? Math.max(0, Number(matchedPOItem.qty) || 0) : (Number(h.quantity_doc) || 0);
 
       // Tính tổng SL đã giao ở CÁC ĐỢT KHÁC (khác batch này)
-      const otherHandovers = poHandovers.filter(
+      const otherHandovers = combinedHandovers.filter(
         (oh) => getHandoverGroupKey(oh) !== b.key && isSamePOItem(oh, h)
       );
 
@@ -169,6 +254,7 @@ export function getPODeliveryBatches(
         currentQuantityPass,
         quantityDoc,
         note: h.note || "",
+        isSynthetic,
       };
     });
 
@@ -186,6 +272,7 @@ export function getPODeliveryBatches(
       itemCount: batchItems.length,
       items: batchItems,
       rawHandovers: b.items,
+      hasSyntheticItems,
     });
   });
 
@@ -261,66 +348,94 @@ export function updatePOHandoverBatch(options: {
     }
   }
 
-  // 3. Tạo danh sách handovers mới đã cập nhật
-  const nextHandovers = allHandovers.map((h) => {
+  // 3. Chuẩn bị danh sách handovers mới:
+  // Nếu có synthetic items (id < 0) từ deliveryHistory, chuyển đổi thành real handovers
+  let maxId = Math.max(0, ...allHandovers.map((h) => Number(h.id) || 0));
+
+  const nextHandovers = [...allHandovers];
+
+  for (const bItem of targetBatch.items) {
+    const h = bItem.handoverItem;
     const update = updatedMap.get(Number(h.id));
-    if (!update) {
-      // Nếu có metadata cập nhật cho cả đợt
-      if (metadata && targetBatch.rawHandovers.some((th) => th.id === h.id)) {
-        return {
-          ...h,
-          handover_date: metadata.handover_date ?? h.handover_date,
-          department: metadata.department ?? h.department,
-          receiver_name: metadata.receiver_name ?? h.receiver_name,
-          sender_name: metadata.sender_name ?? h.sender_name,
+    const newPass = update ? Math.max(0, Number(update.quantity_pass) || 0) : bItem.currentQuantityPass;
+    const newNote = update && update.note !== undefined ? update.note.trim() : h.note;
+
+    if (Number(h.id) < 0) {
+      // Synthetic item: thêm mới vào allHandovers
+      maxId++;
+      nextHandovers.push({
+        id: maxId,
+        department: metadata?.department ?? h.department ?? "Phòng Cung ứng",
+        item_name: h.item_name,
+        unit: h.unit,
+        quantity_doc: String(newPass),
+        quantity_pass: String(newPass),
+        quantity_fail: "0",
+        note: newNote,
+        handover_date: metadata?.handover_date ?? h.handover_date,
+        sender_name: metadata?.sender_name ?? h.sender_name ?? "Trần Hải Hà",
+        sender_dept: "Phòng Cung ứng",
+        receiver_name: metadata?.receiver_name ?? h.receiver_name ?? "",
+        source_type: h.source_type || "PO",
+        source_number: po.number,
+        specification: h.specification || "",
+        po_item_id: h.po_item_id,
+        batch_id: batchId,
+        batch_number: targetBatch.batchNumber,
+      });
+    } else {
+      // Existing item: cập nhật in place
+      const idx = nextHandovers.findIndex((x) => Number(x.id) === Number(h.id));
+      if (idx !== -1) {
+        nextHandovers[idx] = {
+          ...nextHandovers[idx],
+          quantity_pass: String(newPass),
+          quantity_doc: String(newPass),
+          note: newNote,
+          handover_date: metadata?.handover_date ?? nextHandovers[idx].handover_date,
+          department: metadata?.department ?? nextHandovers[idx].department,
+          receiver_name: metadata?.receiver_name ?? nextHandovers[idx].receiver_name,
+          sender_name: metadata?.sender_name ?? nextHandovers[idx].sender_name,
+          batch_id: nextHandovers[idx].batch_id || batchId,
+          batch_number: nextHandovers[idx].batch_number || targetBatch.batchNumber,
         };
       }
-      return h;
     }
-
-    const newPass = Math.max(0, Number(update.quantity_pass) || 0);
-    const nextNote = update.note !== undefined ? update.note.trim() : h.note;
-
-    return {
-      ...h,
-      quantity_pass: String(newPass),
-      quantity_doc: String(newPass), // Đồng bộ số lượng chứng từ thực tế
-      note: nextNote,
-      handover_date: metadata?.handover_date ?? h.handover_date,
-      department: metadata?.department ?? h.department,
-      receiver_name: metadata?.receiver_name ?? h.receiver_name,
-      sender_name: metadata?.sender_name ?? h.sender_name,
-      batch_id: h.batch_id || batchId,
-      batch_number: h.batch_number || targetBatch.batchNumber,
-    };
-  });
+  }
 
   // 4. Tính toán lại trạng thái và số lượng đã giao của từng POItem
   const updatedPoItems = (po.items || []).map((it) => {
+    const matchingBatchItem = targetBatch.items.find(
+      (bi) => bi.poItemId === it.id || normName(bi.itemName) === normName(it.name)
+    );
+
+    // Cập nhật lại deliveryHistory
+    let nextHistory = (it.deliveryHistory || []).map((dh) => {
+      const isThisBatchLog =
+        (dh.batchId && dh.batchId === batchId) ||
+        dh.date === targetBatch.date ||
+        (targetBatch.date && dh.date === targetBatch.date);
+
+      if (isThisBatchLog && matchingBatchItem) {
+        const up = updatedMap.get(Number(matchingBatchItem.handoverItem.id));
+        const newQty = up ? Math.max(0, Number(up.quantity_pass) || 0) : matchingBatchItem.currentQuantityPass;
+        return {
+          ...dh,
+          qty: newQty,
+          note: up?.note ?? dh.note,
+        };
+      }
+      return dh;
+    });
+
+    // Lấy số lượng đã giao từ nextHandovers
     const stat = calcPOItemDeliveryStats(it, po, nextHandovers);
+
     return {
       ...it,
       deliveredQty: stat.quantityDelivered,
       deliveryStatus: stat.deliveryStatus,
-      // Cập nhật lại deliveryHistory nếu có đợt này
-      deliveryHistory: (it.deliveryHistory || []).map((dh) => {
-        if (dh.date === targetBatch.date) {
-          const matchingBatchItem = targetBatch.items.find(
-            (bi) => bi.poItemId === it.id || normName(bi.itemName) === normName(it.name)
-          );
-          if (matchingBatchItem) {
-            const up = updatedMap.get(Number(matchingBatchItem.handoverItem.id));
-            if (up) {
-              return {
-                ...dh,
-                qty: Number(up.quantity_pass) || 0,
-                note: up.note ?? dh.note,
-              };
-            }
-          }
-        }
-        return dh;
-      }),
+      deliveryHistory: nextHistory,
     };
   });
 
@@ -350,5 +465,140 @@ export function updatePOHandoverBatch(options: {
   return {
     updatedPO,
     updatedHandovers: nextHandovers,
+  };
+}
+
+/**
+ * HỦY / XÓA MỘT ĐỢT GIAO HÀNG (Dành cho trường hợp ấn nhầm hoặc muốn thu hồi đợt giao)
+ * - Xóa sạch các bản ghi PaymentHandoverItem của đợt này
+ * - Loại bỏ nhật ký đợt này khỏi deliveryHistory của PO items
+ * - Tự động hoàn trả số lượng còn lại cho PO và chuyển lại trạng thái đơn hàng
+ */
+export function deletePOHandoverBatch(options: {
+  po: PO;
+  allHandovers: PaymentHandoverItem[];
+  batchId: string;
+}): {
+  updatedPO: PO;
+  updatedHandovers: PaymentHandoverItem[];
+  deletedBatch?: PODeliveryBatch;
+  error?: string;
+} {
+  const { po, allHandovers, batchId } = options;
+
+  const existingBatches = getPODeliveryBatches(po, allHandovers);
+  const targetBatch = existingBatches.find((b) => b.batchId === batchId);
+
+  if (!targetBatch) {
+    return {
+      updatedPO: po,
+      updatedHandovers: allHandovers,
+      error: `Không tìm thấy đợt bàn giao mã ${batchId} để hủy!`,
+    };
+  }
+
+  const cleanPoNum = (po.number || "").trim().toLowerCase();
+
+  // 1. Lọc bỏ các bản ghi của đợt này khỏi allHandovers
+  const nextHandovers = allHandovers.filter((h) => {
+    const isThisPO = (h.source_number || "").trim().toLowerCase() === cleanPoNum;
+    if (!isThisPO) return true;
+
+    // Khớp theo batch_id
+    if (h.batch_id && (h.batch_id === batchId || h.batch_id === targetBatch.batchId)) {
+      return false;
+    }
+
+    // Khớp theo ID nằm trong rawHandovers của đợt này
+    if (targetBatch.rawHandovers.some((th) => th.id === h.id)) {
+      return false;
+    }
+
+    // Khớp theo ngày và thông tin đợt
+    if (getHandoverGroupKey(h) === targetBatch.batchId) {
+      return false;
+    }
+
+    return true;
+  });
+
+  // 2. Cập nhật lại từng PO item: xóa khỏi deliveryHistory và tính lại deliveredQty
+  const updatedPoItems = (po.items || []).map((it) => {
+    // Xóa entry khỏi deliveryHistory khớp theo batchId hoặc ngày đợt này
+    const nextHistory = (it.deliveryHistory || []).filter((dh) => {
+      if (dh.batchId && (dh.batchId === batchId || dh.batchId === targetBatch.batchId)) {
+        return false;
+      }
+      if (dh.date && dh.date === targetBatch.date) {
+        // Kiểm tra xem dòng hàng này có nằm trong targetBatch không
+        const isItemInTargetBatch = targetBatch.items.some(
+          (bi) => bi.poItemId === it.id || normName(bi.itemName) === normName(it.name)
+        );
+        if (isItemInTargetBatch) {
+          return false;
+        }
+      }
+      return true;
+    });
+
+    // Tính toán lại số lượng đã giao
+    const stat = calcPOItemDeliveryStats(it, po, nextHandovers);
+
+    let nextDelivered = stat.quantityDelivered;
+
+    // Nếu không còn bản ghi handover nào cho PO này, dùng tổng từ remaining history
+    const hasRemainingHandovers = nextHandovers.some(
+      (h) => (h.source_number || "").trim().toLowerCase() === cleanPoNum
+    );
+
+    if (!hasRemainingHandovers) {
+      const historySum = nextHistory.reduce((s, dh) => s + (Number(dh.qty) || 0), 0);
+      nextDelivered = Math.min(Number(it.qty) || 0, Math.max(0, historySum));
+    }
+
+    const isFullyDeliv = nextDelivered >= (Number(it.qty) || 0) && (Number(it.qty) || 0) > 0;
+    const nextDelivStatus = isFullyDeliv
+      ? "Đã giao"
+      : nextDelivered > 0
+      ? "Giao một phần"
+      : "Chưa giao";
+
+    return {
+      ...it,
+      deliveredQty: nextDelivered,
+      deliveryStatus: nextDelivStatus as any,
+      deliveryHistory: nextHistory,
+      deliveryDate: nextDelivered > 0 ? it.deliveryDate : "",
+    };
+  });
+
+  // 3. Tính toán lại trạng thái tổng thể của PO
+  const allDelivered =
+    updatedPoItems.length > 0 &&
+    updatedPoItems.every((it) => (Number(it.deliveredQty) || 0) >= (Number(it.qty) || 0));
+
+  const someDelivered = updatedPoItems.some((it) => (Number(it.deliveredQty) || 0) > 0);
+
+  let nextPoStatus = po.status;
+  if (allDelivered) {
+    nextPoStatus = "Đã giao đủ";
+  } else if (someDelivered) {
+    nextPoStatus = "Đang giao hàng";
+  } else {
+    // Không còn mặt hàng nào giao -> khôi phục trạng thái đang thực hiện
+    nextPoStatus = "Đang thực hiện";
+  }
+
+  const updatedPO: PO = {
+    ...po,
+    items: updatedPoItems,
+    status: nextPoStatus,
+    isCompleted: allDelivered ? true : false,
+  };
+
+  return {
+    updatedPO,
+    updatedHandovers: nextHandovers,
+    deletedBatch: targetBatch,
   };
 }

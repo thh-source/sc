@@ -582,7 +582,7 @@ export function POHandoverPickerModal({
           }}
         >
           {/* Thống kê từng đợt bàn giao trong PO và cho phép chỉnh sửa số lượng */}
-          {existingHandoversForThisPO.length > 0 && onUpdateHandovers && onUpdatePO && (
+          {onUpdateHandovers && onUpdatePO && (
             <div style={{ marginBottom: "16px" }}>
               <POHandoverBatchSection
                 po={po}

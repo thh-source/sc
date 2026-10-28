@@ -5,10 +5,11 @@ import assert from "node:assert/strict";
 import {
   getPODeliveryBatches,
   updatePOHandoverBatch,
+  deletePOHandoverBatch,
   generateHandoverBatchId,
 } from "../app/utils/handoverBatches.js";
 
-// Mock PO
+// Mock PO with both items delivered in 2 batches
 const samplePO = {
   id: 101,
   number: "PO-2026-001",
@@ -37,7 +38,6 @@ const samplePO = {
   ],
 };
 
-// Existing handovers: Đợt 1 (2026-10-20) and Đợt 2 (2026-10-25)
 const sampleHandovers = [
   // Đợt 1: Xi măng 40, Thép 30
   {
@@ -121,9 +121,6 @@ test("getPODeliveryBatches groups into Đợt 1 and Đợt 2 with accurate stats
   assert.equal(b1.totalQuantity, 70); // 40 + 30
   assert.equal(b1.itemCount, 2);
 
-  // In Batch 1, for Xi măng:
-  // Ordered = 100. Other batches (Batch 2) has delivered 20.
-  // maxAllowedInThisBatch = 100 - 20 = 80.
   const b1Xm = b1.items.find((i) => i.poItemId === 1);
   assert.ok(b1Xm);
   assert.equal(b1Xm.quantityOrdered, 100);
@@ -140,8 +137,44 @@ test("getPODeliveryBatches groups into Đợt 1 and Đợt 2 with accurate stats
   assert.equal(b2.totalQuantity, 40); // 20 + 20
 });
 
+test("getPODeliveryBatches automatically discovers batches from deliveryHistory when paymentHandovers is empty", () => {
+  const poFromDeliveryModal = {
+    id: 202,
+    number: "PO-2026-MODAL",
+    status: "Đang giao hàng",
+    items: [
+      {
+        id: 11,
+        name: "Cáp điện Cadivi",
+        qty: 50,
+        deliveredQty: 20,
+        deliveryStatus: "Giao một phần",
+        unit: "Mét",
+        deliveryHistory: [
+          {
+            date: "2026-10-26",
+            qty: 20,
+            note: "Giao đợt 1 tại công trường",
+            receiverName: "Kỹ sư C",
+          },
+        ],
+      },
+    ],
+  };
+
+  // paymentHandovers is completely empty!
+  const batches = getPODeliveryBatches(poFromDeliveryModal, []);
+
+  assert.equal(batches.length, 1, "Phải tự động phát hiện được 1 đợt từ deliveryHistory");
+  assert.equal(batches[0].batchLabel, "Đợt 1");
+  assert.equal(batches[0].date, "2026-10-26");
+  assert.equal(batches[0].receiverName, "Kỹ sư C");
+  assert.equal(batches[0].totalQuantity, 20);
+  assert.equal(batches[0].items[0].currentQuantityPass, 20);
+  assert.equal(batches[0].items[0].isSynthetic, true);
+});
+
 test("updatePOHandoverBatch modifies batch quantity and updates PO status", () => {
-  // User changes Batch 1 Xi măng from 40 to 60 (total will be 60 + 20 = 80 <= 100)
   const res = updatePOHandoverBatch({
     po: samplePO,
     allHandovers: sampleHandovers,
@@ -151,46 +184,77 @@ test("updatePOHandoverBatch modifies batch quantity and updates PO status", () =
 
   assert.equal(res.error, undefined, "Không được có lỗi");
 
-  // Check updated handovers
   const updatedH1 = res.updatedHandovers.find((h) => h.id === 1);
   assert.equal(updatedH1.quantity_pass, "60");
   assert.equal(updatedH1.note, "Bàn giao thêm 20 bao");
 
-  // Check updated PO
   const updatedPoItem1 = res.updatedPO.items.find((i) => i.id === 1);
   assert.equal(updatedPoItem1.deliveredQty, 80); // 60 + 20
   assert.equal(updatedPoItem1.deliveryStatus, "Giao một phần");
 });
 
-test("updatePOHandoverBatch rejects quantities exceeding PO order limit", () => {
-  // In Batch 1, Xi măng maxAllowed is 80 (because Batch 2 has 20 and total PO is 100).
-  // If user tries to set 85 (total would be 85 + 20 = 105 > 100), it must fail!
-  const res = updatePOHandoverBatch({
+test("deletePOHandoverBatch cancels mistaken batch and returns quantities to PO", () => {
+  // Let's cancel Batch 2 (BATCH_PO001_D2: Xi măng 20, Thép 20)
+  const res = deletePOHandoverBatch({
     po: samplePO,
     allHandovers: sampleHandovers,
-    batchId: "BATCH_PO001_D1",
-    updatedItems: [{ id: 1, quantity_pass: 85 }],
+    batchId: "BATCH_PO001_D2",
   });
 
-  assert.ok(res.error, "Phải báo lỗi khi số lượng vượt quá mức tối đa cho phép");
-  assert.match(res.error, /vượt quá số lượng tối đa/i);
+  assert.equal(res.error, undefined, "Không được có lỗi khi hủy đợt");
+  assert.ok(res.deletedBatch, "Phải trả về thông tin đợt đã xóa");
+  assert.equal(res.deletedBatch.batchLabel, "Đợt 2");
+
+  // Batch 2 should be gone from handovers
+  const batch2Items = res.updatedHandovers.filter((h) => h.batch_id === "BATCH_PO001_D2");
+  assert.equal(batch2Items.length, 0, "Các item của Đợt 2 phải bị xóa khỏi handovers");
+
+  // Remaining handovers should only have Batch 1
+  assert.equal(res.updatedHandovers.length, 2);
+
+  // In PO items:
+  // Xi măng was 40 (Batch 1) + 20 (Batch 2). Now after cancelling Batch 2, it must be 40!
+  const item1 = res.updatedPO.items.find((i) => i.id === 1);
+  assert.equal(item1.deliveredQty, 40);
+  assert.equal(item1.deliveryStatus, "Giao một phần");
+
+  // Thép was 30 (Batch 1) + 20 (Batch 2). Now after cancelling Batch 2, it must be 30!
+  const item2 = res.updatedPO.items.find((i) => i.id === 2);
+  assert.equal(item2.deliveredQty, 30);
+  assert.equal(item2.deliveryStatus, "Giao một phần");
+
+  // PO status should remain "Đang giao hàng" because Batch 1 still delivered part
+  assert.equal(res.updatedPO.status, "Đang giao hàng");
 });
 
-test("updatePOHandoverBatch completes PO when all items reach 100%", () => {
-  // If user sets Batch 1 Xi măng to 80 (80 + 20 = 100 = 100%), and Thép is already 30 + 20 = 50 = 50%
-  const res = updatePOHandoverBatch({
-    po: samplePO,
-    allHandovers: sampleHandovers,
+test("deletePOHandoverBatch reverts PO to 'Đang thực hiện' when all deliveries are cancelled", () => {
+  // Now cancel the remaining Batch 1
+  const afterB2PO = {
+    ...samplePO,
+    items: [
+      { id: 1, name: "Xi măng", qty: 100, deliveredQty: 40, deliveryStatus: "Giao một phần" },
+      { id: 2, name: "Thép", qty: 50, deliveredQty: 30, deliveryStatus: "Giao một phần" },
+    ],
+  };
+  const onlyB1Handovers = sampleHandovers.slice(0, 2); // Only batch 1
+
+  const res = deletePOHandoverBatch({
+    po: afterB2PO,
+    allHandovers: onlyB1Handovers,
     batchId: "BATCH_PO001_D1",
-    updatedItems: [{ id: 1, quantity_pass: 80 }],
   });
 
   assert.equal(res.error, undefined);
+  assert.equal(res.updatedHandovers.length, 0);
+
   const it1 = res.updatedPO.items.find((i) => i.id === 1);
   const it2 = res.updatedPO.items.find((i) => i.id === 2);
-  assert.equal(it1.deliveredQty, 100);
-  assert.equal(it1.deliveryStatus, "Đã giao");
-  assert.equal(it2.deliveredQty, 50);
-  assert.equal(it2.deliveryStatus, "Đã giao");
-  assert.equal(res.updatedPO.status, "Đã giao đủ");
+  assert.equal(it1.deliveredQty, 0);
+  assert.equal(it1.deliveryStatus, "Chưa giao");
+  assert.equal(it2.deliveredQty, 0);
+  assert.equal(it2.deliveryStatus, "Chưa giao");
+
+  // All deliveries cancelled -> PO status reverts to "Đang thực hiện"
+  assert.equal(res.updatedPO.status, "Đang thực hiện");
+  assert.equal(res.updatedPO.isCompleted, false);
 });

@@ -5,6 +5,7 @@ import { PO, PaymentHandoverItem } from "../types";
 import {
   getPODeliveryBatches,
   updatePOHandoverBatch,
+  deletePOHandoverBatch,
   PODeliveryBatch,
   UpdateBatchItemPayload,
 } from "../utils/handoverBatches";
@@ -19,6 +20,7 @@ interface POHandoverBatchSectionProps {
   onPrintBatch?: (batch: PODeliveryBatch) => void;
   readOnly?: boolean;
   defaultExpandedBatchId?: string | null;
+  alwaysShowEmptyNotice?: boolean;
 }
 
 export function POHandoverBatchSection({
@@ -29,10 +31,11 @@ export function POHandoverBatchSection({
   onPrintBatch,
   readOnly = false,
   defaultExpandedBatchId = null,
+  alwaysShowEmptyNotice = false,
 }: POHandoverBatchSectionProps) {
   const isMobile = useIsMobile(768);
 
-  // Lấy danh sách các đợt bàn giao của PO
+  // Lấy danh sách các đợt bàn giao của PO (kết hợp cả paymentHandovers và deliveryHistory)
   const batches = useMemo(() => {
     return getPODeliveryBatches(po, paymentHandovers);
   }, [po, paymentHandovers]);
@@ -67,8 +70,29 @@ export function POHandoverBatchSection({
     }
   }, [activeBatch]);
 
-  if (!po || batches.length === 0) {
-    return null;
+  if (!po) return null;
+
+  if (batches.length === 0) {
+    if (!alwaysShowEmptyNotice) return null;
+    return (
+      <div
+        style={{
+          margin: "12px 0",
+          padding: "12px 16px",
+          borderRadius: "8px",
+          border: "1px dashed #cbd5e1",
+          background: "#f8fafc",
+          color: "#64748b",
+          fontSize: "12.5px",
+          display: "flex",
+          alignItems: "center",
+          gap: "8px",
+        }}
+      >
+        <span>📦</span>
+        <span>Chưa có đợt giao nhận / bàn giao nào được ghi nhận cho đơn hàng #{po.number}.</span>
+      </div>
+    );
   }
 
   // Kiểm tra có lỗi validation trong form đợt đang mở không
@@ -97,7 +121,6 @@ export function POHandoverBatchSection({
 
   const handleSelectBatch = (batchId: string) => {
     if (selectedBatchId === batchId) {
-      // Toggle đóng lại nếu đang mở chính nó
       setSelectedBatchId(null);
     } else {
       setSelectedBatchId(batchId);
@@ -119,6 +142,7 @@ export function POHandoverBatchSection({
     }
   };
 
+  // LƯU CHỈNH SỬA SỐ LƯỢNG ĐỢT
   const handleSaveActiveBatch = () => {
     if (!po || !activeBatch || readOnly || hasValidationError) return;
 
@@ -141,7 +165,6 @@ export function POHandoverBatchSection({
       return;
     }
 
-    // Cập nhật lên State cha
     onUpdateHandovers(result.updatedHandovers);
     onUpdatePO(result.updatedPO);
 
@@ -150,6 +173,45 @@ export function POHandoverBatchSection({
     setTimeout(() => {
       setSaveSuccessMsg(null);
     }, 4000);
+  };
+
+  // HỦY / XÓA ĐỢT GIAO HÀNG (DO ẤN NHẦM HOẶC MUỐN THU HỒI)
+  const handleDeleteBatch = (batchToDelete: PODeliveryBatch) => {
+    if (!po || readOnly) return;
+
+    const confirmed = window.confirm(
+      `⚠️ BẠN CÓ CHẮC CHẮN MUỐN HỦY / XÓA ${batchToDelete.batchLabel}?\n\n` +
+      `• Ngày bàn giao: ${dateVN(batchToDelete.date)}\n` +
+      `• Bộ phận nhận: ${batchToDelete.department || "Chưa ghi"}\n` +
+      `• Tổng số lượng: ${batchToDelete.totalQuantity} sản phẩm (${batchToDelete.itemCount} dòng hàng)\n\n` +
+      `👉 Thao tác này sẽ hoàn trả số lượng đã giao của đợt này về PO và tự động cập nhật lại tiến độ đơn hàng.`
+    );
+
+    if (!confirmed) return;
+
+    const result = deletePOHandoverBatch({
+      po,
+      allHandovers: paymentHandovers,
+      batchId: batchToDelete.batchId,
+    });
+
+    if (result.error) {
+      setSaveErrorMsg(result.error);
+      setSaveSuccessMsg(null);
+      return;
+    }
+
+    onUpdateHandovers(result.updatedHandovers);
+    onUpdatePO(result.updatedPO);
+
+    if (selectedBatchId === batchToDelete.batchId) {
+      setSelectedBatchId(null);
+    }
+    setSaveErrorMsg(null);
+    setSaveSuccessMsg(`✓ Đã hủy thành công ${batchToDelete.batchLabel}. Số lượng đã được hoàn trả về PO!`);
+    setTimeout(() => {
+      setSaveSuccessMsg(null);
+    }, 4500);
   };
 
   return (
@@ -180,7 +242,7 @@ export function POHandoverBatchSection({
         <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
           <span style={{ fontSize: "16px" }}>📦</span>
           <span style={{ fontSize: "13px", fontWeight: 700, color: "#1e293b" }}>
-            Lịch sử & Thống kê các đợt bàn giao trong PO ({batches.length} đợt)
+            Lịch sử & Thống kê các đợt giao hàng trong PO ({batches.length} đợt)
           </span>
           <span
             style={{
@@ -192,20 +254,55 @@ export function POHandoverBatchSection({
               color: "#1d4ed8",
             }}
           >
-            Tổng đã giao: {batches.reduce((sum, b) => sum + b.totalQuantity, 0)} SP
+            Đã giao: {batches.reduce((sum, b) => sum + b.totalQuantity, 0)} SP
           </span>
         </div>
         <div style={{ fontSize: "12px", color: "#64748b" }}>
-          💡 <i>Bấm vào từng đợt để xem danh mục và chỉnh sửa lại số lượng</i>
+          💡 <i>Bấm vào từng đợt để xem danh mục, sửa số lượng hoặc hủy đợt nếu ấn nhầm</i>
         </div>
       </div>
+
+      {/* Thông báo Thành công / Lỗi ở cấp Section */}
+      {saveSuccessMsg && (
+        <div
+          style={{
+            margin: "8px 14px",
+            padding: "8px 12px",
+            borderRadius: "6px",
+            background: "#f0fdf4",
+            border: "1px solid #86efac",
+            color: "#166534",
+            fontSize: "12.5px",
+            fontWeight: 600,
+          }}
+        >
+          {saveSuccessMsg}
+        </div>
+      )}
+
+      {saveErrorMsg && (
+        <div
+          style={{
+            margin: "8px 14px",
+            padding: "8px 12px",
+            borderRadius: "6px",
+            background: "#fef2f2",
+            border: "1px solid #fecaca",
+            color: "#991b1b",
+            fontSize: "12.5px",
+            fontWeight: 600,
+          }}
+        >
+          ⚠️ {saveErrorMsg}
+        </div>
+      )}
 
       {/* Danh sách thẻ các đợt bàn giao */}
       <div
         style={{
           padding: "10px 14px",
           display: "grid",
-          gridTemplateColumns: isMobile ? "1fr" : `repeat(auto-fit, minmax(240px, 1fr))`,
+          gridTemplateColumns: isMobile ? "1fr" : `repeat(auto-fit, minmax(250px, 1fr))`,
           gap: "10px",
           background: "#f8fafc",
           borderBottom: activeBatch ? "1px solid #cbd5e1" : "none",
@@ -243,18 +340,42 @@ export function POHandoverBatchSection({
                 >
                   <span>🏷️</span> {batch.batchLabel}
                 </span>
-                <span
-                  style={{
-                    fontSize: "11px",
-                    fontWeight: 700,
-                    padding: "2px 6px",
-                    borderRadius: "4px",
-                    background: isSelected ? "#bfdbfe" : "#e2e8f0",
-                    color: isSelected ? "#1e40af" : "#475569",
-                  }}
-                >
-                  {batch.totalQuantity} SP · {batch.itemCount} dòng
-                </span>
+                <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                  <span
+                    style={{
+                      fontSize: "11px",
+                      fontWeight: 700,
+                      padding: "2px 6px",
+                      borderRadius: "4px",
+                      background: isSelected ? "#bfdbfe" : "#e2e8f0",
+                      color: isSelected ? "#1e40af" : "#475569",
+                    }}
+                  >
+                    {batch.totalQuantity} SP · {batch.itemCount} dòng
+                  </span>
+                  {!readOnly && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteBatch(batch);
+                      }}
+                      title={`Hủy / Xóa ${batch.batchLabel}`}
+                      style={{
+                        padding: "2px 6px",
+                        fontSize: "11px",
+                        fontWeight: 700,
+                        borderRadius: "4px",
+                        border: "1px solid #fca5a5",
+                        background: "#fff5f5",
+                        color: "#dc2626",
+                        cursor: "pointer",
+                      }}
+                    >
+                      🗑️ Hủy
+                    </button>
+                  )}
+                </div>
               </div>
 
               <div style={{ fontSize: "11.5px", color: "#475569", display: "flex", flexDirection: "column", gap: "2px" }}>
@@ -284,7 +405,7 @@ export function POHandoverBatchSection({
                   justifyContent: "space-between",
                 }}
               >
-                <span>{isSelected ? "▲ Đang mở chỉnh sửa" : "▼ Xem & Sửa số lượng"}</span>
+                <span>{isSelected ? "▲ Đang mở xem & chỉnh sửa" : "▼ Bấm để xem & sửa số lượng"}</span>
                 {isSelected && <span>✏️</span>}
               </div>
             </div>
@@ -318,11 +439,33 @@ export function POHandoverBatchSection({
                 <span>📋</span> Danh mục hàng hóa {activeBatch.batchLabel} ({dateVN(activeBatch.date)}) - {activeBatch.department}
               </div>
               <div style={{ fontSize: "12px", color: "#64748b", marginTop: "2px" }}>
-                Cho phép chỉnh sửa trực tiếp số lượng bàn giao thực tế của đợt này. Hệ thống tự động kiểm soát chống giao vượt quá số lượng PO.
+                Chỉnh sửa số lượng bàn giao thực tế của đợt này hoặc bấm nút Hủy đợt nếu ấn nhầm.
               </div>
             </div>
 
             <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
+              {!readOnly && (
+                <button
+                  type="button"
+                  onClick={() => handleDeleteBatch(activeBatch)}
+                  style={{
+                    padding: "5px 12px",
+                    fontSize: "12px",
+                    fontWeight: 700,
+                    background: "#fef2f2",
+                    border: "1.5px solid #f87171",
+                    borderRadius: "6px",
+                    color: "#dc2626",
+                    cursor: "pointer",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "4px",
+                  }}
+                  title="Hủy đợt giao này và hoàn trả lại số lượng cho PO"
+                >
+                  <span>🗑️ Hủy đợt này</span>
+                </button>
+              )}
               {onPrintBatch && (
                 <button
                   type="button"
@@ -341,7 +484,7 @@ export function POHandoverBatchSection({
                     gap: "4px",
                   }}
                 >
-                  <span>🖨️ In biên bản đợt này</span>
+                  <span>🖨️ In biên bản</span>
                 </button>
               )}
               <button
@@ -358,45 +501,10 @@ export function POHandoverBatchSection({
                   cursor: "pointer",
                 }}
               >
-                ✕ Đóng lại
+                ✕ Đóng
               </button>
             </div>
           </div>
-
-          {/* Thông báo Thành công / Lỗi */}
-          {saveSuccessMsg && (
-            <div
-              style={{
-                marginBottom: "12px",
-                padding: "8px 12px",
-                borderRadius: "6px",
-                background: "#f0fdf4",
-                border: "1px solid #86efac",
-                color: "#166534",
-                fontSize: "12.5px",
-                fontWeight: 600,
-              }}
-            >
-              {saveSuccessMsg}
-            </div>
-          )}
-
-          {saveErrorMsg && (
-            <div
-              style={{
-                marginBottom: "12px",
-                padding: "8px 12px",
-                borderRadius: "6px",
-                background: "#fef2f2",
-                border: "1px solid #fecaca",
-                color: "#991b1b",
-                fontSize: "12.5px",
-                fontWeight: 600,
-              }}
-            >
-              ⚠️ {saveErrorMsg}
-            </div>
-          )}
 
           {/* Bảng danh mục sản phẩm của đợt */}
           {isMobile ? (
@@ -405,7 +513,6 @@ export function POHandoverBatchSection({
               {activeBatch.items.map((it, idx) => {
                 const currentVal = editQtyMap[it.handoverItem.id] ?? it.currentQuantityPass;
                 const isOver = currentVal > it.maxAllowedInThisBatch;
-                const isUnder = currentVal < 0;
 
                 return (
                   <div
@@ -499,7 +606,7 @@ export function POHandoverBatchSection({
                     <th style={{ padding: "8px", width: "85px", textAlign: "right" }}>Tổng PO</th>
                     <th style={{ padding: "8px", width: "95px", textAlign: "right" }}>Đợt khác đã giao</th>
                     <th style={{ padding: "8px", width: "95px", textAlign: "right", color: "#166534" }}>Tối đa đợt này</th>
-                    <th style={{ padding: "8px", width: "130px", textAlign: "right", color: "#1d4ed8" }}>
+                    <th style={{ padding: "8px", width: "140px", textAlign: "right", color: "#1d4ed8" }}>
                       SL Bàn giao đợt này ✏️
                     </th>
                     <th style={{ padding: "8px", minWidth: "150px" }}>Ghi chú</th>
@@ -509,7 +616,6 @@ export function POHandoverBatchSection({
                   {activeBatch.items.map((it, idx) => {
                     const currentVal = editQtyMap[it.handoverItem.id] ?? it.currentQuantityPass;
                     const isOver = currentVal > it.maxAllowedInThisBatch;
-                    const isUnder = currentVal < 0;
 
                     return (
                       <tr
@@ -612,7 +718,29 @@ export function POHandoverBatchSection({
                   : "Dữ liệu đợt này đang trùng khớp với hệ thống."}
               </div>
 
-              <div style={{ display: "flex", gap: "8px" }}>
+              <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                <button
+                  type="button"
+                  onClick={() => handleDeleteBatch(activeBatch)}
+                  style={{
+                    height: "34px",
+                    padding: "0 14px",
+                    fontSize: "12px",
+                    fontWeight: 700,
+                    borderRadius: "6px",
+                    border: "1.5px solid #f87171",
+                    background: "#fef2f2",
+                    color: "#dc2626",
+                    cursor: "pointer",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "5px",
+                  }}
+                  title="Hủy đợt giao này và hoàn trả lại số lượng cho PO"
+                >
+                  <span>🗑️ Hủy đợt này</span>
+                </button>
+
                 {hasChanges && (
                   <button
                     type="button"
@@ -632,6 +760,7 @@ export function POHandoverBatchSection({
                     Khôi phục
                   </button>
                 )}
+
                 <button
                   type="button"
                   disabled={!hasChanges || hasValidationError}
