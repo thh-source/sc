@@ -35,6 +35,7 @@ import { useIsMobile } from "../useIsMobile";
 import { AutoGrowTextarea } from "./AutoGrowTextarea";
 import { useTranslation } from "../i18n";
 import { addNewDepartment, getUnifiedDepartments } from "../utils/departments";
+import { sortHandoversByPOLineOrder } from "../utils/handoverBatches";
 
 const PHENIKAA_LOGO_SRC = PHENIKAA_PHARMA_LOGO_BASE64;
 
@@ -1973,7 +1974,9 @@ export function HandoverManagement({
               groupsByDept[d].push(it);
             }
 
-            return Object.entries(groupsByDept).map(([dept, deptItems]) => (
+            return Object.entries(groupsByDept).map(([dept, deptItems]) => {
+              const sortedDeptItems = sortHandoversByPOLineOrder(deptItems, pos);
+              return (
               <React.Fragment key={dept}>
                 {[1, 2].map((copyNum) => (
                   <div key={copyNum} className="handover-paper paper">
@@ -2059,7 +2062,7 @@ export function HandoverManagement({
                         </tr>
                       </thead>
                       <tbody>
-                        {deptItems.map((it, idx) => (
+                        {sortedDeptItems.map((it, idx) => (
                           <tr key={it.id || idx}>
                             <td className="center">{idx + 1}</td>
                             <td className="left" style={{ whiteSpace: "normal", wordBreak: "break-word", overflowWrap: "anywhere" }}>
@@ -2095,7 +2098,8 @@ export function HandoverManagement({
                   </div>
                 ))}
               </React.Fragment>
-            ));
+              );
+            });
           })()}
         </div>,
         document.body

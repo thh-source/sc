@@ -72,6 +72,75 @@ function isSamePOItem(a: PaymentHandoverItem, b: PaymentHandoverItem): boolean {
  * Tự động hợp nhất cả từ paymentHandovers VÀ po.items[].deliveryHistory hoặc po.items[].deliveredQty,
  * đảm bảo 100% các đợt giao hàng trước đó đều được hiển thị và quản lý.
  */
+
+/**
+ * Sắp xếp danh sách mặt hàng bàn giao theo đúng thứ tự dòng hàng trong PO gốc.
+ * Giúp người giao nhận và thủ kho dễ dàng đối chiếu từng dòng từ trên xuống dưới.
+ */
+export function sortHandoversByPOLineOrder(
+  handovers: PaymentHandoverItem[],
+  poOrPos?: PO | PO[] | null
+): PaymentHandoverItem[] {
+  if (!handovers || handovers.length <= 1) return handovers || [];
+
+  let targetPO: PO | undefined;
+
+  if (poOrPos) {
+    if (Array.isArray(poOrPos)) {
+      const firstSource = (handovers[0]?.source_number || "").trim().toLowerCase();
+      if (firstSource) {
+        targetPO = poOrPos.find(
+          (p) => (p.number || "").trim().toLowerCase() === firstSource
+        );
+      }
+    } else {
+      targetPO = poOrPos;
+    }
+  }
+
+  // Nếu không có PO, sắp xếp theo item_order nếu có, hoặc giữ nguyên
+  if (!targetPO || !targetPO.items || targetPO.items.length === 0) {
+    return handovers.slice().sort((a, b) => {
+      const orderA = a.item_order ?? 99999;
+      const orderB = b.item_order ?? 99999;
+      if (orderA !== orderB) return orderA - orderB;
+      return (Number(a.id) || 0) - (Number(b.id) || 0);
+    });
+  }
+
+  const idOrderMap = new Map<number, number>();
+  const nameOrderMap = new Map<string, number>();
+
+  targetPO.items.forEach((it, idx) => {
+    idOrderMap.set(Number(it.id), idx);
+    const n = normName(it.name);
+    if (n && !nameOrderMap.has(n)) {
+      nameOrderMap.set(n, idx);
+    }
+  });
+
+  const getOrder = (h: PaymentHandoverItem): number => {
+    if (h.item_order !== undefined && h.item_order !== null && !isNaN(h.item_order)) {
+      return h.item_order;
+    }
+    if (h.po_item_id !== undefined && h.po_item_id !== null && idOrderMap.has(Number(h.po_item_id))) {
+      return idOrderMap.get(Number(h.po_item_id))!;
+    }
+    const n = normName(h.item_name);
+    if (nameOrderMap.has(n)) {
+      return nameOrderMap.get(n)!;
+    }
+    return 99999;
+  };
+
+  return handovers.slice().sort((a, b) => {
+    const oA = getOrder(a);
+    const oB = getOrder(b);
+    if (oA !== oB) return oA - oB;
+    return (Number(a.id) || 0) - (Number(b.id) || 0);
+  });
+}
+
 export function getPODeliveryBatches(
   po: PO | null | undefined,
   paymentHandovers: PaymentHandoverItem[] = []
@@ -258,6 +327,27 @@ export function getPODeliveryBatches(
       };
     });
 
+    // Sắp xếp các dòng hàng theo đúng thứ tự xuất hiện trong PO gốc
+    const poOrderMap = new Map((items || []).map((it, idx) => [it.id, idx]));
+    const poNameMap = new Map((items || []).map((it, idx) => [normName(it.name), idx]));
+
+    const getItemOrder = (bi: PODeliveryBatchItem) => {
+      if (bi.handoverItem.item_order !== undefined && bi.handoverItem.item_order !== null) {
+        return bi.handoverItem.item_order;
+      }
+      if (bi.poItemId !== undefined && poOrderMap.has(Number(bi.poItemId))) {
+        return poOrderMap.get(Number(bi.poItemId))!;
+      }
+      const n = normName(bi.itemName);
+      if (poNameMap.has(n)) {
+        return poNameMap.get(n)!;
+      }
+      return 99999;
+    };
+
+    batchItems.sort((a, b) => getItemOrder(a) - getItemOrder(b));
+    const sortedRawHandovers = sortHandoversByPOLineOrder(b.items, po);
+
     const totalQuantity = batchItems.reduce((sum, it) => sum + (Number(it.currentQuantityPass) || 0), 0);
 
     result.push({
@@ -271,7 +361,7 @@ export function getPODeliveryBatches(
       totalQuantity,
       itemCount: batchItems.length,
       items: batchItems,
-      rawHandovers: b.items,
+      rawHandovers: sortedRawHandovers,
       hasSyntheticItems,
     });
   });

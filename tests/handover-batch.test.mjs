@@ -7,6 +7,7 @@ import {
   updatePOHandoverBatch,
   deletePOHandoverBatch,
   generateHandoverBatchId,
+  sortHandoversByPOLineOrder,
 } from "../app/utils/handoverBatches.js";
 
 // Mock PO with both items delivered in 2 batches
@@ -162,7 +163,6 @@ test("getPODeliveryBatches automatically discovers batches from deliveryHistory 
     ],
   };
 
-  // paymentHandovers is completely empty!
   const batches = getPODeliveryBatches(poFromDeliveryModal, []);
 
   assert.equal(batches.length, 1, "Phải tự động phát hiện được 1 đợt từ deliveryHistory");
@@ -194,7 +194,6 @@ test("updatePOHandoverBatch modifies batch quantity and updates PO status", () =
 });
 
 test("deletePOHandoverBatch cancels mistaken batch and returns quantities to PO", () => {
-  // Let's cancel Batch 2 (BATCH_PO001_D2: Xi măng 20, Thép 20)
   const res = deletePOHandoverBatch({
     po: samplePO,
     allHandovers: sampleHandovers,
@@ -205,30 +204,22 @@ test("deletePOHandoverBatch cancels mistaken batch and returns quantities to PO"
   assert.ok(res.deletedBatch, "Phải trả về thông tin đợt đã xóa");
   assert.equal(res.deletedBatch.batchLabel, "Đợt 2");
 
-  // Batch 2 should be gone from handovers
   const batch2Items = res.updatedHandovers.filter((h) => h.batch_id === "BATCH_PO001_D2");
   assert.equal(batch2Items.length, 0, "Các item của Đợt 2 phải bị xóa khỏi handovers");
-
-  // Remaining handovers should only have Batch 1
   assert.equal(res.updatedHandovers.length, 2);
 
-  // In PO items:
-  // Xi măng was 40 (Batch 1) + 20 (Batch 2). Now after cancelling Batch 2, it must be 40!
   const item1 = res.updatedPO.items.find((i) => i.id === 1);
   assert.equal(item1.deliveredQty, 40);
   assert.equal(item1.deliveryStatus, "Giao một phần");
 
-  // Thép was 30 (Batch 1) + 20 (Batch 2). Now after cancelling Batch 2, it must be 30!
   const item2 = res.updatedPO.items.find((i) => i.id === 2);
   assert.equal(item2.deliveredQty, 30);
   assert.equal(item2.deliveryStatus, "Giao một phần");
 
-  // PO status should remain "Đang giao hàng" because Batch 1 still delivered part
   assert.equal(res.updatedPO.status, "Đang giao hàng");
 });
 
 test("deletePOHandoverBatch reverts PO to 'Đang thực hiện' when all deliveries are cancelled", () => {
-  // Now cancel the remaining Batch 1
   const afterB2PO = {
     ...samplePO,
     items: [
@@ -236,7 +227,7 @@ test("deletePOHandoverBatch reverts PO to 'Đang thực hiện' when all deliver
       { id: 2, name: "Thép", qty: 50, deliveredQty: 30, deliveryStatus: "Giao một phần" },
     ],
   };
-  const onlyB1Handovers = sampleHandovers.slice(0, 2); // Only batch 1
+  const onlyB1Handovers = sampleHandovers.slice(0, 2);
 
   const res = deletePOHandoverBatch({
     po: afterB2PO,
@@ -254,7 +245,77 @@ test("deletePOHandoverBatch reverts PO to 'Đang thực hiện' when all deliver
   assert.equal(it2.deliveredQty, 0);
   assert.equal(it2.deliveryStatus, "Chưa giao");
 
-  // All deliveries cancelled -> PO status reverts to "Đang thực hiện"
   assert.equal(res.updatedPO.status, "Đang thực hiện");
   assert.equal(res.updatedPO.isCompleted, false);
+});
+
+test("sortHandoversByPOLineOrder sorts items strictly by PO line sequence (CHAUGIANG-28102026 test case)", () => {
+  // Case described by user:
+  // PO CHAUGIANG-28102026 has:
+  // 1: Bình định mức thủy tinh nâu 100ml
+  // 2: Bình định mức thủy tinh nâu 20ml, isolab
+  // 3: Cốc đốt 250ml
+  // 4: Chai thủy tinh trắng miệng rộng 250ml
+  // 5: Bình tam giác có nút 250ml nhám 29
+  const poChauGiang = {
+    id: 999,
+    number: "CHAUGIANG-28102026",
+    items: [
+      { id: 101, name: "Bình định mức thủy tinh nâu 100ml", qty: 10 },
+      { id: 102, name: "Bình định mức thủy tinh nâu 20ml, isolab", qty: 15 },
+      { id: 103, name: "Cốc đốt 250ml", qty: 20 },
+      { id: 104, name: "Chai thủy tinh trắng miệng rộng 250ml", qty: 30 },
+      { id: 105, name: "Bình tam giác có nút 250ml nhám 29", qty: 25 },
+    ],
+  };
+
+  // Scrambled handovers in database or from user input:
+  const scrambledHandovers = [
+    {
+      id: 50,
+      source_number: "CHAUGIANG-28102026",
+      item_name: "Chai thủy tinh trắng miệng rộng 250ml",
+      po_item_id: 104,
+      quantity_pass: "30",
+    },
+    {
+      id: 51,
+      source_number: "CHAUGIANG-28102026",
+      item_name: "Bình tam giác có nút 250ml nhám 29",
+      po_item_id: 105,
+      quantity_pass: "25",
+    },
+    {
+      id: 52,
+      source_number: "CHAUGIANG-28102026",
+      item_name: "Bình định mức thủy tinh nâu 20ml, isolab",
+      po_item_id: 102,
+      quantity_pass: "15",
+    },
+    {
+      id: 53,
+      source_number: "CHAUGIANG-28102026",
+      item_name: "Bình định mức thủy tinh nâu 100ml",
+      po_item_id: 101,
+      quantity_pass: "10",
+    },
+  ];
+
+  const sorted = sortHandoversByPOLineOrder(scrambledHandovers, poChauGiang);
+
+  // Verification:
+  assert.equal(sorted.length, 4);
+  assert.equal(sorted[0].item_name, "Bình định mức thủy tinh nâu 100ml", "Dòng 1 phải là Bình định mức nâu 100ml");
+  assert.equal(sorted[1].item_name, "Bình định mức thủy tinh nâu 20ml, isolab", "Dòng 2 phải là Bình định mức nâu 20ml, isolab");
+  assert.equal(sorted[2].item_name, "Chai thủy tinh trắng miệng rộng 250ml", "Dòng 3 phải là Chai thủy tinh trắng");
+  assert.equal(sorted[3].item_name, "Bình tam giác có nút 250ml nhám 29", "Dòng 4 phải là Bình tam giác có nút 250ml");
+
+  // Also test matching by item name when po_item_id is missing (legacy records)
+  const legacyWithoutPoItemId = [
+    { id: 60, source_number: "CHAUGIANG-28102026", item_name: "Bình tam giác có nút 250ml nhám 29" },
+    { id: 61, source_number: "CHAUGIANG-28102026", item_name: "Bình định mức thủy tinh nâu 100ml" },
+  ];
+  const sortedLegacy = sortHandoversByPOLineOrder(legacyWithoutPoItemId, poChauGiang);
+  assert.equal(sortedLegacy[0].item_name, "Bình định mức thủy tinh nâu 100ml");
+  assert.equal(sortedLegacy[1].item_name, "Bình tam giác có nút 250ml nhám 29");
 });

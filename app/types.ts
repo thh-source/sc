@@ -552,6 +552,7 @@ export type PaymentHandoverItem = {
   po_item_id?: number;
   batch_id?: string;
   batch_number?: number;
+  item_order?: number;
 };
 
 export type PaymentPrintTemplate = {

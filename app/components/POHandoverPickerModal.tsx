@@ -186,6 +186,10 @@ export function POHandoverPickerModal({
       (it) => selectedMap[it.id] && (deliveryStats?.itemsStats[it.id]?.quantityRemaining ?? 0) > 0
     );
 
+    // BẮT BUỘC sắp xếp theo đúng thứ tự xuất hiện của dòng hàng trong PO gốc
+    const poOrderMap = new Map((po.items || []).map((it, idx) => [it.id, idx]));
+    chosenItems.sort((a, b) => (poOrderMap.get(a.id) ?? 9999) - (poOrderMap.get(b.id) ?? 9999));
+
     if (chosenItems.length === 0) {
       alert("Vui lòng chọn ít nhất 1 mặt hàng còn thiếu để bàn giao!");
       return;

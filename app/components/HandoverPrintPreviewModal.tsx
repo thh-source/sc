@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { X, Printer, CheckCircle, Truck, ExternalLink } from "lucide-react";
 import { PO, PaymentHandoverItem } from "../types";
 import { PHENIKAA_PHARMA_LOGO_BASE64, parsePrintDate } from "../payment-utils";
+import { sortHandoversByPOLineOrder } from "../utils/handoverBatches";
 import "../payment.css";
 
 interface HandoverPrintPreviewModalProps {
@@ -56,6 +57,10 @@ export function HandoverPrintPreviewModal({
       setIsPrinting(false);
     }, 50);
   };
+
+  const sortedItems = React.useMemo(() => {
+    return sortHandoversByPOLineOrder(items, po);
+  }, [items, po]);
 
   const effectiveDept = department || items[0]?.department || "Phòng Cung ứng";
   const effectiveDate = handoverDate || items[0]?.handover_date || new Date().toISOString().slice(0, 10);
@@ -147,7 +152,7 @@ export function HandoverPrintPreviewModal({
           </tr>
         </thead>
         <tbody>
-          {items.map((it, idx) => (
+          {sortedItems.map((it, idx) => (
             <tr key={it.id || idx}>
               <td className="center">{idx + 1}</td>
               <td className="left" style={{ whiteSpace: "normal", wordBreak: "break-word", overflowWrap: "anywhere" }}>

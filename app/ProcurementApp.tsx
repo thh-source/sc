@@ -55,7 +55,7 @@ const ProductCatalog = lazy(() => import("./components/ProductCatalog").then(m =
 const SupplierManagement = lazy(() => import("./components/SupplierManagement").then(m => ({ default: m.SupplierManagement })));
 import { GlobalSpotlightModal } from "./components/GlobalSpotlightModal";
 import { POHandoverPickerModal } from "./components/POHandoverPickerModal";
-import { generateHandoverBatchId, getPODeliveryBatches, PODeliveryBatch } from "./utils/handoverBatches";
+import { generateHandoverBatchId, getPODeliveryBatches, PODeliveryBatch, sortHandoversByPOLineOrder } from "./utils/handoverBatches";
 import { HandoverPrintPreviewModal } from "./components/HandoverPrintPreviewModal";
 import { PaymentPrintPreviewModal } from "./components/PaymentPrintPreviewModal";
 import { SupplierQuickBankModal } from "./components/SupplierQuickBankModal";
@@ -1825,8 +1825,10 @@ function ProcurementAppInner({
     const newBatchNumber = existingBatches.length + 1;
     const newBatchId = generateHandoverBatchId(handoverPickerPO.number, newBatchNumber);
 
-    // 1. Tạo các bản ghi bàn giao cho ĐÚNG số lượng thực tế đợt này
-    const newHandovers: PaymentHandoverItem[] = payload.items.map((entry) => {
+    const poItemOrderMap = new Map((handoverPickerPO.items || []).map((pIt, pIdx) => [pIt.id, pIdx]));
+
+    // 1. Tạo các bản ghi bàn giao cho ĐÚNG số lượng thực tế đợt này (Ghi nhận item_order theo PO gốc)
+    const newHandovers: PaymentHandoverItem[] = payload.items.map((entry, idx) => {
       const it = entry.item;
       return {
         id: curId++,
@@ -1847,6 +1849,7 @@ function ProcurementAppInner({
         po_item_id: it.id,
         batch_id: newBatchId,
         batch_number: newBatchNumber,
+        item_order: poItemOrderMap.get(it.id) ?? idx,
       };
     });
 
@@ -1937,7 +1940,7 @@ function ProcurementAppInner({
     if (!targetPO || !batch) return;
     setPrintHandoverData({
       isOpen: true,
-      items: batch.rawHandovers,
+      items: sortHandoversByPOLineOrder(batch.rawHandovers, targetPO),
       po: targetPO,
       department: batch.department || "Phòng Cung ứng",
       handoverDate: batch.date || localToday(),
@@ -1958,7 +1961,7 @@ function ProcurementAppInner({
     const firstDept = matching[0]?.department || "Phòng Cung ứng";
     setPrintHandoverData({
       isOpen: true,
-      items: matching,
+      items: sortHandoversByPOLineOrder(matching, targetPO),
       po: targetPO,
       department: firstDept,
       handoverDate: matching[0]?.handover_date || localToday(),
