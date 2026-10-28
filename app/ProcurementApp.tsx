@@ -55,6 +55,7 @@ const ProductCatalog = lazy(() => import("./components/ProductCatalog").then(m =
 const SupplierManagement = lazy(() => import("./components/SupplierManagement").then(m => ({ default: m.SupplierManagement })));
 import { GlobalSpotlightModal } from "./components/GlobalSpotlightModal";
 import { POHandoverPickerModal } from "./components/POHandoverPickerModal";
+import { generateHandoverBatchId, getPODeliveryBatches, PODeliveryBatch } from "./utils/handoverBatches";
 import { HandoverPrintPreviewModal } from "./components/HandoverPrintPreviewModal";
 import { PaymentPrintPreviewModal } from "./components/PaymentPrintPreviewModal";
 import { SupplierQuickBankModal } from "./components/SupplierQuickBankModal";
@@ -1820,6 +1821,10 @@ function ProcurementAppInner({
     const isFromPR = handoverPickerPO.id < 0;
     const docTypeLabel = isContractPO(handoverPickerPO) ? "Hợp đồng" : isFromPR ? "PR" : "PO";
 
+    const existingBatches = getPODeliveryBatches(handoverPickerPO, paymentHandovers);
+    const newBatchNumber = existingBatches.length + 1;
+    const newBatchId = generateHandoverBatchId(handoverPickerPO.number, newBatchNumber);
+
     // 1. Tạo các bản ghi bàn giao cho ĐÚNG số lượng thực tế đợt này
     const newHandovers: PaymentHandoverItem[] = payload.items.map((entry) => {
       const it = entry.item;
@@ -1840,6 +1845,8 @@ function ProcurementAppInner({
         source_number: handoverPickerPO.number,
         specification: it.spec || "",
         po_item_id: it.id,
+        batch_id: newBatchId,
+        batch_number: newBatchNumber,
       };
     });
 
@@ -1924,6 +1931,19 @@ function ProcurementAppInner({
       receiverName: payload.receiverName,
     });
     setStorageStatus(`✓ Đã bàn giao ${newHandovers.length} mặt hàng cho ${payload.department} từ ${docTypeLabel} #${handoverPickerPO.number}. Mở bản in biên bản.`);
+  };
+
+  const handleOpenBatchHandoverPreview = (targetPO: PO | null, batch: PODeliveryBatch) => {
+    if (!targetPO || !batch) return;
+    setPrintHandoverData({
+      isOpen: true,
+      items: batch.rawHandovers,
+      po: targetPO,
+      department: batch.department || "Phòng Cung ứng",
+      handoverDate: batch.date || localToday(),
+      senderName: batch.senderName || "Trần Hải Hà",
+      receiverName: batch.receiverName || "",
+    });
   };
 
   const handleOpenExistingHandoverPreview = (targetPO: PO) => {
@@ -3479,6 +3499,9 @@ function ProcurementAppInner({
         suppliers={suppliers}
         existingHandovers={paymentHandovers}
         onOpenExistingHandoverPreview={handleOpenExistingHandoverPreview}
+        onUpdateHandovers={(items) => setPaymentHandovers(items)}
+        onUpdatePO={updatePO}
+        onPrintBatch={(batch) => handleOpenBatchHandoverPreview(handoverPickerPO, batch)}
       />
 
       {/* Handover Print Preview Modal */}

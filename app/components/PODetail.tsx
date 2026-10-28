@@ -77,6 +77,7 @@ export function PODetail({
   onNavigate,
   onDelete,
   onUpdatePaymentRequest,
+  onUpdateHandovers,
 }: {
   po: PO;
   pos?: PO[];
@@ -103,6 +104,7 @@ export function PODetail({
   onNavigate?: (route: any) => void;
   onDelete?: (po: PO) => void;
   onUpdatePaymentRequest?: (updated: PaymentRequestEntry) => void;
+  onUpdateHandovers?: (handovers: PaymentHandoverItem[]) => void;
 }) {
   const [saving, setSaving] = useState(false);
   const [savedNotice, setSavedNotice] = useState(false);
@@ -2665,6 +2667,17 @@ export function PODetail({
         </div>
       )}
       </section>
+
+      {/* THỐNG KÊ TỪNG ĐỢT BÀN GIAO TRONG PO VÀ CHỈNH SỬA SỐ LƯỢNG */}
+      {onUpdateHandovers && (
+        <POHandoverBatchSection
+          po={po}
+          paymentHandovers={paymentHandovers}
+          onUpdateHandovers={onUpdateHandovers}
+          onUpdatePO={onUpdate}
+          readOnly={readOnly}
+        />
+      )}
 
       {/* POPUP GIAO HÀNG CHO PO (MOBILE-FIRST FIELD RECEIVING) */}
       <PODeliveryModal

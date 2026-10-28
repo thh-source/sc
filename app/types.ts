@@ -550,6 +550,8 @@ export type PaymentHandoverItem = {
   specification?: string;
   isCompleted?: boolean;
   po_item_id?: number;
+  batch_id?: string;
+  batch_number?: number;
 };
 
 export type PaymentPrintTemplate = {

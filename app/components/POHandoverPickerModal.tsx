@@ -7,6 +7,8 @@ import { fmt, dateVN } from "../utils";
 import { useIsMobile } from "../useIsMobile";
 import { addNewDepartment, getUnifiedDepartments } from "../utils/departments";
 import { calcPODeliveryStats, PODeliveryStats, POItemDeliveryStats } from "../utils/paymentSync";
+import { POHandoverBatchSection } from "./POHandoverBatchSection";
+import { PODeliveryBatch } from "../utils/handoverBatches";
 
 export interface HandoverConfirmedItem {
   item: POItem;
@@ -34,6 +36,9 @@ interface POHandoverPickerModalProps {
   suppliers?: Supplier[];
   existingHandovers?: PaymentHandoverItem[];
   onOpenExistingHandoverPreview?: (po: PO) => void;
+  onUpdateHandovers?: (handovers: PaymentHandoverItem[]) => void;
+  onUpdatePO?: (po: PO) => void;
+  onPrintBatch?: (batch: PODeliveryBatch) => void;
 }
 
 export function POHandoverPickerModal({
@@ -45,6 +50,9 @@ export function POHandoverPickerModal({
   suppliers = [],
   existingHandovers = [],
   onOpenExistingHandoverPreview,
+  onUpdateHandovers,
+  onUpdatePO,
+  onPrintBatch,
 }: POHandoverPickerModalProps) {
   const isMobile = useIsMobile(768);
 
@@ -573,6 +581,18 @@ export function POHandoverPickerModal({
             background: "#ffffff",
           }}
         >
+          {/* Thống kê từng đợt bàn giao trong PO và cho phép chỉnh sửa số lượng */}
+          {existingHandoversForThisPO.length > 0 && onUpdateHandovers && onUpdatePO && (
+            <div style={{ marginBottom: "16px" }}>
+              <POHandoverBatchSection
+                po={po}
+                paymentHandovers={existingHandovers}
+                onUpdateHandovers={onUpdateHandovers}
+                onUpdatePO={onUpdatePO}
+                onPrintBatch={onPrintBatch}
+              />
+            </div>
+          )}
           {items.length === 0 ? (
             <div style={{ textAlign: "center", padding: "30px", color: "#64748b" }}>
               PO này chưa có mặt hàng nào.
