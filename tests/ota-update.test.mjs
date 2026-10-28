@@ -28,9 +28,12 @@ test("Semver comparison logic for OTA", () => {
   assert.strictEqual(isNewerVersion("1.0.0", "1.1.0"), false);
 });
 
-test("OTA config payload structure contract", () => {
+test("OTA config payload structure contract with build name and date", () => {
   const mockConfig = {
     latestVersion: "1.0.1",
+    versionName: "Phenikaa SCMH v1.0.1 (Bản chính thức)",
+    buildNumber: "20261028.01",
+    buildDate: "28/10/2026, 07:15:00",
     minSupportedVersion: "1.0.0",
     downloadUrl: "https://quan-ly-mua-hang.sc-pnk.workers.dev/api/app-version/download?version=1.0.1",
     checksum: "",
@@ -38,6 +41,9 @@ test("OTA config payload structure contract", () => {
   };
 
   assert.ok(mockConfig.latestVersion);
+  assert.ok(mockConfig.versionName);
+  assert.ok(mockConfig.buildNumber);
+  assert.ok(mockConfig.buildDate);
   assert.ok(mockConfig.downloadUrl);
   assert.ok(mockConfig.downloadUrl.includes("/api/app-version/download"));
 });

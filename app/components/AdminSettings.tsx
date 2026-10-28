@@ -1,9 +1,36 @@
-import React, { useState, useEffect, useRef } from "react";
-import { LogOut, Users, FileText, Database, History, Plus, RotateCcw } from "lucide-react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
+import {
+  LogOut,
+  Users,
+  FileText,
+  Database,
+  History,
+  Plus,
+  RotateCcw,
+  Smartphone,
+  RefreshCw,
+  Download,
+  CheckCircle2,
+  AlertCircle,
+  Sparkles,
+  Calendar,
+  Hash,
+  Loader2,
+  RotateCw,
+} from "lucide-react";
 import { dateVN } from "../utils";
 import { AdminUsage } from "./AdminUsage";
 import { PrintTemplatesManagement } from "./PrintTemplatesManagement";
 import { PaymentPrintTemplate, PaymentRequestEntry, Supplier } from "../types";
+import { CURRENT_APP_VERSION, getAppPlatform } from "../version";
+import {
+  fetchRemoteVersion,
+  getInstalledVersion,
+  isNewerVersion,
+  downloadAndApplyOta,
+  reloadApp,
+  AppVersionInfo,
+} from "../utils/otaUpdateService";
 
 export function AdminSettings({
   currentUser,
@@ -20,7 +47,7 @@ export function AdminSettings({
     displayName: string;
     role: string;
   };
-  defaultTab?: "users" | "templates" | "snapshots" | "audit";
+  defaultTab?: "users" | "templates" | "snapshots" | "audit" | "version";
   paymentTemplate?: PaymentPrintTemplate;
   suppliers?: Supplier[];
   sampleRequest?: PaymentRequestEntry | null;
@@ -78,11 +105,69 @@ export function AdminSettings({
     };
   };
 
-  const [activeTab, setActiveTab] = useState<"users" | "templates" | "snapshots" | "audit">(defaultTab);
+  const [activeTab, setActiveTab] = useState<"users" | "templates" | "snapshots" | "audit" | "version">(defaultTab);
 
   useEffect(() => {
     if (defaultTab) setActiveTab(defaultTab);
   }, [defaultTab]);
+
+  // OTA Version State
+  const [checkingVersion, setCheckingVersion] = useState(false);
+  const [downloadingOta, setDownloadingOta] = useState(false);
+  const [otaReady, setOtaReady] = useState(false);
+  const [installedVersion, setInstalledVersion] = useState(CURRENT_APP_VERSION.version);
+  const [updateResult, setUpdateResult] = useState<{
+    checked: boolean;
+    hasUpdate: boolean;
+    remoteInfo?: AppVersionInfo;
+    error?: string;
+  } | null>(null);
+
+  const platform = useMemo(() => getAppPlatform(), []);
+
+  useEffect(() => {
+    getInstalledVersion().then((v) => {
+      if (v) setInstalledVersion(v);
+    });
+  }, []);
+
+  const handleCheckUpdate = async () => {
+    setCheckingVersion(true);
+    setUpdateResult(null);
+
+    try {
+      const remote = await fetchRemoteVersion();
+      const hasUpdate = isNewerVersion(remote.latestVersion, installedVersion);
+      setUpdateResult({
+        checked: true,
+        hasUpdate,
+        remoteInfo: remote,
+      });
+    } catch (err: any) {
+      setUpdateResult({
+        checked: true,
+        hasUpdate: false,
+        error: "Không thể kết nối đến máy chủ. Vui lòng kiểm tra kết nối mạng.",
+      });
+    } finally {
+      setCheckingVersion(false);
+    }
+  };
+
+  const handleDownloadAndApply = async () => {
+    if (!updateResult?.remoteInfo) return;
+    setDownloadingOta(true);
+    try {
+      const ok = await downloadAndApplyOta(updateResult.remoteInfo, (state) => {
+        if (state.updateReady) setOtaReady(true);
+      });
+      if (ok) setOtaReady(true);
+    } catch (err: any) {
+      alert("Lỗi khi tải cập nhật: " + err.message);
+    } finally {
+      setDownloadingOta(false);
+    }
+  };
 
   const [users, setUsers] = useState<UserRow[]>([]),
     [usage, setUsage] = useState<UsageInfo | null>(null),
@@ -410,6 +495,13 @@ export function AdminSettings({
           style={{ fontSize: "13px", padding: "7px 15px", height: "auto", display: "inline-flex", alignItems: "center", gap: "6px" }}
         >
           <History size={15} /> Nhật ký thao tác ({auditLogs.length})
+        </button>
+        <button
+          className={activeTab === "version" ? "primary" : "ghost"}
+          onClick={() => setActiveTab("version")}
+          style={{ fontSize: "13px", padding: "7px 15px", height: "auto", display: "inline-flex", alignItems: "center", gap: "6px" }}
+        >
+          <Smartphone size={15} /> Phiên bản & Cập nhật
         </button>
       </div>
 
@@ -815,7 +907,246 @@ export function AdminSettings({
         </section>
       )}
 
-      {/* Modal đặt lại mật khẩu */}
+      {/* Tab 5: Phiên bản & Cập nhật từ xa (OTA Update) */}
+      {activeTab === "version" && (
+        <section className="admin-card version-card" style={{ padding: "20px" }}>
+          <div className="section-heading" style={{ marginBottom: "16px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <Smartphone size={20} style={{ color: "#0284c7" }} />
+              <h2 style={{ fontSize: "16px", fontWeight: 700, margin: 0 }}>
+                Thông tin phiên bản & Cập nhật từ xa (OTA)
+              </h2>
+            </div>
+            <span
+              style={{
+                fontSize: "11px",
+                fontWeight: 700,
+                padding: "2px 8px",
+                borderRadius: "12px",
+                backgroundColor: platform.isNative ? "#e0f2fe" : "#f1f5f9",
+                color: platform.isNative ? "#0284c7" : "#475569",
+                border: "1px solid " + (platform.isNative ? "#bae6fd" : "#cbd5e1"),
+              }}
+            >
+              {platform.platformBadge}
+            </span>
+          </div>
+
+          <div
+            style={{
+              backgroundColor: "var(--card-bg, #ffffff)",
+              borderRadius: "8px",
+              border: "1px solid var(--line, #e2e8f0)",
+              padding: "16px",
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+              gap: "16px",
+              marginBottom: "18px",
+            }}
+          >
+            <div>
+              <div style={{ fontSize: "11.5px", color: "#64748b", display: "flex", alignItems: "center", gap: "4px" }}>
+                <Sparkles size={13} style={{ color: "#0284c7" }} /> Tên phiên bản phát hành
+              </div>
+              <div style={{ fontSize: "14px", fontWeight: 750, color: "var(--fg, #0f172a)", marginTop: "4px" }}>
+                {CURRENT_APP_VERSION.versionName}
+              </div>
+            </div>
+
+            <div>
+              <div style={{ fontSize: "11.5px", color: "#64748b", display: "flex", alignItems: "center", gap: "4px" }}>
+                <Hash size={13} style={{ color: "#059669" }} /> Mã bản build (Build Code)
+              </div>
+              <div style={{ fontSize: "14px", fontWeight: 700, color: "var(--fg, #0f172a)", fontFamily: "monospace", marginTop: "4px" }}>
+                #{CURRENT_APP_VERSION.buildNumber} {CURRENT_APP_VERSION.gitCommit ? `(${CURRENT_APP_VERSION.gitCommit})` : ""}
+              </div>
+            </div>
+
+            <div>
+              <div style={{ fontSize: "11.5px", color: "#64748b", display: "flex", alignItems: "center", gap: "4px" }}>
+                <Calendar size={13} style={{ color: "#d97706" }} /> Ngày giờ biên dịch
+              </div>
+              <div style={{ fontSize: "13px", fontWeight: 600, color: "var(--fg, #334155)", marginTop: "4px" }}>
+                {CURRENT_APP_VERSION.buildDate}
+              </div>
+            </div>
+
+            <div>
+              <div style={{ fontSize: "11.5px", color: "#64748b", display: "flex", alignItems: "center", gap: "4px" }}>
+                <Smartphone size={13} style={{ color: "#6366f1" }} /> Nền tảng hoạt động
+              </div>
+              <div style={{ fontSize: "13px", fontWeight: 600, color: "var(--fg, #334155)", marginTop: "4px" }}>
+                {platform.platformName} ({CURRENT_APP_VERSION.releaseChannel})
+              </div>
+            </div>
+          </div>
+
+          <div style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap", marginBottom: "16px" }}>
+            <button
+              type="button"
+              className="primary"
+              onClick={handleCheckUpdate}
+              disabled={checkingVersion || downloadingOta}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "7px",
+                padding: "8px 16px",
+                fontSize: "13px",
+                fontWeight: 650,
+                cursor: checkingVersion || downloadingOta ? "not-allowed" : "pointer",
+              }}
+            >
+              {checkingVersion ? (
+                <>
+                  <Loader2 size={15} className="animate-spin" /> Đang kiểm tra máy chủ Cloudflare...
+                </>
+              ) : (
+                <>
+                  <RefreshCw size={14} /> Tìm phiên bản mới
+                </>
+              )}
+            </button>
+
+            <span style={{ fontSize: "12.5px", color: "var(--muted, #64748b)" }}>
+              Phiên bản thiết bị: <b>v{installedVersion}</b>
+            </span>
+          </div>
+
+          {updateResult && (
+            <div style={{ marginTop: "10px" }}>
+              {updateResult.hasUpdate && updateResult.remoteInfo ? (
+                <div
+                  style={{
+                    backgroundColor: "#eff6ff",
+                    border: "1px solid #93c5fd",
+                    borderRadius: "8px",
+                    padding: "14px",
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "flex-start", gap: "10px" }}>
+                    <Sparkles size={20} style={{ color: "#2563eb", marginTop: "2px", flexShrink: 0 }} />
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: "14px", fontWeight: 700, color: "#1e40af" }}>
+                        🚀 Phát hiện phiên bản mới: v{updateResult.remoteInfo.latestVersion}
+                      </div>
+                      <div style={{ fontSize: "12.5px", color: "#1e3a8a", marginTop: "2px" }}>
+                        <b>Tên bản build:</b> {updateResult.remoteInfo.versionName || `Phenikaa SCMH v${updateResult.remoteInfo.latestVersion}`}
+                        {updateResult.remoteInfo.buildDate && ` • Ngày phát hành: ${updateResult.remoteInfo.buildDate}`}
+                      </div>
+                      {updateResult.remoteInfo.releaseNotes && (
+                        <div
+                          style={{
+                            fontSize: "12px",
+                            color: "#334155",
+                            marginTop: "6px",
+                            backgroundColor: "#ffffff",
+                            padding: "8px 12px",
+                            borderRadius: "6px",
+                            border: "1px solid #bfdbfe",
+                          }}
+                        >
+                          <b>Ghi chú cập nhật:</b> {updateResult.remoteInfo.releaseNotes}
+                        </div>
+                      )}
+
+                      <div style={{ marginTop: "12px", display: "flex", alignItems: "center", gap: "8px" }}>
+                        {otaReady ? (
+                          <button
+                            type="button"
+                            className="primary"
+                            onClick={() => reloadApp()}
+                            style={{
+                              backgroundColor: "#16a34a",
+                              borderColor: "#16a34a",
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: "6px",
+                            }}
+                          >
+                            <RotateCw size={14} /> Khởi động lại ứng dụng ngay
+                          </button>
+                        ) : platform.isNative ? (
+                          <button
+                            type="button"
+                            className="primary"
+                            disabled={downloadingOta}
+                            onClick={handleDownloadAndApply}
+                            style={{
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: "6px",
+                            }}
+                          >
+                            {downloadingOta ? (
+                              <>
+                                <Loader2 size={14} className="animate-spin" /> Đang tải gói OTA từ Cloudflare R2...
+                              </>
+                            ) : (
+                              <>
+                                <Download size={14} /> Tải & Cập nhật ngay (OTA)
+                              </>
+                            )}
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            className="primary"
+                            onClick={() => window.location.reload()}
+                            style={{
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: "6px",
+                            }}
+                          >
+                            <RefreshCw size={14} /> Tải lại trang để áp dụng
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : updateResult.error ? (
+                <div
+                  style={{
+                    backgroundColor: "#fef2f2",
+                    border: "1px solid #fecaca",
+                    borderRadius: "8px",
+                    padding: "10px 14px",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "8px",
+                    color: "#991b1b",
+                    fontSize: "13px",
+                  }}
+                >
+                  <AlertCircle size={16} />
+                  <span>{updateResult.error}</span>
+                </div>
+              ) : (
+                <div
+                  style={{
+                    backgroundColor: "#f0fdf4",
+                    border: "1px solid #bbf7d0",
+                    borderRadius: "8px",
+                    padding: "10px 14px",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "8px",
+                    color: "#166534",
+                    fontSize: "13px",
+                  }}
+                >
+                  <CheckCircle2 size={16} />
+                  <span>
+                    <b>Hệ thống đang ở phiên bản mới nhất!</b> (v{installedVersion} - Build #{CURRENT_APP_VERSION.buildNumber}). Không có bản cập nhật nào mới.
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
+        </section>
+      )}
       {resetTargetUser && (
         <div className="backdrop">
           <div className="modal" onClick={(e) => e.stopPropagation()}>

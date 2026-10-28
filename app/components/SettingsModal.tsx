@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   Settings,
   X,
@@ -12,8 +12,26 @@ import {
   Printer,
   ShieldCheck,
   Loader2,
+  Smartphone,
+  RefreshCw,
+  Download,
+  CheckCircle2,
+  AlertCircle,
+  Calendar,
+  Hash,
+  Sparkles,
+  RotateCw,
 } from "lucide-react";
 import { useTranslation, SupportedLang } from "../i18n";
+import { CURRENT_APP_VERSION, getAppPlatform } from "../version";
+import {
+  fetchRemoteVersion,
+  getInstalledVersion,
+  isNewerVersion,
+  downloadAndApplyOta,
+  reloadApp,
+  AppVersionInfo,
+} from "../utils/otaUpdateService";
 
 export interface SettingsModalProps {
   isOpen: boolean;
@@ -42,6 +60,85 @@ export function SettingsModal({
   const [shareLoading, setShareLoading] = useState(false);
   const [shareLink, setShareLink] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+
+  // Version & OTA Update State
+  const [checkingVersion, setCheckingVersion] = useState(false);
+  const [downloadingOta, setDownloadingOta] = useState(false);
+  const [otaReady, setOtaReady] = useState(false);
+  const [installedVersion, setInstalledVersion] = useState(CURRENT_APP_VERSION.version);
+  const [updateResult, setUpdateResult] = useState<{
+    checked: boolean;
+    hasUpdate: boolean;
+    remoteInfo?: AppVersionInfo;
+    error?: string;
+  } | null>(null);
+
+  const platform = useMemo(() => getAppPlatform(), []);
+
+  useEffect(() => {
+    let active = true;
+    getInstalledVersion().then((v) => {
+      if (active && v) setInstalledVersion(v);
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const handleCheckUpdate = async () => {
+    setCheckingVersion(true);
+    setUpdateResult(null);
+    onStatus?.("Đang kiểm tra phiên bản mới từ máy chủ Cloudflare...");
+
+    try {
+      const remote = await fetchRemoteVersion();
+      const hasUpdate = isNewerVersion(remote.latestVersion, installedVersion);
+
+      setUpdateResult({
+        checked: true,
+        hasUpdate,
+        remoteInfo: remote,
+      });
+
+      if (hasUpdate) {
+        onStatus?.(`Phát hiện bản cập nhật mới v${remote.latestVersion}!`);
+      } else {
+        onStatus?.(`Bạn đang dùng bản mới nhất (v${installedVersion})`);
+      }
+    } catch (err: any) {
+      console.error("Lỗi kiểm tra cập nhật:", err);
+      setUpdateResult({
+        checked: true,
+        hasUpdate: false,
+        error: "Không thể kết nối đến máy chủ. Vui lòng kiểm tra lại kết nối mạng.",
+      });
+      onStatus?.("Không thể kiểm tra phiên bản");
+    } finally {
+      setCheckingVersion(false);
+    }
+  };
+
+  const handleDownloadAndApply = async () => {
+    if (!updateResult?.remoteInfo) return;
+    setDownloadingOta(true);
+    onStatus?.(`Đang tải gói cập nhật v${updateResult.remoteInfo.latestVersion}...`);
+
+    try {
+      const ok = await downloadAndApplyOta(updateResult.remoteInfo, (state) => {
+        if (state.updateReady) {
+          setOtaReady(true);
+        }
+      });
+      if (ok) {
+        setOtaReady(true);
+        onStatus?.("Đã cài đặt bản cập nhật mới thành công!");
+      }
+    } catch (err: any) {
+      alert("Lỗi khi tải bản cập nhật: " + (err.message || "Không xác định"));
+    } finally {
+      setDownloadingOta(false);
+    }
+  };
 
   if (!isOpen) return null;
 
@@ -351,7 +448,289 @@ export function SettingsModal({
           )}
         </div>
 
-        {/* Section 3: Cấu hình In ấn & Quản trị hệ thống */}
+        {/* Section 3: Thông tin phiên bản & Cập nhật từ xa (Android & Web OTA) */}
+        <div
+          style={{
+            backgroundColor: "#f8fafc",
+            borderRadius: "10px",
+            border: "1px solid #e2e8f0",
+            padding: "16px",
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              marginBottom: "12px",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <Smartphone size={17} style={{ color: "#0284c7" }} />
+              <h3 style={{ fontSize: "14px", fontWeight: 650, margin: 0, color: "#1e293b" }}>
+                Thông tin phiên bản ứng dụng
+              </h3>
+            </div>
+            <span
+              style={{
+                fontSize: "11px",
+                fontWeight: 700,
+                padding: "2px 8px",
+                borderRadius: "12px",
+                backgroundColor: platform.isNative ? "#e0f2fe" : "#f1f5f9",
+                color: platform.isNative ? "#0284c7" : "#475569",
+                border: "1px solid " + (platform.isNative ? "#bae6fd" : "#cbd5e1"),
+              }}
+            >
+              {platform.platformBadge}
+            </span>
+          </div>
+
+          {/* Bảng chi tiết: Tên phiên bản, Mã build, Ngày giờ, Môi trường */}
+          <div
+            style={{
+              backgroundColor: "#ffffff",
+              borderRadius: "8px",
+              border: "1px solid #e2e8f0",
+              padding: "12px 14px",
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
+              gap: "12px",
+              marginBottom: "14px",
+            }}
+          >
+            <div>
+              <div style={{ fontSize: "11px", color: "#64748b", display: "flex", alignItems: "center", gap: "4px" }}>
+                <Sparkles size={12} style={{ color: "#0284c7" }} /> Tên phiên bản
+              </div>
+              <div style={{ fontSize: "13px", fontWeight: 750, color: "#0f172a", marginTop: "2px" }}>
+                {CURRENT_APP_VERSION.versionName}
+              </div>
+            </div>
+
+            <div>
+              <div style={{ fontSize: "11px", color: "#64748b", display: "flex", alignItems: "center", gap: "4px" }}>
+                <Hash size={12} style={{ color: "#059669" }} /> Mã bản build (Build code)
+              </div>
+              <div style={{ fontSize: "13px", fontWeight: 700, color: "#0f172a", fontFamily: "monospace", marginTop: "2px" }}>
+                #{CURRENT_APP_VERSION.buildNumber} {CURRENT_APP_VERSION.gitCommit ? `(${CURRENT_APP_VERSION.gitCommit})` : ""}
+              </div>
+            </div>
+
+            <div>
+              <div style={{ fontSize: "11px", color: "#64748b", display: "flex", alignItems: "center", gap: "4px" }}>
+                <Calendar size={12} style={{ color: "#d97706" }} /> Ngày giờ bản build
+              </div>
+              <div style={{ fontSize: "12.5px", fontWeight: 600, color: "#334155", marginTop: "2px" }}>
+                {CURRENT_APP_VERSION.buildDate}
+              </div>
+            </div>
+
+            <div>
+              <div style={{ fontSize: "11px", color: "#64748b", display: "flex", alignItems: "center", gap: "4px" }}>
+                <Smartphone size={12} style={{ color: "#6366f1" }} /> Môi trường / Kênh
+              </div>
+              <div style={{ fontSize: "12.5px", fontWeight: 600, color: "#334155", marginTop: "2px" }}>
+                {platform.platformName} ({CURRENT_APP_VERSION.releaseChannel})
+              </div>
+            </div>
+          </div>
+
+          {/* Nút Tìm phiên bản mới */}
+          <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
+            <button
+              type="button"
+              onClick={handleCheckUpdate}
+              disabled={checkingVersion || downloadingOta}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "7px",
+                padding: "8px 16px",
+                borderRadius: "6px",
+                border: "1px solid #0284c7",
+                backgroundColor: "#0284c7",
+                color: "#ffffff",
+                fontSize: "12.5px",
+                fontWeight: 650,
+                cursor: checkingVersion || downloadingOta ? "not-allowed" : "pointer",
+                boxShadow: "0 1px 2px rgba(2, 132, 199, 0.2)",
+                opacity: checkingVersion || downloadingOta ? 0.75 : 1,
+              }}
+            >
+              {checkingVersion ? (
+                <>
+                  <Loader2 size={15} className="animate-spin" /> Đang kiểm tra máy chủ Cloudflare...
+                </>
+              ) : (
+                <>
+                  <RefreshCw size={14} /> Tìm phiên bản mới
+                </>
+              )}
+            </button>
+
+            {installedVersion && (
+              <span style={{ fontSize: "12px", color: "#64748b" }}>
+                Phiên bản đang chạy: <b>v{installedVersion}</b>
+              </span>
+            )}
+          </div>
+
+          {/* Khối kết quả kiểm tra cập nhật */}
+          {updateResult && (
+            <div style={{ marginTop: "12px" }}>
+              {updateResult.hasUpdate && updateResult.remoteInfo ? (
+                <div
+                  style={{
+                    backgroundColor: "#eff6ff",
+                    border: "1px solid #93c5fd",
+                    borderRadius: "8px",
+                    padding: "12px 14px",
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "flex-start", gap: "10px" }}>
+                    <Sparkles size={18} style={{ color: "#2563eb", marginTop: "2px", flexShrink: 0 }} />
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: "13.5px", fontWeight: 700, color: "#1e40af" }}>
+                        🚀 Phát hiện phiên bản mới: v{updateResult.remoteInfo.latestVersion}
+                      </div>
+                      <div style={{ fontSize: "12px", color: "#1e3a8a", marginTop: "2px" }}>
+                        <b>Tên bản build:</b> {updateResult.remoteInfo.versionName || `Phenikaa SCMH v${updateResult.remoteInfo.latestVersion}`}
+                        {updateResult.remoteInfo.buildDate && ` • Ngày phát hành: ${updateResult.remoteInfo.buildDate}`}
+                      </div>
+                      {updateResult.remoteInfo.releaseNotes && (
+                        <div
+                          style={{
+                            fontSize: "12px",
+                            color: "#334155",
+                            marginTop: "6px",
+                            backgroundColor: "#ffffff",
+                            padding: "6px 10px",
+                            borderRadius: "6px",
+                            border: "1px solid #bfdbfe",
+                          }}
+                        >
+                          <b>Ghi chú cập nhật:</b> {updateResult.remoteInfo.releaseNotes}
+                        </div>
+                      )}
+
+                      <div style={{ marginTop: "10px", display: "flex", alignItems: "center", gap: "8px" }}>
+                        {otaReady ? (
+                          <button
+                            type="button"
+                            onClick={() => reloadApp()}
+                            style={{
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: "6px",
+                              backgroundColor: "#16a34a",
+                              color: "#ffffff",
+                              border: "none",
+                              borderRadius: "6px",
+                              padding: "7px 14px",
+                              fontSize: "12.5px",
+                              fontWeight: 700,
+                              cursor: "pointer",
+                            }}
+                          >
+                            <RotateCw size={14} /> Khởi động lại ứng dụng ngay
+                          </button>
+                        ) : platform.isNative ? (
+                          <button
+                            type="button"
+                            disabled={downloadingOta}
+                            onClick={handleDownloadAndApply}
+                            style={{
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: "6px",
+                              backgroundColor: "#2563eb",
+                              color: "#ffffff",
+                              border: "none",
+                              borderRadius: "6px",
+                              padding: "7px 14px",
+                              fontSize: "12.5px",
+                              fontWeight: 700,
+                              cursor: downloadingOta ? "not-allowed" : "pointer",
+                            }}
+                          >
+                            {downloadingOta ? (
+                              <>
+                                <Loader2 size={14} className="animate-spin" /> Đang tải gói OTA từ Cloudflare R2...
+                              </>
+                            ) : (
+                              <>
+                                <Download size={14} /> Tải & Cập nhật ngay (OTA)
+                              </>
+                            )}
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => window.location.reload()}
+                            style={{
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: "6px",
+                              backgroundColor: "#2563eb",
+                              color: "#ffffff",
+                              border: "none",
+                              borderRadius: "6px",
+                              padding: "7px 14px",
+                              fontSize: "12.5px",
+                              fontWeight: 700,
+                              cursor: "pointer",
+                            }}
+                          >
+                            <RefreshCw size={14} /> Tải lại trang để áp dụng
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : updateResult.error ? (
+                <div
+                  style={{
+                    backgroundColor: "#fef2f2",
+                    border: "1px solid #fecaca",
+                    borderRadius: "8px",
+                    padding: "10px 12px",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "8px",
+                    color: "#991b1b",
+                    fontSize: "12.5px",
+                  }}
+                >
+                  <AlertCircle size={16} />
+                  <span>{updateResult.error}</span>
+                </div>
+              ) : (
+                <div
+                  style={{
+                    backgroundColor: "#f0fdf4",
+                    border: "1px solid #bbf7d0",
+                    borderRadius: "8px",
+                    padding: "10px 12px",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "8px",
+                    color: "#166534",
+                    fontSize: "12.5px",
+                  }}
+                >
+                  <CheckCircle2 size={16} />
+                  <span>
+                    <b>Ứng dụng đang ở phiên bản mới nhất!</b> (v{installedVersion} - Build #{CURRENT_APP_VERSION.buildNumber}). Không có bản cập nhật nào mới trên máy chủ.
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Section 4: Cấu hình In ấn & Quản trị hệ thống */}
         <div style={{ display: "grid", gridTemplateColumns: isAdmin ? "1fr 1fr" : "1fr", gap: "12px" }}>
           <div
             style={{

@@ -32,10 +32,66 @@ if (!version) {
 // Bỏ chữ v ở đầu nếu có
 version = version.replace(/^v/i, "");
 
+const now = new Date();
+const pad = (n) => String(n).padStart(2, "0");
+const buildNumber = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}.${pad(now.getHours())}${pad(now.getMinutes())}`;
+const buildDate = `${now.toLocaleDateString("vi-VN")}, ${now.toLocaleTimeString("vi-VN")}`;
+const versionName = `Phenikaa SCMH v${version} (Bản chính thức)`;
+
+let commitHash = "d98d398";
+try {
+  commitHash = execSync("git rev-parse --short HEAD", { cwd: rootDir }).toString().trim();
+} catch {}
+
 console.log("==========================================================");
 console.log(`🚀 BẮT ĐẦU ĐÓNG GÓI BẢN CẬP NHẬT TỪ XA (OTA UPDATE) v${version}`);
+console.log(`🏷️ Tên phiên bản:    ${versionName}`);
+console.log(`🔢 Mã bản build:      ${buildNumber} (${commitHash})`);
+console.log(`🕒 Ngày giờ build:    ${buildDate}`);
 console.log(`📝 Ghi chú phát hành: "${releaseNotes}"`);
 console.log("==========================================================");
+
+// Cập nhật app/version.ts trước khi build
+const versionTsContent = `import { Capacitor } from "@capacitor/core";
+
+export interface AppVersionMetadata {
+  appName: string;
+  version: string;
+  versionName: string;
+  buildNumber: string;
+  buildDate: string;
+  releaseChannel: string;
+  gitCommit?: string;
+  releaseNotes: string;
+}
+
+export const CURRENT_APP_VERSION: AppVersionMetadata = {
+  appName: "Phenikaa Mua Hàng (SCMH)",
+  version: "${version}",
+  versionName: "${versionName}",
+  buildNumber: "${buildNumber}",
+  buildDate: "${buildDate}",
+  releaseChannel: "Production",
+  gitCommit: "${commitHash}",
+  releaseNotes: "${releaseNotes.replace(/"/g, '\\"')}",
+};
+
+export function getAppPlatform(): {
+  isNative: boolean;
+  platformName: string;
+  platformBadge: string;
+} {
+  const isNative = typeof window !== "undefined" && Capacitor.isNativePlatform();
+  return {
+    isNative,
+    platformName: isNative ? "Android Native App (Capacitor)" : "Web Application (Trình duyệt)",
+    platformBadge: isNative ? "Android APK" : "Web PWA",
+  };
+}
+`;
+
+fs.writeFileSync(path.join(rootDir, "app", "version.ts"), versionTsContent, "utf-8");
+console.log("✓ Đã cập nhật metadata phiên bản vào app/version.ts.");
 
 // 2. Chạy Build production bundle
 console.log("\n[BƯỚC 1/4] Đang biên dịch bundle mới nhất (npm run build)...");
@@ -180,6 +236,9 @@ createZipBundle()
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         latestVersion: version,
+        versionName: versionName,
+        buildNumber: buildNumber,
+        buildDate: buildDate,
         minSupportedVersion: "1.0.0",
         releaseNotes: releaseNotes,
       }),

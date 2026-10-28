@@ -1,26 +1,64 @@
 import { Capacitor } from "@capacitor/core";
 import { CapacitorUpdater } from "@capgo/capacitor-updater";
 import { App } from "@capacitor/app";
+import { CURRENT_APP_VERSION } from "../version";
 
 export const REMOTE_API_BASE = "https://quan-ly-mua-hang.sc-pnk.workers.dev";
 
 export interface AppVersionInfo {
   latestVersion: string;
-  minSupportedVersion: string;
+  versionName?: string;
+  buildNumber?: string;
+  buildDate?: string;
+  minSupportedVersion?: string;
   downloadUrl: string;
   checksum?: string;
   releaseNotes?: string;
+  updatedAt?: string;
 }
 
 export interface OtaState {
   currentVersion: string;
   latestVersion: string;
+  versionName?: string;
+  buildNumber?: string;
+  buildDate?: string;
+  releaseNotes?: string;
   isChecking: boolean;
   isDownloading: boolean;
   downloadProgress: number;
   updateReady: boolean;
   message: string;
   error?: string;
+}
+
+/**
+ * Lấy metadata phiên bản mới nhất từ Cloudflare Worker & D1
+ */
+export async function fetchRemoteVersion(): Promise<AppVersionInfo> {
+  const apiUrl = `${REMOTE_API_BASE}/api/app-version`;
+  const res = await fetch(apiUrl, { cache: "no-store" });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return (await res.json()) as AppVersionInfo;
+}
+
+/**
+ * Lấy phiên bản đang chạy hiện tại trên máy
+ */
+export async function getInstalledVersion(): Promise<string> {
+  if (!Capacitor.isNativePlatform()) {
+    return CURRENT_APP_VERSION.version;
+  }
+  try {
+    const current = await CapacitorUpdater.current();
+    if (current && (current as any).bundle?.version) {
+      return (current as any).bundle.version;
+    }
+    if (current && (current as any).version) {
+      return (current as any).version;
+    }
+  } catch {}
+  return CURRENT_APP_VERSION.version;
 }
 
 /**
@@ -171,6 +209,55 @@ export async function checkAndDownloadUpdate(
       isChecking: false,
       isDownloading: false,
       error: err.message || "Lỗi cập nhật",
+    });
+    return false;
+  }
+}
+
+/**
+ * Tải và kích hoạt gói bundle cập nhật trực tiếp (dùng khi bấm "Tải và cập nhật ngay" trong Cài đặt)
+ */
+export async function downloadAndApplyOta(
+  versionInfo: AppVersionInfo,
+  onStateChange?: (state: Partial<OtaState>) => void
+): Promise<boolean> {
+  if (!Capacitor.isNativePlatform()) {
+    window.location.reload();
+    return true;
+  }
+
+  try {
+    const latestVersion = versionInfo.latestVersion;
+    onStateChange?.({
+      isDownloading: true,
+      message: `Đang tải gói cập nhật v${latestVersion} từ Cloudflare R2...`,
+    });
+
+    const downloadUrl = versionInfo.downloadUrl.startsWith("http")
+      ? versionInfo.downloadUrl
+      : `${REMOTE_API_BASE}${versionInfo.downloadUrl}`;
+
+    console.log(`[OTA Manual] Đang tải bundle từ ${downloadUrl}...`);
+
+    const versionData = await CapacitorUpdater.download({
+      url: downloadUrl,
+      version: latestVersion,
+    });
+
+    await CapacitorUpdater.set(versionData);
+
+    onStateChange?.({
+      isDownloading: false,
+      updateReady: true,
+      message: `Đã cài đặt thành công bản cập nhật v${latestVersion}! Khởi động lại ứng dụng để áp dụng ngay.`,
+    });
+
+    return true;
+  } catch (err: any) {
+    console.error("[OTA Manual] Lỗi tải bundle:", err);
+    onStateChange?.({
+      isDownloading: false,
+      error: err.message || "Không thể tải gói cập nhật",
     });
     return false;
   }

@@ -21,10 +21,13 @@ async function ensureConfigTable(db: D1Database) {
 
 const DEFAULT_APP_VERSION = {
   latestVersion: "1.0.1",
+  versionName: "Phenikaa SCMH v1.0.1 (Bản chính thức)",
+  buildNumber: "20261028.01",
+  buildDate: "28/10/2026, 07:15:00",
   minSupportedVersion: "1.0.0",
   downloadUrl: "https://quan-ly-mua-hang.sc-pnk.workers.dev/api/app-version/download?version=1.0.1",
   checksum: "",
-  releaseNotes: "Cập nhật tính năng OTA Update, tối ưu hóa giao diện bàn giao và sửa lỗi đồng bộ todo",
+  releaseNotes: "Cập nhật tính năng OTA Update từ xa, tự động đồng bộ Todo List D1, tối ưu hóa giao diện bàn giao PO và chế độ Offline-First",
 };
 
 /**
@@ -88,6 +91,9 @@ export async function POST(request: Request) {
 
       const versionPayload = {
         latestVersion: version,
+        versionName: (formData.get("versionName") as string) || `Phenikaa SCMH v${version} (Bản chính thức)`,
+        buildNumber: (formData.get("buildNumber") as string) || `${new Date().toISOString().slice(0, 10).replace(/-/g, "")}.01`,
+        buildDate: (formData.get("buildDate") as string) || new Date().toLocaleString("vi-VN"),
         minSupportedVersion: "1.0.0",
         downloadUrl: `https://quan-ly-mua-hang.sc-pnk.workers.dev/api/app-version/download?version=${encodeURIComponent(version)}`,
         checksum: "",
@@ -115,6 +121,9 @@ export async function POST(request: Request) {
 
     const versionPayload = {
       latestVersion: version,
+      versionName: body.versionName || `Phenikaa SCMH v${version} (Bản chính thức)`,
+      buildNumber: body.buildNumber || `${new Date().toISOString().slice(0, 10).replace(/-/g, "")}.01`,
+      buildDate: body.buildDate || new Date().toLocaleString("vi-VN"),
       minSupportedVersion: body.minSupportedVersion || "1.0.0",
       downloadUrl,
       checksum: body.checksum || "",
