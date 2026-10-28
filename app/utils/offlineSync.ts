@@ -1,4 +1,5 @@
 import { Network } from "@capacitor/network";
+import { resolveApiUrl } from "./apiConfig";
 
 export interface OfflineSyncItem {
   id: string;
@@ -384,7 +385,8 @@ export async function processOfflineSyncQueue(
         headers["x-expected-version"] = String(item.expectedVersion);
       }
 
-      const response = await fetch(item.endpoint, {
+      const url = resolveApiUrl(item.endpoint);
+      const response = await fetch(url, {
         method: item.method || "POST",
         headers,
         body: item.data ? JSON.stringify(item.data) : undefined,
@@ -398,7 +400,7 @@ export async function processOfflineSyncQueue(
             ...headers,
             "x-expected-version": String(resData.currentVersion),
           };
-          const retryRes = await fetch(item.endpoint, {
+          const retryRes = await fetch(url, {
             method: item.method || "POST",
             headers: retryHeaders,
             body: item.data ? JSON.stringify(item.data) : undefined,

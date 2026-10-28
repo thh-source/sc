@@ -242,6 +242,7 @@ function ProcurementAppInner({
   const [linkModalFromPicker, setLinkModalFromPicker] = useState<{ po: PO; stage: Payment } | null>(null);
   const [helpDrawerOpen, setHelpDrawerOpen] = useState(false);
   const [settingsModalOpen, setSettingsModalOpen] = useState(false);
+  const [mobileActionSheetOpen, setMobileActionSheetOpen] = useState(false);
   const [catalogSubTab, setCatalogSubTab] = useState<"products" | "suppliers">("products");
 
   useEffect(() => {
@@ -3439,11 +3440,179 @@ function ProcurementAppInner({
             <span><Truck size={18} /></span>
             <b>Bàn giao</b>
           </button>
-          <button onClick={() => setCollapsed(false)}>
+          <button onClick={() => setMobileActionSheetOpen(true)}>
             <span><Menu size={18} /></span>
             <b>Menu khác</b>
           </button>
         </nav>
+      )}
+
+      {/* Native Mobile Action Sheet (Menu khác - MoMo / Base.vn style) */}
+      {mobileActionSheetOpen && (
+        <div
+          className="fixed inset-0 z-[9999] flex flex-col justify-end bg-black/60 backdrop-blur-sm transition-all no-print"
+          onClick={() => setMobileActionSheetOpen(false)}
+        >
+          <div
+            className="w-full bg-white rounded-t-3xl p-5 shadow-2xl space-y-4 max-h-[85vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+            style={{ paddingBottom: "max(24px, env(safe-area-inset-bottom))" }}
+          >
+            {/* Grab handle */}
+            <div className="w-12 h-1.5 bg-slate-300 rounded-full mx-auto" />
+
+            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+              <h3 className="font-extrabold text-base text-slate-900 m-0">Tất cả chức năng</h3>
+              <button
+                type="button"
+                onClick={() => setMobileActionSheetOpen(false)}
+                className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 font-bold"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Grid of Action Items */}
+            <div className="grid grid-cols-3 gap-3">
+              {/* Thanh toán */}
+              <button
+                type="button"
+                onClick={() => {
+                  setMobileActionSheetOpen(false);
+                  navigateTo({ view: "payments" });
+                }}
+                className="flex flex-col items-center justify-center p-3 rounded-2xl bg-emerald-50 border border-emerald-100 active:scale-95 transition-all text-center gap-1.5"
+              >
+                <div className="w-12 h-12 rounded-2xl bg-emerald-500 text-white flex items-center justify-center shadow-md">
+                  <CreditCard size={22} />
+                </div>
+                <span className="text-xs font-bold text-slate-800">Thanh toán</span>
+              </button>
+
+              {/* Đề nghị phê duyệt */}
+              <button
+                type="button"
+                onClick={() => {
+                  setMobileActionSheetOpen(false);
+                  navigateTo({ view: "approval" });
+                }}
+                className="flex flex-col items-center justify-center p-3 rounded-2xl bg-amber-50 border border-amber-100 active:scale-95 transition-all text-center gap-1.5"
+              >
+                <div className="w-12 h-12 rounded-2xl bg-amber-500 text-white flex items-center justify-center shadow-md">
+                  <CheckSquare size={22} />
+                </div>
+                <span className="text-xs font-bold text-slate-800">ĐNPD</span>
+              </button>
+
+              {/* So sánh giá */}
+              <button
+                type="button"
+                onClick={() => {
+                  setMobileActionSheetOpen(false);
+                  navigateTo({ view: "compare" });
+                }}
+                className="flex flex-col items-center justify-center p-3 rounded-2xl bg-blue-50 border border-blue-100 active:scale-95 transition-all text-center gap-1.5"
+              >
+                <div className="w-12 h-12 rounded-2xl bg-blue-600 text-white flex items-center justify-center shadow-md">
+                  <Scale size={22} />
+                </div>
+                <span className="text-xs font-bold text-slate-800">So sánh giá</span>
+              </button>
+
+              {/* Nhà cung cấp */}
+              <button
+                type="button"
+                onClick={() => {
+                  setMobileActionSheetOpen(false);
+                  setCatalogSubTab("suppliers");
+                  navigateTo({ view: "catalog" });
+                }}
+                className="flex flex-col items-center justify-center p-3 rounded-2xl bg-purple-50 border border-purple-100 active:scale-95 transition-all text-center gap-1.5"
+              >
+                <div className="w-12 h-12 rounded-2xl bg-purple-600 text-white flex items-center justify-center shadow-md">
+                  <Building2 size={22} />
+                </div>
+                <span className="text-xs font-bold text-slate-800">Nhà cung cấp</span>
+              </button>
+
+              {/* Danh mục vật tư */}
+              <button
+                type="button"
+                onClick={() => {
+                  setMobileActionSheetOpen(false);
+                  setCatalogSubTab("products");
+                  navigateTo({ view: "catalog" });
+                }}
+                className="flex flex-col items-center justify-center p-3 rounded-2xl bg-indigo-50 border border-indigo-100 active:scale-95 transition-all text-center gap-1.5"
+              >
+                <div className="w-12 h-12 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-md">
+                  <Boxes size={22} />
+                </div>
+                <span className="text-xs font-bold text-slate-800">Danh mục hàng</span>
+              </button>
+
+              {/* Hợp đồng */}
+              <button
+                type="button"
+                onClick={() => {
+                  setMobileActionSheetOpen(false);
+                  navigateTo({ view: "contract" });
+                }}
+                className="flex flex-col items-center justify-center p-3 rounded-2xl bg-sky-50 border border-sky-100 active:scale-95 transition-all text-center gap-1.5"
+              >
+                <div className="w-12 h-12 rounded-2xl bg-sky-600 text-white flex items-center justify-center shadow-md">
+                  <FileText size={22} />
+                </div>
+                <span className="text-xs font-bold text-slate-800">Hợp đồng</span>
+              </button>
+
+              {/* Cài đặt */}
+              <button
+                type="button"
+                onClick={() => {
+                  setMobileActionSheetOpen(false);
+                  setSettingsModalOpen(true);
+                }}
+                className="flex flex-col items-center justify-center p-3 rounded-2xl bg-slate-50 border border-slate-200 active:scale-95 transition-all text-center gap-1.5"
+              >
+                <div className="w-12 h-12 rounded-2xl bg-slate-700 text-white flex items-center justify-center shadow-md">
+                  <Settings size={22} />
+                </div>
+                <span className="text-xs font-bold text-slate-800">Cài đặt</span>
+              </button>
+
+              {/* Tìm kiếm Spotlight */}
+              <button
+                type="button"
+                onClick={() => {
+                  setMobileActionSheetOpen(false);
+                  setSpotlightOpen(true);
+                }}
+                className="flex flex-col items-center justify-center p-3 rounded-2xl bg-rose-50 border border-rose-100 active:scale-95 transition-all text-center gap-1.5"
+              >
+                <div className="w-12 h-12 rounded-2xl bg-rose-600 text-white flex items-center justify-center shadow-md">
+                  <Search size={22} />
+                </div>
+                <span className="text-xs font-bold text-slate-800">Tìm kiếm</span>
+              </button>
+
+              {/* Thùng rác */}
+              <button
+                type="button"
+                onClick={() => {
+                  setMobileActionSheetOpen(false);
+                  navigateTo({ view: "trash" });
+                }}
+                className="flex flex-col items-center justify-center p-3 rounded-2xl bg-red-50 border border-red-100 active:scale-95 transition-all text-center gap-1.5"
+              >
+                <div className="w-12 h-12 rounded-2xl bg-red-600 text-white flex items-center justify-center shadow-md">
+                  <Trash2 size={22} />
+                </div>
+                <span className="text-xs font-bold text-slate-800">Thùng rác</span>
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Settings & System Utilities Modal */}

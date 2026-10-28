@@ -585,38 +585,81 @@ export function POList({
                     {isDone ? "Đã hoàn thành" : po.status || "Đang xử lý"}
                   </span>
                 </header>
-                <h3>{supplier?.name || "Chưa có nhà cung cấp"}</h3>
-                <p>
-                  {po.prNumber} · {dateVN(po.createdDate)}
-                </p>
-                <dl>
-                  <div>
-                    <dt>Giá trị</dt>
-                    <dd>{fmt(total)} ₫</dd>
+                <div style={{ marginTop: "6px" }}>
+                  <h3 style={{ fontSize: "14.5px", fontWeight: 700, color: "#0f172a", margin: "0 0 2px" }}>
+                    {supplier?.name || "Chưa có nhà cung cấp"}
+                  </h3>
+                  <div style={{ fontSize: "12px", color: "#64748b" }}>
+                    {po.prNumber ? `Căn cứ ${po.prNumber}` : "Đơn mua trực tiếp"} · {dateVN(po.createdDate)}
                   </div>
-                  <div>
-                    <dt>Giao hàng</dt>
-                    <dd>
-                      {deliveryStats.isFullyDelivered ? "✓ Đã giao đủ" : `${delivered}/${items.length} (${deliveryStats.overallProgressPercent}%)`}
-                    </dd>
+                </div>
+
+                {/* Tổng tiền nổi bật font to */}
+                <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", margin: "10px 0 6px" }}>
+                  <span style={{ fontSize: "12px", color: "#64748b", fontWeight: 500 }}>Giá trị đơn hàng:</span>
+                  <span style={{ fontSize: "18px", fontWeight: 800, color: "#1d4ed8" }}>
+                    {fmt(total)} <span style={{ fontSize: "13px", fontWeight: 600 }}>₫</span>
+                  </span>
+                </div>
+
+                {/* Thanh tiến độ % giao hàng */}
+                <div style={{ margin: "8px 0" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11.5px", marginBottom: "4px" }}>
+                    <span style={{ color: "#475569" }}>Giao hàng:</span>
+                    <span style={{ fontWeight: 700, color: deliveryStats.isFullyDelivered ? "#15803d" : "#0369a1" }}>
+                      {deliveryStats.isFullyDelivered
+                        ? "✓ Đã giao đủ 100%"
+                        : `${deliveryStats.overallProgressPercent}% (${delivered}/${items.length} mặt hàng)`}
+                    </span>
                   </div>
-                  <div>
-                    <dt>Thanh toán</dt>
-                    <dd>
-                      {isFullyPaid ? (
-                        <span style={{ color: "#166534", fontWeight: 700, fontSize: "11px", background: "#dcfce7", padding: "1px 6px", borderRadius: "4px" }}>
-                          ✓ Đã TT
-                        </span>
-                      ) : paid > 0 ? (
-                        <span style={{ color: "#0369a1", fontWeight: 600, fontSize: "11px", background: "#e0f2fe", padding: "1px 6px", borderRadius: "4px" }}>
-                          Đã TT {total > 0 ? Math.round((paid / total) * 100) : 0}%
-                        </span>
-                      ) : (
-                        <span style={{ color: "#64748b", fontSize: "11px" }}>Chưa thanh toán</span>
-                      )}
-                    </dd>
+                  <div
+                    style={{
+                      width: "100%",
+                      height: "7px",
+                      background: "#f1f5f9",
+                      borderRadius: "999px",
+                      overflow: "hidden",
+                      border: "1px solid #e2e8f0",
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: `${deliveryStats.overallProgressPercent}%`,
+                        height: "100%",
+                        background: deliveryStats.isFullyDelivered ? "#16a34a" : "#2563eb",
+                        borderRadius: "999px",
+                        transition: "width 0.3s ease",
+                      }}
+                    />
                   </div>
-                </dl>
+                </div>
+
+                {/* Trạng thái thanh toán */}
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    fontSize: "12px",
+                    padding: "6px 8px",
+                    background: "#f8fafc",
+                    borderRadius: "6px",
+                    marginBottom: "10px",
+                  }}
+                >
+                  <span style={{ color: "#64748b" }}>Thanh toán:</span>
+                  {isFullyPaid ? (
+                    <span style={{ color: "#166534", fontWeight: 700, fontSize: "11px", background: "#dcfce7", padding: "2px 8px", borderRadius: "4px" }}>
+                      ✓ Đã thanh toán 100%
+                    </span>
+                  ) : paid > 0 ? (
+                    <span style={{ color: "#0369a1", fontWeight: 600, fontSize: "11px", background: "#e0f2fe", padding: "2px 8px", borderRadius: "4px" }}>
+                      Đã TT {total > 0 ? Math.round((paid / total) * 100) : 0}%
+                    </span>
+                  ) : (
+                    <span style={{ color: "#64748b", fontSize: "11.5px" }}>Chưa thanh toán</span>
+                  )}
+                </div>
                 <footer className="m-card-footer">
                   <button
                     type="button"

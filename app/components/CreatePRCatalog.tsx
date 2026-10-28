@@ -1,5 +1,5 @@
 import React, { ChangeEvent, useState, useMemo, useEffect } from "react";
-import { ArrowLeft, Check, Plus, Download, Upload, Paperclip, Eye, Trash2, Loader2, AlertTriangle, RotateCcw } from "lucide-react";
+import { ArrowLeft, Check, Plus, Download, Upload, Paperclip, Eye, Trash2, Loader2, AlertTriangle, RotateCcw, ChevronRight } from "lucide-react";
 import { compressImageIfNeeded } from "../utils/compressImage";
 import { PRScanPreviewModal } from "./PRScanPreviewModal";
 import { Item, ColumnKey, SortState } from "../types";
@@ -7,6 +7,7 @@ import { fmt, makeId, emptyItem, applyTools, BASE_COLUMNS } from "../utils";
 import { DraftItemsTable } from "./DraftItemsTable";
 import { addNewDepartment, getUnifiedDepartments } from "../utils/departments";
 import { saveFormDraft, getFormDraft, clearFormDraft } from "../utils/offlineSync";
+import { useIsMobile } from "../useIsMobile";
 
 export function CreatePRCatalog({
   draft,
@@ -173,6 +174,440 @@ export function CreatePRCatalog({
     }));
     setSelectedProduct("");
   };
+
+  const isMobile = useIsMobile();
+  const [mobileStep, setMobileStep] = useState<1 | 2>(1);
+
+  if (isMobile) {
+    return (
+      <div className="create-page w-full min-h-screen pb-32 px-3 pt-3 bg-slate-50 text-slate-800">
+        {/* Mobile Header */}
+        <div className="flex items-center justify-between pb-3 border-b border-slate-200">
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={onCancel}
+              className="w-9 h-9 rounded-full bg-white border border-slate-200 flex items-center justify-center text-slate-600 shadow-sm"
+            >
+              <ArrowLeft size={18} />
+            </button>
+            <div>
+              <h1 className="text-base font-bold text-slate-900 m-0">Tạo PR Mua sắm</h1>
+              <span className="text-xs text-slate-500">Bước {mobileStep}/2: {mobileStep === 1 ? "Thông tin chung" : "Hàng hóa"}</span>
+            </div>
+          </div>
+          <button
+            type="button"
+            className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-bold shadow-sm"
+            onClick={onSave}
+            disabled={!draft.number || !draft.date || !draft.department || !draft.purpose}
+          >
+            Lưu PR
+          </button>
+        </div>
+
+        {/* 2-Step Pill Tabs */}
+        <div className="grid grid-cols-2 gap-2 my-3">
+          <button
+            type="button"
+            onClick={() => setMobileStep(1)}
+            className={`py-2 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-2 border transition-all ${
+              mobileStep === 1
+                ? "bg-blue-600 text-white border-blue-600 shadow-sm"
+                : "bg-white text-slate-600 border-slate-200"
+            }`}
+          >
+            <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${
+              mobileStep === 1 ? "bg-white text-blue-600" : "bg-slate-100 text-slate-600"
+            }`}>1</span>
+            <span>Thông tin chung</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setMobileStep(2)}
+            className={`py-2 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-2 border transition-all ${
+              mobileStep === 2
+                ? "bg-blue-600 text-white border-blue-600 shadow-sm"
+                : "bg-white text-slate-600 border-slate-200"
+            }`}
+          >
+            <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${
+              mobileStep === 2 ? "bg-white text-blue-600" : "bg-slate-100 text-slate-600"
+            }`}>2</span>
+            <span>Hàng hóa ({draft.items.length})</span>
+          </button>
+        </div>
+
+        {/* STEP 1: THÔNG TIN CHUNG */}
+        {mobileStep === 1 && (
+          <div className="space-y-3">
+            <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm space-y-3">
+              <div>
+                <label className="text-xs font-bold text-slate-700 block mb-1">
+                  Mã số PR <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={draft.number}
+                  onChange={(e) => setDraft((d) => ({ ...d, number: e.target.value }))}
+                  placeholder="VD: PR-2026-0001"
+                  className="w-full h-10 px-3 rounded-xl border border-slate-200 text-sm font-semibold text-slate-800 outline-none focus:border-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-slate-700 block mb-1">
+                  Ngày lập PR <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="date"
+                  value={draft.date}
+                  onChange={(e) => setDraft((d) => ({ ...d, date: e.target.value }))}
+                  className="w-full h-10 px-3 rounded-xl border border-slate-200 text-sm font-semibold text-slate-800 outline-none focus:border-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-slate-700 block mb-1">
+                  Phòng ban / Đơn vị yêu cầu <span className="text-red-500">*</span>
+                </label>
+                <select
+                  value={draft.department}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (val === "__ADD_NEW__") {
+                      const name = window.prompt("Nhập tên phòng ban mới:", "");
+                      if (name && name.trim()) {
+                        addNewDepartment(name.trim());
+                        setDraft((d) => ({ ...d, department: name.trim() }));
+                      }
+                      return;
+                    }
+                    setDraft((d) => ({ ...d, department: val }));
+                  }}
+                  className="w-full h-10 px-3 rounded-xl border border-slate-200 text-sm font-semibold text-slate-800 outline-none focus:border-blue-500 bg-white"
+                >
+                  <option value="">-- Chọn đơn vị / phòng ban --</option>
+                  {sysDepts.map((d) => (
+                    <option key={d} value={d}>{d}</option>
+                  ))}
+                  <option value="__ADD_NEW__">＋ Thêm phòng ban mới...</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-slate-700 block mb-1">
+                  Mục đích sử dụng <span className="text-red-500">*</span>
+                </label>
+                <textarea
+                  rows={3}
+                  value={draft.purpose}
+                  onChange={(e) => setDraft((d) => ({ ...d, purpose: e.target.value }))}
+                  placeholder="Mục đích sử dụng hàng hóa (bắt buộc)..."
+                  className="w-full p-3 rounded-xl border border-slate-200 text-sm text-slate-800 outline-none focus:border-blue-500 resize-none"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-slate-700 block mb-1">
+                  Ghi chú chung
+                </label>
+                <textarea
+                  rows={2}
+                  value={draft.note}
+                  onChange={(e) => setDraft((d) => ({ ...d, note: e.target.value }))}
+                  placeholder="Ghi chú thêm về yêu cầu mua sắm..."
+                  className="w-full p-3 rounded-xl border border-slate-200 text-sm text-slate-800 outline-none focus:border-blue-500 resize-none"
+                />
+              </div>
+
+              {/* Scan Attachment */}
+              <div className="pt-2 border-t border-slate-100">
+                <span className="text-xs font-bold text-slate-700 flex items-center gap-1.5 mb-2">
+                  <Paperclip size={14} className="text-blue-600" />
+                  Bản scan / Phiếu ký PR
+                </span>
+                <input
+                  ref={scanInputRef}
+                  type="file"
+                  accept="application/pdf,image/png,image/jpeg,image/webp"
+                  hidden
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (f) handleScanUpload(f);
+                  }}
+                />
+                {draft.scan_file_url ? (
+                  <div className="flex items-center justify-between p-2.5 bg-sky-50 border border-sky-200 rounded-xl">
+                    <span className="text-xs font-semibold text-sky-800 truncate">
+                      ✓ Đã đính kèm bản scan PR
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setShowPreviewModal(true)}
+                        className="px-2 py-1 bg-white border border-sky-300 rounded-lg text-xs font-semibold text-sky-700"
+                      >
+                        Xem
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setDraft((d) => ({ ...d, scan_file_url: "" }))}
+                        className="p-1 text-red-500 hover:text-red-700"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => scanInputRef.current?.click()}
+                    className="w-full py-2.5 border border-dashed border-sky-400 bg-sky-50/50 rounded-xl text-xs font-semibold text-sky-700 flex items-center justify-center gap-2"
+                  >
+                    {uploadingScan ? (
+                      <>
+                        <Loader2 size={14} className="animate-spin text-sky-600" />
+                        <span>Đang tải lên...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Paperclip size={14} />
+                        <span>Chụp hoặc tải ảnh/PDF scan</span>
+                      </>
+                    )}
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Next Button */}
+            <button
+              type="button"
+              onClick={() => setMobileStep(2)}
+              className="w-full py-3.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-2xl shadow-md flex items-center justify-center gap-2 text-sm"
+            >
+              <span>Tiếp tục: Danh sách hàng hóa ({draft.items.length})</span>
+              <ChevronRight size={18} />
+            </button>
+          </div>
+        )}
+
+        {/* STEP 2: DANH SÁCH HÀNG HÓA */}
+        {mobileStep === 2 && (
+          <div className="space-y-3">
+            {/* Quick Catalog / Add bar */}
+            <div className="bg-white rounded-2xl p-3 border border-slate-200 shadow-sm space-y-2">
+              <span className="text-xs font-bold text-slate-700 block">Thêm hàng từ danh mục:</span>
+              <div className="flex gap-2">
+                <select
+                  value={selectedProduct}
+                  onChange={(e) => setSelectedProduct(e.target.value)}
+                  className="flex-1 h-9 px-2.5 text-xs rounded-xl border border-slate-200 bg-white text-slate-800"
+                >
+                  <option value="">-- Chọn sản phẩm có sẵn --</option>
+                  {products.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name} ({p.unit || "Cái"})
+                    </option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  disabled={!selectedProduct}
+                  onClick={addCatalogProduct}
+                  className="px-3 h-9 bg-blue-600 disabled:opacity-50 text-white rounded-xl text-xs font-bold flex items-center gap-1 shrink-0"
+                >
+                  <Plus size={14} /> Thêm
+                </button>
+              </div>
+            </div>
+
+            {/* Mini Cards for each item */}
+            <div className="space-y-2.5">
+              {draft.items.map((item, idx) => {
+                const itemTotal = (Number(item.qty) || 0) * (Number(item.estimate) || 0);
+                return (
+                  <div
+                    key={item.id}
+                    className="bg-white rounded-2xl p-3.5 border border-slate-200 shadow-sm space-y-2"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-2 flex-1">
+                        <span className="w-5 h-5 rounded-full bg-slate-100 text-slate-600 text-xs font-bold flex items-center justify-center shrink-0">
+                          {idx + 1}
+                        </span>
+                        <input
+                          type="text"
+                          value={item.name}
+                          onChange={(e) => itemChange(item.id, "name", e.target.value, true)}
+                          placeholder="Tên hàng hóa / quy cách *"
+                          className="font-bold text-sm text-slate-900 border-b border-transparent focus:border-blue-500 outline-none w-full"
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setDraft((d) => ({
+                            ...d,
+                            items: d.items.filter((it) => it.id !== item.id),
+                          }))
+                        }
+                        className="p-1.5 text-slate-400 hover:text-red-500 rounded-lg shrink-0"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      <div>
+                        <span className="text-slate-500 block mb-0.5">Quy cách / Model</span>
+                        <input
+                          type="text"
+                          value={item.spec || ""}
+                          onChange={(e) => itemChange(item.id, "spec", e.target.value, true)}
+                          placeholder="Quy cách kỹ thuật..."
+                          className="w-full h-8 px-2 rounded-lg border border-slate-200 text-xs text-slate-700 outline-none"
+                        />
+                      </div>
+                      <div>
+                        <span className="text-slate-500 block mb-0.5">Đơn vị tính</span>
+                        <input
+                          type="text"
+                          value={item.unit || "Cái"}
+                          onChange={(e) => itemChange(item.id, "unit", e.target.value, true)}
+                          placeholder="ĐVT (Cái, Bộ...)"
+                          className="w-full h-8 px-2 rounded-lg border border-slate-200 text-xs text-slate-700 outline-none"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Quantity Controller & Price */}
+                    <div className="flex items-center justify-between pt-2 border-t border-slate-100">
+                      {/* Qty +/- */}
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-xs text-slate-500 mr-1">SL:</span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const cur = Number(item.qty) || 1;
+                            itemChange(item.id, "qty", String(Math.max(1, cur - 1)), true);
+                          }}
+                          className="w-7 h-7 rounded-lg bg-slate-100 text-slate-700 flex items-center justify-center font-bold text-sm hover:bg-slate-200 active:scale-95"
+                        >
+                          -
+                        </button>
+                        <input
+                          type="number"
+                          value={item.qty || 1}
+                          min={1}
+                          onChange={(e) => itemChange(item.id, "qty", e.target.value, true)}
+                          className="w-12 h-7 text-center font-bold text-xs rounded-lg border border-slate-200 text-slate-800"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const cur = Number(item.qty) || 1;
+                            itemChange(item.id, "qty", String(cur + 1), true);
+                          }}
+                          className="w-7 h-7 rounded-lg bg-slate-100 text-slate-700 flex items-center justify-center font-bold text-sm hover:bg-slate-200 active:scale-95"
+                        >
+                          +
+                        </button>
+                      </div>
+
+                      {/* Price */}
+                      <div className="text-right">
+                        <div className="text-[11px] text-slate-500">Đơn giá dự kiến:</div>
+                        <div className="flex items-center justify-end gap-1">
+                          <input
+                            type="number"
+                            value={item.estimate || ""}
+                            onChange={(e) => itemChange(item.id, "estimate", e.target.value, true)}
+                            placeholder="0"
+                            className="w-20 h-7 text-right px-1.5 text-xs font-semibold rounded-lg border border-slate-200 text-slate-800"
+                          />
+                          <span className="text-xs text-slate-500">₫</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Subtotal */}
+                    {itemTotal > 0 && (
+                      <div className="flex justify-between items-center text-xs font-semibold text-slate-600 bg-slate-50 p-2 rounded-xl">
+                        <span>Thành tiền:</span>
+                        <span className="text-blue-700 font-bold">{fmt(itemTotal)} ₫</span>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Add Custom Item Button */}
+            <button
+              type="button"
+              onClick={() =>
+                setDraft((d) => ({
+                  ...d,
+                  items: [
+                    ...d.items,
+                    {
+                      ...emptyItem(d.items.length),
+                      code: `VT-${String(products.length + 1).padStart(3, "0")}`,
+                    },
+                  ],
+                }))
+              }
+              className="w-full py-3 bg-white border border-dashed border-blue-400 text-blue-700 rounded-2xl text-xs font-bold flex items-center justify-center gap-1.5 shadow-sm"
+            >
+              <Plus size={16} /> Thêm mặt hàng mới
+            </button>
+
+            {/* Total Summary */}
+            <div className="bg-slate-900 text-white rounded-2xl p-3.5 flex items-center justify-between shadow-lg">
+              <div>
+                <span className="text-xs text-slate-400 block">Tổng cộng ({draft.items.length} mặt hàng)</span>
+                <span className="text-base font-extrabold text-emerald-400">{fmt(total)} ₫</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setMobileStep(1)}
+                className="px-3 py-1.5 bg-slate-800 text-slate-300 rounded-xl text-xs font-semibold"
+              >
+                Sửa bước 1
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* STICKY BOTTOM ACTION CTA */}
+        <div className="fixed bottom-0 left-0 right-0 p-3 bg-white/95 backdrop-blur-md border-t border-slate-200 shadow-xl z-50">
+          <button
+            type="button"
+            onClick={onSave}
+            disabled={!draft.number || !draft.date || !draft.department || !draft.purpose}
+            className="w-full py-3.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:bg-slate-400 text-white font-extrabold rounded-2xl shadow-lg flex items-center justify-center gap-2 text-base transition-all"
+          >
+            <Check size={20} />
+            <span>Gửi phê duyệt / Lưu PR</span>
+          </button>
+        </div>
+
+        {showPreviewModal && draft.scan_file_url && (
+          <PRScanPreviewModal
+            pr={{
+              number: draft.number || "PR-MỚI",
+              scan_file_url: draft.scan_file_url,
+              department: draft.department,
+            }}
+            onClose={() => setShowPreviewModal(false)}
+          />
+        )}
+      </div>
+    );
+  }
 
   return (
     <div

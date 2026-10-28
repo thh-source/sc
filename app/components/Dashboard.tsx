@@ -36,6 +36,9 @@ import {
   isApprovalCompleted,
 } from "../utils/paymentSync";
 import { enqueueOfflineAction, checkIsOnline } from "../utils/offlineSync";
+import { useIsMobile } from "../useIsMobile";
+import { MobileDashboard } from "./MobileDashboard";
+import { resolveApiUrl, apiFetch } from "../utils/apiConfig";
 
 // --- TYPES FOR DASHBOARD TO-DO WIDGET & MENTION SYSTEM ---
 export interface DashboardTodo {
@@ -362,7 +365,7 @@ export function Dashboard({
   // Tự động tải danh sách công việc mới nhất từ Cloudflare D1
   useEffect(() => {
     let active = true;
-    fetch("/api/todos")
+    apiFetch("/api/todos")
       .then((res) => {
         if (!res.ok) throw new Error("HTTP " + res.status);
         return res.json() as Promise<{ todos: DashboardTodo[] }>;
@@ -677,7 +680,7 @@ export function Dashboard({
           description: `Thêm công việc: ${trimmed}`,
         });
       } else {
-        await fetch("/api/todos", {
+        await apiFetch("/api/todos", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(newTodo),
@@ -713,7 +716,7 @@ export function Dashboard({
           description: `Cập nhật trạng thái công việc #${id}`,
         });
       } else {
-        await fetch("/api/todos", {
+        await apiFetch("/api/todos", {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ id, completed: willBeCompleted }),
@@ -743,7 +746,7 @@ export function Dashboard({
           description: `Xóa công việc #${id}`,
         });
       } else {
-        await fetch(`/api/todos?id=${encodeURIComponent(id)}`, {
+        await apiFetch(`/api/todos?id=${encodeURIComponent(id)}`, {
           method: "DELETE",
         });
       }
@@ -771,7 +774,7 @@ export function Dashboard({
           description: "Dọn dẹp các việc đã hoàn thành",
         });
       } else {
-        await fetch("/api/todos?clearCompleted=true", {
+        await apiFetch("/api/todos?clearCompleted=true", {
           method: "DELETE",
         });
       }
@@ -938,6 +941,70 @@ export function Dashboard({
     () => cashFlowItems.filter((i) => i.isAdvance).length,
     [cashFlowItems],
   );
+
+  const isMobile = useIsMobile();
+  if (isMobile) {
+    return (
+      <MobileDashboard
+        prs={prs}
+        pos={pos}
+        approvalRequests={approvalRequests}
+        paymentRequests={paymentRequests}
+        suppliers={suppliers}
+        todos={todos}
+        onAddTodo={async (text, priority) => {
+          const newTodo: DashboardTodo = {
+            id: "todo-" + Date.now(),
+            text,
+            completed: false,
+            createdAt: new Date().toISOString(),
+            priority: priority || "normal",
+          };
+          setTodos((prev) => [newTodo, ...prev]);
+          try {
+            const isOnline = await checkIsOnline();
+            if (!isOnline) {
+              await enqueueOfflineAction({
+                endpoint: "/api/todos",
+                method: "POST",
+                data: newTodo,
+                description: `Thêm công việc: ${text}`,
+              });
+            } else {
+              await apiFetch("/api/todos", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(newTodo),
+              });
+            }
+          } catch {
+            await enqueueOfflineAction({
+              endpoint: "/api/todos",
+              method: "POST",
+              data: newTodo,
+              description: `Thêm công việc: ${text}`,
+            });
+          }
+        }}
+        onToggleTodo={handleToggleTodo}
+        onDeleteTodo={handleDeleteTodo}
+        onNavigate={onNavigate}
+        onCreatePR={onCreatePR}
+        onCreateApproval={onCreateApproval}
+        onCreatePO={onCreatePO}
+        onSelectPR={onSelectPR}
+        onSelectPO={onSelectPO}
+        onSelectPayment={onSelectPayment}
+        onSelectApproval={onSelectApproval}
+        onToggleCompletePayment={onToggleCompletePayment}
+        paidTodayAmount={paidTodayAmount}
+        totalPOValue={totalPOValue}
+        totalPOPaid={totalPOPaid}
+        poPaymentProgressPct={poPaymentProgressPct}
+        remainingDebt={remainingDebt}
+      />
+    );
+  }
 
   return (
     <section className="content dashboard-workspace">

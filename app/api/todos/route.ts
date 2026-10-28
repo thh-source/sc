@@ -1,5 +1,22 @@
 import { getCurrentUser } from "../../auth";
 
+const CORS_HEADERS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization, x-expected-version",
+};
+
+export async function OPTIONS() {
+  return new Response(null, { status: 204, headers: CORS_HEADERS });
+}
+
+function jsonResponse(data: any, status = 200) {
+  return Response.json(data, {
+    status,
+    headers: CORS_HEADERS,
+  });
+}
+
 async function getRuntimeDB() {
   const { env } = await import("cloudflare:workers");
   return env.DB as D1Database;
@@ -54,10 +71,10 @@ export async function GET(request: Request) {
         : [],
     }));
 
-    return Response.json({ todos, count: todos.length });
+    return jsonResponse({ todos, count: todos.length });
   } catch (err: any) {
     console.error("Lỗi GET /api/todos:", err);
-    return Response.json({ error: err.message || "Lỗi máy chủ", todos: [] }, { status: 500 });
+    return jsonResponse({ error: err.message || "Lỗi máy chủ", todos: [] }, 500);
   }
 }
 
@@ -74,7 +91,7 @@ export async function POST(request: Request) {
     const body = (await request.json()) as any;
     const text = (body.text || body.content || "").trim();
     if (!text) {
-      return Response.json({ error: "Nội dung công việc không được để trống" }, { status: 400 });
+      return jsonResponse({ error: "Nội dung công việc không được để trống" }, 400);
     }
 
     const id = body.id || `todo-${Date.now()}`;
@@ -99,7 +116,7 @@ export async function POST(request: Request) {
       .bind(id, userId, text, isCompleted, isPriority, tagsStr, now, now)
       .run();
 
-    return Response.json({
+    return jsonResponse({
       success: true,
       todo: {
         id,
@@ -112,7 +129,7 @@ export async function POST(request: Request) {
     });
   } catch (err: any) {
     console.error("Lỗi POST /api/todos:", err);
-    return Response.json({ error: err.message || "Lỗi máy chủ" }, { status: 500 });
+    return jsonResponse({ error: err.message || "Lỗi máy chủ" }, 500);
   }
 }
 
@@ -138,7 +155,7 @@ export async function PUT(request: Request) {
           )
           .bind(userId)
           .run();
-        return Response.json({ success: true, count: 0 });
+        return jsonResponse({ success: true, count: 0 });
       }
 
       // Đánh dấu các việc không còn trong mảng là đã xóa
@@ -175,12 +192,12 @@ export async function PUT(request: Request) {
           .run();
       }
 
-      return Response.json({ success: true, count: body.todos.length });
+      return jsonResponse({ success: true, count: body.todos.length });
     }
 
     // Cập nhật 1 mục đơn lẻ
     const id = body.id;
-    if (!id) return Response.json({ error: "Thiếu ID công việc" }, { status: 400 });
+    if (!id) return jsonResponse({ error: "Thiếu ID công việc" }, 400);
 
     const isCompleted =
       body.completed !== undefined
@@ -218,10 +235,10 @@ export async function PUT(request: Request) {
     params.push(id, userId);
 
     await db.prepare(updateSql).bind(...params).run();
-    return Response.json({ success: true });
+    return jsonResponse({ success: true });
   } catch (err: any) {
     console.error("Lỗi PUT /api/todos:", err);
-    return Response.json({ error: err.message || "Lỗi máy chủ" }, { status: 500 });
+    return jsonResponse({ error: err.message || "Lỗi máy chủ" }, 500);
   }
 }
 
@@ -254,7 +271,7 @@ export async function DELETE(request: Request) {
         )
         .bind(userId)
         .run();
-      return Response.json({ success: true, message: "Đã xóa toàn bộ công việc" });
+      return jsonResponse({ success: true, message: "Đã xóa toàn bộ công việc" });
     }
 
     if (clearCompleted || body?.clearCompleted) {
@@ -264,7 +281,7 @@ export async function DELETE(request: Request) {
         )
         .bind(userId)
         .run();
-      return Response.json({ success: true, message: "Đã dọn dẹp các công việc đã xong" });
+      return jsonResponse({ success: true, message: "Đã dọn dẹp các công việc đã xong" });
     }
 
     if (targetId) {
@@ -274,12 +291,12 @@ export async function DELETE(request: Request) {
         )
         .bind(targetId, userId)
         .run();
-      return Response.json({ success: true, message: "Đã xóa công việc" });
+      return jsonResponse({ success: true, message: "Đã xóa công việc" });
     }
 
-    return Response.json({ error: "Yêu cầu xóa không hợp lệ" }, { status: 400 });
+    return jsonResponse({ error: "Yêu cầu xóa không hợp lệ" }, 400);
   } catch (err: any) {
     console.error("Lỗi DELETE /api/todos:", err);
-    return Response.json({ error: err.message || "Lỗi máy chủ" }, { status: 500 });
+    return jsonResponse({ error: err.message || "Lỗi máy chủ" }, 500);
   }
 }

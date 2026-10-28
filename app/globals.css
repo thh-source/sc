@@ -1279,7 +1279,7 @@ tbody tr:hover td {
 }
 
 /* ============================================================
-   PRINT RULES - ẨN TRỢ LÝ ẢO NỔI, POPUP AI & WIDGET KHI IN
+   PRINT RULES - ẨN TRỢ LÝ ẢO NỔI, POPUP AI, FAB & NATIVE BOTTOM NAV KHI IN A4
    ============================================================ */
 @media print {
   /* Ẩn extension trợ lý AI và các widget nổi khi in */
@@ -1287,6 +1287,14 @@ tbody tr:hover td {
   [id^="phenikaa-ai"],
   .pka-fab-btn,
   .pka-chat-panel,
+  .mobile-bottom-nav,
+  .mobile-fab-container,
+  .mobile-action-sheet-overlay,
+  .mobile-native-header,
+  header.mobile-header,
+  .hamb,
+  nav,
+  .sidebar,
   .no-print {
     display: none !important;
     visibility: hidden !important;

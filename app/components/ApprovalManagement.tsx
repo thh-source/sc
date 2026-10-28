@@ -48,6 +48,7 @@ import { DocFlowLinks } from "./DocFlowLinks";
 import { resolveDocFlow } from "../utils/docFlow";
 import { isApprovalCompleted, calcPODeliveryStats } from "../utils/paymentSync";
 import { calcPOTotal, PaymentHandoverItem } from "../types";
+import { useIsMobile } from "../useIsMobile";
 
 export function getApprovalContextualStatus(
   req: ApprovalRequest,
@@ -737,6 +738,7 @@ export default function ApprovalManagement({
   onNavigate,
   onToggleComplete,
 }: ApprovalManagementProps) {
+  const isMobile = useIsMobile();
   const [mounted, setMounted] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
@@ -2682,7 +2684,142 @@ export default function ApprovalManagement({
             />
           </div>
 
-          <div className="approval-grid-scroll-wrap">
+          {/* NATIVE MOBILE VENDOR COMPARISON CARDS */}
+          {isMobile && !isReportMode ? (
+            <div className="mobile-vendor-cards-container space-y-3.5 my-3 no-print">
+              {activeRequest.supplierColumns.map((sc, scIdx) => {
+                const scTotal = activeRequest.rows.reduce((sum, row) => {
+                  const lines = row.supplierQuotes[sc.colId] || [];
+                  return (
+                    sum +
+                    lines.reduce(
+                      (lSum, l) =>
+                        lSum +
+                        (Number(l.amount) ||
+                          (Number(l.unitPrice) || 0) * (Number(l.qty) || Number(row.qty) || 0)),
+                      0
+                    )
+                  );
+                }, 0);
+
+                return (
+                  <div
+                    key={sc.colId}
+                    className={`rounded-2xl p-4 transition-all border-2 shadow-sm ${
+                      sc.isSelected
+                        ? "bg-emerald-50/60 border-emerald-500 shadow-emerald-100 ring-2 ring-emerald-400/20"
+                        : "bg-white border-slate-200"
+                    }`}
+                  >
+                    {/* Card Header */}
+                    <div className="flex items-start justify-between gap-2 pb-3 border-b border-slate-100">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[11px] font-bold px-2 py-0.5 rounded bg-slate-100 text-slate-700">
+                            NCC {scIdx + 1}
+                          </span>
+                          <h3 className="font-extrabold text-base text-slate-900 m-0">
+                            {sc.shortName || sc.supplierName || `Nhà cung cấp ${scIdx + 1}`}
+                          </h3>
+                        </div>
+                        {sc.supplierName && sc.supplierName !== sc.shortName && (
+                          <p className="text-xs text-slate-500 mt-0.5 m-0">{sc.supplierName}</p>
+                        )}
+                      </div>
+
+                      {/* 1-Tap Winner Selection Button */}
+                      <button
+                        type="button"
+                        onClick={() => handleSelectSupplierCol(sc.colId)}
+                        className={`px-3 py-1.5 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all cursor-pointer ${
+                          sc.isSelected
+                            ? "bg-emerald-600 text-white shadow-sm"
+                            : "bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300"
+                        }`}
+                      >
+                        {sc.isSelected ? (
+                          <>
+                            <CheckCircle2 size={16} />
+                            <span>Đã chọn ✓</span>
+                          </>
+                        ) : (
+                          <>
+                            <Circle size={16} />
+                            <span>Chọn NCC này</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+
+                    {/* Supplier Terms Pills */}
+                    <div className="grid grid-cols-2 gap-2 my-2.5 text-xs">
+                      <div className="bg-slate-50 p-2 rounded-xl">
+                        <span className="text-slate-500 block text-[11px]">Thời gian giao:</span>
+                        <span className="font-semibold text-slate-800">{sc.leadTime || "Theo thỏa thuận"}</span>
+                      </div>
+                      <div className="bg-slate-50 p-2 rounded-xl">
+                        <span className="text-slate-500 block text-[11px]">Bảo hành:</span>
+                        <span className="font-semibold text-slate-800">{sc.warranty || "Theo tiêu chuẩn"}</span>
+                      </div>
+                    </div>
+
+                    {/* Total Quoted Amount */}
+                    <div className="flex items-center justify-between p-2.5 bg-blue-50/70 rounded-xl mb-3 border border-blue-100">
+                      <span className="text-xs font-bold text-blue-900">Tổng tiền chào giá:</span>
+                      <span className="text-base font-extrabold text-blue-700">{formatVND(scTotal)} ₫</span>
+                    </div>
+
+                    {/* Item Price List */}
+                    <div className="space-y-2">
+                      <span className="text-xs font-bold text-slate-700 block">Đơn giá từng mặt hàng:</span>
+                      {activeRequest.rows.map((row, rIdx) => {
+                        const lines = row.supplierQuotes[sc.colId] || [];
+                        const firstLine = lines[0] || { unitPrice: 0, amount: 0 };
+                        return (
+                          <div key={row.rowId} className="p-2.5 bg-slate-50 rounded-xl border border-slate-200 text-xs">
+                            <div className="flex justify-between font-bold text-slate-900 mb-1">
+                              <span>{row.stt}. {row.itemName}</span>
+                              <span className="text-slate-600">SL: {row.qty} {row.unit}</span>
+                            </div>
+                            <div className="flex items-center justify-between gap-2 mt-1">
+                              <span className="text-slate-500">Đơn giá (chưa VAT):</span>
+                              <div className="flex items-center gap-1">
+                                <input
+                                  type="text"
+                                  value={firstLine.unitPrice ? String(firstLine.unitPrice) : ""}
+                                  onChange={(e) =>
+                                    handleUpdateSupplierLine(rIdx, sc.colId, 0, "unitPrice", e.target.value)
+                                  }
+                                  placeholder="0"
+                                  className="w-24 h-7 text-right px-2 rounded-lg border border-slate-300 bg-white font-bold text-slate-800 text-xs outline-none focus:border-blue-500"
+                                />
+                                <span className="text-slate-500">₫</span>
+                              </div>
+                            </div>
+                            {Number(firstLine.amount) > 0 && (
+                              <div className="flex justify-end gap-1 mt-1 font-semibold text-blue-700 text-[11.5px]">
+                                <span>Thành tiền: {formatVND(Number(firstLine.amount))} ₫</span>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+
+              {/* Add Supplier Button on Mobile */}
+              <button
+                type="button"
+                onClick={handleAddSupplierColumn}
+                className="w-full py-3 bg-white border-2 border-dashed border-blue-400 text-blue-700 rounded-2xl text-xs font-bold flex items-center justify-center gap-2 shadow-sm"
+              >
+                <Plus size={16} /> Thêm Nhà cung cấp so sánh
+              </button>
+            </div>
+          ) : (
+            <div className="approval-grid-scroll-wrap">
             <table className="phenikaa-approval-grid">
               {renderTableColGroup()}
               <thead>
@@ -3449,6 +3586,7 @@ export default function ApprovalManagement({
               </tbody>
             </table>
           </div>
+          )}
 
           {!isReportMode && (
             <div className="table-bottom-actions no-print">
