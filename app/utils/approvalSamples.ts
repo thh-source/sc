@@ -7,6 +7,7 @@ import {
   Quote,
   Supplier,
 } from "../types";
+import { generateShortName } from "./format";
 
 /**
  * Làm sạch chuỗi số khi paste từ Excel (hỗ trợ cả định dạng VN 1.930.000 và US 1,930,000)
@@ -208,7 +209,7 @@ export function createApprovalFromCompare(
         colId: `col_${sid}_${idx + 1}`,
         supplierId: sid,
         supplierName: sup?.name || `Nhà cung cấp ${idx + 1}`,
-        shortName: sup?.shortName || sup?.name || `NCC ${idx + 1}`,
+        shortName: sup?.shortName || (sup?.name ? generateShortName(sup.name) : `NCC ${idx + 1}`),
         isSelected,
         deliveryTime: "",
       };
@@ -274,14 +275,14 @@ export function createApprovalFromCompare(
 
   return {
     id: Date.now(),
-    requestNumber: pr.number || `PD-${String(existingCount + 1).padStart(2, "0")}`,
+    requestNumber: pr.number || `ĐNPD-${String(existingCount + 1).padStart(3, "0")}`,
     sourceType: "compare",
     prId: pr.id,
-    prNumber: pr.number,
+    prNumber: pr.number || "",
     createdDate: formatTodayVN(),
     department: "Cung ứng",
     requestingDepartment: pr.department || "",
-    noteRef: pr.number,
+    noteRef: pr.number || "",
     section1Title: formatApprovalSection1Title(pr.department),
     columnMode: "basic",
     showDeliveryTimeRow: false,
@@ -317,7 +318,7 @@ export function createApprovalFromPR(
           colId: `col_${sup.id}_${idx + 1}`,
           supplierId: sup.id,
           supplierName: sup.name,
-          shortName: sup.shortName || sup.name,
+          shortName: sup.shortName || generateShortName(sup.name),
           isSelected: idx === 0,
           deliveryTime: "",
         }))
@@ -377,14 +378,14 @@ export function createApprovalFromPR(
 
   return {
     id: Date.now(),
-    requestNumber: pr.number || `PD-${String(existingCount + 1).padStart(2, "0")}`,
+    requestNumber: pr.number || `ĐNPD-${String(existingCount + 1).padStart(3, "0")}`,
     sourceType: "pr",
     prId: pr.id,
-    prNumber: pr.number,
+    prNumber: pr.number || "",
     createdDate: formatTodayVN(),
     department: "Cung ứng",
     requestingDepartment: pr.department || "",
-    noteRef: pr.number,
+    noteRef: pr.number || "",
     section1Title: formatApprovalSection1Title(pr.department),
     columnMode: "basic",
     showDeliveryTimeRow: false,
@@ -408,30 +409,43 @@ export function createApprovalFromPR(
 /**
  * Tạo mới phiếu Đề nghị phê duyệt độc lập (Manual / Paste Excel)
  */
-export function createManualApproval(existingCount: number): ApprovalRequest {
-  const supplierColumns: ApprovalSupplierColumn[] = [
-    {
-      colId: "col_1",
-      supplierName: "Nhà cung cấp 1",
-      shortName: "NCC 1",
-      isSelected: true,
-      deliveryTime: "",
-    },
-    {
-      colId: "col_2",
-      supplierName: "Nhà cung cấp 2",
-      shortName: "NCC 2",
-      isSelected: false,
-      deliveryTime: "",
-    },
-    {
-      colId: "col_3",
-      supplierName: "Nhà cung cấp 3",
-      shortName: "NCC 3",
-      isSelected: false,
-      deliveryTime: "",
-    },
-  ];
+export function createManualApproval(
+  existingCount: number,
+  suppliers?: Supplier[],
+): ApprovalRequest {
+  const sups = suppliers && suppliers.length >= 2 ? suppliers.slice(0, 3) : [];
+  const supplierColumns: ApprovalSupplierColumn[] = sups.length >= 2
+    ? sups.map((s, idx) => ({
+        colId: `col_${s.id}_${idx + 1}`,
+        supplierId: s.id,
+        supplierName: s.name,
+        shortName: s.shortName || generateShortName(s.name),
+        isSelected: idx === 0,
+        deliveryTime: "",
+      }))
+    : [
+        {
+          colId: "col_1",
+          supplierName: "Nhà cung cấp 1",
+          shortName: "NCC 1",
+          isSelected: true,
+          deliveryTime: "",
+        },
+        {
+          colId: "col_2",
+          supplierName: "Nhà cung cấp 2",
+          shortName: "NCC 2",
+          isSelected: false,
+          deliveryTime: "",
+        },
+        {
+          colId: "col_3",
+          supplierName: "Nhà cung cấp 3",
+          shortName: "NCC 3",
+          isSelected: false,
+          deliveryTime: "",
+        },
+      ];
 
   const rows: ApprovalItemRow[] = Array.from({ length: 5 }, (_, idx) => {
     const supplierQuotes: Record<string, ApprovalSupplierQuoteLine[]> = {};
@@ -459,24 +473,25 @@ export function createManualApproval(existingCount: number): ApprovalRequest {
     };
   });
 
-  const code = `${String(existingCount + 1).padStart(2, "0")}/03/PR2603`;
+  const requestNum = `ĐNPD-${String(existingCount + 1).padStart(3, "0")}`;
+  const selectedCol = supplierColumns.find((c) => c.isSelected) || supplierColumns[0];
 
   return {
     id: Date.now(),
-    requestNumber: code,
+    requestNumber: requestNum,
     sourceType: "manual",
-    prNumber: code,
+    prNumber: "",
     createdDate: formatTodayVN(),
     department: "Cung ứng",
     requestingDepartment: "",
-    noteRef: code,
+    noteRef: "",
     section1Title: formatApprovalSection1Title(""),
     columnMode: "basic",
     showDeliveryTimeRow: false,
     printOrientation: "landscape",
     supplierColumns,
     rows,
-    recommendedSupplierName: "Nhà cung cấp 1",
+    recommendedSupplierName: selectedCol?.supplierName || "Nhà cung cấp 1",
     deliveryTerms: "",
     paymentTerms: "Thanh toán 100% trước khi giao hàng.",
     reasons: [

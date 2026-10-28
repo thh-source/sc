@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
   Scale,
@@ -33,7 +33,7 @@ import {
   generatePOCode,
   isPONumberExists,
 } from "../types";
-import { fmt as formatVND } from "../utils/format";
+import { fmt as formatVND, generateShortName } from "../utils/format";
 import { PHENIKAA_PHARMA_LOGO_BASE64, localToday } from "../payment-utils";
 import {
   cleanExcelNumber,
@@ -254,6 +254,468 @@ function calcTextareaRows(text: string | undefined, charsPerLine = 22): number {
   return Math.max(2, Math.min(8, totalLines));
 }
 
+/**
+ * Combobox tìm kiếm và chọn NCC cho Header cột so sánh (Phía trên của bảng)
+ * - Hiển thị và lưu tên viết tắt vào header cột (shortName)
+ * - Tự động ghi nhận tên đầy đủ của NCC (supplierName) & ID
+ */
+interface SupplierColumnSearchProps {
+  column: ApprovalSupplierColumn;
+  suppliers: Supplier[];
+  isReportMode: boolean;
+  onUpdate: (updates: { shortName: string; supplierName: string; supplierId?: number }) => void;
+}
+
+function SupplierColumnSearchCombobox({
+  column,
+  suppliers,
+  isReportMode,
+  onUpdate,
+}: SupplierColumnSearchProps) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const containerRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const filteredSuppliers = useMemo(() => {
+    const q = (query || "").trim().toLowerCase();
+    if (!q) return suppliers.slice(0, 25);
+    return suppliers
+      .filter(
+        (s) =>
+          s.name.toLowerCase().includes(q) ||
+          (s.shortName && s.shortName.toLowerCase().includes(q)) ||
+          s.code.toLowerCase().includes(q)
+      )
+      .slice(0, 25);
+  }, [query, suppliers]);
+
+  const handleSelect = (s: Supplier) => {
+    const short = s.shortName || generateShortName(s.name);
+    onUpdate({
+      shortName: short,
+      supplierName: s.name,
+      supplierId: s.id,
+    });
+    setIsOpen(false);
+    setQuery("");
+  };
+
+  return (
+    <div className="sup-combobox-wrap" ref={containerRef} style={{ position: "relative", width: "100%" }}>
+      <div style={{ display: "flex", alignItems: "center", position: "relative" }}>
+        <input
+          ref={inputRef}
+          type="text"
+          className="sup-short-input"
+          value={isOpen ? (query !== "" ? query : column.shortName) : column.shortName}
+          readOnly={isReportMode}
+          placeholder="Tên viết tắt / gõ tìm NCC..."
+          title="Tên viết tắt của NCC (Hiển thị ở phía trên của bảng so sánh)"
+          onFocus={() => {
+            if (!isReportMode) {
+              setIsOpen(true);
+              setQuery("");
+            }
+          }}
+          onChange={(e) => {
+            const val = e.target.value;
+            setQuery(val);
+            if (!isOpen) setIsOpen(true);
+            onUpdate({
+              shortName: val,
+              supplierName:
+                column.supplierName && column.supplierName !== column.shortName
+                  ? column.supplierName
+                  : val,
+              supplierId: column.supplierId,
+            });
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === "Escape") {
+              setIsOpen(false);
+            }
+          }}
+        />
+        {!isReportMode && (
+          <button
+            type="button"
+            className="sup-combobox-toggle-btn"
+            title="Gõ tìm hoặc chọn NCC từ danh bạ"
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsOpen((prev) => !prev);
+              if (!isOpen) inputRef.current?.focus();
+            }}
+            style={{
+              position: "absolute",
+              right: "4px",
+              background: "none",
+              border: "none",
+              cursor: "pointer",
+              color: "#64748b",
+              fontSize: "11px",
+              padding: "2px 4px",
+            }}
+          >
+            ▾
+          </button>
+        )}
+      </div>
+
+      <div
+        className="sup-fullname-caption"
+        title={`Tên pháp nhân đầy đủ: ${column.supplierName || column.shortName}`}
+      >
+        {column.supplierName && column.supplierName !== column.shortName
+          ? column.supplierName
+          : "(Gõ để tìm NCC danh bạ)"}
+      </div>
+
+      {isOpen && !isReportMode && (
+        <div className="sup-searchable-dropdown">
+          <div
+            style={{
+              padding: "6px 8px",
+              background: "#f8fafc",
+              borderBottom: "1px solid #e2e8f0",
+              fontSize: "11px",
+              fontWeight: 700,
+              color: "#475569",
+            }}
+          >
+            🔍 Chọn Nhà cung cấp (Tên viết tắt lên bảng, Tên đầy đủ xuống đề xuất):
+          </div>
+          {filteredSuppliers.length === 0 ? (
+            <div
+              style={{
+                padding: "10px",
+                fontSize: "12px",
+                color: "#94a3b8",
+                textAlign: "center",
+              }}
+            >
+              Không tìm thấy NCC khớp với &quot;{query}&quot;
+            </div>
+          ) : (
+            filteredSuppliers.map((s) => {
+              const short = s.shortName || generateShortName(s.name);
+              return (
+                <div
+                  key={s.id}
+                  className="sup-searchable-item"
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    handleSelect(s);
+                  }}
+                >
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      marginBottom: "2px",
+                    }}
+                  >
+                    <span className="sup-short-badge">{short}</span>
+                    <span style={{ fontSize: "10.5px", color: "#64748b" }}>
+                      {s.code}
+                    </span>
+                  </div>
+                  <div
+                    style={{
+                      fontSize: "12px",
+                      fontWeight: 600,
+                      color: "#1e293b",
+                      lineHeight: 1.25,
+                    }}
+                  >
+                    {s.name}
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Combobox tìm kiếm và chọn NCC cho Mục II.1 (Đề xuất nhà cung cấp ở phía dưới)
+ * - Hiển thị và lưu tên đầy đủ của NCC (fullName)
+ * - Đồng bộ với cột NCC tương ứng ở bảng trên nếu khớp
+ */
+interface ProposalSupplierSearchProps {
+  value: string;
+  suppliers: Supplier[];
+  supplierColumns: ApprovalSupplierColumn[];
+  isReportMode: boolean;
+  onSelect: (supplierName: string, matchedColId?: string) => void;
+  onChangeText: (text: string) => void;
+}
+
+function ProposalSupplierSearchCombobox({
+  value,
+  suppliers,
+  supplierColumns,
+  isReportMode,
+  onSelect,
+  onChangeText,
+}: ProposalSupplierSearchProps) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const containerRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const filteredSuppliers = useMemo(() => {
+    const q = (query || "").trim().toLowerCase();
+    if (!q) return suppliers.slice(0, 30);
+    return suppliers
+      .filter(
+        (s) =>
+          s.name.toLowerCase().includes(q) ||
+          (s.shortName && s.shortName.toLowerCase().includes(q)) ||
+          s.code.toLowerCase().includes(q)
+      )
+      .slice(0, 30);
+  }, [query, suppliers]);
+
+  const handleChoose = (s: Supplier) => {
+    const matchedCol = supplierColumns.find(
+      (c) =>
+        c.supplierId === s.id ||
+        (c.supplierName && c.supplierName.trim().toLowerCase() === s.name.trim().toLowerCase()) ||
+        (c.shortName && s.shortName && c.shortName.trim().toLowerCase() === s.shortName.trim().toLowerCase())
+    );
+    onSelect(s.name, matchedCol?.colId);
+    setIsOpen(false);
+    setQuery("");
+  };
+
+  return (
+    <div
+      className="eval-field-wrap"
+      ref={containerRef}
+      style={{ position: "relative", width: "100%" }}
+    >
+      <div style={{ display: "flex", alignItems: "center", position: "relative" }}>
+        <input
+          ref={inputRef}
+          type="text"
+          className="sheet-inline-input bold-input no-print"
+          value={isOpen ? (query !== "" ? query : value) : value}
+          readOnly={isReportMode}
+          placeholder="Nhập hoặc gõ tìm tên đầy đủ của Nhà cung cấp được đề xuất..."
+          onFocus={() => {
+            if (!isReportMode) {
+              setIsOpen(true);
+              setQuery("");
+            }
+          }}
+          onChange={(e) => {
+            const val = e.target.value;
+            setQuery(val);
+            if (!isOpen) setIsOpen(true);
+            onChangeText(val);
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === "Escape") {
+              setIsOpen(false);
+            }
+          }}
+        />
+        {!isReportMode && (
+          <button
+            type="button"
+            className="sup-combobox-toggle-btn"
+            title="Gõ tìm hoặc chọn NCC từ danh bạ"
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsOpen((prev) => !prev);
+              if (!isOpen) inputRef.current?.focus();
+            }}
+            style={{
+              position: "absolute",
+              right: "6px",
+              background: "none",
+              border: "none",
+              cursor: "pointer",
+              color: "#64748b",
+              fontSize: "12px",
+              padding: "2px 4px",
+            }}
+          >
+            ▾
+          </button>
+        )}
+      </div>
+
+      {isOpen && !isReportMode && (
+        <div
+          className="sup-searchable-dropdown"
+          style={{ minWidth: "100%", maxWidth: "650px" }}
+        >
+          {supplierColumns.length > 0 && (
+            <div
+              style={{
+                padding: "6px 10px",
+                background: "#f0fdf4",
+                borderBottom: "1px solid #bbf7d0",
+                fontSize: "11px",
+                fontWeight: 700,
+                color: "#166534",
+              }}
+            >
+              ⭐ Các nhà cung cấp trong bảng so sánh:
+            </div>
+          )}
+          {supplierColumns.map((col) => {
+            const isMatch =
+              col.supplierName &&
+              col.supplierName.trim().toLowerCase() === value.trim().toLowerCase();
+            return (
+              <div
+                key={`prop_col_${col.colId}`}
+                className={`sup-searchable-item ${isMatch ? "highlighted" : ""}`}
+                style={{ background: isMatch ? "#dcfce7" : undefined }}
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  onSelect(col.supplierName || col.shortName, col.colId);
+                  setIsOpen(false);
+                  setQuery("");
+                }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "6px",
+                  }}
+                >
+                  <span
+                    className="sup-short-badge"
+                    style={{ background: "#bbf7d0", color: "#166534" }}
+                  >
+                    {col.shortName || "NCC"}
+                  </span>
+                  <span
+                    style={{
+                      fontSize: "12.5px",
+                      fontWeight: 700,
+                      color: "#1e293b",
+                    }}
+                  >
+                    {col.supplierName || col.shortName}
+                  </span>
+                  {col.isSelected && (
+                    <span
+                      style={{
+                        fontSize: "11px",
+                        color: "#16a34a",
+                        fontWeight: 700,
+                        marginLeft: "auto",
+                      }}
+                    >
+                      ✓ Đang chọn
+                    </span>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+
+          <div
+            style={{
+              padding: "6px 10px",
+              background: "#f8fafc",
+              borderBottom: "1px solid #e2e8f0",
+              fontSize: "11px",
+              fontWeight: 700,
+              color: "#475569",
+            }}
+          >
+            🏢 Danh sách tất cả Nhà cung cấp (Tên đầy đủ):
+          </div>
+          {filteredSuppliers.length === 0 ? (
+            <div
+              style={{
+                padding: "10px",
+                fontSize: "12px",
+                color: "#94a3b8",
+                textAlign: "center",
+              }}
+            >
+              Không tìm thấy NCC khớp với &quot;{query}&quot;
+            </div>
+          ) : (
+            filteredSuppliers.map((s) => {
+              const short = s.shortName || generateShortName(s.name);
+              const isMatch =
+                s.name.trim().toLowerCase() === value.trim().toLowerCase();
+              return (
+                <div
+                  key={`prop_all_${s.id}`}
+                  className={`sup-searchable-item ${isMatch ? "highlighted" : ""}`}
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    handleChoose(s);
+                  }}
+                >
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      marginBottom: "2px",
+                    }}
+                  >
+                    <span className="sup-short-badge">{short}</span>
+                    <span style={{ fontSize: "10.5px", color: "#64748b" }}>
+                      {s.code}
+                    </span>
+                  </div>
+                  <div
+                    style={{
+                      fontSize: "12.5px",
+                      fontWeight: 600,
+                      color: "#1e293b",
+                      lineHeight: 1.25,
+                    }}
+                  >
+                    {s.name}
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function ApprovalManagement({
   approvalRequests,
   activeApprovalId,
@@ -406,6 +868,22 @@ export default function ApprovalManagement({
     );
   }, [prs, activeRequest?.prId, activeRequest?.prNumber, activeRequest?.noteRef]);
 
+  // Tự động làm sạch các số PR giả định đã vô tình sinh ra trước đây khi tạo thủ công
+  useEffect(() => {
+    if (!activeRequest || isReportMode) return;
+    if (
+      activeRequest.sourceType === "manual" &&
+      /^\d{2}\/03\/PR2603$/.test(activeRequest.prNumber || "") &&
+      !prs.some((p) => p.number === activeRequest.prNumber)
+    ) {
+      updateActive((prev) => ({
+        ...prev,
+        prNumber: "",
+        noteRef: /^\d{2}\/03\/PR2603$/.test(prev.noteRef || "") ? "" : prev.noteRef,
+      }));
+    }
+  }, [activeRequest?.id, activeRequest?.prNumber, prs, isReportMode]);
+
   const [sysDepts, setSysDepts] = useState<string[]>(() => getUnifiedDepartments());
 
   useEffect(() => {
@@ -530,13 +1008,23 @@ export default function ApprovalManagement({
         ...c,
         isSelected: c.colId === colId,
       }));
+      const matchedSup = targetCol?.supplierId
+        ? suppliers.find((s) => s.id === targetCol.supplierId)
+        : suppliers.find(
+            (s) =>
+              s.name.trim().toLowerCase() === (targetCol?.supplierName || "").trim().toLowerCase() ||
+              (s.shortName && targetCol?.shortName && s.shortName.trim().toLowerCase() === targetCol.shortName.trim().toLowerCase())
+          );
+      const fullSupplierName =
+        matchedSup?.name ||
+        targetCol?.supplierName ||
+        targetCol?.shortName ||
+        prev.recommendedSupplierName;
+
       return {
         ...prev,
         supplierColumns: nextCols,
-        recommendedSupplierName:
-          targetCol?.supplierName ||
-          targetCol?.shortName ||
-          prev.recommendedSupplierName,
+        recommendedSupplierName: fullSupplierName,
       };
     });
   };
@@ -558,7 +1046,9 @@ export default function ApprovalManagement({
       colId: newColId,
       supplierId: matchedSup?.id,
       supplierName: matchedSup?.name || `Nhà cung cấp ${newIndex}`,
-      shortName: matchedSup?.shortName || matchedSup?.name || `NCC ${newIndex}`,
+      shortName:
+        matchedSup?.shortName ||
+        (matchedSup?.name ? generateShortName(matchedSup.name) : `NCC ${newIndex}`),
       isSelected: activeRequest.supplierColumns.length === 0,
       deliveryTime: "",
     };
@@ -980,7 +1470,7 @@ export default function ApprovalManagement({
   };
 
   const handleCreateManual = () => {
-    const newReq = createManualApproval(approvalRequests.length);
+    const newReq = createManualApproval(approvalRequests.length, suppliers);
     onSaveApproval(newReq);
     setActiveApprovalId(newReq.id);
     showToast("✓ Đã tạo phiếu Đề nghị phê duyệt độc lập (Trắng)");
@@ -1075,17 +1565,40 @@ export default function ApprovalManagement({
     );
   };
 
-  // Tên NCC đề xuất (tự động fallback sang NCC được tích chọn nếu ô nhập đang trống)
+  // Tên NCC đề xuất (tự động fallback sang NCC được tích chọn nếu ô nhập đang trống, ưu tiên tên đầy đủ)
   const effectiveRecommendedSupplier = useMemo(() => {
     if (!activeRequest) return "";
-    if (activeRequest.recommendedSupplierName?.trim()) {
-      return activeRequest.recommendedSupplierName;
+    const rawName = activeRequest.recommendedSupplierName?.trim();
+    if (rawName) {
+      const matched = suppliers.find(
+        (s) =>
+          s.name.trim().toLowerCase() === rawName.toLowerCase() ||
+          (s.shortName &&
+            s.shortName.trim().toLowerCase() === rawName.toLowerCase()),
+      );
+      if (matched) return matched.name;
+      return rawName;
     }
     const sel =
       activeRequest.supplierColumns.find((c) => c.isSelected) ||
       activeRequest.supplierColumns[0];
-    return sel?.supplierName || sel?.shortName || "";
-  }, [activeRequest]);
+    if (sel) {
+      if (sel.supplierId) {
+        const sup = suppliers.find((s) => s.id === sel.supplierId);
+        if (sup) return sup.name;
+      }
+      const matched = suppliers.find(
+        (s) =>
+          s.name.trim().toLowerCase() === (sel.supplierName || "").trim().toLowerCase() ||
+          (s.shortName &&
+            sel.shortName &&
+            s.shortName.trim().toLowerCase() === sel.shortName.trim().toLowerCase()),
+      );
+      if (matched) return matched.name;
+      return sel.supplierName || sel.shortName || "";
+    }
+    return "";
+  }, [activeRequest, suppliers]);
 
   // =========================================================================
   // CHẾ ĐỘ 1: GIAO DIỆN DANH SÁCH PHIẾU PHÊ DUYỆT (MẶC ĐỊNH KHI VÀO TAB)
@@ -1966,17 +2479,36 @@ export default function ApprovalManagement({
             <span className="meta-lbl">Số PR:</span>
             <input
               type="text"
+              list="approval-prs-list"
               className="sheet-inline-input meta-inline-input"
-              value={activeRequest.prNumber}
+              value={activeRequest.prNumber || ""}
+              placeholder="Để trống nếu không có..."
               readOnly={isReportMode}
-              onChange={(e) =>
+              onChange={(e) => {
+                const val = e.target.value;
+                const matchedPR = prs.find((p) => p.number === val);
                 updateActive((prev) => ({
                   ...prev,
-                  prNumber: e.target.value,
-                  requestNumber: e.target.value,
-                }))
-              }
+                  prNumber: val,
+                  noteRef:
+                    prev.noteRef === prev.prNumber || !prev.noteRef
+                      ? val
+                      : prev.noteRef,
+                  requestingDepartment:
+                    matchedPR?.department || prev.requestingDepartment,
+                  section1Title: matchedPR?.department
+                    ? formatApprovalSection1Title(matchedPR.department)
+                    : prev.section1Title,
+                }));
+              }}
             />
+            <datalist id="approval-prs-list">
+              {prs.map((p) => (
+                <option key={p.id} value={p.number}>
+                  {p.number} — {p.department || "Yêu cầu mua sắm"}
+                </option>
+              ))}
+            </datalist>
           </div>
           <div className="phenikaa-meta-line">
             <span className="meta-lbl">Ngày:</span>
@@ -2013,7 +2545,8 @@ export default function ApprovalManagement({
             <input
               type="text"
               className="sheet-inline-input meta-inline-input"
-              value={activeRequest.noteRef}
+              value={activeRequest.noteRef || ""}
+              placeholder="Để trống nếu không có..."
               readOnly={isReportMode}
               onChange={(e) =>
                 updateActive((prev) => ({
@@ -2224,29 +2757,27 @@ export default function ApprovalManagement({
                               </button>
                             )}
                         </div>
-                        <input
-                          type="text"
-                          className="sup-short-input"
-                          value={sc.shortName}
-                          readOnly={isReportMode}
-                          placeholder="Tên Nhà cung cấp"
-                          onChange={(e) => {
-                            const val = e.target.value;
+                        <SupplierColumnSearchCombobox
+                          column={sc}
+                          suppliers={suppliers}
+                          isReportMode={isReportMode}
+                          onUpdate={({ shortName, supplierName, supplierId }) => {
                             updateActive((prev) => ({
                               ...prev,
                               supplierColumns: prev.supplierColumns.map((c) =>
                                 c.colId === sc.colId
                                   ? {
                                       ...c,
-                                      shortName: val,
-                                      supplierName:
-                                        !c.supplierName ||
-                                        c.supplierName === c.shortName
-                                          ? val
-                                          : c.supplierName,
+                                      shortName,
+                                      supplierName,
+                                      supplierId,
                                     }
                                   : c,
                               ),
+                              recommendedSupplierName:
+                                sc.isSelected && supplierName
+                                  ? supplierName
+                                  : prev.recommendedSupplierName,
                             }));
                           }}
                         />
@@ -2941,28 +3472,30 @@ export default function ApprovalManagement({
           <div className="eval-row">
             <span className="eval-label">1. Nhà cung cấp đề xuất:</span>
             <div className="eval-field-wrap">
-              <input
-                type="text"
-                list="approval-suppliers-datalist"
-                className="sheet-inline-input bold-input no-print"
+              <ProposalSupplierSearchCombobox
                 value={effectiveRecommendedSupplier}
-                readOnly={isReportMode}
-                placeholder="Nhập hoặc chọn tên đầy đủ của Nhà cung cấp được đề xuất..."
-                onChange={(e) =>
+                suppliers={suppliers}
+                supplierColumns={activeRequest.supplierColumns}
+                isReportMode={isReportMode}
+                onSelect={(supplierName, matchedColId) => {
                   updateActive((prev) => ({
                     ...prev,
-                    recommendedSupplierName: e.target.value,
-                  }))
-                }
+                    recommendedSupplierName: supplierName,
+                    supplierColumns: matchedColId
+                      ? prev.supplierColumns.map((c) => ({
+                          ...c,
+                          isSelected: c.colId === matchedColId,
+                        }))
+                      : prev.supplierColumns,
+                  }));
+                }}
+                onChangeText={(text) => {
+                  updateActive((prev) => ({
+                    ...prev,
+                    recommendedSupplierName: text,
+                  }));
+                }}
               />
-              <datalist id="approval-suppliers-datalist">
-                {activeRequest.supplierColumns.map((sc) => (
-                  <option key={sc.colId} value={sc.supplierName} />
-                ))}
-                {suppliers.map((s) => (
-                  <option key={s.id} value={s.name} />
-                ))}
-              </datalist>
             </div>
           </div>
 
@@ -3485,19 +4018,22 @@ export default function ApprovalManagement({
               <div className="phenikaa-meta-lines">
                 <div className="phenikaa-meta-line">
                   <span className="meta-lbl">Số PR:</span>{" "}
-                  <span>{activeRequest.prNumber}</span>
+                  <span>{activeRequest.prNumber || ""}</span>
                 </div>
                 <div className="phenikaa-meta-line">
                   <span className="meta-lbl">Ngày:</span>{" "}
-                  <span>{activeRequest.createdDate}</span>
+                  <span>{activeRequest.createdDate || ""}</span>
                 </div>
                 <div className="phenikaa-meta-line">
                   <span className="meta-lbl">Đơn vị lập biểu mẫu:</span>{" "}
-                  <span>{activeRequest.department}</span>
+                  <span>{activeRequest.department || ""}</span>
                 </div>
                 <div className="phenikaa-meta-line">
                   <span className="meta-lbl">Ghi chú: Căn cứ theo PR số:</span>{" "}
-                  <span>{activeRequest.noteRef}</span>
+                  <span>
+                    {activeRequest.noteRef ||
+                      (activeRequest.prNumber ? activeRequest.prNumber : "")}
+                  </span>
                 </div>
               </div>
 
@@ -3837,7 +4373,7 @@ export default function ApprovalManagement({
                 </div>
                 <div className="eval-row">
                   <span className="eval-label">1. Nhà cung cấp đề xuất:</span>
-                  <strong style={{ flex: 1 }}>
+                  <strong style={{ flex: 1, textTransform: "uppercase" }}>
                     {effectiveRecommendedSupplier}
                   </strong>
                 </div>

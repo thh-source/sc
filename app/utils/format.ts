@@ -50,7 +50,16 @@ export function normalizeSearchText(str: string): string {
 export function generateShortName(name: string): string {
   if (!name) return "";
   let s = name.replace(/^(Công ty|Cty|Chi nhánh|Tổng công ty|Tập đoàn)\s+/i, "");
-  s = s.replace(/\b(TNHH|CP|MTV|TM|DV|Thương mại|Dịch vụ|Cổ phần|Đầu tư|Phát triển|Sản xuất|Dược phẩm|Hóa chất|Thiết bị|Vật tư|Y tế)\b/gi, "");
+  const terms = [
+    "TNHH", "CP", "MTV", "TM", "DV", "Thương mại", "Dịch vụ", "Cổ phần",
+    "Đầu tư", "Phát triển", "Sản xuất", "Dược phẩm", "Hóa chất", "Thiết bị",
+    "Vật tư", "Y tế", "Khoa học", "Kỹ thuật", "KH&KT", "KH & KT", "Công nghệ",
+    "Việt Nam", "Toàn Cầu", "Quốc Tế"
+  ];
+  terms.forEach((t) => {
+    const reg = new RegExp(`(^|\\s)${t}(\\s|$)`, "gi");
+    s = s.replace(reg, " ");
+  });
   s = s.replace(/[()[\],-]/g, " ");
   s = s.replace(/\s+/g, " ").trim();
   return s || name;

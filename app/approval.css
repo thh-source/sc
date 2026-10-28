@@ -579,6 +579,58 @@
   box-sizing: border-box;
 }
 
+.sup-searchable-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  min-width: 280px;
+  max-width: 400px;
+  background: #ffffff;
+  border: 1px solid #94a3b8;
+  border-radius: 6px;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.25), 0 8px 10px -6px rgba(0, 0, 0, 0.15);
+  z-index: 9999;
+  max-height: 260px;
+  overflow-y: auto;
+  text-align: left;
+  margin-top: 3px;
+}
+
+.sup-searchable-item {
+  padding: 6px 10px;
+  cursor: pointer;
+  border-bottom: 1px solid #f1f5f9;
+  font-size: 12px;
+  transition: background 0.15s;
+}
+
+.sup-searchable-item:hover {
+  background: #eff6ff;
+}
+
+.sup-short-badge {
+  display: inline-block;
+  background: #dbeafe;
+  color: #1e40af;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 11px;
+}
+
+.sup-fullname-caption {
+  font-size: 10.5px;
+  color: #64748b;
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: center;
+  font-weight: normal;
+  max-width: 100%;
+  display: block;
+}
+
 .sup-fullname-input {
   width: 100%;
   min-width: 0 !important;
