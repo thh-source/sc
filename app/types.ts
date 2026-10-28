@@ -639,6 +639,9 @@ export type ApprovalRequest = {
   quotedProductHeader?: string;
   showSupplierQty?: boolean;
   showDeliveryTimeRow: boolean;
+  vatMode?: 'without_vat' | 'with_vat';
+  vatRate?: number;
+  vatCalculationType?: 'add_vat' | 'already_included';
   printOrientation: "portrait" | "landscape";
   signSpaceHeight?: number;
   supplierColumns: ApprovalSupplierColumn[];

@@ -15,11 +15,11 @@ export const CURRENT_APP_VERSION: AppVersionMetadata = {
   appName: "Phenikaa Mua Hàng (SCMH)",
   version: "1.0.1",
   versionName: "Phenikaa SCMH v1.0.1 (Bản chính thức)",
-  buildNumber: "20261028.0716",
-  buildDate: "28/10/2026, 07:16:40",
+  buildNumber: "20261028.0822",
+  buildDate: "28/10/2026, 08:22:40",
   releaseChannel: "Production",
-  gitCommit: "d98d398",
-  releaseNotes: "Cập nhật tính năng hiển thị phiên bản build, ngày giờ và nút tìm phiên bản mới trong Cài đặt",
+  gitCommit: "dfa78f2",
+  releaseNotes: "Bổ sung tùy chọn Tổng tiền chưa có VAT hoặc có VAT trong Đề nghị phê duyệt",
 };
 
 export function getAppPlatform(): {

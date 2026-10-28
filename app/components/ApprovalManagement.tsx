@@ -215,6 +215,33 @@ export function computeSupplierTotal(
 }
 
 /**
+ * Tính số tiền thuế VAT cho từng cột NCC theo cấu hình của ĐNPD
+ */
+export function computeSupplierVatAmount(
+  req: ApprovalRequest,
+  colId: string,
+): number {
+  if (req.vatMode !== "with_vat") return 0;
+  if (req.vatCalculationType === "already_included") return 0;
+  const rate = req.vatRate !== undefined ? req.vatRate : 10;
+  const subtotal = computeSupplierTotal(req, colId);
+  return Math.round(subtotal * (rate / 100));
+}
+
+/**
+ * Tính tổng tiền thanh toán cuối cùng (Tổng có VAT hoặc chưa VAT tùy chọn)
+ */
+export function computeSupplierFinalTotal(
+  req: ApprovalRequest,
+  colId: string,
+): number {
+  const subtotal = computeSupplierTotal(req, colId);
+  if (req.vatMode !== "with_vat") return subtotal;
+  if (req.vatCalculationType === "already_included") return subtotal;
+  return subtotal + computeSupplierVatAmount(req, colId);
+}
+
+/**
  * Tự động tính số dòng hiển thị (rows) cho textarea dựa trên độ dài chuỗi và ký tự xuống dòng
  */
 function calcTextareaRows(text: string | undefined, charsPerLine = 22): number {
@@ -306,7 +333,11 @@ export default function ApprovalManagement({
     const autoCode = generatePOCode(sup, todayDate, pos, trash);
     setPoCreateCustomNumber(autoCode);
     setPoCreateNumberManual(false);
-    setPoCreateVatRate(10);
+    const defaultVat =
+      req.vatMode === "with_vat"
+        ? (req.vatCalculationType === "already_included" ? 0 : (req.vatRate !== undefined ? req.vatRate : 10))
+        : 10;
+    setPoCreateVatRate(defaultVat);
     setPoCreateModalReq(req);
   };
 
@@ -473,15 +504,23 @@ export default function ApprovalManagement({
     return cols;
   }, [activeRequest, hasQuotedProduct, hasSupplierQty]);
 
-  // Tính tổng tiền chưa có VAT cho từng cột NCC
-  const supplierTotals = useMemo(() => {
-    const totals: Record<string, number> = {};
-    if (!activeRequest) return totals;
+  // Tính tổng tiền chưa có VAT, thuế VAT và tổng tiền có VAT cho từng cột NCC
+  const { supplierSubtotals, supplierVatAmounts, supplierFinalTotals } = useMemo(() => {
+    const subtotals: Record<string, number> = {};
+    const vatAmounts: Record<string, number> = {};
+    const finalTotals: Record<string, number> = {};
+    if (!activeRequest) {
+      return { supplierSubtotals: subtotals, supplierVatAmounts: vatAmounts, supplierFinalTotals: finalTotals };
+    }
     activeRequest.supplierColumns.forEach((sc) => {
-      totals[sc.colId] = computeSupplierTotal(activeRequest, sc.colId);
+      subtotals[sc.colId] = computeSupplierTotal(activeRequest, sc.colId);
+      vatAmounts[sc.colId] = computeSupplierVatAmount(activeRequest, sc.colId);
+      finalTotals[sc.colId] = computeSupplierFinalTotal(activeRequest, sc.colId);
     });
-    return totals;
+    return { supplierSubtotals: subtotals, supplierVatAmounts: vatAmounts, supplierFinalTotals: finalTotals };
   }, [activeRequest]);
+
+  const supplierTotals = supplierSubtotals;
 
   // Chọn NCC được đề xuất (Radio trên header cột)
   const handleSelectSupplierCol = (colId: string) => {
@@ -1148,7 +1187,7 @@ export default function ApprovalManagement({
                   req.supplierColumns.find((c) => c.isSelected) ||
                   req.supplierColumns[0];
                 const selectedTotal = selectedCol
-                  ? computeSupplierTotal(req, selectedCol.colId)
+                  ? computeSupplierFinalTotal(req, selectedCol.colId)
                   : 0;
                 const isDone = isApprovalCompleted(req);
                 const flow = resolveDocFlow({ approval: req }, { prs, pos, approvalRequests });
@@ -1202,9 +1241,14 @@ export default function ApprovalManagement({
                         </dd>
                       </div>
                       <div>
-                        <dt>Tổng tiền</dt>
+                        <dt>Tổng tiền {req.vatMode === "with_vat" ? "(Có VAT)" : "(Chưa VAT)"}</dt>
                         <dd style={{ color: "#0284c7" }}>
                           {selectedTotal > 0 ? `${formatVND(selectedTotal)} ₫` : "-"}
+                          {req.vatMode === "with_vat" && (
+                            <span style={{ fontSize: "10.5px", marginLeft: "4px", color: "#166534", fontWeight: 700 }}>
+                              {req.vatCalculationType === "already_included" ? "(Đã gồm VAT)" : `(VAT ${req.vatRate ?? 10}%)`}
+                            </span>
+                          )}
                         </dd>
                       </div>
                       <div>
@@ -1303,7 +1347,7 @@ export default function ApprovalManagement({
                       req.supplierColumns.find((c) => c.isSelected) ||
                       req.supplierColumns[0];
                     const selectedTotal = selectedCol
-                      ? computeSupplierTotal(req, selectedCol.colId)
+                      ? computeSupplierFinalTotal(req, selectedCol.colId)
                       : 0;
                     const isDone = isApprovalCompleted(req);
                     const ctxStatus = getApprovalContextualStatus(req, pos, paymentHandovers);
@@ -1362,7 +1406,14 @@ export default function ApprovalManagement({
                           </strong>
                         </td>
                         <td className="money">
-                          {selectedTotal > 0 ? `${formatVND(selectedTotal)} ₫` : "-"}
+                          {selectedTotal > 0 ? (
+                            <div>
+                              <div>{`${formatVND(selectedTotal)} ₫`}</div>
+                              <small style={{ fontSize: "10.5px", color: req.vatMode === "with_vat" ? "#166534" : "#64748b", fontWeight: 600 }}>
+                                {req.vatMode === "with_vat" ? (req.vatCalculationType === "already_included" ? "Đã gồm VAT" : `Có VAT (${req.vatRate ?? 10}%)`) : "Chưa VAT"}
+                              </small>
+                            </div>
+                          ) : "-"}
                         </td>
                         <td>
                           <span className={`status ${ctxStatus.badgeClass}`} style={ctxStatus.style}>
@@ -1727,6 +1778,86 @@ export default function ApprovalManagement({
             />
             <span>＋ Dòng Thời gian giao hàng</span>
           </label>
+        </div>
+
+        {/* Lựa chọn Tổng tiền: Chưa có VAT hoặc Có VAT */}
+        <div className="config-group" style={{ display: "inline-flex", alignItems: "center", gap: "8px" }}>
+          <span className="config-label" style={{ fontWeight: 650 }}>Tính tổng tiền:</span>
+          <div className="segmented-pills">
+            <button
+              type="button"
+              className={`seg-pill ${activeRequest.vatMode !== "with_vat" ? "active" : ""}`}
+              onClick={() =>
+                updateActive((prev) => ({
+                  ...prev,
+                  vatMode: "without_vat",
+                }))
+              }
+              title="Tổng tiền chưa bao gồm thuế giá trị gia tăng"
+            >
+              Chưa có VAT
+            </button>
+            <button
+              type="button"
+              className={`seg-pill ${activeRequest.vatMode === "with_vat" ? "active" : ""}`}
+              onClick={() =>
+                updateActive((prev) => ({
+                  ...prev,
+                  vatMode: "with_vat",
+                  vatRate: prev.vatRate !== undefined ? prev.vatRate : 10,
+                  vatCalculationType: prev.vatCalculationType || "add_vat",
+                }))
+              }
+              title="Tổng tiền có bao gồm thuế giá trị gia tăng"
+            >
+              Có VAT
+            </button>
+          </div>
+
+          {activeRequest.vatMode === "with_vat" && (
+            <select
+              className="approval-filter-select"
+              style={{
+                width: "auto",
+                minWidth: "120px",
+                padding: "4px 8px",
+                fontSize: "12px",
+                fontWeight: 650,
+                color: "#0369a1",
+                backgroundColor: "#f0f9ff",
+                borderColor: "#bae6fd",
+                borderRadius: "6px",
+              }}
+              value={
+                activeRequest.vatCalculationType === "already_included"
+                  ? "included"
+                  : String(activeRequest.vatRate !== undefined ? activeRequest.vatRate : 10)
+              }
+              onChange={(e) => {
+                const val = e.target.value;
+                if (val === "included") {
+                  updateActive((prev) => ({
+                    ...prev,
+                    vatCalculationType: "already_included",
+                    vatRate: 0,
+                  }));
+                } else {
+                  updateActive((prev) => ({
+                    ...prev,
+                    vatCalculationType: "add_vat",
+                    vatRate: Number(val),
+                  }));
+                }
+              }}
+              title="Chọn mức thuế suất VAT hoặc đơn giá đã bao gồm VAT"
+            >
+              <option value="10">Thuế VAT 10%</option>
+              <option value="8">Thuế VAT 8%</option>
+              <option value="5">Thuế VAT 5%</option>
+              <option value="0">Thuế VAT 0%</option>
+              <option value="included">Đơn giá đã gồm VAT</option>
+            </select>
+          )}
         </div>
 
         {!isReportMode && (
@@ -2682,25 +2813,108 @@ export default function ApprovalManagement({
                   </tr>
                 )}
 
-                <tr className="total-footer-row">
-                  <td colSpan={4} className="cell-center bold-cell">
-                    Tổng tiền chưa có VAT
-                  </td>
-                  {activeRequest.supplierColumns.map((sc) => {
-                    const totalVal = supplierTotals[sc.colId] || 0;
-                    return (
-                      <React.Fragment key={`total_${sc.colId}`}>
-                        <td
-                          colSpan={subColCountPerSupplier - 1}
-                          className="cell-empty-total"
-                        />
-                        <td className="cell-right bold-cell total-amount-cell">
-                          {totalVal ? formatVND(totalVal) : "-"}
-                        </td>
-                      </React.Fragment>
-                    );
-                  })}
-                </tr>
+                {/* Dòng tổng tiền: Tùy biến Chưa VAT hoặc Có VAT */}
+                {activeRequest.vatMode !== "with_vat" ? (
+                  <tr className="total-footer-row">
+                    <td colSpan={4} className="cell-center bold-cell">
+                      Tổng tiền chưa có VAT
+                    </td>
+                    {activeRequest.supplierColumns.map((sc) => {
+                      const totalVal = supplierSubtotals[sc.colId] || 0;
+                      return (
+                        <React.Fragment key={`total_${sc.colId}`}>
+                          <td
+                            colSpan={subColCountPerSupplier - 1}
+                            className="cell-empty-total"
+                          />
+                          <td className="cell-right bold-cell total-amount-cell">
+                            {totalVal ? formatVND(totalVal) : "-"}
+                          </td>
+                        </React.Fragment>
+                      );
+                    })}
+                  </tr>
+                ) : activeRequest.vatCalculationType === "already_included" ? (
+                  <tr className="total-footer-row" style={{ backgroundColor: "#f0fdf4" }}>
+                    <td colSpan={4} className="cell-center bold-cell" style={{ color: "#166534" }}>
+                      Tổng tiền có VAT (Đã gồm VAT)
+                    </td>
+                    {activeRequest.supplierColumns.map((sc) => {
+                      const totalVal = supplierFinalTotals[sc.colId] || 0;
+                      return (
+                        <React.Fragment key={`total_${sc.colId}`}>
+                          <td
+                            colSpan={subColCountPerSupplier - 1}
+                            className="cell-empty-total"
+                          />
+                          <td className="cell-right bold-cell total-amount-cell" style={{ color: "#15803d", fontWeight: 800 }}>
+                            {totalVal ? formatVND(totalVal) : "-"}
+                          </td>
+                        </React.Fragment>
+                      );
+                    })}
+                  </tr>
+                ) : (
+                  <>
+                    <tr className="total-footer-row subtotal-row" style={{ backgroundColor: "#f8fafc" }}>
+                      <td colSpan={4} className="cell-center bold-cell" style={{ color: "#475569" }}>
+                        Tổng tiền chưa có VAT
+                      </td>
+                      {activeRequest.supplierColumns.map((sc) => {
+                        const subVal = supplierSubtotals[sc.colId] || 0;
+                        return (
+                          <React.Fragment key={`subtotal_${sc.colId}`}>
+                            <td
+                              colSpan={subColCountPerSupplier - 1}
+                              className="cell-empty-total"
+                            />
+                            <td className="cell-right bold-cell" style={{ color: "#334155" }}>
+                              {subVal ? formatVND(subVal) : "-"}
+                            </td>
+                          </React.Fragment>
+                        );
+                      })}
+                    </tr>
+                    <tr className="total-footer-row vat-row" style={{ backgroundColor: "#f0f9ff" }}>
+                      <td colSpan={4} className="cell-center bold-cell" style={{ color: "#0369a1" }}>
+                        Tiền thuế GTGT (VAT {activeRequest.vatRate ?? 10}%)
+                      </td>
+                      {activeRequest.supplierColumns.map((sc) => {
+                        const vatVal = supplierVatAmounts[sc.colId] || 0;
+                        return (
+                          <React.Fragment key={`vat_${sc.colId}`}>
+                            <td
+                              colSpan={subColCountPerSupplier - 1}
+                              className="cell-empty-total"
+                            />
+                            <td className="cell-right bold-cell" style={{ color: "#0284c7" }}>
+                              {vatVal ? `+${formatVND(vatVal)}` : "-"}
+                            </td>
+                          </React.Fragment>
+                        );
+                      })}
+                    </tr>
+                    <tr className="total-footer-row grand-total-row" style={{ backgroundColor: "#ecfdf5" }}>
+                      <td colSpan={4} className="cell-center bold-cell" style={{ color: "#166534", fontSize: "13.5px" }}>
+                        TỔNG TIỀN CÓ VAT
+                      </td>
+                      {activeRequest.supplierColumns.map((sc) => {
+                        const finalVal = supplierFinalTotals[sc.colId] || 0;
+                        return (
+                          <React.Fragment key={`final_${sc.colId}`}>
+                            <td
+                              colSpan={subColCountPerSupplier - 1}
+                              className="cell-empty-total"
+                            />
+                            <td className="cell-right bold-cell total-amount-cell" style={{ color: "#15803d", fontWeight: 800, fontSize: "13.5px" }}>
+                              {finalVal ? formatVND(finalVal) : "-"}
+                            </td>
+                          </React.Fragment>
+                        );
+                      })}
+                    </tr>
+                  </>
+                )}
               </tbody>
             </table>
           </div>
@@ -3525,22 +3739,93 @@ export default function ApprovalManagement({
                       </tr>
                     )}
 
-                    <tr className="total-footer-row">
-                      <td colSpan={4} className="cell-center bold-cell">
-                        Tổng tiền chưa có VAT
-                      </td>
-                      {activeRequest.supplierColumns.map((sc) => {
-                        const totalVal = supplierTotals[sc.colId] || 0;
-                        return (
-                          <React.Fragment key={`p_tot_${sc.colId}`}>
-                            <td colSpan={subColCountPerSupplier - 1} />
-                            <td className="cell-right bold-cell">
-                              {totalVal ? formatVND(totalVal) : "-"}
-                            </td>
-                          </React.Fragment>
-                        );
-                      })}
-                    </tr>
+                    {/* Dòng tổng tiền in ấn: Phản ánh đúng Chưa VAT hoặc Có VAT */}
+                    {activeRequest.vatMode !== "with_vat" ? (
+                      <tr className="total-footer-row">
+                        <td colSpan={4} className="cell-center bold-cell">
+                          Tổng tiền chưa có VAT
+                        </td>
+                        {activeRequest.supplierColumns.map((sc) => {
+                          const totalVal = supplierSubtotals[sc.colId] || 0;
+                          return (
+                            <React.Fragment key={`p_tot_${sc.colId}`}>
+                              <td colSpan={subColCountPerSupplier - 1} />
+                              <td className="cell-right bold-cell">
+                                {totalVal ? formatVND(totalVal) : "-"}
+                              </td>
+                            </React.Fragment>
+                          );
+                        })}
+                      </tr>
+                    ) : activeRequest.vatCalculationType === "already_included" ? (
+                      <tr className="total-footer-row">
+                        <td colSpan={4} className="cell-center bold-cell" style={{ fontWeight: 700 }}>
+                          Tổng tiền có VAT (Đã gồm VAT)
+                        </td>
+                        {activeRequest.supplierColumns.map((sc) => {
+                          const totalVal = supplierFinalTotals[sc.colId] || 0;
+                          return (
+                            <React.Fragment key={`p_tot_${sc.colId}`}>
+                              <td colSpan={subColCountPerSupplier - 1} />
+                              <td className="cell-right bold-cell" style={{ fontWeight: 800 }}>
+                                {totalVal ? formatVND(totalVal) : "-"}
+                              </td>
+                            </React.Fragment>
+                          );
+                        })}
+                      </tr>
+                    ) : (
+                      <>
+                        <tr className="total-footer-row">
+                          <td colSpan={4} className="cell-center bold-cell" style={{ color: "#334155" }}>
+                            Tổng tiền chưa có VAT
+                          </td>
+                          {activeRequest.supplierColumns.map((sc) => {
+                            const subVal = supplierSubtotals[sc.colId] || 0;
+                            return (
+                              <React.Fragment key={`p_sub_${sc.colId}`}>
+                                <td colSpan={subColCountPerSupplier - 1} />
+                                <td className="cell-right bold-cell">
+                                  {subVal ? formatVND(subVal) : "-"}
+                                </td>
+                              </React.Fragment>
+                            );
+                          })}
+                        </tr>
+                        <tr className="total-footer-row">
+                          <td colSpan={4} className="cell-center bold-cell" style={{ color: "#334155" }}>
+                            Thuế GTGT (VAT {activeRequest.vatRate ?? 10}%)
+                          </td>
+                          {activeRequest.supplierColumns.map((sc) => {
+                            const vatVal = supplierVatAmounts[sc.colId] || 0;
+                            return (
+                              <React.Fragment key={`p_vat_${sc.colId}`}>
+                                <td colSpan={subColCountPerSupplier - 1} />
+                                <td className="cell-right bold-cell">
+                                  {vatVal ? `+${formatVND(vatVal)}` : "-"}
+                                </td>
+                              </React.Fragment>
+                            );
+                          })}
+                        </tr>
+                        <tr className="total-footer-row">
+                          <td colSpan={4} className="cell-center bold-cell" style={{ fontWeight: 800 }}>
+                            TỔNG TIỀN CÓ VAT
+                          </td>
+                          {activeRequest.supplierColumns.map((sc) => {
+                            const finalVal = supplierFinalTotals[sc.colId] || 0;
+                            return (
+                              <React.Fragment key={`p_fin_${sc.colId}`}>
+                                <td colSpan={subColCountPerSupplier - 1} />
+                                <td className="cell-right bold-cell" style={{ fontWeight: 800 }}>
+                                  {finalVal ? formatVND(finalVal) : "-"}
+                                </td>
+                              </React.Fragment>
+                            );
+                          })}
+                        </tr>
+                      </>
+                    )}
                   </tbody>
                 </table>
               </div>
