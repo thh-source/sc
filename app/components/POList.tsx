@@ -86,6 +86,7 @@ export function POList({
   const [draftCreatedDate, setDraftCreatedDate] = useState("");
   const [draftExpectedDate, setDraftExpectedDate] = useState("");
   const [draftNote, setDraftNote] = useState("");
+  const [showDraftNote, setShowDraftNote] = useState(false);
   const [draftVatRate, setDraftVatRate] = useState<number>(10);
   const [draftItems, setDraftItems] = useState<DraftPOItem[]>([]);
   const [itemError, setItemError] = useState("");
@@ -201,7 +202,8 @@ export function POList({
     setDraftPrNumber("Mua trực tiếp");
     setDraftCreatedDate(todayStr);
     setDraftExpectedDate("");
-    setDraftNote("Tạo trực tiếp không qua so sánh báo giá");
+    setDraftNote("");
+    setShowDraftNote(false);
     setDraftVatRate(10);
     setCustomProductInput("");
     setDraftItems([
@@ -601,6 +603,32 @@ export function POList({
                     {fmt(total)} <span style={{ fontSize: "13px", fontWeight: 600 }}>₫</span>
                   </span>
                 </div>
+
+                {/* Danh sách mặt hàng chính trong PO */}
+                {items.length > 0 && (
+                  <div style={{ margin: "6px 0 8px", padding: "8px 10px", background: "#f8fafc", borderRadius: "8px", border: "1px solid #e2e8f0" }}>
+                    <div style={{ fontSize: "11px", fontWeight: 700, color: "#64748b", marginBottom: "4px", display: "flex", alignItems: "center", gap: "4px" }}>
+                      <span>📦 Mặt hàng ({items.length}):</span>
+                    </div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "3px" }}>
+                      {items.slice(0, 2).map((it, itIdx) => (
+                        <div key={it.id || itIdx} style={{ fontSize: "12px", color: "#1e293b", fontWeight: 600, display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+                          <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1, paddingRight: "6px" }}>
+                            • {it.name || (it as any).itemName || (it as any).item_name || (it as any).productName || "(Chưa có tên hàng)"}
+                          </span>
+                          <span style={{ fontSize: "11px", color: "#64748b", fontWeight: 500, flexShrink: 0 }}>
+                            {it.qty} {it.unit || "Cái"}
+                          </span>
+                        </div>
+                      ))}
+                      {items.length > 2 && (
+                        <div style={{ fontSize: "11px", color: "#0284c7", fontWeight: 600, marginTop: "2px" }}>
+                          +{items.length - 2} mặt hàng khác...
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
 
                 {/* Thanh tiến độ % giao hàng */}
                 <div style={{ margin: "8px 0" }}>
@@ -1257,25 +1285,52 @@ export function POList({
                 </div>
 
                 <div style={{ gridColumn: "1 / -1" }}>
-                  <label
-                    style={{
-                      display: "block",
-                      fontSize: 12,
-                      fontWeight: 600,
-                      color: "#475569",
-                      marginBottom: 4,
-                    }}
-                  >
-                    Ghi chú PO
-                  </label>
-                  <input
-                    type="text"
-                    className="payment-input"
-                    style={{ width: "100%" }}
-                    value={draftNote}
-                    onChange={(e) => setDraftNote(e.target.value)}
-                    placeholder="Ghi chú về đơn hàng, điều khoản giao hàng..."
-                  />
+                  {showDraftNote || draftNote.trim() ? (
+                    <div>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+                        <label style={{ fontSize: 12, fontWeight: 600, color: "#475569" }}>
+                          Ghi chú PO
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => { setDraftNote(""); setShowDraftNote(false); }}
+                          style={{ background: "transparent", border: 0, color: "#64748b", fontSize: "11px", cursor: "pointer" }}
+                        >
+                          ✕ Ẩn ghi chú
+                        </button>
+                      </div>
+                      <input
+                        type="text"
+                        className="payment-input"
+                        style={{ width: "100%" }}
+                        value={draftNote}
+                        onChange={(e) => setDraftNote(e.target.value)}
+                        placeholder="Ghi chú về đơn hàng, điều khoản giao hàng..."
+                      />
+                    </div>
+                  ) : (
+                    <div>
+                      <button
+                        type="button"
+                        onClick={() => setShowDraftNote(true)}
+                        style={{
+                          padding: "5px 12px",
+                          borderRadius: "6px",
+                          border: "1px dashed #cbd5e1",
+                          background: "#f8fafc",
+                          color: "#475569",
+                          fontSize: "12px",
+                          fontWeight: 600,
+                          cursor: "pointer",
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: "4px",
+                        }}
+                      >
+                        <Plus size={13} /> Thêm Ghi chú chung PO
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
 

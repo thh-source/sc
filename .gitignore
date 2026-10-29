@@ -9,6 +9,9 @@ backup_*.json
 *.backup.json
 
 *.apk
+*.zip
+apk-test-*.png
+backups/
 android/.gradle
 android/build
 android/app/build

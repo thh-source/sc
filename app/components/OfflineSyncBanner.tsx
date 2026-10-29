@@ -33,49 +33,64 @@ export const OfflineSyncBanner: React.FC<OfflineSyncBannerProps> = ({
   if (!shouldShow) return null;
 
   // Xác định màu sắc & icon theo trạng thái
-  let bgClass = "bg-amber-500/95 text-white border-amber-400";
+  let bgStyle: React.CSSProperties = { background: "#d97706", borderColor: "#f59e0b", color: "#ffffff" };
   let icon = <WifiOff size={18} className="animate-pulse flex-shrink-0" />;
   let title = "Đang mất kết nối mạng - Đã bật chế độ tự lưu Offline an toàn";
 
   if (!isOnline) {
-    bgClass = "bg-amber-600/95 text-white border-amber-500 shadow-amber-900/30";
+    bgStyle = { background: "#d97706", borderColor: "#f59e0b", color: "#ffffff" };
     icon = <WifiOff size={18} className="animate-pulse flex-shrink-0" />;
     title = syncMessage || "⚠️ Đang mất kết nối mạng - Đã bật chế độ tự lưu Offline an toàn";
   } else if (isSyncing) {
-    bgClass = "bg-blue-600/95 text-white border-blue-400 shadow-blue-900/30";
+    bgStyle = { background: "#2563eb", borderColor: "#60a5fa", color: "#ffffff" };
     icon = <RefreshCw size={18} className="animate-spin flex-shrink-0" />;
     title = syncMessage || "🔄 Đã kết nối lại - Đang tự động đồng bộ dữ liệu lên hệ thống...";
   } else if (lastSyncStatus === "success") {
-    bgClass = "bg-emerald-600/95 text-white border-emerald-400 shadow-emerald-900/30";
+    bgStyle = { background: "#059669", borderColor: "#34d399", color: "#ffffff" };
     icon = <CheckCircle2 size={18} className="flex-shrink-0" />;
     title = syncMessage || "✅ Đồng bộ thành công!";
   } else if (lastSyncStatus === "error") {
-    bgClass = "bg-rose-600/95 text-white border-rose-400 shadow-rose-900/30";
+    bgStyle = { background: "#e11d48", borderColor: "#fb7185", color: "#ffffff" };
     icon = <AlertTriangle size={18} className="flex-shrink-0" />;
     title = syncMessage || "⚠️ Lỗi khi đồng bộ dữ liệu offline";
   } else if (queueCount > 0) {
-    bgClass = "bg-amber-600/95 text-white border-amber-400 shadow-amber-900/30";
+    bgStyle = { background: "#d97706", borderColor: "#f59e0b", color: "#ffffff" };
     icon = <CloudOff size={18} className="flex-shrink-0" />;
     title = `Đang có ${queueCount} tác vụ chờ đồng bộ lên D1`;
   }
 
   return (
     <div
-      className={`fixed z-[9999] transition-all duration-300 ease-in-out transform flex items-center gap-3 px-4 py-2.5 rounded-xl shadow-lg border backdrop-blur-sm text-sm font-medium ${bgClass}`}
+      className="offline-sync-banner-container no-print"
       style={{
+        position: "fixed",
+        zIndex: 9999,
         bottom: "calc(16px + env(safe-area-inset-bottom, 0px))",
         right: "16px",
         maxWidth: "min(92vw, 480px)",
+        display: "flex",
+        alignItems: "center",
+        gap: "12px",
+        padding: "10px 16px",
+        borderRadius: "12px",
+        boxShadow: "0 10px 25px rgba(0,0,0,0.2)",
+        border: "1px solid",
+        backdropFilter: "blur(4px)",
+        fontSize: "13px",
+        fontWeight: 500,
+        ...bgStyle,
       }}
       role="status"
       aria-live="polite"
     >
-      <div className="flex items-center gap-2.5 flex-1 min-w-0">
+      <div style={{ display: "flex", alignItems: "center", gap: "10px", flex: 1, minWidth: 0 }}>
         {icon}
-        <div className="truncate">
-          <span className="block truncate text-xs sm:text-sm font-semibold">{title}</span>
+        <div style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          <span style={{ display: "block", overflow: "hidden", textOverflow: "ellipsis", fontSize: "13px", fontWeight: 700 }}>
+            {title}
+          </span>
           {queueCount > 0 && !isSyncing && (
-            <span className="text-[11px] opacity-90 block">
+            <span style={{ fontSize: "11px", opacity: 0.9, display: "block" }}>
               {queueCount} thay đổi được lưu trữ an toàn trong IndexedDB
             </span>
           )}
@@ -85,7 +100,19 @@ export const OfflineSyncBanner: React.FC<OfflineSyncBannerProps> = ({
       {isOnline && !isSyncing && queueCount > 0 && onTriggerSync && (
         <button
           onClick={onTriggerSync}
-          className="flex-shrink-0 px-2.5 py-1 text-xs font-bold rounded-lg bg-white/20 hover:bg-white/30 active:bg-white/40 transition-colors uppercase tracking-wider"
+          style={{
+            flexShrink: 0,
+            padding: "4px 10px",
+            fontSize: "11px",
+            fontWeight: 700,
+            borderRadius: "8px",
+            background: "rgba(255, 255, 255, 0.25)",
+            color: "#ffffff",
+            border: "none",
+            cursor: "pointer",
+            textTransform: "uppercase",
+            letterSpacing: "0.5px",
+          }}
           title="Thực hiện đồng bộ ngay"
         >
           Đồng bộ ngay

@@ -203,6 +203,32 @@ export function PRList({
                   <div><dt>Mặt hàng</dt><dd>{pr.items?.length || 0}</dd></div>
                   <div><dt>Dự kiến</dt><dd>{fmt((pr.items || []).reduce((sum, item) => sum + item.qty * item.estimate, 0))} ₫</dd></div>
                 </dl>
+
+                {/* Danh sách mặt hàng chính trong PR */}
+                {(pr.items || []).length > 0 && (
+                  <div style={{ marginTop: "8px", padding: "8px 10px", background: "#f8fafc", borderRadius: "8px", border: "1px solid #e2e8f0" }}>
+                    <div style={{ fontSize: "11px", fontWeight: 700, color: "#64748b", marginBottom: "4px" }}>
+                      📦 Mặt hàng ({(pr.items || []).length}):
+                    </div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "3px" }}>
+                      {(pr.items || []).slice(0, 2).map((it, itIdx) => (
+                        <div key={it.id || itIdx} style={{ fontSize: "12px", color: "#1e293b", fontWeight: 600, display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+                          <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1, paddingRight: "6px" }}>
+                            • {it.name || (it as any).itemName || (it as any).item_name || (it as any).productName || "(Chưa có tên hàng)"}
+                          </span>
+                          <span style={{ fontSize: "11px", color: "#64748b", fontWeight: 500, flexShrink: 0 }}>
+                            {it.qty} {it.unit || "Cái"}
+                          </span>
+                        </div>
+                      ))}
+                      {(pr.items || []).length > 2 && (
+                        <div style={{ fontSize: "11px", color: "#0284c7", fontWeight: 600, marginTop: "2px" }}>
+                          +{(pr.items || []).length - 2} mặt hàng khác...
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
                 <div style={{ marginTop: "8px", paddingTop: "8px", borderTop: "1px dashed #e2e8f0" }}>
                   <DocFlowLinks flow={flow} currentView="prs" onNavigate={onNavigate} compact />
                 </div>

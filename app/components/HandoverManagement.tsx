@@ -1244,7 +1244,7 @@ export function HandoverManagement({
                   <div className="m-card-stt">STT {h.id}</div>
                   <span className="m-badge mb-badge-dept">🏢 {h.department || "Chưa chọn bộ phận"}</span>
                 </div>
-                <div className="m-card-payee">{h.item_name || "Chưa có tên vật tư"}</div>
+                <div className="m-card-payee">{h.item_name || (h as any).name || (h as any).itemName || "Chưa có tên vật tư"}</div>
                 <div className="m-card-desc">
                   {h.specification ? `Quy cách: ${h.specification}` : "Chưa có quy cách"} · ĐVT: <b>{h.unit || "Cái"}</b>
                 </div>

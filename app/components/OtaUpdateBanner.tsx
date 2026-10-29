@@ -20,16 +20,29 @@ export const OtaUpdateBanner: React.FC<OtaUpdateBannerProps> = ({
   if (otaState.isDownloading) {
     return (
       <div
-        className="fixed z-[9998] transition-all duration-300 flex items-center gap-3 px-4 py-2.5 rounded-xl shadow-lg border backdrop-blur-sm text-sm font-medium bg-blue-600/95 text-white border-blue-400"
+        className="no-print"
         style={{
-          bottom: "calc(72px + env(safe-area-inset-bottom, 0px))",
+          position: "fixed",
+          zIndex: 9998,
+          bottom: "calc(80px + env(safe-area-inset-bottom, 0px))",
           right: "16px",
           maxWidth: "min(92vw, 450px)",
+          display: "flex",
+          alignItems: "center",
+          gap: "12px",
+          padding: "10px 16px",
+          borderRadius: "12px",
+          backgroundColor: "#2563eb",
+          color: "#ffffff",
+          boxShadow: "0 10px 25px rgba(0,0,0,0.25)",
+          border: "1px solid #60a5fa",
+          fontSize: "13px",
+          fontWeight: 600,
         }}
         role="status"
       >
         <RefreshCw size={17} className="animate-spin flex-shrink-0" />
-        <span className="text-xs sm:text-sm font-semibold truncate">
+        <span style={{ fontSize: "13px", fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
           Đang tải bản cập nhật v{otaState.latestVersion} ngầm...
         </span>
       </div>
@@ -39,38 +52,76 @@ export const OtaUpdateBanner: React.FC<OtaUpdateBannerProps> = ({
   if (otaState.updateReady) {
     return (
       <div
-        className="fixed z-[9998] transition-all duration-300 flex items-center justify-between gap-3 px-4 py-2.5 rounded-xl shadow-xl border backdrop-blur-sm text-sm font-medium bg-emerald-600/95 text-white border-emerald-400"
+        className="no-print"
         style={{
-          bottom: "calc(72px + env(safe-area-inset-bottom, 0px))",
+          position: "fixed",
+          zIndex: 9998,
+          bottom: "calc(80px + env(safe-area-inset-bottom, 0px))",
           right: "16px",
           maxWidth: "min(92vw, 480px)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: "12px",
+          padding: "10px 16px",
+          borderRadius: "12px",
+          backgroundColor: "#059669",
+          color: "#ffffff",
+          boxShadow: "0 10px 25px rgba(0,0,0,0.25)",
+          border: "1px solid #34d399",
+          fontSize: "13px",
+          fontWeight: 600,
         }}
         role="alert"
       >
-        <div className="flex items-center gap-2.5 min-w-0">
-          <Sparkles size={18} className="text-amber-300 flex-shrink-0 animate-bounce" />
-          <div className="truncate">
-            <span className="block text-xs sm:text-sm font-bold truncate">
+        <div style={{ display: "flex", alignItems: "center", gap: "10px", minWidth: 0 }}>
+          <Sparkles size={18} style={{ color: "#fef08a", flexShrink: 0 }} />
+          <div style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            <span style={{ display: "block", fontSize: "13px", fontWeight: 800, overflow: "hidden", textOverflow: "ellipsis" }}>
               Đã sẵn sàng phiên bản mới v{otaState.latestVersion}!
             </span>
-            <span className="text-[11px] opacity-90 block">
+            <span style={{ fontSize: "11px", opacity: 0.9, display: "block" }}>
               Sẽ áp dụng trong lần mở tiếp theo
             </span>
           </div>
         </div>
 
-        <div className="flex items-center gap-2 flex-shrink-0">
+        <div style={{ display: "flex", alignItems: "center", gap: "8px", flexShrink: 0 }}>
           <button
             type="button"
             onClick={onApplyAndRestart}
-            className="flex items-center gap-1.5 px-3 py-1 text-xs font-bold rounded-lg bg-white text-emerald-800 hover:bg-emerald-50 active:scale-95 shadow transition-all uppercase tracking-wider"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "6px",
+              padding: "5px 12px",
+              fontSize: "11px",
+              fontWeight: 800,
+              borderRadius: "8px",
+              backgroundColor: "#ffffff",
+              color: "#065f46",
+              border: "none",
+              cursor: "pointer",
+              boxShadow: "0 2px 6px rgba(0,0,0,0.15)",
+              textTransform: "uppercase",
+              letterSpacing: "0.5px",
+            }}
           >
             <ArrowUpCircle size={14} /> Khởi động lại
           </button>
           <button
             type="button"
             onClick={onDismiss}
-            className="p-1 rounded-lg hover:bg-white/20 active:bg-white/30 text-white/80 hover:text-white transition-colors"
+            style={{
+              background: "none",
+              border: "none",
+              color: "rgba(255,255,255,0.8)",
+              cursor: "pointer",
+              padding: "4px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
             title="Đóng thông báo"
           >
             <X size={16} />

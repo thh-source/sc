@@ -134,6 +134,11 @@ export function PODetail({
   const [showImportApprovalModal, setShowImportApprovalModal] = useState(false);
   const [itemsViewMode, setItemsViewMode] = useState<"auto" | "table" | "card">("auto");
 
+  // Quản lý thu gọn / xổ ra theo yêu cầu tối ưu mobile
+  const [isSupplierExpanded, setIsSupplierExpanded] = useState(false);
+  const [isPaymentsExpanded, setIsPaymentsExpanded] = useState(false);
+  const [showNoteInput, setShowNoteInput] = useState(false);
+
   const supplier = suppliers.find((s) => Number(s.id) === Number(po.supplierId));
   const isDuplicateNumber = isPONumberExists(po.number, pos, trash, po.id);
   const items = po.items || [];
@@ -956,17 +961,60 @@ export function PODetail({
           </div>
         </div>
       </div>
-      <section className="common-note-card po-common-note">
-        <label>
-          <span>✎ Ghi chú chung PO</span>
-          <textarea
-            rows={3}
-            value={po.note || ""}
-            placeholder="Diễn giải tự do, điều kiện đặc biệt hoặc lưu ý thực hiện PO..."
-            onChange={(e) => onUpdate({ ...po, note: e.target.value })}
-          />
-        </label>
-      </section>
+      {/* Ghi chú chung PO: Nếu không có thì ẩn đi, khi cần ấn nút mới hiện */}
+      {(showNoteInput || Boolean(po.note && po.note.trim())) ? (
+        <section className="common-note-card po-common-note" style={{ position: "relative" }}>
+          <label>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
+              <span>✎ Ghi chú chung PO</span>
+              {!readOnly && (
+                <button
+                  type="button"
+                  style={{ background: "transparent", border: 0, color: "#64748b", fontSize: "11.5px", cursor: "pointer" }}
+                  onClick={() => {
+                    if (!po.note?.trim() || confirm("Bạn có muốn đóng ô ghi chú này không?")) {
+                      onUpdate({ ...po, note: "" });
+                      setShowNoteInput(false);
+                    }
+                  }}
+                >
+                  ✕ Ẩn ghi chú
+                </button>
+              )}
+            </div>
+            <textarea
+              rows={3}
+              value={po.note || ""}
+              placeholder="Diễn giải tự do, điều kiện đặc biệt hoặc lưu ý thực hiện PO..."
+              onChange={(e) => onUpdate({ ...po, note: e.target.value })}
+            />
+          </label>
+        </section>
+      ) : (
+        !readOnly && (
+          <div style={{ margin: "6px 0 10px" }}>
+            <button
+              type="button"
+              onClick={() => setShowNoteInput(true)}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "6px",
+                padding: "6px 14px",
+                borderRadius: "8px",
+                border: "1px dashed #cbd5e1",
+                background: "#f8fafc",
+                color: "#475569",
+                fontSize: "12px",
+                fontWeight: 600,
+                cursor: "pointer",
+              }}
+            >
+              <Plus size={14} /> Thêm Ghi chú chung PO
+            </button>
+          </div>
+        )
+      )}
       <div className="po-tabs" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "8px" }}>
         <div style={{ display: "flex", gap: "4px", overflowX: "auto" }}>
           <a href="#supplier">Thông tin NCC</a>
@@ -995,21 +1043,45 @@ export function PODetail({
         )}
       </div>
       <section id="supplier" className="po-section">
-        <div className="section-heading">
+        <div
+          className="section-heading"
+          style={{ cursor: "pointer", userSelect: "none" }}
+          onClick={() => setIsSupplierExpanded(!isSupplierExpanded)}
+        >
           <div>
             <h2>Thông tin nhà cung cấp</h2>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
-            <small>
-              Đồng bộ từ danh sách nhà cung cấp ·{" "}
-              <b style={{ color: supplier?.code ? "#0284c7" : "#64748b" }}>
-                {supplier?.code || "Chưa có mã NCC"}
-              </b>
-            </small>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsSupplierExpanded(!isSupplierExpanded);
+              }}
+              style={{
+                height: "30px",
+                padding: "0 12px",
+                background: isSupplierExpanded ? "#e2e8f0" : "#eff6ff",
+                border: isSupplierExpanded ? "1px solid #cbd5e1" : "1px solid #bfdbfe",
+                color: isSupplierExpanded ? "#334155" : "#0284c7",
+                borderRadius: "6px",
+                fontWeight: 600,
+                fontSize: "12px",
+                cursor: "pointer",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "5px",
+              }}
+            >
+              {isSupplierExpanded ? "▲ Thu gọn NCC" : "▼ Xem & Sửa chi tiết NCC"}
+            </button>
             {!readOnly && (
               <button
                 type="button"
-                onClick={() => void handleManualSave(false)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  void handleManualSave(false);
+                }}
                 style={{
                   height: "30px",
                   padding: "0 12px",
@@ -1028,101 +1100,171 @@ export function PODetail({
             )}
           </div>
         </div>
-        <div className="po-supplier-form">
-          <div className="full-field" style={{ marginBottom: "2px" }}>
-            <SupplierSearchCombobox
-              suppliers={suppliers}
-              selectedSupplierId={po.supplierId || ""}
-              onSelectSupplier={(id) => onUpdate({ ...po, supplierId: Number(id) || 0 })}
-              onAddSupplier={(newSupp) => {
-                if (onAddSupplier) {
-                  onAddSupplier(newSupp);
-                } else {
-                  setSuppliers((prev) => [newSupp, ...prev]);
-                }
-                onUpdate({ ...po, supplierId: newSupp.id });
+
+        {/* CHẾ ĐỘ THU GỌN: Mặc định chỉ hiển thị tên Nhà cung cấp */}
+        {!isSupplierExpanded ? (
+          <div
+            style={{
+              padding: "12px 16px",
+              background: "#ffffff",
+              borderRadius: "8px",
+              border: "1px solid #e2e8f0",
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              flexWrap: "wrap",
+              gap: "8px",
+              cursor: "pointer",
+            }}
+            onClick={() => setIsSupplierExpanded(true)}
+          >
+            <div>
+              <div style={{ fontSize: "11px", fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                Nhà cung cấp:
+              </div>
+              <div style={{ fontSize: "15px", fontWeight: 800, color: "#0f172a", marginTop: "2px" }}>
+                {supplier?.name || "Chưa chọn nhà cung cấp"}
+              </div>
+              <div style={{ fontSize: "12px", color: "#64748b", marginTop: "2px", display: "flex", gap: "8px", flexWrap: "wrap" }}>
+                {supplier?.code && <span>Mã: <b>{supplier.code}</b></span>}
+                {supplier?.shortName && <span>Viết tắt: <b>{supplier.shortName}</b></span>}
+                {supplier?.bank && <span>🏦 {supplier.bank} - {supplier.bankAccount}</span>}
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsSupplierExpanded(true);
               }}
-              label="Chọn hoặc tìm kiếm Nhà cung cấp cho đơn hàng"
-            />
+              style={{
+                background: "transparent",
+                border: "none",
+                color: "#0284c7",
+                fontSize: "12px",
+                fontWeight: 600,
+                cursor: "pointer",
+              }}
+            >
+              Chạm để xem chi tiết ➔
+            </button>
           </div>
-          <label className="wide-field">
-            Tên đầy đủ nhà cung cấp
-            <input
-              value={supplier?.name || ""}
-              placeholder="Nhập tên công ty / nhà cung cấp..."
-              onChange={(e) => {
-                const val = e.target.value;
-                supplierUpdate("name", val);
-                if (supplier && (!supplier.shortName || supplier.shortName === generateShortName(supplier.name))) {
-                  supplierUpdate("shortName", generateShortName(val));
-                }
-              }}
-            />
-          </label>
-          <label>
-            Mã NCC / Tên viết tắt
-            <div style={{ display: "grid", gridTemplateColumns: "110px 1fr", gap: "6px" }}>
-              <input
-                value={supplier?.code || ""}
-                placeholder="Mã NCC"
-                title="Mã nhà cung cấp"
-                onChange={(e) => supplierUpdate("code", e.target.value)}
-              />
-              <input
-                value={supplier?.shortName || ""}
-                placeholder="Tên viết tắt"
-                title="Tên viết tắt"
-                onChange={(e) => supplierUpdate("shortName", e.target.value)}
+        ) : (
+          /* CHẾ ĐỘ MỞ RỘNG: Hiển thị đầy đủ form thông tin NCC */
+          <div className="po-supplier-form">
+            <div className="full-field" style={{ marginBottom: "2px" }}>
+              <SupplierSearchCombobox
+                suppliers={suppliers}
+                selectedSupplierId={po.supplierId || ""}
+                onSelectSupplier={(id) => onUpdate({ ...po, supplierId: Number(id) || 0 })}
+                onAddSupplier={(newSupp) => {
+                  if (onAddSupplier) {
+                    onAddSupplier(newSupp);
+                  } else {
+                    setSuppliers((prev) => [newSupp, ...prev]);
+                  }
+                  onUpdate({ ...po, supplierId: newSupp.id });
+                }}
+                label="Chọn hoặc tìm kiếm Nhà cung cấp cho đơn hàng"
               />
             </div>
-          </label>
-          <label>
-            Số tài khoản
-            <input
-              value={supplier?.bankAccount || ""}
-              placeholder="Nhập số tài khoản ngân hàng..."
-              onChange={(e) => supplierUpdate("bankAccount", e.target.value)}
-            />
-          </label>
-          <label>
-            Ngân hàng
-            <input
-              list="poDetailBankList"
-              value={supplier?.bank || ""}
-              placeholder="Chọn hoặc nhập tên ngân hàng..."
-              onChange={(e) => supplierUpdate("bank", e.target.value)}
-            />
-            <datalist id="poDetailBankList">
-              {bankOptions.map((bn) => (
-                <option key={bn} value={bn} />
-              ))}
-            </datalist>
-          </label>
-          <label>
-            Người liên hệ
-            <input
-              value={supplier?.contact || ""}
-              placeholder="Tên người liên hệ..."
-              onChange={(e) => supplierUpdate("contact", e.target.value)}
-            />
-          </label>
-          <label>
-            Điện thoại
-            <input
-              value={supplier?.phone || ""}
-              placeholder="Số điện thoại liên hệ..."
-              onChange={(e) => supplierUpdate("phone", e.target.value)}
-            />
-          </label>
-          <label className="wide-field">
-            Địa chỉ
-            <input
-              value={supplier?.address || ""}
-              placeholder="Địa chỉ xuất hóa đơn / giao dịch của nhà cung cấp..."
-              onChange={(e) => supplierUpdate("address", e.target.value)}
-            />
-          </label>
-        </div>
+            <label className="wide-field">
+              Tên đầy đủ nhà cung cấp
+              <input
+                value={supplier?.name || ""}
+                placeholder="Nhập tên công ty / nhà cung cấp..."
+                onChange={(e) => {
+                  const val = e.target.value;
+                  supplierUpdate("name", val);
+                  if (supplier && (!supplier.shortName || supplier.shortName === generateShortName(supplier.name))) {
+                    supplierUpdate("shortName", generateShortName(val));
+                  }
+                }}
+              />
+            </label>
+            <label>
+              Mã NCC / Tên viết tắt
+              <div style={{ display: "grid", gridTemplateColumns: "110px 1fr", gap: "6px" }}>
+                <input
+                  value={supplier?.code || ""}
+                  placeholder="Mã NCC"
+                  title="Mã nhà cung cấp"
+                  onChange={(e) => supplierUpdate("code", e.target.value)}
+                />
+                <input
+                  value={supplier?.shortName || ""}
+                  placeholder="Tên viết tắt"
+                  title="Tên viết tắt"
+                  onChange={(e) => supplierUpdate("shortName", e.target.value)}
+                />
+              </div>
+            </label>
+            <label>
+              Số tài khoản
+              <input
+                value={supplier?.bankAccount || ""}
+                placeholder="Nhập số tài khoản ngân hàng..."
+                onChange={(e) => supplierUpdate("bankAccount", e.target.value)}
+              />
+            </label>
+            <label>
+              Ngân hàng
+              <input
+                list="poDetailBankList"
+                value={supplier?.bank || ""}
+                placeholder="Chọn hoặc nhập tên ngân hàng..."
+                onChange={(e) => supplierUpdate("bank", e.target.value)}
+              />
+              <datalist id="poDetailBankList">
+                {bankOptions.map((bn) => (
+                  <option key={bn} value={bn} />
+                ))}
+              </datalist>
+            </label>
+            <label>
+              Người liên hệ
+              <input
+                value={supplier?.contact || ""}
+                placeholder="Tên người liên hệ..."
+                onChange={(e) => supplierUpdate("contact", e.target.value)}
+              />
+            </label>
+            <label>
+              Điện thoại
+              <input
+                value={supplier?.phone || ""}
+                placeholder="Số điện thoại liên hệ..."
+                onChange={(e) => supplierUpdate("phone", e.target.value)}
+              />
+            </label>
+            <label className="wide-field">
+              Địa chỉ
+              <input
+                value={supplier?.address || ""}
+                placeholder="Địa chỉ xuất hóa đơn / giao dịch của nhà cung cấp..."
+                onChange={(e) => supplierUpdate("address", e.target.value)}
+              />
+            </label>
+            <div style={{ gridColumn: "1 / -1", marginTop: "4px", textAlign: "right" }}>
+              <button
+                type="button"
+                onClick={() => setIsSupplierExpanded(false)}
+                style={{
+                  padding: "5px 12px",
+                  borderRadius: "6px",
+                  border: "1px solid #cbd5e1",
+                  background: "#f1f5f9",
+                  color: "#475569",
+                  fontSize: "12px",
+                  fontWeight: 600,
+                  cursor: "pointer",
+                }}
+              >
+                ▲ Thu gọn thông tin NCC
+              </button>
+            </div>
+          </div>
+        )}
       </section>
       <div className="po-two-columns">
         <section id="documents" className="po-section">
@@ -1638,13 +1780,50 @@ export function PODetail({
           )}
         </section>
         <section id="payments" className="po-section po-payment-section">
-          <div className="section-heading">
+          <div
+            className="section-heading"
+            style={{ cursor: "pointer", userSelect: "none" }}
+            onClick={() => setIsPaymentsExpanded(!isPaymentsExpanded)}
+          >
             <div>
-              <h2>Tiến độ thanh toán</h2>
+              <h2>Các đợt thanh toán ({(po.payments || []).length} đợt)</h2>
             </div>
-            <button type="button" onClick={handleAddPaymentStage} style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}>
-              <Plus size={14} /> Thêm đợt
-            </button>
+            <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsPaymentsExpanded(!isPaymentsExpanded);
+                }}
+                style={{
+                  height: "30px",
+                  padding: "0 12px",
+                  background: isPaymentsExpanded ? "#e2e8f0" : "#eff6ff",
+                  border: isPaymentsExpanded ? "1px solid #cbd5e1" : "1px solid #bfdbfe",
+                  color: isPaymentsExpanded ? "#334155" : "#0284c7",
+                  borderRadius: "6px",
+                  fontWeight: 600,
+                  fontSize: "12px",
+                  cursor: "pointer",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "5px",
+                }}
+              >
+                {isPaymentsExpanded ? "▲ Thu gọn đợt TT" : `▼ Xem chi tiết (${(po.payments || []).length} đợt)`}
+              </button>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsPaymentsExpanded(true);
+                  handleAddPaymentStage();
+                }}
+                style={{ display: "inline-flex", alignItems: "center", gap: "4px", height: "30px", fontSize: "12px" }}
+              >
+                <Plus size={14} /> Thêm đợt
+              </button>
+            </div>
           </div>
 
           {/* Quick preset selector & allocation KPI */}
@@ -1669,43 +1848,115 @@ export function PODetail({
             </div>
           </div>
 
-          <div className="po-payment-preset-bar">
-            <span style={{ fontWeight: 600, color: "#475569", whiteSpace: "nowrap" }}>Mẫu thiết lập nhanh:</span>
-            <button type="button" className="po-preset-pill" onClick={() => handleApplyPreset("1-post")} title="1 đợt trả sau 100% khi nhận hàng">
-              📦 1 đợt Trả sau (100%)
-            </button>
-            <button type="button" className="po-preset-pill" onClick={() => handleApplyPreset("1-advance")} title="1 đợt trả trước 100% tạm ứng">
-              ⚡ 1 đợt Trả trước (100%)
-            </button>
-            <button type="button" className="po-preset-pill" onClick={() => handleApplyPreset("2-50-50")} title="2 đợt: Tạm ứng 50% + Quyết toán 50%">
-              ⚖️ 2 đợt (50% - 50%)
-            </button>
-            <button type="button" className="po-preset-pill" onClick={() => handleApplyPreset("2-30-70")} title="2 đợt: Tạm ứng 30% + Quyết toán 70%">
-              💼 2 đợt (30% - 70%)
-            </button>
-            <button type="button" className="po-preset-pill" onClick={() => handleApplyPreset("3-30-40-30")} title="3 đợt: Tạm ứng 30% + Giao hàng 40% + Quyết toán 30%">
-              🏗️ 3 đợt (30% - 40% - 30%)
-            </button>
-          </div>
-
-          {/* Payment cards list */}
-          <div className="po-payment-cards-list">
-            {(!po.payments || po.payments.length === 0) && (
-              <div style={{ textAlign: "center", padding: "20px 12px", background: "#f8fafc", border: "1px dashed #cbd5e1", borderRadius: "8px", color: "#64748b" }}>
-                <p style={{ margin: "0 0 10px 0" }}>Chưa có đợt thanh toán nào được cấu hình cho đơn hàng này.</p>
-                <div style={{ display: "flex", gap: "8px", justifyContent: "center", flexWrap: "wrap" }}>
-                  <button type="button" className="po-preset-pill" onClick={() => handleApplyPreset("1-post")}>
-                    Chọn 1 đợt trả sau (100%)
-                  </button>
-                  <button type="button" className="po-preset-pill" onClick={() => handleApplyPreset("2-50-50")}>
-                    Chọn 2 đợt (50% - 50%)
-                  </button>
-                  <button type="button" className="po-preset-pill" onClick={handleAddPaymentStage} style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}>
-                    <Plus size={12} /> Thêm đợt thủ công
-                  </button>
-                </div>
+          {/* CHẾ ĐỘ THU GỌN: Chỉ hiển thị tóm tắt gọn các đợt */}
+          {!isPaymentsExpanded ? (
+            <div
+              style={{
+                padding: "12px 14px",
+                background: "#ffffff",
+                borderRadius: "8px",
+                border: "1px solid #e2e8f0",
+                marginTop: "10px",
+                cursor: "pointer",
+              }}
+              onClick={() => setIsPaymentsExpanded(true)}
+            >
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
+                <span style={{ fontSize: "12px", fontWeight: 700, color: "#475569" }}>
+                  Danh sách đợt thanh toán ({(po.payments || []).length} đợt):
+                </span>
+                <span style={{ fontSize: "12px", color: "#0284c7", fontWeight: 600 }}>
+                  Chạm để mở rộng ➔
+                </span>
               </div>
-            )}
+              <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                {(po.payments || []).length === 0 ? (
+                  <div style={{ fontSize: "12px", color: "#64748b", fontStyle: "italic", padding: "6px 0" }}>
+                    Chưa thiết lập đợt thanh toán nào. Chạm vào để thêm.
+                  </div>
+                ) : (
+                  (po.payments || []).map((p, idx) => (
+                    <div
+                      key={p.id}
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        fontSize: "12.5px",
+                        padding: "6px 10px",
+                        background: "#f8fafc",
+                        borderRadius: "6px",
+                        border: "1px solid #f1f5f9",
+                        flexWrap: "wrap",
+                        gap: "6px",
+                      }}
+                    >
+                      <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                        <span style={{ fontWeight: 700, color: "#0284c7" }}>Đợt {idx + 1}:</span>
+                        <span style={{ fontWeight: 600, color: "#1e293b" }}>{p.phase || `Đợt ${idx + 1}`}</span>
+                      </div>
+                      <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                        <span style={{ fontWeight: 700, color: "#1d4ed8" }}>
+                          {p.percent}% ({fmt(p.amount)} ₫)
+                        </span>
+                        <span
+                          style={{
+                            fontSize: "11px",
+                            fontWeight: 600,
+                            padding: "2px 6px",
+                            borderRadius: "4px",
+                            background: p.status === "Đã thanh toán" ? "#dcfce7" : "#f1f5f9",
+                            color: p.status === "Đã thanh toán" ? "#166534" : "#64748b",
+                          }}
+                        >
+                          {p.status || "Chưa thanh toán"}
+                        </span>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          ) : (
+            /* CHẾ ĐỘ MỞ RỘNG: Hiển thị đầy đủ mẫu thiết lập & từng card đợt thanh toán */
+            <>
+              <div className="po-payment-preset-bar">
+                <span style={{ fontWeight: 600, color: "#475569", whiteSpace: "nowrap" }}>Mẫu thiết lập nhanh:</span>
+                <button type="button" className="po-preset-pill" onClick={() => handleApplyPreset("1-post")} title="1 đợt trả sau 100% khi nhận hàng">
+                  📦 1 đợt Trả sau (100%)
+                </button>
+                <button type="button" className="po-preset-pill" onClick={() => handleApplyPreset("1-advance")} title="1 đợt trả trước 100% tạm ứng">
+                  ⚡ 1 đợt Trả trước (100%)
+                </button>
+                <button type="button" className="po-preset-pill" onClick={() => handleApplyPreset("2-50-50")} title="2 đợt: Tạm ứng 50% + Quyết toán 50%">
+                  ⚖️ 2 đợt (50% - 50%)
+                </button>
+                <button type="button" className="po-preset-pill" onClick={() => handleApplyPreset("2-30-70")} title="2 đợt: Tạm ứng 30% + Quyết toán 70%">
+                  💼 2 đợt (30% - 70%)
+                </button>
+                <button type="button" className="po-preset-pill" onClick={() => handleApplyPreset("3-30-40-30")} title="3 đợt: Tạm ứng 30% + Giao hàng 40% + Quyết toán 30%">
+                  🏗️ 3 đợt (30% - 40% - 30%)
+                </button>
+              </div>
+
+              {/* Payment cards list */}
+              <div className="po-payment-cards-list">
+                {(!po.payments || po.payments.length === 0) && (
+                  <div style={{ textAlign: "center", padding: "20px 12px", background: "#f8fafc", border: "1px dashed #cbd5e1", borderRadius: "8px", color: "#64748b" }}>
+                    <p style={{ margin: "0 0 10px 0" }}>Chưa có đợt thanh toán nào được cấu hình cho đơn hàng này.</p>
+                    <div style={{ display: "flex", gap: "8px", justifyContent: "center", flexWrap: "wrap" }}>
+                      <button type="button" className="po-preset-pill" onClick={() => handleApplyPreset("1-post")}>
+                        Chọn 1 đợt trả sau (100%)
+                      </button>
+                      <button type="button" className="po-preset-pill" onClick={() => handleApplyPreset("2-50-50")}>
+                        Chọn 2 đợt (50% - 50%)
+                      </button>
+                      <button type="button" className="po-preset-pill" onClick={handleAddPaymentStage} style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}>
+                        <Plus size={12} /> Thêm đợt thủ công
+                      </button>
+                    </div>
+                  </div>
+                )}
 
             {po.payments?.map((p, idx) => {
               const condition = p.condition || (idx === 0 && po.payments.length > 1 ? "advance" : "post");
@@ -2119,7 +2370,27 @@ export function PODetail({
                 </div>
               );
             })}
-          </div>
+              </div>
+              <div style={{ marginTop: "12px", textAlign: "right" }}>
+                <button
+                  type="button"
+                  onClick={() => setIsPaymentsExpanded(false)}
+                  style={{
+                    padding: "5px 14px",
+                    borderRadius: "6px",
+                    border: "1px solid #cbd5e1",
+                    background: "#f1f5f9",
+                    color: "#475569",
+                    fontSize: "12px",
+                    fontWeight: 600,
+                    cursor: "pointer",
+                  }}
+                >
+                  ▲ Thu gọn các đợt thanh toán
+                </button>
+              </div>
+            </>
+          )}
         </section>
       </div>
       <section id="timeline" className="po-section">
@@ -2437,7 +2708,7 @@ export function PODetail({
                       </td>
                       <td>
                         <input
-                          value={i.name || ""}
+                          value={i.name || (i as any).itemName || (i as any).item_name || (i as any).productName || ""}
                           disabled={readOnly}
                           placeholder="Nhập tên hàng hóa / vật tư..."
                           style={{ width: "100%", fontWeight: 600 }}

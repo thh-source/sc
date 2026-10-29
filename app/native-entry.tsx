@@ -10,7 +10,16 @@ if (typeof window !== "undefined") {
   const origFetch = window.fetch;
   window.fetch = function (input: RequestInfo | URL, init?: RequestInit) {
     if (typeof input === "string" && input.startsWith("/api/")) {
-      return origFetch(REMOTE_WORKER_URL + input, init);
+      const headers = new Headers(init?.headers || {});
+      const token = localStorage.getItem("pka_token");
+      if (token && !headers.has("Authorization")) {
+        headers.set("Authorization", `Bearer ${token}`);
+      }
+      return origFetch(REMOTE_WORKER_URL + input, {
+        ...init,
+        headers,
+        credentials: "include",
+      });
     }
     return origFetch(input, init);
   };
@@ -188,9 +197,9 @@ class NativeAppErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundary
   }
 }
 
-// Khởi tạo người dùng mặc định khi chạy Offline Native
+// Khởi tạo người dùng mặc định khi chạy Offline Native (Master Admin production workspace)
 const defaultOfflineUser = {
-  id: "offline-user",
+  id: "b7f7f770-898b-4e2d-983f-9e640a42950d",
   username: "bosmile",
   displayName: "Master Admin",
   role: "master" as const,

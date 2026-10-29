@@ -903,13 +903,19 @@ export function MobileDashboard(props: MobileDashboardProps) {
                     }}
                     onClick={() => onSelectPR && onSelectPR(pr)}
                   >
-                    <div>
+                    <div style={{ flex: 1, minWidth: 0, paddingRight: "8px" }}>
                       <div style={{ fontSize: "13.5px", fontWeight: 700, color: "#0284c7" }}>
                         {pr.number}
                       </div>
-                      <div style={{ fontSize: "12px", color: "#64748b", marginTop: "2px" }}>
+                      <div style={{ fontSize: "12px", color: "#64748b", marginTop: "1px" }}>
                         {pr.department} · {pr.items?.length || 0} mặt hàng
                       </div>
+                      {pr.items && pr.items.length > 0 && (
+                        <div style={{ fontSize: "12px", color: "#334155", fontWeight: 600, marginTop: "3px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          📦 {pr.items[0]?.name || (pr.items[0] as any)?.itemName || "(Chưa có tên)"}
+                          {pr.items.length > 1 ? ` (+${pr.items.length - 1} hàng khác)` : ""}
+                        </div>
+                      )}
                     </div>
                     <button
                       type="button"

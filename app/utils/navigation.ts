@@ -36,8 +36,8 @@ export function parseRouteFromHash(hashString?: string): AppRoute {
     if (simple === "compare") return { view: "compare" };
     if (simple === "approval") return { view: "approval" };
     if (simple === "po-list" || simple === "po") return { view: "po-list" };
-    if (simple === "contracts") return { view: "contracts" };
-    if (simple === "payment") return { view: "payment" };
+    if (simple === "contracts" || simple === "contract") return { view: "contracts" };
+    if (simple === "payment" || simple === "payments") return { view: "payment" };
     if (simple === "handover") return { view: "handover" };
     if (simple === "suppliers") return { view: "suppliers" };
     if (simple === "products") return { view: "products" };
@@ -114,10 +114,12 @@ export function parseRouteFromHash(hashString?: string): AppRoute {
       break;
 
     case "contracts":
+    case "contract":
       view = "contracts";
       break;
 
     case "payment":
+    case "payments":
       view = "payment";
       break;
 

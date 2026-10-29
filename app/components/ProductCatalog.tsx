@@ -114,7 +114,7 @@ export function ProductCatalog({
             return (
               <article key={p.id}>
                 <header>
-                  <button onClick={() => setExpanded(isExp ? null : p.id)}>{p.name || "Hàng hóa mới"}</button>
+                  <button onClick={() => setExpanded(isExp ? null : p.id)}>{p.name || (p as any).itemName || (p as any).item_name || "Hàng hóa mới"}</button>
                   <b className="product-code">{p.code}</b>
                 </header>
                 <p>{p.desc || p.spec || "Chưa có quy cách"}</p>

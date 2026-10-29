@@ -65,6 +65,7 @@ export function CreatePRCatalog({
   const [scanError, setScanError] = useState("");
   const [isDragging, setIsDragging] = useState(false);
   const [showPreviewModal, setShowPreviewModal] = useState(false);
+  const [showNoteField, setShowNoteField] = useState(false);
   const scanInputRef = React.useRef<HTMLInputElement>(null);
 
   // Quản lý phục hồi & tự động lưu bản nháp Offline
@@ -309,18 +310,40 @@ export function CreatePRCatalog({
                 />
               </div>
 
-              <div>
-                <label className="text-xs font-bold text-slate-700 block mb-1">
-                  Ghi chú chung
-                </label>
-                <textarea
-                  rows={2}
-                  value={draft.note}
-                  onChange={(e) => setDraft((d) => ({ ...d, note: e.target.value }))}
-                  placeholder="Ghi chú thêm về yêu cầu mua sắm..."
-                  className="w-full p-3 rounded-xl border border-slate-200 text-sm text-slate-800 outline-none focus:border-blue-500 resize-none"
-                />
-              </div>
+              {/* Ghi chú chung PR: Không tự động hiện, người dùng ấn nút mới hiện */}
+              {showNoteField || Boolean(draft.note && draft.note.trim()) ? (
+                <div>
+                  <div className="flex justify-between items-center mb-1">
+                    <label className="text-xs font-bold text-slate-700 block">
+                      Ghi chú chung PR
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => { setDraft((d) => ({ ...d, note: "" })); setShowNoteField(false); }}
+                      className="text-xs text-slate-400 hover:text-slate-600 font-semibold"
+                    >
+                      ✕ Ẩn ghi chú
+                    </button>
+                  </div>
+                  <textarea
+                    rows={2}
+                    value={draft.note}
+                    onChange={(e) => setDraft((d) => ({ ...d, note: e.target.value }))}
+                    placeholder="Ghi chú thêm về yêu cầu mua sắm..."
+                    className="w-full p-3 rounded-xl border border-slate-200 text-sm text-slate-800 outline-none focus:border-blue-500 resize-none"
+                  />
+                </div>
+              ) : (
+                <div>
+                  <button
+                    type="button"
+                    onClick={() => setShowNoteField(true)}
+                    className="px-3.5 py-2 rounded-xl border border-dashed border-slate-300 bg-slate-50 text-slate-600 text-xs font-semibold inline-flex items-center gap-1.5"
+                  >
+                    <Plus size={14} /> Thêm Ghi chú chung PR
+                  </button>
+                </div>
+              )}
 
               {/* Scan Attachment */}
               <div className="pt-2 border-t border-slate-100">
@@ -969,29 +992,62 @@ export function CreatePRCatalog({
             />
           </label>
 
-          <label style={{ display: "flex", flexDirection: "column", gap: "3px", fontSize: "12px", fontWeight: 600, color: "#475569" }}>
-            <span>Ghi chú chung PR</span>
-            <textarea
-              rows={2}
-              value={draft.note}
-              onChange={(e) => setDraft((d) => ({ ...d, note: e.target.value }))}
-              placeholder="Nhập ghi chú hoặc thông tin bổ sung (nếu có)..."
-              style={{
-                height: "56px",
-                minHeight: "56px",
-                maxHeight: "120px",
-                border: "1px solid #cbd5e1",
-                borderRadius: "6px",
-                padding: "6px 10px",
-                fontSize: "13px",
-                lineHeight: 1.35,
-                color: "#1e293b",
-                outline: 0,
-                resize: "vertical",
-                background: "#ffffff",
-              }}
-            />
-          </label>
+          {showNoteField || Boolean(draft.note && draft.note.trim()) ? (
+            <label style={{ display: "flex", flexDirection: "column", gap: "3px", fontSize: "12px", fontWeight: 600, color: "#475569" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <span>Ghi chú chung PR</span>
+                <button
+                  type="button"
+                  onClick={() => { setDraft((d) => ({ ...d, note: "" })); setShowNoteField(false); }}
+                  style={{ background: "transparent", border: 0, color: "#64748b", fontSize: "11px", cursor: "pointer" }}
+                >
+                  ✕ Ẩn ghi chú
+                </button>
+              </div>
+              <textarea
+                rows={2}
+                value={draft.note}
+                onChange={(e) => setDraft((d) => ({ ...d, note: e.target.value }))}
+                placeholder="Nhập ghi chú hoặc thông tin bổ sung (nếu có)..."
+                style={{
+                  height: "56px",
+                  minHeight: "56px",
+                  maxHeight: "120px",
+                  border: "1px solid #cbd5e1",
+                  borderRadius: "6px",
+                  padding: "6px 10px",
+                  fontSize: "13px",
+                  lineHeight: 1.35,
+                  color: "#1e293b",
+                  outline: 0,
+                  resize: "vertical",
+                  background: "#ffffff",
+                }}
+              />
+            </label>
+          ) : (
+            <div style={{ display: "flex", alignItems: "flex-end", height: "56px" }}>
+              <button
+                type="button"
+                onClick={() => setShowNoteField(true)}
+                style={{
+                  padding: "6px 12px",
+                  borderRadius: "6px",
+                  border: "1px dashed #cbd5e1",
+                  background: "#f8fafc",
+                  color: "#475569",
+                  fontSize: "12px",
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "4px",
+                }}
+              >
+                <Plus size={13} /> Thêm Ghi chú chung PR
+              </button>
+            </div>
+          )}
         </div>
       </div>
       <div className="form-card items-card">

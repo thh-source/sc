@@ -1,4 +1,4 @@
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 
 type RuntimeEnv = {
   DB: D1Database;
@@ -193,7 +193,16 @@ export async function createSession(userId: string) {
 
 export async function getCurrentUser(): Promise<AppUser | null> {
   await ensureAuthSchema();
-  const token = (await cookies()).get("mh_session")?.value;
+  let token = (await cookies()).get("mh_session")?.value;
+  if (!token) {
+    try {
+      const h = await headers();
+      const auth = h.get("authorization");
+      if (auth && auth.startsWith("Bearer ")) {
+        token = auth.slice(7).trim();
+      }
+    } catch {}
+  }
   if (!token) return null;
   const env = await runtime(),
     tokenHash = await hashToken(token),

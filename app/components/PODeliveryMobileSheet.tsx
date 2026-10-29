@@ -719,7 +719,7 @@ export function PODeliveryModal({
                             lineHeight: "1.35",
                           }}
                         >
-                          {it.name || "(Chưa có tên hàng)"}
+                          {it.name || (it as any).itemName || (it as any).item_name || (it as any).productName || "(Chưa có tên hàng)"}
                         </div>
                         {it.spec && (
                           <div style={{ fontSize: "12px", color: "#64748b", marginTop: "2px" }}>
@@ -1854,7 +1854,7 @@ export function POItemsMobileCards({
                     lineHeight: "1.3",
                   }}
                 >
-                  {i.name || "(Chưa có tên hàng)"}
+                  {i.name || (i as any).itemName || (i as any).item_name || (i as any).productName || "(Chưa có tên hàng)"}
                 </div>
               </div>
 

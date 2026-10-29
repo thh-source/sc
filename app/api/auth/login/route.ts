@@ -17,7 +17,7 @@ export async function POST(request: Request) {
       );
     const session = await createSession(user.id);
     await setSessionCookie(session.token, session.expires);
-    return Response.json({ user });
+    return Response.json({ user, token: session.token });
   } catch (error) {
     console.error("LOGIN_ERROR", error);
     const message = error instanceof Error ? error.message : "";

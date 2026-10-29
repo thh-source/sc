@@ -167,14 +167,12 @@ function ProcurementAppInner({
     }),
     [importMessage, setImportMessage] = useState("");
   const [poSelections, setPoSelections] = useState<number[]>([]),
-    [pos, setPos] = useState<PO[]>(pos0),
+    [pos, setPos] = useState<PO[]>([]),
     [currentPO, setCurrentPO] = useState<PO>(emptyPO);
   const [poCart, setPoCart] = useState<POCartLine[]>([]),
     [poCartOpen, setPoCartOpen] = useState(false);
   const [approvalDraft, setApprovalDraft] = useState<ApprovalDraft | null>(null);
-  const [approvalRequests, setApprovalRequests] = useState<ApprovalRequest[]>(
-      SAMPLE_PHENIKAA_APPROVALS,
-    ),
+  const [approvalRequests, setApprovalRequests] = useState<ApprovalRequest[]>([]),
     [activeApprovalId, setActiveApprovalId] = useState<number | null>(null),
     [isPrintApproval, setIsPrintApproval] = useState(false);
   const [trash, setTrash] = useState<TrashItem[]>([]),
@@ -307,6 +305,7 @@ function ProcurementAppInner({
     [compareFilterOpen, setCompareFilterOpen] = useState<ColumnKey | null>(
       null,
     );
+  const [showCompareNote, setShowCompareNote] = useState(false);
   const [draft, setDraft] = useState<{
     number: string;
     date: string;
@@ -548,8 +547,20 @@ function ProcurementAppInner({
           (legacyQuotePR && data.quoteSupplierIds?.length
             ? { [legacyQuotePR.id]: data.quoteSupplierIds }
             : {});
-      setPrs(data.prs || prs0);
-      setProducts(data.products || items0);
+      const loadedProducts: Item[] = (data.products || items0).map((p: any) => ({
+        ...p,
+        name: p.name || p.itemName || p.item_name || p.desc || "",
+      }));
+      setProducts(loadedProducts);
+
+      const loadedPrs: PR[] = (data.prs || prs0).map((pr: PR) => ({
+        ...pr,
+        items: (pr.items || []).map((it: any) => ({
+          ...it,
+          name: it.name || it.itemName || it.item_name || it.productName || it.desc || "",
+        })),
+      }));
+      setPrs(loadedPrs);
       
       const loadedSuppliers: Supplier[] = (data.suppliers || suppliers0).map((s: Supplier) => ({
         ...s,
@@ -561,17 +572,26 @@ function ProcurementAppInner({
       setQuoteSupplierIdsByPr(migratedSupplierIds);
       setQuotes(firstPR ? migratedQuotes[firstPR.id] || {} : {});
       const loadedPos: PO[] = (data.pos || pos0).map((po: PO) => {
+        const sup = loadedSuppliers.find((s) => Number(s.id) === Number(po.supplierId));
+        const normalizedItems = (po.items || []).map((it: any) => ({
+          ...it,
+          name: it.name || it.itemName || it.item_name || it.productName || it.desc || "",
+        }));
+        let finalNumber = po.number;
         if (/^PO-\d{4}-\d{4}$/i.test((po.number || "").trim())) {
-          const sup = loadedSuppliers.find((s) => Number(s.id) === Number(po.supplierId));
-          return {
-            ...po,
-            number: formatPONumber(sup, po.createdDate),
-          };
+          finalNumber = formatPONumber(sup, po.createdDate);
         }
-        return po;
+        return {
+          ...po,
+          number: finalNumber,
+          items: normalizedItems,
+        };
       });
       setPos(loadedPos);
-      setItems(firstPR?.items || data.items || items0);
+      setItems(firstPR?.items ? firstPR.items.map((it: any) => ({
+        ...it,
+        name: it.name || it.itemName || it.item_name || it.productName || it.desc || "",
+      })) : (data.items || items0));
       setQuoteSupplierIds(
         firstPR ? migratedSupplierIds[firstPR.id] || [] : [],
       );
@@ -626,7 +646,7 @@ function ProcurementAppInner({
         if (!r.ok) throw new Error();
         return r.json() as Promise<{ version?: number; data?: StoredState }>;
       })
-      .then((body) => {
+      .then(async (body) => {
         if (!active) return;
         if (body.version) {
           serverVersionRef.current = body.version;
@@ -636,6 +656,20 @@ function ProcurementAppInner({
           try {
             const cached = window.localStorage?.getItem(`scmh_backup_${workspaceId}`);
             if (cached) data = JSON.parse(cached);
+          } catch {}
+        }
+        if (!data) {
+          try {
+            const prodRes = await fetch("/production-state.json");
+            if (prodRes.ok) {
+              const prodJson = await prodRes.json();
+              if (prodJson && prodJson.data) {
+                data = prodJson.data;
+                if (prodJson.version) serverVersionRef.current = prodJson.version;
+                void saveOfflineStateBackup(workspaceId, data, prodJson.version);
+                window.localStorage?.setItem(`scmh_backup_${workspaceId}`, JSON.stringify(data));
+              }
+            }
           } catch {}
         }
         if (data) {
@@ -655,43 +689,43 @@ function ProcurementAppInner({
           setHiddenContractIds([]);
           setPoCart([]);
           setQuoteCompareMode("before-vat");
-          setPurchaseHistory(purchaseHistory0);
+          setPurchaseHistory([]);
           setPurchaseHistoryImportIds([]);
           setPaymentRequests([]);
           setPaymentGroups([]);
           setPaymentBeneficiaries([]);
           setPaymentHandovers([]);
           setPaymentTemplate(DEFAULT_PAYMENT_TEMPLATE);
-          setApprovalRequests(SAMPLE_PHENIKAA_APPROVALS);
+          setApprovalRequests([]);
           setSelectedPR(emptyPR);
           setCurrentPO(emptyPO);
-
-          fetch("/default-payment-seed.json")
-            .then((res) => res.json() as Promise<any>)
-            .then((seed) => {
-              if (!active) return;
-              setPaymentRequests(seed.defaultPaymentRequests || []);
-              setPaymentGroups(seed.defaultPaymentGroups || []);
-              setPaymentBeneficiaries(seed.defaultPaymentBeneficiaries || []);
-              setPaymentHandovers(seed.defaultPaymentHandovers || []);
-              if (seed.defaultPaymentTemplate) {
-                setPaymentTemplate(seed.defaultPaymentTemplate);
-              }
-            })
-            .catch((err) => console.error("Không thể tải payment seed:", err));
         }
         setStorageReady(true);
         setStorageStatus(data ? "Đã đồng bộ online" : "Sẵn sàng lưu online");
       })
       .catch(async () => {
         if (!active) return;
-        // Chế độ Offline: Khôi phục dữ liệu từ IndexedDB offline_state_backup
+        // Chế độ Offline: Khôi phục dữ liệu từ IndexedDB offline_state_backup hoặc production bundle
         try {
           const offlineBackup = await getOfflineStateBackup(workspaceId);
           let data = offlineBackup?.data as StoredState | null;
           if (!data && typeof window !== "undefined" && window.localStorage) {
             const cached = window.localStorage.getItem(`scmh_backup_${workspaceId}`);
             if (cached) data = JSON.parse(cached);
+          }
+          if (!data) {
+            try {
+              const prodRes = await fetch("/production-state.json");
+              if (prodRes.ok) {
+                const prodJson = await prodRes.json();
+                if (prodJson && prodJson.data) {
+                  data = prodJson.data;
+                  if (prodJson.version) serverVersionRef.current = prodJson.version;
+                  void saveOfflineStateBackup(workspaceId, data, prodJson.version);
+                  window.localStorage?.setItem(`scmh_backup_${workspaceId}`, JSON.stringify(data));
+                }
+              }
+            } catch {}
           }
           if (data) {
             if (offlineBackup?.version) {
@@ -2423,15 +2457,68 @@ function ProcurementAppInner({
       {isAppLoading && (
         <div
           id="pka-app-splash"
-          className="fixed inset-0 z-[99999] bg-[#082f58] text-white flex flex-col items-center justify-center p-6 text-center select-none no-print"
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 99999,
+            backgroundColor: "#082f58",
+            color: "#ffffff",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "24px",
+            textAlign: "center",
+            userSelect: "none",
+          }}
+          className="no-print"
         >
-          <div className="w-16 h-16 rounded-2xl bg-white/10 flex items-center justify-center mb-4 border border-white/20 shadow-xl">
-            <span className="text-2xl font-black tracking-wider text-white">PK</span>
+          <div
+            style={{
+              width: "64px",
+              height: "64px",
+              borderRadius: "16px",
+              backgroundColor: "rgba(255, 255, 255, 0.1)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              marginBottom: "16px",
+              border: "1px solid rgba(255, 255, 255, 0.2)",
+              boxShadow: "0 10px 25px rgba(0, 0, 0, 0.2)",
+            }}
+          >
+            <span style={{ fontSize: "24px", fontWeight: 900, letterSpacing: "1px", color: "#ffffff" }}>PK</span>
           </div>
-          <h2 className="text-xl font-black tracking-widest mb-1 text-white">PHENIKAA</h2>
-          <p className="text-xs text-white/70 mb-6 font-medium">Hệ thống Quản lý Mua hàng (SCMH)</p>
-          <div className="flex items-center gap-2.5 px-4 py-2 rounded-full bg-white/10 border border-white/10 text-xs font-semibold text-white/90">
-            <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+          <h2 style={{ fontSize: "20px", fontWeight: 900, letterSpacing: "2px", margin: "0 0 4px 0", color: "#ffffff" }}>
+            PHENIKAA
+          </h2>
+          <p style={{ fontSize: "13px", color: "rgba(255, 255, 255, 0.7)", margin: "0 0 24px 0", fontWeight: 500 }}>
+            Hệ thống Quản lý Mua hàng (SCMH)
+          </p>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "10px",
+              padding: "8px 18px",
+              borderRadius: "20px",
+              backgroundColor: "rgba(255, 255, 255, 0.1)",
+              border: "1px solid rgba(255, 255, 255, 0.15)",
+              fontSize: "12px",
+              fontWeight: 600,
+              color: "rgba(255, 255, 255, 0.9)",
+            }}
+          >
+            <div
+              style={{
+                width: "16px",
+                height: "16px",
+                borderRadius: "50%",
+                border: "2px solid rgba(255, 255, 255, 0.3)",
+                borderTopColor: "#ffffff",
+                animation: "spin 0.8s linear infinite",
+              }}
+            />
             <span>Đang nạp ứng dụng offline...</span>
           </div>
         </div>
@@ -2580,7 +2667,7 @@ function ProcurementAppInner({
         ) : (
           <>
             <div
-              className={`cloud-status ${
+              className={`cloud-status desktop-only-status ${
                 !isOnline
                   ? "offline"
                   : storageStatus.includes("thất bại") || storageStatus.includes("Không thể")
@@ -3058,17 +3145,50 @@ function ProcurementAppInner({
                     />
                   </div>
                 </div>
-                <section className="common-note-card">
-                  <label>
-                    <span>✎ {t("compare.general_note")}</span>
-                    <textarea
-                      rows={2}
-                      value={selectedPR.note || ""}
-                      placeholder={t("compare.general_note_placeholder")}
-                      onChange={(e) => updatePRNote(e.target.value)}
-                    />
-                  </label>
-                </section>
+                {showCompareNote || Boolean(selectedPR.note && selectedPR.note.trim()) ? (
+                  <section className="common-note-card">
+                    <label>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
+                        <span>✎ {t("compare.general_note")}</span>
+                        <button
+                          type="button"
+                          onClick={() => { updatePRNote(""); setShowCompareNote(false); }}
+                          style={{ background: "transparent", border: 0, color: "#64748b", fontSize: "11px", cursor: "pointer" }}
+                        >
+                          ✕ Ẩn ghi chú
+                        </button>
+                      </div>
+                      <textarea
+                        rows={2}
+                        value={selectedPR.note || ""}
+                        placeholder={t("compare.general_note_placeholder")}
+                        onChange={(e) => updatePRNote(e.target.value)}
+                      />
+                    </label>
+                  </section>
+                ) : (
+                  <div style={{ margin: "6px 0 10px" }}>
+                    <button
+                      type="button"
+                      onClick={() => setShowCompareNote(true)}
+                      style={{
+                        padding: "5px 12px",
+                        borderRadius: "6px",
+                        border: "1px dashed #cbd5e1",
+                        background: "#f8fafc",
+                        color: "#475569",
+                        fontSize: "12px",
+                        fontWeight: 600,
+                        cursor: "pointer",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: "4px",
+                      }}
+                    >
+                      <Plus size={13} /> Thêm Ghi chú chung PR
+                    </button>
+                  </div>
+                )}
               </>
             )}
             <div className="compare-toolbar" style={compactCompare ? { marginTop: "1rem" } : {}}>
@@ -3506,76 +3626,228 @@ function ProcurementAppInner({
       {/* Native Mobile Action Sheet (Menu khác - MoMo / Base.vn style) */}
       {mobileActionSheetOpen && (
         <div
-          className="fixed inset-0 z-[9999] flex flex-col justify-end bg-black/60 backdrop-blur-sm transition-all no-print"
+          className="native-action-sheet-overlay no-print"
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 10000,
+            backgroundColor: "rgba(15, 23, 42, 0.65)",
+            backdropFilter: "blur(6px)",
+            WebkitBackdropFilter: "blur(6px)",
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "flex-end",
+            animation: "sheetFadeIn 0.2s ease-out",
+          }}
           onClick={() => setMobileActionSheetOpen(false)}
         >
           <div
-            className="w-full bg-white rounded-t-3xl p-5 shadow-2xl space-y-4 max-h-[85vh] overflow-y-auto"
+            className="native-action-sheet-content"
+            style={{
+              width: "100%",
+              backgroundColor: "#ffffff",
+              borderRadius: "24px 24px 0 0",
+              padding: "16px 20px",
+              paddingBottom: "max(28px, env(safe-area-inset-bottom, 24px))",
+              boxShadow: "0 -10px 40px rgba(0, 0, 0, 0.25)",
+              maxHeight: "85vh",
+              overflowY: "auto",
+              boxSizing: "border-box",
+              animation: "sheetSlideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1)",
+            }}
             onClick={(e) => e.stopPropagation()}
-            style={{ paddingBottom: "max(24px, env(safe-area-inset-bottom))" }}
           >
-            {/* Grab handle */}
-            <div className="w-12 h-1.5 bg-slate-300 rounded-full mx-auto" />
+            {/* Grab handle indicator */}
+            <div
+              style={{
+                width: "40px",
+                height: "5px",
+                backgroundColor: "#cbd5e1",
+                borderRadius: "3px",
+                margin: "0 auto 16px auto",
+              }}
+            />
 
-            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-              <h3 className="font-extrabold text-base text-slate-900 m-0">Tất cả chức năng</h3>
+            {/* Header: Title + Close Button */}
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                paddingBottom: "14px",
+                borderBottom: "1px solid #f1f5f9",
+                marginBottom: "16px",
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <div
+                  style={{
+                    width: "4px",
+                    height: "18px",
+                    borderRadius: "2px",
+                    backgroundColor: "#0284c7",
+                  }}
+                />
+                <h3
+                  style={{
+                    margin: 0,
+                    fontSize: "17px",
+                    fontWeight: 800,
+                    color: "#0f172a",
+                    letterSpacing: "-0.3px",
+                  }}
+                >
+                  Tất cả chức năng
+                </h3>
+              </div>
               <button
                 type="button"
                 onClick={() => setMobileActionSheetOpen(false)}
-                className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 font-bold"
+                style={{
+                  width: "32px",
+                  height: "32px",
+                  borderRadius: "50%",
+                  backgroundColor: "#f1f5f9",
+                  border: "none",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  color: "#64748b",
+                  fontSize: "16px",
+                  fontWeight: 700,
+                  cursor: "pointer",
+                }}
               >
                 ✕
               </button>
             </div>
 
-            {/* Grid of Action Items */}
-            <div className="grid grid-cols-3 gap-3">
-              {/* Thanh toán */}
+            {/* 3x3 Grid of Functions */}
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(3, 1fr)",
+                gap: "18px 12px",
+              }}
+            >
+              {/* Item 1: Thanh toán */}
               <button
                 type="button"
                 onClick={() => {
                   setMobileActionSheetOpen(false);
-                  navigateTo({ view: "payments" });
+                  navigateTo({ view: "payment" });
                 }}
-                className="flex flex-col items-center justify-center p-3 rounded-2xl bg-emerald-50 border border-emerald-100 active:scale-95 transition-all text-center gap-1.5"
+                style={{
+                  background: "transparent",
+                  border: "none",
+                  padding: "6px 2px",
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  gap: "8px",
+                  cursor: "pointer",
+                  WebkitTapHighlightColor: "transparent",
+                }}
               >
-                <div className="w-12 h-12 rounded-2xl bg-emerald-500 text-white flex items-center justify-center shadow-md">
-                  <CreditCard size={22} />
+                <div
+                  style={{
+                    width: "56px",
+                    height: "56px",
+                    borderRadius: "18px",
+                    background: "linear-gradient(135deg, #10b981 0%, #059669 100%)",
+                    color: "#ffffff",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    boxShadow: "0 6px 14px rgba(16, 185, 129, 0.3)",
+                  }}
+                >
+                  <CreditCard size={24} />
                 </div>
-                <span className="text-xs font-bold text-slate-800">Thanh toán</span>
+                <span style={{ fontSize: "12.5px", fontWeight: 700, color: "#1e293b", textAlign: "center" }}>
+                  Thanh toán
+                </span>
               </button>
 
-              {/* Đề nghị phê duyệt */}
+              {/* Item 2: Đề nghị phê duyệt */}
               <button
                 type="button"
                 onClick={() => {
                   setMobileActionSheetOpen(false);
                   navigateTo({ view: "approval" });
                 }}
-                className="flex flex-col items-center justify-center p-3 rounded-2xl bg-amber-50 border border-amber-100 active:scale-95 transition-all text-center gap-1.5"
+                style={{
+                  background: "transparent",
+                  border: "none",
+                  padding: "6px 2px",
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  gap: "8px",
+                  cursor: "pointer",
+                  WebkitTapHighlightColor: "transparent",
+                }}
               >
-                <div className="w-12 h-12 rounded-2xl bg-amber-500 text-white flex items-center justify-center shadow-md">
-                  <CheckSquare size={22} />
+                <div
+                  style={{
+                    width: "56px",
+                    height: "56px",
+                    borderRadius: "18px",
+                    background: "linear-gradient(135deg, #f59e0b 0%, #d97706 100%)",
+                    color: "#ffffff",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    boxShadow: "0 6px 14px rgba(245, 158, 11, 0.3)",
+                  }}
+                >
+                  <CheckSquare size={24} />
                 </div>
-                <span className="text-xs font-bold text-slate-800">ĐNPD</span>
+                <span style={{ fontSize: "12.5px", fontWeight: 700, color: "#1e293b", textAlign: "center" }}>
+                  ĐNPD
+                </span>
               </button>
 
-              {/* So sánh giá */}
+              {/* Item 3: So sánh giá */}
               <button
                 type="button"
                 onClick={() => {
                   setMobileActionSheetOpen(false);
                   navigateTo({ view: "compare" });
                 }}
-                className="flex flex-col items-center justify-center p-3 rounded-2xl bg-blue-50 border border-blue-100 active:scale-95 transition-all text-center gap-1.5"
+                style={{
+                  background: "transparent",
+                  border: "none",
+                  padding: "6px 2px",
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  gap: "8px",
+                  cursor: "pointer",
+                  WebkitTapHighlightColor: "transparent",
+                }}
               >
-                <div className="w-12 h-12 rounded-2xl bg-blue-600 text-white flex items-center justify-center shadow-md">
-                  <Scale size={22} />
+                <div
+                  style={{
+                    width: "56px",
+                    height: "56px",
+                    borderRadius: "18px",
+                    background: "linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)",
+                    color: "#ffffff",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    boxShadow: "0 6px 14px rgba(59, 130, 246, 0.3)",
+                  }}
+                >
+                  <Scale size={24} />
                 </div>
-                <span className="text-xs font-bold text-slate-800">So sánh giá</span>
+                <span style={{ fontSize: "12.5px", fontWeight: 700, color: "#1e293b", textAlign: "center" }}>
+                  So sánh giá
+                </span>
               </button>
 
-              {/* Nhà cung cấp */}
+              {/* Item 4: Nhà cung cấp */}
               <button
                 type="button"
                 onClick={() => {
@@ -3583,15 +3855,39 @@ function ProcurementAppInner({
                   setCatalogSubTab("suppliers");
                   navigateTo({ view: "catalog" });
                 }}
-                className="flex flex-col items-center justify-center p-3 rounded-2xl bg-purple-50 border border-purple-100 active:scale-95 transition-all text-center gap-1.5"
+                style={{
+                  background: "transparent",
+                  border: "none",
+                  padding: "6px 2px",
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  gap: "8px",
+                  cursor: "pointer",
+                  WebkitTapHighlightColor: "transparent",
+                }}
               >
-                <div className="w-12 h-12 rounded-2xl bg-purple-600 text-white flex items-center justify-center shadow-md">
-                  <Building2 size={22} />
+                <div
+                  style={{
+                    width: "56px",
+                    height: "56px",
+                    borderRadius: "18px",
+                    background: "linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%)",
+                    color: "#ffffff",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    boxShadow: "0 6px 14px rgba(139, 92, 246, 0.3)",
+                  }}
+                >
+                  <Building2 size={24} />
                 </div>
-                <span className="text-xs font-bold text-slate-800">Nhà cung cấp</span>
+                <span style={{ fontSize: "12.5px", fontWeight: 700, color: "#1e293b", textAlign: "center" }}>
+                  Nhà cung cấp
+                </span>
               </button>
 
-              {/* Danh mục vật tư */}
+              {/* Item 5: Danh mục hàng */}
               <button
                 type="button"
                 onClick={() => {
@@ -3599,72 +3895,192 @@ function ProcurementAppInner({
                   setCatalogSubTab("products");
                   navigateTo({ view: "catalog" });
                 }}
-                className="flex flex-col items-center justify-center p-3 rounded-2xl bg-indigo-50 border border-indigo-100 active:scale-95 transition-all text-center gap-1.5"
+                style={{
+                  background: "transparent",
+                  border: "none",
+                  padding: "6px 2px",
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  gap: "8px",
+                  cursor: "pointer",
+                  WebkitTapHighlightColor: "transparent",
+                }}
               >
-                <div className="w-12 h-12 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-md">
-                  <Boxes size={22} />
+                <div
+                  style={{
+                    width: "56px",
+                    height: "56px",
+                    borderRadius: "18px",
+                    background: "linear-gradient(135deg, #6366f1 0%, #4338ca 100%)",
+                    color: "#ffffff",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    boxShadow: "0 6px 14px rgba(99, 102, 241, 0.3)",
+                  }}
+                >
+                  <Boxes size={24} />
                 </div>
-                <span className="text-xs font-bold text-slate-800">Danh mục hàng</span>
+                <span style={{ fontSize: "12.5px", fontWeight: 700, color: "#1e293b", textAlign: "center" }}>
+                  Danh mục hàng
+                </span>
               </button>
 
-              {/* Hợp đồng */}
+              {/* Item 6: Hợp đồng */}
               <button
                 type="button"
                 onClick={() => {
                   setMobileActionSheetOpen(false);
-                  navigateTo({ view: "contract" });
+                  navigateTo({ view: "contracts" });
                 }}
-                className="flex flex-col items-center justify-center p-3 rounded-2xl bg-sky-50 border border-sky-100 active:scale-95 transition-all text-center gap-1.5"
+                style={{
+                  background: "transparent",
+                  border: "none",
+                  padding: "6px 2px",
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  gap: "8px",
+                  cursor: "pointer",
+                  WebkitTapHighlightColor: "transparent",
+                }}
               >
-                <div className="w-12 h-12 rounded-2xl bg-sky-600 text-white flex items-center justify-center shadow-md">
-                  <FileText size={22} />
+                <div
+                  style={{
+                    width: "56px",
+                    height: "56px",
+                    borderRadius: "18px",
+                    background: "linear-gradient(135deg, #0ea5e9 0%, #0369a1 100%)",
+                    color: "#ffffff",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    boxShadow: "0 6px 14px rgba(14, 165, 233, 0.3)",
+                  }}
+                >
+                  <FileText size={24} />
                 </div>
-                <span className="text-xs font-bold text-slate-800">Hợp đồng</span>
+                <span style={{ fontSize: "12.5px", fontWeight: 700, color: "#1e293b", textAlign: "center" }}>
+                  Hợp đồng
+                </span>
               </button>
 
-              {/* Cài đặt */}
+              {/* Item 7: Cài đặt */}
               <button
                 type="button"
                 onClick={() => {
                   setMobileActionSheetOpen(false);
                   setSettingsModalOpen(true);
                 }}
-                className="flex flex-col items-center justify-center p-3 rounded-2xl bg-slate-50 border border-slate-200 active:scale-95 transition-all text-center gap-1.5"
+                style={{
+                  background: "transparent",
+                  border: "none",
+                  padding: "6px 2px",
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  gap: "8px",
+                  cursor: "pointer",
+                  WebkitTapHighlightColor: "transparent",
+                }}
               >
-                <div className="w-12 h-12 rounded-2xl bg-slate-700 text-white flex items-center justify-center shadow-md">
-                  <Settings size={22} />
+                <div
+                  style={{
+                    width: "56px",
+                    height: "56px",
+                    borderRadius: "18px",
+                    background: "linear-gradient(135deg, #64748b 0%, #334155 100%)",
+                    color: "#ffffff",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    boxShadow: "0 6px 14px rgba(100, 116, 139, 0.3)",
+                  }}
+                >
+                  <Settings size={24} />
                 </div>
-                <span className="text-xs font-bold text-slate-800">Cài đặt</span>
+                <span style={{ fontSize: "12.5px", fontWeight: 700, color: "#1e293b", textAlign: "center" }}>
+                  Cài đặt
+                </span>
               </button>
 
-              {/* Tìm kiếm Spotlight */}
+              {/* Item 8: Tìm kiếm Spotlight */}
               <button
                 type="button"
                 onClick={() => {
                   setMobileActionSheetOpen(false);
                   setSpotlightOpen(true);
                 }}
-                className="flex flex-col items-center justify-center p-3 rounded-2xl bg-rose-50 border border-rose-100 active:scale-95 transition-all text-center gap-1.5"
+                style={{
+                  background: "transparent",
+                  border: "none",
+                  padding: "6px 2px",
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  gap: "8px",
+                  cursor: "pointer",
+                  WebkitTapHighlightColor: "transparent",
+                }}
               >
-                <div className="w-12 h-12 rounded-2xl bg-rose-600 text-white flex items-center justify-center shadow-md">
-                  <Search size={22} />
+                <div
+                  style={{
+                    width: "56px",
+                    height: "56px",
+                    borderRadius: "18px",
+                    background: "linear-gradient(135deg, #ec4899 0%, #be185d 100%)",
+                    color: "#ffffff",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    boxShadow: "0 6px 14px rgba(236, 72, 153, 0.3)",
+                  }}
+                >
+                  <Search size={24} />
                 </div>
-                <span className="text-xs font-bold text-slate-800">Tìm kiếm</span>
+                <span style={{ fontSize: "12.5px", fontWeight: 700, color: "#1e293b", textAlign: "center" }}>
+                  Tìm kiếm
+                </span>
               </button>
 
-              {/* Thùng rác */}
+              {/* Item 9: Thùng rác */}
               <button
                 type="button"
                 onClick={() => {
                   setMobileActionSheetOpen(false);
                   navigateTo({ view: "trash" });
                 }}
-                className="flex flex-col items-center justify-center p-3 rounded-2xl bg-red-50 border border-red-100 active:scale-95 transition-all text-center gap-1.5"
+                style={{
+                  background: "transparent",
+                  border: "none",
+                  padding: "6px 2px",
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  gap: "8px",
+                  cursor: "pointer",
+                  WebkitTapHighlightColor: "transparent",
+                }}
               >
-                <div className="w-12 h-12 rounded-2xl bg-red-600 text-white flex items-center justify-center shadow-md">
-                  <Trash2 size={22} />
+                <div
+                  style={{
+                    width: "56px",
+                    height: "56px",
+                    borderRadius: "18px",
+                    background: "linear-gradient(135deg, #ef4444 0%, #b91c1c 100%)",
+                    color: "#ffffff",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    boxShadow: "0 6px 14px rgba(239, 68, 68, 0.3)",
+                  }}
+                >
+                  <Trash2 size={24} />
                 </div>
-                <span className="text-xs font-bold text-slate-800">Thùng rác</span>
+                <span style={{ fontSize: "12.5px", fontWeight: 700, color: "#1e293b", textAlign: "center" }}>
+                  Thùng rác
+                </span>
               </button>
             </div>
           </div>

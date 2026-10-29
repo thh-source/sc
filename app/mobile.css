@@ -845,4 +845,22 @@
       transform: translateY(0);
     }
   }
+
+  /* Ẩn các nút nổi desktop thừa trên giao diện mobile */
+  .cloud-status,
+  .storage-upload-launch,
+  .desktop-only-status,
+  .offline-sync-banner-container {
+    display: none !important;
+  }
+
+  /* Keyframe animations cho Mobile Action Sheet (Menu khác) */
+  @keyframes sheetFadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  @keyframes sheetSlideUp {
+    from { transform: translateY(100%); }
+    to { transform: translateY(0); }
+  }
 }

@@ -358,14 +358,26 @@ export function Dashboard({
   // 3. TO-DO LIST & NOTES (Khu vực 3: Bảng công việc cá nhân đồng bộ D1)
   // -------------------------------------------------------------
   const [todos, setTodos] = useState<DashboardTodo[]>(() => {
-    if (typeof window === "undefined") return [];
+    const defaultInitial: DashboardTodo[] = [
+      {
+        id: "todo-1793260605931",
+        text: "Thứ 2 ký hợp đồng Viasco",
+        completed: false,
+        createdAt: "2026-10-29T07:56:46.019Z",
+        priority: "high",
+      },
+    ];
+    if (typeof window === "undefined") return defaultInitial;
     try {
       const saved = localStorage.getItem(STORAGE_KEY_TODOS);
-      if (saved !== null) return JSON.parse(saved);
+      if (saved !== null) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
     } catch {
       // fallback
     }
-    return [];
+    return defaultInitial;
   });
 
   // Tự động tải danh sách công việc mới nhất từ Cloudflare D1
