@@ -93,8 +93,8 @@ export function getAppPlatform(): {
 fs.writeFileSync(path.join(rootDir, "app", "version.ts"), versionTsContent, "utf-8");
 console.log("✓ Đã cập nhật metadata phiên bản vào app/version.ts.");
 
-// 2. Chạy Build production bundle
-console.log("\n[BƯỚC 1/4] Đang dọn dẹp và biên dịch bundle mới nhất (npm run build)...");
+// 2. Chạy Build production bundle cho Native Mobile App (SPA React 19 Client Bundle)
+console.log("\n[BƯỚC 1/4] Đang dọn dẹp và biên dịch Native SPA Client Bundle...");
 const distDir = path.join(rootDir, "dist");
 if (fs.existsSync(distDir)) {
   try {
@@ -106,103 +106,36 @@ if (fs.existsSync(distDir)) {
 }
 
 try {
-  execSync("npm run build", { cwd: rootDir, stdio: "inherit" });
+  execSync("npx vite build --config vite.native.config.ts", { cwd: rootDir, stdio: "inherit" });
+  console.log("✓ Đã biên dịch thành công Native SPA Client Bundle.");
 } catch (err) {
-  console.error("❌ Lỗi khi biên dịch frontend bundle:", err);
+  console.error("❌ Lỗi khi biên dịch Native SPA Client bundle:", err);
   process.exit(1);
 }
 
 // 3. Chuẩn bị thư mục bundle hoàn chỉnh cho Capacitor & Capgo
 console.log("\n[BƯỚC 2/4] Chuẩn bị cấu trúc tài nguyên Offline-first trong dist/...");
-const distClientDir = path.join(distDir, "client");
 
-if (fs.existsSync(distClientDir)) {
-  // Copy tài nguyên từ dist/client sang dist để Capacitor nhận diện đúng
-  fs.cpSync(distClientDir, distDir, { recursive: true });
-}
-
-// Đảm bảo file index.html offline-ready
+// Di chuyển dist/native.html thành dist/index.html
+const nativeHtmlPath = path.join(distDir, "native.html");
 const indexHtmlPath = path.join(distDir, "index.html");
 
-// Tìm file css và js chính từ dist/assets (sắp xếp theo thời gian mới nhất)
-let mainCss = "";
-let mainJs = "";
-const assetsDir = path.join(distDir, "assets");
-if (fs.existsSync(assetsDir)) {
-  const files = fs.readdirSync(assetsDir);
-  const cssFiles = files
-    .filter((f) => f.startsWith("index-") && f.endsWith(".css"))
-    .map((f) => ({ name: f, mtime: fs.statSync(path.join(assetsDir, f)).mtimeMs }))
-    .sort((a, b) => b.mtime - a.mtime);
-  const jsFiles = files
-    .filter((f) => f.startsWith("index-") && f.endsWith(".js"))
-    .map((f) => ({ name: f, mtime: fs.statSync(path.join(assetsDir, f)).mtimeMs }))
-    .sort((a, b) => b.mtime - a.mtime);
-
-  if (cssFiles.length > 0) mainCss = `./assets/${cssFiles[0].name}`;
-  if (jsFiles.length > 0) mainJs = `./assets/${jsFiles[0].name}`;
+if (fs.existsSync(nativeHtmlPath)) {
+  let htmlContent = fs.readFileSync(nativeHtmlPath, "utf-8");
+  // Cập nhật thông tin phiên bản vào màn hình splash tĩnh
+  htmlContent = htmlContent.replace(
+    "Hệ thống Quản lý Mua hàng (Native)",
+    `Hệ thống Quản lý Mua hàng v${version}`
+  );
+  fs.writeFileSync(indexHtmlPath, htmlContent, "utf-8");
+  try {
+    fs.unlinkSync(nativeHtmlPath);
+  } catch {}
+  console.log("✓ Đã chuyển đổi native.html -> dist/index.html sẵn sàng cho Capacitor/Android.");
+} else if (!fs.existsSync(indexHtmlPath)) {
+  console.error("❌ Không tìm thấy file index.html hoặc native.html trong dist/!");
+  process.exit(1);
 }
-
-const offlineHtml = `<!DOCTYPE html>
-<html lang="vi">
-<head>
-  <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"/>
-  <title>Phenikaa Mua Hàng</title>
-  ${mainCss ? `<link rel="stylesheet" href="${mainCss}" />` : ""}
-  <meta name="theme-color" content="#082f58"/>
-  <script>
-    // Fetch Proxy cho Capacitor Native
-    (function() {
-      if (typeof window !== "undefined" && window.Capacitor && window.Capacitor.isNativePlatform()) {
-        var REMOTE = "${REMOTE_WORKER_URL}";
-        var origFetch = window.fetch;
-        window.fetch = function(input, init) {
-          if (typeof input === "string" && input.startsWith("/api/")) {
-            return origFetch(REMOTE + input, init);
-          }
-          return origFetch(input, init);
-        };
-      }
-    })();
-
-    // Cơ chế khẩn cấp: Tự động gỡ màn hình chờ sau tối đa 3.5s để bảo vệ app không bao giờ bị treo
-    (function() {
-      var splashTimeout = setTimeout(function() {
-        var splash = document.getElementById("pka-splash-overlay");
-        if (splash) {
-          console.warn("Splash timeout an toàn (3.5s): Tự động gỡ màn hình chờ để hiển thị app.");
-          splash.style.transition = "opacity 0.4s ease";
-          splash.style.opacity = "0";
-          setTimeout(function() { if (splash && splash.parentNode) splash.parentNode.removeChild(splash); }, 400);
-        }
-      }, 3500);
-
-      window.__DISMISS_SPLASH__ = function() {
-        clearTimeout(splashTimeout);
-        var splash = document.getElementById("pka-splash-overlay");
-        if (splash) {
-          splash.style.transition = "opacity 0.3s ease";
-          splash.style.opacity = "0";
-          setTimeout(function() { if (splash && splash.parentNode) splash.parentNode.removeChild(splash); }, 300);
-        }
-      };
-    })();
-  </script>
-</head>
-<body style="margin:0; background:#082f58; color:#ffffff; font-family:system-ui, -apple-system, sans-serif;">
-  <div id="pka-splash-overlay" style="position:fixed; inset:0; z-index:99999; background:#082f58; color:#ffffff; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center;">
-    <h2 style="margin-bottom:8px; font-weight:800; font-size:24px; letter-spacing:1px;">PHENIKAA</h2>
-    <p style="margin:0; font-size:14px; opacity:0.85;">Hệ thống Quản lý Mua hàng v${version}</p>
-    <div style="margin-top:20px; font-size:12px; opacity:0.7;">Đang nạp ứng dụng offline...</div>
-  </div>
-  <div id="root" style="min-height:100vh;"></div>
-  ${mainJs ? `<script type="module" src="${mainJs}"></script>` : ""}
-</body>
-</html>`;
-
-fs.writeFileSync(indexHtmlPath, offlineHtml, "utf-8");
-console.log("✓ Đã khởi tạo dist/index.html Offline-ready.");
 
 // 4. Nén bundle thành file ZIP
 console.log("\n[BƯỚC 3/4] Đang nén bundle vào file ZIP...");

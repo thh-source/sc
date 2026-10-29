@@ -836,6 +836,9 @@ function ProcurementAppInner({
     try {
       await fetch("/api/auth/logout", { method: "POST" });
     } finally {
+      try {
+        localStorage.removeItem("pka_user");
+      } catch {}
       window.location.replace("/");
     }
   };

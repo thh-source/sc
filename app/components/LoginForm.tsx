@@ -17,8 +17,15 @@ export default function LoginForm() {
           password: form.get("password"),
         }),
       });
-    if (response.ok) location.reload();
-    else {
+    if (response.ok) {
+      try {
+        const data = await response.json();
+        if (data && data.user) {
+          localStorage.setItem("pka_user", JSON.stringify(data.user));
+        }
+      } catch {}
+      location.reload();
+    } else {
       setError("ID hoặc mật khẩu không đúng");
       setBusy(false);
     }
