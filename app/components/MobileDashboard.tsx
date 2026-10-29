@@ -35,23 +35,27 @@ import { DashboardTodo } from "./Dashboard";
 import { checkIsOnline, getOfflineQueue, subscribeToNetworkStatus } from "../utils/offlineSync";
 
 export interface MobileDashboardProps {
-  prs: PR[];
-  pos: PO[];
-  approvalRequests: ApprovalRequest[];
-  paymentRequests: PaymentRequestEntry[];
-  suppliers: Supplier[];
-  todos: DashboardTodo[];
-  onAddTodo: (text: string) => void;
-  onToggleTodo: (id: string) => void;
-  onDeleteTodo: (id: string) => void;
-  onClearCompletedTodos: () => void;
-  todaySpent: number;
-  todayPending: number;
-  totalPOAmount: number;
-  disbursedPOAmount: number;
-  poPaymentPercent: number;
-  remainingDebt: number;
-  pendingPayments: PaymentRequestEntry[];
+  prs?: PR[];
+  pos?: PO[];
+  approvalRequests?: ApprovalRequest[];
+  paymentRequests?: PaymentRequestEntry[];
+  suppliers?: Supplier[];
+  todos?: DashboardTodo[];
+  onAddTodo?: (text: string, priority?: "high" | "normal" | "low") => void;
+  onToggleTodo?: (id: string) => void;
+  onDeleteTodo?: (id: string) => void;
+  onClearCompletedTodos?: () => void;
+  todaySpent?: number;
+  paidTodayAmount?: number;
+  todayPending?: number;
+  totalPOAmount?: number;
+  totalPOValue?: number;
+  disbursedPOAmount?: number;
+  totalPOPaid?: number;
+  poPaymentPercent?: number;
+  poPaymentProgressPct?: number;
+  remainingDebt?: number;
+  pendingPayments?: PaymentRequestEntry[];
   onNavigate?: (route: any) => void;
   onCreatePR?: () => void;
   onCreatePO?: () => void;
@@ -59,40 +63,46 @@ export interface MobileDashboardProps {
   onSelectPR?: (pr: PR) => void;
   onSelectPO?: (po: PO) => void;
   onSelectPayment?: (id: number) => void;
+  onSelectApproval?: (req: ApprovalRequest) => void;
+  onToggleCompletePayment?: (req: PaymentRequestEntry) => void;
   onConfirmPayment?: (req: PaymentRequestEntry) => void;
   onRevertPayment?: (req: PaymentRequestEntry) => void;
   onStartEditInvoice?: (req: PaymentRequestEntry) => void;
 }
 
-export function MobileDashboard({
-  prs,
-  pos,
-  approvalRequests,
-  paymentRequests,
-  suppliers,
-  todos,
-  onAddTodo,
-  onToggleTodo,
-  onDeleteTodo,
-  onClearCompletedTodos,
-  todaySpent,
-  todayPending,
-  totalPOAmount,
-  disbursedPOAmount,
-  poPaymentPercent,
-  remainingDebt,
-  pendingPayments,
-  onNavigate,
-  onCreatePR,
-  onCreatePO,
-  onCreateApproval,
-  onSelectPR,
-  onSelectPO,
-  onSelectPayment,
-  onConfirmPayment,
-  onRevertPayment,
-  onStartEditInvoice,
-}: MobileDashboardProps) {
+export function MobileDashboard(props: MobileDashboardProps) {
+  const {
+    prs = [],
+    pos = [],
+    approvalRequests = [],
+    paymentRequests = [],
+    suppliers = [],
+    todos = [],
+    onAddTodo,
+    onToggleTodo,
+    onDeleteTodo,
+    onClearCompletedTodos,
+    remainingDebt = 0,
+    pendingPayments = [],
+    onNavigate,
+    onCreatePR,
+    onCreatePO,
+    onCreateApproval,
+    onSelectPR,
+    onSelectPO,
+    onSelectPayment,
+    onSelectApproval,
+    onToggleCompletePayment,
+    onConfirmPayment,
+    onRevertPayment,
+    onStartEditInvoice,
+  } = props;
+
+  const todaySpent = props.todaySpent ?? props.paidTodayAmount ?? 0;
+  const todayPending = props.todayPending ?? 0;
+  const totalPOAmount = props.totalPOAmount ?? props.totalPOValue ?? 0;
+  const disbursedPOAmount = props.disbursedPOAmount ?? props.totalPOPaid ?? 0;
+  const poPaymentPercent = props.poPaymentPercent ?? props.poPaymentProgressPct ?? 0;
   const [isOnline, setIsOnline] = useState<boolean>(true);
   const [queueCount, setQueueCount] = useState<number>(0);
   const [activeTab, setActiveTab] = useState<"todos" | "payments" | "queue">("todos");
@@ -130,30 +140,31 @@ export function MobileDashboard({
   }, []);
 
   const filteredTodos = useMemo(() => {
-    if (todoFilter === "active") return todos.filter((t) => !t.completed);
-    if (todoFilter === "completed") return todos.filter((t) => t.completed);
-    return todos;
+    const list = todos || [];
+    if (todoFilter === "active") return list.filter((t) => !t.completed);
+    if (todoFilter === "completed") return list.filter((t) => t.completed);
+    return list;
   }, [todos, todoFilter]);
 
-  const activeTodoCount = useMemo(() => todos.filter((t) => !t.completed).length, [todos]);
+  const activeTodoCount = useMemo(() => (todos || []).filter((t) => !t.completed).length, [todos]);
   const unpaidPOCount = useMemo(
-    () => pos.filter((p) => p.status !== "Đã thanh toán" && p.status !== "completed").length,
+    () => (pos || []).filter((p) => p.status !== "Đã thanh toán" && p.status !== "completed").length,
     [pos]
   );
 
   const pendingPRs = useMemo(
-    () => prs.filter((p) => p.status === "Chờ duyệt" || p.status === "pending" || !p.status),
+    () => (prs || []).filter((p) => p.status === "Chờ duyệt" || p.status === "pending" || !p.status),
     [prs]
   );
   const pendingApprovals = useMemo(
-    () => approvalRequests.filter((a) => a.status === "Nháp" || a.status === "Chờ phê duyệt"),
+    () => (approvalRequests || []).filter((a) => a.status === "Nháp" || a.status === "Chờ phê duyệt"),
     [approvalRequests]
   );
 
   const handleAddTodoSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTodoText.trim()) return;
-    onAddTodo(newTodoText.trim());
+    if (onAddTodo) onAddTodo(newTodoText.trim());
     setNewTodoText("");
   };
 
@@ -483,7 +494,7 @@ export function MobileDashboard({
             }}
             onClick={() => setActiveTab("payments")}
           >
-            💸 Chi hôm nay ({pendingPayments.length})
+            💸 Chi hôm nay ({(pendingPayments || []).length})
           </button>
           <button
             type="button"
@@ -500,7 +511,7 @@ export function MobileDashboard({
             }}
             onClick={() => setActiveTab("queue")}
           >
-            ⚡ Cần duyệt ({pendingPRs.length + pendingApprovals.length})
+            ⚡ Cần duyệt ({((pendingPRs || []).length) + ((pendingApprovals || []).length)})
           </button>
         </div>
       </div>
@@ -572,7 +583,7 @@ export function MobileDashboard({
                 }}
                 onClick={() => setTodoFilter("all")}
               >
-                Tất cả ({todos.length})
+                Tất cả ({(todos || []).length})
               </button>
               <button
                 type="button"
@@ -604,11 +615,11 @@ export function MobileDashboard({
                 }}
                 onClick={() => setTodoFilter("completed")}
               >
-                Đã xong ({todos.length - activeTodoCount})
+                Đã xong ({Math.max(0, ((todos || []).length) - activeTodoCount)})
               </button>
             </div>
 
-            {todos.some((t) => t.completed) && (
+            {(todos || []).some((t) => t.completed) && (
               <button
                 type="button"
                 style={{
@@ -619,7 +630,7 @@ export function MobileDashboard({
                   fontWeight: 600,
                   cursor: "pointer",
                 }}
-                onClick={onClearCompletedTodos}
+                onClick={() => onClearCompletedTodos && onClearCompletedTodos()}
               >
                 Dọn việc xong
               </button>
@@ -627,7 +638,7 @@ export function MobileDashboard({
           </div>
 
           {/* Todo Items Cards */}
-          {filteredTodos.length === 0 ? (
+          {(filteredTodos || []).length === 0 ? (
             <div
               style={{
                 background: "#ffffff",
@@ -647,7 +658,7 @@ export function MobileDashboard({
             </div>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-              {filteredTodos.map((t) => (
+              {(filteredTodos || []).map((t) => (
                 <div
                   key={t.id}
                   style={{
@@ -678,7 +689,7 @@ export function MobileDashboard({
                       flexShrink: 0,
                       transition: "all 0.2s",
                     }}
-                    onClick={() => onToggleTodo(t.id)}
+                    onClick={() => onToggleTodo && onToggleTodo(t.id)}
                     title={t.completed ? "Đánh dấu chưa xong" : "Đánh dấu hoàn thành"}
                   >
                     {t.completed && <Check size={16} strokeWidth={3} />}
@@ -731,7 +742,7 @@ export function MobileDashboard({
                       cursor: "pointer",
                       flexShrink: 0,
                     }}
-                    onClick={() => onDeleteTodo(t.id)}
+                    onClick={() => onDeleteTodo && onDeleteTodo(t.id)}
                     title="Xóa công việc"
                   >
                     <Trash2 size={14} />
@@ -752,7 +763,7 @@ export function MobileDashboard({
             Hiển thị các khoản thanh toán trong ngày và cần giải ngân:
           </div>
 
-          {pendingPayments.length === 0 ? (
+          {(pendingPayments || []).length === 0 ? (
             <div
               style={{
                 background: "#ffffff",
@@ -870,15 +881,15 @@ export function MobileDashboard({
           {/* PRs Section */}
           <div>
             <div style={{ fontSize: "13px", fontWeight: 700, color: "#1e293b", marginBottom: "8px" }}>
-              📋 Yêu cầu mua sắm cần lấy báo giá ({pendingPRs.length})
+              📋 Yêu cầu mua sắm cần lấy báo giá ({(pendingPRs || []).length})
             </div>
-            {pendingPRs.length === 0 ? (
+            {(pendingPRs || []).length === 0 ? (
               <div style={{ background: "#ffffff", padding: "16px", borderRadius: "10px", textAlign: "center", color: "#64748b", fontSize: "12px" }}>
                 ✓ Không có PR nào chờ xử lý
               </div>
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                {pendingPRs.map((pr) => (
+                {(pendingPRs || []).map((pr) => (
                   <div
                     key={pr.id}
                     style={{
@@ -924,9 +935,9 @@ export function MobileDashboard({
           {/* Approvals Section */}
           <div style={{ marginTop: "8px" }}>
             <div style={{ fontSize: "13px", fontWeight: 700, color: "#1e293b", marginBottom: "8px" }}>
-              ⚖️ Đề nghị phê duyệt chờ quyết toán ({pendingApprovals.length})
+              ⚖️ Đề nghị phê duyệt chờ quyết toán ({(pendingApprovals || []).length})
             </div>
-            {pendingApprovals.length === 0 ? (
+            {(pendingApprovals || []).length === 0 ? (
               <div style={{ background: "#ffffff", padding: "16px", borderRadius: "10px", textAlign: "center", color: "#64748b", fontSize: "12px" }}>
                 ✓ Không có ĐNPD nào chờ phê duyệt
               </div>

@@ -194,14 +194,14 @@ export function PRList({
                     )}
                     <button onClick={() => onOpen(pr)} style={{ fontSize: "15px", fontWeight: 800 }}>{pr.number}</button>
                   </div>
-                  <span className={`status ${isDone ? "done" : pr.status.includes("PO") || pr.status === "Đang lấy báo giá" ? "progress" : "waiting"}`}>{pr.status}</span>
+                  <span className={`status ${isDone ? "done" : pr.status?.includes("PO") || pr.status === "Đang lấy báo giá" ? "progress" : "waiting"}`}>{pr.status || "Chờ duyệt"}</span>
                 </header>
                 <h3>{pr.department}</h3>
                 <p>{pr.purpose}</p>
                 <dl>
                   <div><dt>Ngày PR</dt><dd>{dateVN(pr.date)}</dd></div>
-                  <div><dt>Mặt hàng</dt><dd>{pr.items.length}</dd></div>
-                  <div><dt>Dự kiến</dt><dd>{fmt(pr.items.reduce((sum, item) => sum + item.qty * item.estimate, 0))} ₫</dd></div>
+                  <div><dt>Mặt hàng</dt><dd>{pr.items?.length || 0}</dd></div>
+                  <div><dt>Dự kiến</dt><dd>{fmt((pr.items || []).reduce((sum, item) => sum + item.qty * item.estimate, 0))} ₫</dd></div>
                 </dl>
                 <div style={{ marginTop: "8px", paddingTop: "8px", borderTop: "1px dashed #e2e8f0" }}>
                   <DocFlowLinks flow={flow} currentView="prs" onNavigate={onNavigate} compact />
@@ -338,9 +338,9 @@ export function PRList({
                     <td className="cell-center">{dateVN(pr.date)}</td>
                     <td className="cell-left">{pr.department}</td>
                     <td className="purpose-cell cell-left">{pr.purpose}</td>
-                    <td className="cell-center">{pr.items.length}</td>
+                    <td className="cell-center">{pr.items?.length || 0}</td>
                     <td className="money cell-right">
-                      {fmt(pr.items.reduce((s, i) => s + i.qty * i.estimate, 0))} ₫
+                      {fmt((pr.items || []).reduce((s, i) => s + i.qty * i.estimate, 0))} ₫
                     </td>
                     <td className="cell-center">
                       <span

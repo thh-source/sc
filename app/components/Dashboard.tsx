@@ -307,6 +307,12 @@ export function Dashboard({
     ).length;
   }, [paymentRequests, todayStr]);
 
+  const todayPendingAmount = useMemo(() => {
+    return (pendingPayments || [])
+      .filter((r) => !isPaymentCompleted(r))
+      .reduce((sum, r) => sum + (Number(r.amount) || 0), 0);
+  }, [pendingPayments]);
+
   // Modal xác nhận chuyển trạng thái thanh toán an toàn
   const [paymentConfirmModal, setPaymentConfirmModal] = useState<{
     req: PaymentRequestEntry;
@@ -988,6 +994,7 @@ export function Dashboard({
         }}
         onToggleTodo={handleToggleTodo}
         onDeleteTodo={handleDeleteTodo}
+        onClearCompletedTodos={handleClearCompletedTodos}
         onNavigate={onNavigate}
         onCreatePR={onCreatePR}
         onCreateApproval={onCreateApproval}
@@ -997,11 +1004,17 @@ export function Dashboard({
         onSelectPayment={onSelectPayment}
         onSelectApproval={onSelectApproval}
         onToggleCompletePayment={onToggleCompletePayment}
+        todaySpent={paidTodayAmount}
         paidTodayAmount={paidTodayAmount}
+        todayPending={todayPendingAmount}
+        totalPOAmount={totalPOValue}
         totalPOValue={totalPOValue}
+        disbursedPOAmount={totalPOPaid}
         totalPOPaid={totalPOPaid}
+        poPaymentPercent={poPaymentProgressPct}
         poPaymentProgressPct={poPaymentProgressPct}
         remainingDebt={remainingDebt}
+        pendingPayments={pendingPayments}
       />
     );
   }
