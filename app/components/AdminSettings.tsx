@@ -17,6 +17,9 @@ import {
   Hash,
   Loader2,
   RotateCw,
+  QrCode,
+  Copy,
+  Check,
 } from "lucide-react";
 import { dateVN } from "../utils";
 import { AdminUsage } from "./AdminUsage";
@@ -122,6 +125,27 @@ export function AdminSettings({
     remoteInfo?: AppVersionInfo;
     error?: string;
   } | null>(null);
+
+  const [showQr, setShowQr] = useState(false);
+  const [copiedApkLink, setCopiedApkLink] = useState(false);
+
+  const apkDownloadUrl = useMemo(() => {
+    if (typeof window !== "undefined") {
+      const base = window.location.origin.includes("localhost")
+        ? "https://quan-ly-mua-hang.sc-pnk.workers.dev"
+        : window.location.origin;
+      return `${base}/api/app-version/download?type=apk`;
+    }
+    return "https://quan-ly-mua-hang.sc-pnk.workers.dev/api/app-version/download?type=apk";
+  }, []);
+
+  const handleCopyApkLink = () => {
+    if (!apkDownloadUrl) return;
+    navigator.clipboard.writeText(apkDownloadUrl).then(() => {
+      setCopiedApkLink(true);
+      setTimeout(() => setCopiedApkLink(false), 2500);
+    });
+  };
 
   const platform = useMemo(() => getAppPlatform(), []);
 
@@ -977,6 +1001,194 @@ export function AdminSettings({
               </div>
               <div style={{ fontSize: "13px", fontWeight: 600, color: "var(--fg, #334155)", marginTop: "4px" }}>
                 {platform.platformName} ({CURRENT_APP_VERSION.releaseChannel})
+              </div>
+            </div>
+          </div>
+
+          {/* Khối Tải File Cài Đặt Android APK Trực Tiếp */}
+          <div
+            style={{
+              backgroundColor: "#f0fdf4",
+              borderRadius: "10px",
+              border: "1px solid #bbf7d0",
+              padding: "16px 18px",
+              marginBottom: "18px",
+              display: "flex",
+              flexDirection: "column",
+              gap: "12px",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "8px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                <div
+                  style={{
+                    width: "38px",
+                    height: "38px",
+                    borderRadius: "8px",
+                    backgroundColor: "#16a34a",
+                    color: "#ffffff",
+                    display: "grid",
+                    placeItems: "center",
+                    flexShrink: 0,
+                  }}
+                >
+                  <Smartphone size={22} />
+                </div>
+                <div>
+                  <h4 style={{ fontSize: "14.5px", fontWeight: 700, margin: 0, color: "#14532d" }}>
+                    Cài đặt ứng dụng Android (File APK)
+                  </h4>
+                  <span style={{ fontSize: "12px", color: "#166534" }}>
+                    Bản cài đặt chính thức v{CURRENT_APP_VERSION.version} (~8.6 MB) • Dành cho điện thoại & máy tính bảng
+                  </span>
+                </div>
+              </div>
+              <span
+                style={{
+                  fontSize: "11px",
+                  fontWeight: 700,
+                  backgroundColor: "#dcfce7",
+                  color: "#15803d",
+                  padding: "3px 9px",
+                  borderRadius: "12px",
+                  border: "1px solid #86efac",
+                }}
+              >
+                ✓ Sẵn sàng tải về
+              </span>
+            </div>
+
+            <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
+              <a
+                href="/api/app-version/download?type=apk"
+                download={`Phenikaa_Procurement_App_v${CURRENT_APP_VERSION.version}.apk`}
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "8px",
+                  backgroundColor: "#15803d",
+                  color: "#ffffff",
+                  padding: "9px 18px",
+                  borderRadius: "7px",
+                  fontSize: "13px",
+                  fontWeight: 700,
+                  textDecoration: "none",
+                  boxShadow: "0 2px 4px rgba(21, 128, 61, 0.25)",
+                  cursor: "pointer",
+                }}
+              >
+                <Download size={16} /> Tải APK Trực Tiếp (8.6 MB)
+              </a>
+
+              <button
+                type="button"
+                onClick={() => setShowQr(!showQr)}
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "6px",
+                  backgroundColor: "#ffffff",
+                  color: "#166534",
+                  border: "1px solid #86efac",
+                  padding: "8px 14px",
+                  borderRadius: "7px",
+                  fontSize: "12.5px",
+                  fontWeight: 650,
+                  cursor: "pointer",
+                }}
+              >
+                <QrCode size={15} /> {showQr ? "Ẩn mã QR" : "Quét mã QR trên điện thoại"}
+              </button>
+
+              <button
+                type="button"
+                onClick={handleCopyApkLink}
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "6px",
+                  backgroundColor: "#ffffff",
+                  color: "#334155",
+                  border: "1px solid #cbd5e1",
+                  padding: "8px 14px",
+                  borderRadius: "7px",
+                  fontSize: "12.5px",
+                  fontWeight: 600,
+                  cursor: "pointer",
+                }}
+              >
+                {copiedApkLink ? (
+                  <>
+                    <Check size={14} style={{ color: "#16a34a" }} /> Đã chép link!
+                  </>
+                ) : (
+                  <>
+                    <Copy size={14} /> Sao chép link APK
+                  </>
+                )}
+              </button>
+            </div>
+
+            {/* QR Code Section khi bật */}
+            {showQr && (
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  backgroundColor: "#ffffff",
+                  padding: "16px",
+                  borderRadius: "10px",
+                  border: "1px solid #bbf7d0",
+                  gap: "10px",
+                }}
+              >
+                <div style={{ fontSize: "12.5px", fontWeight: 650, color: "#14532d", textAlign: "center" }}>
+                  Dùng Camera điện thoại hoặc Zalo quét mã QR dưới đây để tải trực tiếp file APK:
+                </div>
+                <img
+                  src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(apkDownloadUrl)}`}
+                  alt="Mã QR tải APK"
+                  style={{
+                    width: "170px",
+                    height: "170px",
+                    borderRadius: "8px",
+                    border: "1px solid #e2e8f0",
+                    padding: "4px",
+                    backgroundColor: "#ffffff",
+                  }}
+                  onError={(e) => {
+                    const target = e.target as HTMLImageElement;
+                    target.src = "/qr-apk-download.png";
+                  }}
+                />
+                <span style={{ fontSize: "11.5px", color: "#64748b", textAlign: "center", maxWidth: "340px" }}>
+                  Sau khi quét, chọn <b>Tải về</b> và bấm <b>Cài đặt</b> để hoàn tất.
+                </span>
+              </div>
+            )}
+
+            {/* Hướng dẫn cài đặt nhanh 3 bước */}
+            <div
+              style={{
+                backgroundColor: "rgba(240, 253, 244, 0.6)",
+                borderTop: "1px dashed #86efac",
+                paddingTop: "10px",
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
+                gap: "8px",
+                fontSize: "11.5px",
+                color: "#166534",
+              }}
+            >
+              <div>
+                <b>1. Tải file:</b> Bấm nút tải hoặc quét mã QR trên điện thoại.
+              </div>
+              <div>
+                <b>2. Mở file:</b> Nhấn vào thông báo tải xong trong phần Tệp tải về.
+              </div>
+              <div>
+                <b>3. Cài đặt:</b> Chọn <i>Cài đặt</i> (Cho phép nguồn này nếu có cảnh báo).
               </div>
             </div>
           </div>
