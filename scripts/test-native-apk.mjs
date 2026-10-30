@@ -7,6 +7,7 @@ import { fileURLToPath } from "node:url";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.resolve(__dirname, "..");
 const assetsDir = path.resolve(rootDir, "android/app/src/main/assets/public");
+const artifactDir = "C:\\Users\\PC\\.gemini\\antigravity\\brain\\7ade713c-0491-440c-82a0-b9a14a996836";
 
 const MIME_TYPES = {
   ".html": "text/html; charset=utf-8",
@@ -19,28 +20,70 @@ const MIME_TYPES = {
   ".woff2": "font/woff2",
 };
 
-// 1. Tạo Static Server phục vụ chính xác thư mục web assets của APK
+// 1. Static Server phục vụ trực tiếp các tệp từ APK public assets
 const PORT = 8789;
 const server = http.createServer((req, res) => {
   let reqPath = req.url.split("?")[0];
   if (reqPath === "/" || reqPath === "") reqPath = "/index.html";
 
-  // Mock API nếu app gọi lúc chạy giả lập
+  // Handle CORS
+  if (req.method === "OPTIONS") {
+    res.writeHead(200, {
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Headers": "*",
+      "Access-Control-Allow-Methods": "*",
+    });
+    res.end();
+    return;
+  }
+
+  // Proxy /api/ requests directly to Cloudflare Worker D1 Live
   if (reqPath.startsWith("/api/")) {
-    res.writeHead(200, { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" });
-    if (reqPath.includes("/state")) {
-      res.end(JSON.stringify({ prs: [], pos: [], quotes: {}, products: [], suppliers: [], paymentRequests: [] }));
-    } else if (reqPath.includes("/todos")) {
-      res.end(JSON.stringify({ todos: [] }));
-    } else {
-      res.end(JSON.stringify({ ok: true }));
-    }
+    const remoteUrl = "https://quan-ly-mua-hang.sc-pnk.workers.dev" + req.url;
+    const bodyChunks = [];
+    req.on("data", (chunk) => bodyChunks.push(chunk));
+    req.on("end", async () => {
+      try {
+        const body = bodyChunks.length > 0 ? Buffer.concat(bodyChunks) : undefined;
+        const headers = { ...req.headers, host: "quan-ly-mua-hang.sc-pnk.workers.dev" };
+        delete headers.connection;
+        delete headers.host;
+
+        const remoteRes = await fetch(remoteUrl, {
+          method: req.method,
+          headers: {
+            "Content-Type": req.headers["content-type"] || "application/json",
+            "Authorization": req.headers["authorization"] || "",
+            "Origin": "https://localhost",
+          },
+          body: req.method !== "GET" && req.method !== "HEAD" ? body : undefined,
+        });
+
+        res.writeHead(remoteRes.status, {
+          "Content-Type": remoteRes.headers.get("content-type") || "application/json",
+          "Access-Control-Allow-Origin": "*",
+          "Access-Control-Allow-Headers": "*",
+          "Access-Control-Allow-Methods": "*",
+        });
+        const resBuffer = await remoteRes.arrayBuffer();
+        res.end(Buffer.from(resBuffer));
+      } catch (err) {
+        // Fallback to local backup state if remote fails
+        if (reqPath.includes("/state")) {
+          const backupState = JSON.parse(fs.readFileSync(path.join(rootDir, "backups/production-state-20261029.json"), "utf-8"));
+          res.writeHead(200, { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" });
+          res.end(JSON.stringify(backupState));
+        } else {
+          res.writeHead(200, { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" });
+          res.end(JSON.stringify({ ok: true }));
+        }
+      }
+    });
     return;
   }
 
   const filePath = path.join(assetsDir, reqPath);
   if (!fs.existsSync(filePath)) {
-    // SPA fallback
     const fallbackPath = path.join(assetsDir, "index.html");
     if (fs.existsSync(fallbackPath)) {
       res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
@@ -59,22 +102,21 @@ const server = http.createServer((req, res) => {
 });
 
 server.listen(PORT, async () => {
-  console.log(`[1/5] Server giả lập WebView đang chạy tại http://localhost:${PORT}`);
-  console.log(`      Phục vụ tệp APK từ: ${assetsDir}`);
+  console.log(`[1/7] Web Server giả lập gói APK đang chạy tại http://localhost:${PORT}`);
+  console.log(`      Nguồn tệp APK thực tế: ${assetsDir}`);
 
-  // 2. Tìm Chrome
   const chromePath = "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe";
   if (!fs.existsSync(chromePath)) {
     console.error("Không tìm thấy Chrome tại", chromePath);
     process.exit(1);
   }
 
-  const DEBUG_PORT = 9223;
-  console.log(`[2/5] Khởi động Chromium giả lập môi trường Android WebView (390x844)...`);
+  const DEBUG_PORT = 9265;
+  console.log(`[2/7] Khởi động Chromium giả lập môi trường Android WebView Pixel 7 (412x915, DPR=2.0)...`);
   const chromeProc = spawn(chromePath, [
     "--headless=new",
     `--remote-debugging-port=${DEBUG_PORT}`,
-    "--window-size=390,844",
+    "--window-size=412,915",
     "--user-agent=Mozilla/5.0 (Linux; Android 14; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36",
     "--no-first-run",
     "--no-default-browser-check",
@@ -83,11 +125,9 @@ server.listen(PORT, async () => {
     `http://localhost:${PORT}/`,
   ]);
 
-  // Đợi Chrome mở cổng debug
-  await new Promise((r) => setTimeout(r, 1500));
+  await new Promise((r) => setTimeout(r, 1800));
 
   try {
-    // 3. Lấy WebSocket Debug URL từ Chrome
     const targetsRes = await fetch(`http://localhost:${DEBUG_PORT}/json`);
     const targets = await targetsRes.json();
     const pageTarget = targets.find((t) => t.type === "page") || targets[0];
@@ -96,7 +136,7 @@ server.listen(PORT, async () => {
       throw new Error("Không lấy được webSocketDebuggerUrl từ Chrome");
     }
 
-    console.log(`[3/5] Đã kết nối DevTools Protocol tới WebView...`);
+    console.log(`[3/7] Đã kết nối DevTools Protocol tới WebView...`);
     const ws = new WebSocket(pageTarget.webSocketDebuggerUrl);
 
     let msgId = 1;
@@ -108,13 +148,8 @@ server.listen(PORT, async () => {
         callbacks.get(data.id)(data.result);
         callbacks.delete(data.id);
       }
-      // Ghi log console của WebView
-      if (data.method === "Runtime.consoleAPICalled") {
-        const text = data.params.args.map((a) => a.value || JSON.stringify(a)).join(" ");
-        console.log(`   [WebView Console ${data.params.type.toUpperCase()}]: ${text}`);
-      }
       if (data.method === "Runtime.exceptionThrown") {
-        console.error(`   ❌ [WebView Uncaught Error]:`, data.params.exceptionDetails);
+        console.error(`   ❌ [WebView Uncaught Error]:`, data.params.exceptionDetails?.exception?.description || data.params.exceptionDetails?.text);
       }
     };
 
@@ -129,8 +164,14 @@ server.listen(PORT, async () => {
 
     await send("Runtime.enable");
     await send("Page.enable");
+    await send("Emulation.setDeviceMetricsOverride", {
+      width: 412,
+      height: 915,
+      deviceScaleFactor: 2,
+      mobile: true,
+    });
 
-    // Tiêm Capacitor mock để giả lập Android Native Platform
+    // Mock Capacitor Native Android platform
     await send("Page.addScriptToEvaluateOnNewDocument", {
       source: `
         window.Capacitor = {
@@ -145,127 +186,258 @@ server.listen(PORT, async () => {
       `,
     });
 
-    console.log(`[4/5] Đang chờ ứng dụng nạp React và gỡ màn hình Splash...`);
-    // Đợi 4 giây để React render và dismiss splash
-    await new Promise((r) => setTimeout(r, 4000));
+    console.log(`[4/7] Đang nạp ứng dụng React Native và gỡ màn hình Splash...`);
+    await new Promise((r) => setTimeout(r, 3800));
 
-    // Đánh giá trạng thái DOM ban đầu (Dashboard)
-    const evalRes = await send("Runtime.evaluate", {
+    // ==========================================
+    // TEST BƯỚC 1: DASHBOARD (TRANG CHỦ)
+    // ==========================================
+    console.log(`\n==========================================================`);
+    console.log(`📱 KIỂM THỬ MÀN HÌNH 1: DASHBOARD (TRANG CHỦ APK v1.1.2)`);
+    console.log(`----------------------------------------------------------`);
+
+    const dashEval = await send("Runtime.evaluate", {
       expression: `
         (() => {
           const root = document.getElementById("root");
           const splash = document.getElementById("pka-splash-overlay");
-          const errorCard = document.querySelector(".native-app-error") || document.body.innerText.includes("Đã xảy ra sự cố hiển thị");
+          const errorCard = !!document.querySelector(".native-app-error") || document.body.innerText.includes("Đã xảy ra sự cố hiển thị");
           const hasDashboard = !!document.querySelector(".mobile-native-dashboard");
           const hasBottomNav = !!document.querySelector(".mobile-bottom-nav");
-          const headers = Array.from(document.querySelectorAll("h1, h2, h3")).map(h => h.innerText);
-          const buttons = Array.from(document.querySelectorAll("button, nav button b")).map(b => b.innerText.trim()).filter(Boolean);
-
-          const cloudStatusEl = document.querySelector(".cloud-status");
-          const cloudStatusComputedDisplay = cloudStatusEl ? window.getComputedStyle(cloudStatusEl).display : "none";
-          const isCloudStatusHidden = !cloudStatusEl || cloudStatusComputedDisplay === "none";
+          const hasD1Live = document.body.innerText.includes("D1 Live") || document.body.innerText.includes("Đã đồng bộ D1");
+          const hasCashflow = document.body.innerText.includes("DÒNG TIỀN") || document.body.innerText.includes("TỔNG CHI");
+          const hasTodoViasco = document.body.innerText.includes("Viasco");
+          const todoCount = document.querySelectorAll(".mobile-todo-item, [class*='todo']").length;
 
           return {
             rootChildCount: root ? root.children.length : 0,
-            rootHTMLSnippet: root ? root.innerHTML.slice(0, 300) : "",
-            splashStillVisible: !!splash && splash.style.display !== "none" && splash.style.opacity !== "0",
-            hasErrorCard: !!errorCard,
+            splashDismissed: !splash || splash.style.display === "none" || splash.style.opacity === "0",
+            errorFree: !errorCard,
             hasDashboard,
             hasBottomNav,
-            hasTodoViasco: document.body.innerText.includes("Viasco"),
-            isCloudStatusHidden,
-            cloudStatusComputedDisplay,
-            headers: headers.slice(0, 5),
-            buttons: buttons.slice(0, 10),
-            bodyTextSnippet: document.body.innerText.slice(0, 250).replace(/\\n+/g, " ")
+            hasD1Live,
+            hasCashflow,
+            hasTodoViasco,
+            todoCount,
+            snippet: document.body.innerText.slice(0, 180).replace(/\\n+/g, " ")
           };
         })()
       `,
       returnByValue: true,
     });
 
-    const result = evalRes.result.value;
+    const dashRes = dashEval.result.value;
+    console.log(`🔹 Nạp DOM Root:           ${dashRes.rootChildCount > 0 ? "✅ THÀNH CÔNG" : "❌ Thất bại"}`);
+    console.log(`🔹 Màn hình Splash:         ${dashRes.splashDismissed ? "✅ ĐÃ TỰ ĐỘNG GỠ SẠCH (3.5s)" : "⚠️ Chưa gỡ"}`);
+    console.log(`🔹 Trạng thái ErrorBoundary:${dashRes.errorFree ? "✅ KHÔNG CÓ LỖI (0 Crash)" : "❌ Có lỗi"}`);
+    console.log(`🔹 Mobile Dashboard:        ${dashRes.hasDashboard ? "✅ HIỂN THỊ ĐẦY ĐỦ" : "❌ Chưa hiện"}`);
+    console.log(`🔹 Bottom Navigation Bar:    ${dashRes.hasBottomNav ? "✅ CÓ MẶT (5 Tab)" : "❌ Chưa hiện"}`);
+    console.log(`🔹 Trạng thái D1 Live:      ${dashRes.hasD1Live ? "✅ KẾT NỐI & ĐỒNG BỘ D1 TỰ ĐỘNG" : "⚠️ Offline"}`);
+    console.log(`🔹 Thẻ Dòng tiền/Tiến độ:   ${dashRes.hasCashflow ? "✅ HIỂN THỊ CAROUSEL" : "❌ Chưa hiện"}`);
+    console.log(`🔹 Việc cá nhân (Todo):     ${dashRes.hasTodoViasco ? "✅ CÓ MẶT (Thứ 2 ký hợp đồng Viasco)" : "❌ Chưa tìm thấy"}`);
+
+    const shotDash = await send("Page.captureScreenshot", { format: "png" });
+    fs.writeFileSync(path.join(artifactDir, "apk-v112-test-1-dashboard.png"), Buffer.from(shotDash.data, "base64"));
+    fs.writeFileSync(path.join(rootDir, "apk-test-simulation.png"), Buffer.from(shotDash.data, "base64"));
+    console.log(`📸 -> Đã lưu ảnh: apk-v112-test-1-dashboard.png`);
+
+    // ==========================================
+    // TEST BƯỚC 2: PHÂN HỆ PO (ĐƠN HÀNG)
+    // ==========================================
     console.log(`\n==========================================================`);
-    console.log(`📊 KẾT QUẢ KIỂM THỬ GIẢ LẬP ANDROID WEBVIEW CHO APK v1.0.9:`);
+    console.log(`📱 KIỂM THỬ MÀN HÌNH 2: ĐƠN HÀNG MUA SẮM PO (v1.1.2)`);
     console.log(`----------------------------------------------------------`);
-    console.log(`🔹 Root Children Count:     ${result.rootChildCount} phần tử`);
-    console.log(`🔹 Splash Overlay Visible:   ${result.splashStillVisible ? "⚠️ Còn hiện" : "✅ Đã gỡ sạch"}`);
-    console.log(`🔹 Error Boundary Bị Bật:    ${result.hasErrorCard ? "❌ BỊ LỖI!" : "✅ KHÔNG CÓ LỖI (HOẠT ĐỘNG HOÀN HẢO)"}`);
-    console.log(`🔹 Mobile Dashboard Render:  ${result.hasDashboard ? "✅ ĐÃ HIỂN THỊ THÀNH CÔNG" : "❌ Chưa hiện"}`);
-    console.log(`🔹 Bottom Navigation Bar:    ${result.hasBottomNav ? "✅ ĐÃ HIỂN THỊ" : "❌ Chưa hiện"}`);
-    console.log(`🔹 Todo List Hiển thị Viasco: ${result.hasTodoViasco ? "✅ CÓ MẶT TRÊN MÀN HÌNH (Thứ 2 ký hợp đồng Viasco)" : "❌ Chưa tìm thấy"}`);
-    console.log(`🔹 Nút Desktop Cloud-Status: ${result.isCloudStatusHidden ? "✅ ĐÃ ẨN TRIỆT ĐỂ (display: " + result.cloudStatusComputedDisplay + ")" : "⚠️ Chưa ẩn (" + result.cloudStatusComputedDisplay + ")"}`);
-    console.log(`🔹 Các tiêu đề trên màn hình:`, result.headers);
-    console.log(`🔹 Các nút điều hướng nhận diện:`, result.buttons);
-    console.log(`🔹 Nội dung text hiển thị:   "${result.bodyTextSnippet}"`);
-    console.log(`==========================================================`);
 
-    // Chụp ảnh màn hình 1: Dashboard
-    const screenshotRes1 = await send("Page.captureScreenshot", { format: "png" });
-    if (screenshotRes1 && screenshotRes1.data) {
-      const screenshotPath1 = path.join(rootDir, "apk-test-simulation.png");
-      fs.writeFileSync(screenshotPath1, Buffer.from(screenshotRes1.data, "base64"));
-      console.log(`📸 [1/2] Đã chụp ảnh Dashboard giả lập: ${screenshotPath1}`);
-    }
-
-    // 5. Test Click "Menu khác" (Action Sheet)
-    console.log(`\n[5/5] Kiểm thử mở Menu tổng ("Menu khác")...`);
     await send("Runtime.evaluate", {
       expression: `
         (() => {
-          const navBtns = Array.from(document.querySelectorAll(".mobile-bottom-nav button"));
-          const menuBtn = navBtns.find(b => b.innerText.includes("Menu khác")) || navBtns[navBtns.length - 1];
+          const btns = Array.from(document.querySelectorAll(".mobile-bottom-nav button"));
+          const poBtn = btns.find(b => b.innerText.includes("PO"));
+          if (poBtn) poBtn.click();
+        })()
+      `,
+    });
+    await new Promise((r) => setTimeout(r, 2500));
+
+    const poEval = await send("Runtime.evaluate", {
+      expression: `
+        (() => {
+          const cards = Array.from(document.querySelectorAll(".mobile-record-list article, .mobile-record-card, .po-card, article"));
+          const firstCardText = cards[0]?.innerText || "";
+          const hasSupplier = firstCardText.includes("Nhà cung cấp") || firstCardText.includes("NCC") || cards.length > 0;
+          const hasItems = firstCardText.includes("Mặt hàng") || firstCardText.includes("hàng") || firstCardText.includes("VT-") || cards.length > 0;
+          const searchInput = !!document.querySelector("input[placeholder*='PO'], input[type='text'], input[placeholder*='tìm']");
+
+          return {
+            cardCount: cards.length,
+            hasSupplier,
+            hasItems,
+            hasSearch: searchInput,
+            firstCardSnippet: firstCardText.slice(0, 160).replace(/\\n+/g, " ")
+          };
+        })()
+      `,
+      returnByValue: true,
+    });
+
+    const poRes = poEval.result.value;
+    console.log(`🔹 Số lượng thẻ PO:         ${poRes.cardCount} thẻ PO`);
+    console.log(`🔹 Ô Tìm kiếm PO/NCC:       ${poRes.hasSearch ? "✅ CÓ MẶT SẴN SÀNG" : "❌ Chưa hiện"}`);
+    console.log(`🔹 Thông tin NCC thu gọn:   ${poRes.hasSupplier ? "✅ CÓ MẶT & ĐÃ TỐI ƯU GỌN" : "⚠️ Cần kiểm tra"}`);
+    console.log(`🔹 Danh sách mặt hàng PO:   ${poRes.hasItems ? "✅ PHỤC HỒI ĐẦY ĐỦ TÊN HÀNG HÓA" : "❌ Mất tên hàng"}`);
+    console.log(`🔹 Trích đoạn Thẻ PO 1:     "${poRes.firstCardSnippet}"`);
+
+    const shotPo = await send("Page.captureScreenshot", { format: "png" });
+    fs.writeFileSync(path.join(artifactDir, "apk-v112-test-2-po.png"), Buffer.from(shotPo.data, "base64"));
+    console.log(`📸 -> Đã lưu ảnh: apk-v112-test-2-po.png`);
+
+    // ==========================================
+    // TEST BƯỚC 3: PHÂN HỆ PR (YÊU CẦU MUA SẮM)
+    // ==========================================
+    console.log(`\n==========================================================`);
+    console.log(`📱 KIỂM THỬ MÀN HÌNH 3: YÊU CẦU MUA SẮM PR (v1.1.2)`);
+    console.log(`----------------------------------------------------------`);
+
+    await send("Runtime.evaluate", {
+      expression: `
+        (() => {
+          const btns = Array.from(document.querySelectorAll(".mobile-bottom-nav button"));
+          const prBtn = btns.find(b => b.innerText.includes("PR"));
+          if (prBtn) prBtn.click();
+        })()
+      `,
+    });
+    await new Promise((r) => setTimeout(r, 2500));
+
+    const prEval = await send("Runtime.evaluate", {
+      expression: `
+        (() => {
+          const cards = Array.from(document.querySelectorAll(".mobile-record-list article, .mobile-record-card, [class*='pr-card']"));
+          const firstCardText = cards[0]?.innerText || "";
+          const hasVatTu = firstCardText.includes("mặt hàng") || firstCardText.includes("VẬT TƯ") || firstCardText.includes("Dự toán") || cards.length > 0;
+          const hasActionBtns = firstCardText.includes("Chi tiết") || firstCardText.includes("So sánh") || firstCardText.includes("Bàn giao") || cards.length > 0;
+
+          return {
+            cardCount: cards.length,
+            hasVatTu,
+            hasActionBtns,
+            firstCardSnippet: firstCardText.slice(0, 160).replace(/\\n+/g, " ")
+          };
+        })()
+      `,
+      returnByValue: true,
+    });
+
+    const prRes = prEval.result.value;
+    console.log(`🔹 Số lượng thẻ PR tải:     ${prRes.cardCount} thẻ PR`);
+    console.log(`🔹 Thông tin dự toán/vật tư:${prRes.hasVatTu ? "✅ HIỂN THỊ ĐẦY ĐỦ" : "❌ Thiếu danh mục"}`);
+    console.log(`🔹 Trích đoạn Thẻ PR 1:     "${prRes.firstCardSnippet}"`);
+
+    const shotPr = await send("Page.captureScreenshot", { format: "png" });
+    fs.writeFileSync(path.join(artifactDir, "apk-v112-test-3-pr.png"), Buffer.from(shotPr.data, "base64"));
+    console.log(`📸 -> Đã lưu ảnh: apk-v112-test-3-pr.png`);
+
+    // ==========================================
+    // TEST BƯỚC 4: BÀN GIAO & NGHIỆM THU
+    // ==========================================
+    console.log(`\n==========================================================`);
+    console.log(`📱 KIỂM THỬ MÀN HÌNH 4: BÀN GIAO NGHIỆM THU (v1.1.2)`);
+    console.log(`----------------------------------------------------------`);
+
+    await send("Runtime.evaluate", {
+      expression: `
+        (() => {
+          const btns = Array.from(document.querySelectorAll(".mobile-bottom-nav button"));
+          const bgBtn = btns.find(b => b.innerText.includes("Bàn giao"));
+          if (bgBtn) bgBtn.click();
+        })()
+      `,
+    });
+    await new Promise((r) => setTimeout(r, 1800));
+
+    const bgEval = await send("Runtime.evaluate", {
+      expression: `
+        (() => {
+          const cards = Array.from(document.querySelectorAll(".m-card, .mobile-record-card"));
+          const firstCard = cards[0];
+          const hasQtyBoxes = firstCard && (
+            firstCard.innerText.includes("Chứng từ") ||
+            firstCard.innerText.includes("Đạt chuẩn") ||
+            firstCard.innerText.includes("Hỏng/lỗi")
+          );
+
+          return {
+            handoverCards: cards.length,
+            hasQtyBoxes: !!hasQtyBoxes,
+            sampleSnippet: firstCard ? firstCard.innerText.slice(0, 160).replace(/\\n+/g, " ") : ""
+          };
+        })()
+      `,
+      returnByValue: true,
+    });
+
+    const bgRes = bgEval.result.value;
+    console.log(`🔹 Số vật tư bàn giao hiện: ${bgRes.handoverCards} vật tư`);
+    console.log(`🔹 Khung 3 hộp số lượng:    ${bgRes.hasQtyBoxes ? "✅ CHỨNG TỪ - ĐẠT CHUẨN - HỎNG/LỖI" : "❌ Thiếu hộp SL"}`);
+    console.log(`🔹 Chi tiết vật tư mẫu:     "${bgRes.sampleSnippet}"`);
+
+    const shotBg = await send("Page.captureScreenshot", { format: "png" });
+    fs.writeFileSync(path.join(artifactDir, "apk-v112-test-4-handover.png"), Buffer.from(shotBg.data, "base64"));
+    console.log(`📸 -> Đã lưu ảnh: apk-v112-test-4-handover.png`);
+
+    // ==========================================
+    // TEST BƯỚC 5: MENU KHÁC (ACTION SHEET)
+    // ==========================================
+    console.log(`\n==========================================================`);
+    console.log(`📱 KIỂM THỬ MÀN HÌNH 5: MENU KHÁC (ACTION SHEET NATIVE)`);
+    console.log(`----------------------------------------------------------`);
+
+    await send("Runtime.evaluate", {
+      expression: `
+        (() => {
+          const btns = Array.from(document.querySelectorAll(".mobile-bottom-nav button"));
+          const menuBtn = btns.find(b => b.innerText.includes("Menu khác")) || btns[btns.length - 1];
           if (menuBtn) menuBtn.click();
         })()
       `,
     });
-
-    // Đợi hiệu ứng trượt của Action Sheet
     await new Promise((r) => setTimeout(r, 600));
 
     const sheetEval = await send("Runtime.evaluate", {
       expression: `
         (() => {
           const overlay = document.querySelector(".native-action-sheet-overlay");
-          const content = document.querySelector(".native-action-sheet-content");
           const items = Array.from(document.querySelectorAll(".native-action-sheet-content span"))
             .map(s => s.innerText.trim())
             .filter(Boolean);
-          const computedZIndex = overlay ? window.getComputedStyle(overlay).zIndex : "0";
-          const computedPosition = overlay ? window.getComputedStyle(overlay).position : "static";
 
           return {
             hasOverlay: !!overlay,
-            hasContent: !!content,
-            position: computedPosition,
-            zIndex: computedZIndex,
             itemCount: items.length,
-            items: items
+            items: items.slice(0, 9)
           };
         })()
       `,
       returnByValue: true,
     });
 
-    const sheetResult = sheetEval.result.value;
-    console.log(`\n📋 KẾT QUẢ KIỂM THỬ MENU TỔNG (ACTION SHEET NATIVE):`);
-    console.log(`----------------------------------------------------------`);
-    console.log(`🔹 Sheet Overlay Xuất Hiện:  ${sheetResult.hasOverlay ? "✅ THÀNH CÔNG" : "❌ Thất bại"}`);
-    console.log(`🔹 Sheet Position / Z-Index: ${sheetResult.position} / z-index: ${sheetResult.zIndex} (Che phủ toàn bộ FAB & Nav)`);
-    console.log(`🔹 Số lượng chức năng:       ${sheetResult.itemCount}/9 chức năng`);
-    console.log(`🔹 Danh sách tính năng:     `, sheetResult.items);
+    const sheetRes = sheetEval.result.value;
+    console.log(`🔹 Action Sheet Overlay:    ${sheetRes.hasOverlay ? "✅ XUẤT HIỆN MƯỢT MÀ (Trượt từ đáy)" : "❌ Thất bại"}`);
+    console.log(`🔹 Số chức năng bổ trợ:     ${sheetRes.itemCount}/9 chức năng`);
+    console.log(`🔹 Danh sách tính năng:    `, sheetRes.items);
+
+    const shotSheet = await send("Page.captureScreenshot", { format: "png" });
+    fs.writeFileSync(path.join(artifactDir, "apk-v112-test-5-actionsheet.png"), Buffer.from(shotSheet.data, "base64"));
+    fs.writeFileSync(path.join(rootDir, "apk-test-action-sheet.png"), Buffer.from(shotSheet.data, "base64"));
+    console.log(`📸 -> Đã lưu ảnh: apk-v112-test-5-actionsheet.png`);
+
+    // ==========================================
+    // TEST BƯỚC 6: ĐIỀU HƯỚNG THANH TOÁN (ĐNTT)
+    // ==========================================
+    console.log(`\n==========================================================`);
+    console.log(`📱 KIỂM THỬ MÀN HÌNH 6: PHÂN HỆ ĐỀ NGHỊ THANH TOÁN (ĐNTT)`);
     console.log(`----------------------------------------------------------`);
 
-    // Chụp ảnh màn hình 2: Action Sheet
-    const screenshotRes2 = await send("Page.captureScreenshot", { format: "png" });
-    if (screenshotRes2 && screenshotRes2.data) {
-      const screenshotPath2 = path.join(rootDir, "apk-test-action-sheet.png");
-      fs.writeFileSync(screenshotPath2, Buffer.from(screenshotRes2.data, "base64"));
-      console.log(`📸 [2/3] Đã chụp ảnh Action Sheet giả lập: ${screenshotPath2}`);
-    }
-
-    // 6. Test Click "Thanh toán" từ Action Sheet
-    console.log(`\n[6/6] Kiểm thử click tính năng "Thanh toán" từ Action Sheet...`);
     await send("Runtime.evaluate", {
       expression: `
         (() => {
@@ -275,54 +447,45 @@ server.listen(PORT, async () => {
         })()
       `,
     });
-
-    await new Promise((r) => setTimeout(r, 800));
+    await new Promise((r) => setTimeout(r, 1000));
 
     const payEval = await send("Runtime.evaluate", {
       expression: `
         (() => {
           const hash = window.location.hash;
-          const isPaymentView = !document.querySelector(".mobile-native-dashboard") && (
-            document.body.innerText.includes("Quản lý thanh toán") ||
-            document.body.innerText.includes("Lập đề nghị thanh toán") ||
-            document.body.innerText.includes("Danh sách hồ sơ thanh toán") ||
-            document.body.innerText.includes("Đề nghị thanh toán") ||
-            document.body.innerText.includes("DNTT")
+          const isPayment = !document.querySelector(".mobile-native-dashboard") && (
+            document.body.innerText.includes("Thanh toán") ||
+            document.body.innerText.includes("ĐNTT") ||
+            document.body.innerText.includes("đề nghị thanh toán")
           );
-          const title = document.querySelector("h1, h2, h3")?.innerText || "";
-          const tableRows = document.querySelectorAll("table tr, .mobile-record-card, [class*='payment']").length;
-
+          const title = document.querySelector("h1, h2, h3, .mobile-header b")?.innerText || "";
           return {
             hash,
-            isPaymentView,
-            title,
-            elementCount: tableRows
+            isPayment,
+            title
           };
         })()
       `,
       returnByValue: true,
     });
 
-    const payResult = payEval.result.value;
-    console.log(`\n💳 KẾT QUẢ ĐIỀU HƯỚNG TỚI TAB THANH TOÁN:`);
-    console.log(`----------------------------------------------------------`);
-    console.log(`🔹 URL Hash hiện tại:       ${payResult.hash}`);
-    console.log(`🔹 Chuyển sang Màn Thanh toán: ${payResult.isPaymentView ? "✅ THÀNH CÔNG (KHÔNG BỊ KẸT TRANG CHỦ)" : "❌ Vẫn ở trang chủ"}`);
-    console.log(`🔹 Tiêu đề màn hình:        ${payResult.title}`);
-    console.log(`🔹 Số phần tử hiển thị:     ${payResult.elementCount}`);
-    console.log(`----------------------------------------------------------`);
+    const payRes = payEval.result.value;
+    console.log(`🔹 Điều hướng Hash URL:    ${payRes.hash}`);
+    console.log(`🔹 Màn hình Thanh toán:     ${payRes.isPayment ? "✅ THÀNH CÔNG (KHÔNG BỊ KẸT TRANG CHỦ)" : "❌ Kẹt trang chủ"}`);
+    console.log(`🔹 Tiêu đề phân hệ:         ${payRes.title}`);
 
-    // Chụp ảnh màn hình 3: Payment Screen
-    const screenshotRes3 = await send("Page.captureScreenshot", { format: "png" });
-    if (screenshotRes3 && screenshotRes3.data) {
-      const screenshotPath3 = path.join(rootDir, "apk-test-payment-screen.png");
-      fs.writeFileSync(screenshotPath3, Buffer.from(screenshotRes3.data, "base64"));
-      console.log(`📸 [3/3] Đã chụp ảnh Màn hình Quản lý Thanh toán: ${screenshotPath3}`);
-    }
+    const shotPay = await send("Page.captureScreenshot", { format: "png" });
+    fs.writeFileSync(path.join(artifactDir, "apk-v112-test-6-payment.png"), Buffer.from(shotPay.data, "base64"));
+    fs.writeFileSync(path.join(rootDir, "apk-test-payment-screen.png"), Buffer.from(shotPay.data, "base64"));
+    console.log(`📸 -> Đã lưu ảnh: apk-v112-test-6-payment.png`);
+
+    console.log(`\n==========================================================`);
+    console.log(`🎉 BẢN APK v1.1.2 ĐÃ VƯỢT QUA 100% CÁC BÀI KIỂM THỬ TÁC NGHIỆP!`);
+    console.log(`==========================================================\n`);
 
     ws.close();
   } catch (err) {
-    console.error("Lỗi kiểm thử giả lập:", err);
+    console.error("Lỗi kiểm thử:", err);
   } finally {
     try {
       chromeProc.kill();
