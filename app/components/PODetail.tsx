@@ -115,6 +115,38 @@ export function PODetail({
   const poDeliveryStats = useMemo(() => {
     return calcPODeliveryStats(po, paymentHandovers);
   }, [po, paymentHandovers]);
+  const savedNoticeTimerRef = useRef<any>(null);
+
+  useEffect(() => {
+    return () => {
+      if (savedNoticeTimerRef.current) clearTimeout(savedNoticeTimerRef.current);
+    };
+  }, []);
+
+  // Batch Delivery Modal State
+  const [showDeliveryModal, setShowDeliveryModal] = useState(false);
+  const [batchDeliveryDate, setBatchDeliveryDate] = useState<string>(() =>
+    new Date().toISOString().slice(0, 10)
+  );
+  const [batchSelected, setBatchSelected] = useState<Record<number, boolean>>({});
+  const [batchQty, setBatchQty] = useState<Record<number, number>>({});
+  const [batchItemDate, setBatchItemDate] = useState<Record<number, string>>({});
+
+  // Import from ĐNPĐ Modal State
+  const [showImportApprovalModal, setShowImportApprovalModal] = useState(false);
+  const [itemsViewMode, setItemsViewMode] = useState<"auto" | "table" | "card">("auto");
+
+  // Quản lý thu gọn / xổ ra theo yêu cầu tối ưu mobile
+  const [isSupplierExpanded, setIsSupplierExpanded] = useState(false);
+  const [isPaymentsExpanded, setIsPaymentsExpanded] = useState(false);
+  const [showNoteInput, setShowNoteInput] = useState(false);
+
+  const supplier = suppliers.find((s) => Number(s.id) === Number(po.supplierId));
+  const isDuplicateNumber = isPONumberExists(po.number, pos, trash, po.id);
+  const items = po.items || [];
+  const subtotal = items.reduce((s, i) => s + calcPOItemSubtotal(i), 0);
+  const total = calcPOTotal(po);
+  const totalVatAmount = total - subtotal;
 
   const deliveredStats = useMemo(() => {
     const list = items || [];
@@ -153,38 +185,6 @@ export function PODetail({
     });
     return set.size;
   }, [linkedHandovers]);
-  const savedNoticeTimerRef = useRef<any>(null);
-
-  useEffect(() => {
-    return () => {
-      if (savedNoticeTimerRef.current) clearTimeout(savedNoticeTimerRef.current);
-    };
-  }, []);
-
-  // Batch Delivery Modal State
-  const [showDeliveryModal, setShowDeliveryModal] = useState(false);
-  const [batchDeliveryDate, setBatchDeliveryDate] = useState<string>(() =>
-    new Date().toISOString().slice(0, 10)
-  );
-  const [batchSelected, setBatchSelected] = useState<Record<number, boolean>>({});
-  const [batchQty, setBatchQty] = useState<Record<number, number>>({});
-  const [batchItemDate, setBatchItemDate] = useState<Record<number, string>>({});
-
-  // Import from ĐNPĐ Modal State
-  const [showImportApprovalModal, setShowImportApprovalModal] = useState(false);
-  const [itemsViewMode, setItemsViewMode] = useState<"auto" | "table" | "card">("auto");
-
-  // Quản lý thu gọn / xổ ra theo yêu cầu tối ưu mobile
-  const [isSupplierExpanded, setIsSupplierExpanded] = useState(false);
-  const [isPaymentsExpanded, setIsPaymentsExpanded] = useState(false);
-  const [showNoteInput, setShowNoteInput] = useState(false);
-
-  const supplier = suppliers.find((s) => Number(s.id) === Number(po.supplierId));
-  const isDuplicateNumber = isPONumberExists(po.number, pos, trash, po.id);
-  const items = po.items || [];
-  const subtotal = items.reduce((s, i) => s + calcPOItemSubtotal(i), 0);
-  const total = calcPOTotal(po);
-  const totalVatAmount = total - subtotal;
 
   const updatePOItemsAndSyncPayments = (nextItems: POItem[]) => {
     const nextTotal = calcPOTotal({ items: nextItems });
