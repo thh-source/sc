@@ -501,9 +501,7 @@ export function POList({
         .includes(q.toLowerCase());
     })
     .sort((a, b) => {
-      const aDone = isPOCompleted(a);
-      const bDone = isPOCompleted(b);
-      if (aDone !== bDone) return aDone ? 1 : -1;
+      // Giữ nguyên thứ tự mới ở trên, cũ ở dưới (không đẩy PO hoàn tất xuống dưới)
       return (b.createdDate || "").localeCompare(a.createdDate || "") || (b.id - a.id);
     });
 

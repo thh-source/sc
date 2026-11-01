@@ -1233,11 +1233,10 @@ tbody tr:hover td {
   opacity: 0.9;
 }
 .row-completed {
-  opacity: 0.8;
-  background-color: #f8fafc !important;
+  background-color: #f0fdf4 !important;
 }
 .row-completed td {
-  color: #64748b !important;
+  background-color: #f0fdf4 !important;
 }
 .compact-invoice-tag {
   display: inline-block;

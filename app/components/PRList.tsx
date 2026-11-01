@@ -160,9 +160,7 @@ export function PRList({
         .includes(q.toLowerCase());
     })
     .sort((a, b) => {
-      const aDone = isPRCompleted(a);
-      const bDone = isPRCompleted(b);
-      if (aDone !== bDone) return aDone ? 1 : -1;
+      // Giữ nguyên thứ tự mới ở trên, cũ ở dưới (không đẩy PR hoàn tất xuống dưới)
       return (b.date || "").localeCompare(a.date || "") || (b.id - a.id);
     });
 

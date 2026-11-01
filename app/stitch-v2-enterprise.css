@@ -1346,4 +1346,73 @@
     margin-bottom: 14px !important;
     box-shadow: 0 4px 14px -4px rgba(15, 23, 42, 0.06) !important;
   }
+
+/* =========================================================================
+   COMPLETED / DONE CARDS & ROWS: Soft Green Background (#f0fdf4)
+   ========================================================================= */
+
+/* 1. Payment Cards View (.m-card.m-card-done / .m-card.row-completed) */
+.mobile-cards-container .m-card.m-card-done,
+.mobile-cards-container .m-card.row-completed,
+.m-card.m-card-done,
+.m-card.row-completed {
+  background: #f0fdf4 !important;
+  border: 1px solid #86efac !important;
+  border-left: 5px solid #10b981 !important;
+}
+
+.mobile-cards-container .m-card.m-card-done:hover,
+.mobile-cards-container .m-card.row-completed:hover,
+.m-card.m-card-done:hover,
+.m-card.row-completed:hover {
+  background: #ecfdf5 !important;
+  border-color: #6ee7b7 !important;
+  box-shadow: 0 6px 18px rgba(16, 185, 129, 0.12) !important;
+}
+
+/* Light green tint for inner meta boxes in completed cards */
+.m-card.m-card-done .m-card-meta,
+.m-card.row-completed .m-card-meta {
+  background: #e8f8ed !important;
+  border: 1px solid #bbf7d0 !important;
+}
+
+/* 2. PR & PO Cards (Mobile/Card view: article.row-completed) */
+article.row-completed,
+.mobile-cards-container article.row-completed,
+.po-mobile-cards-view article.row-completed {
+  background: #f0fdf4 !important;
+  border: 1px solid #86efac !important;
+  border-left: 5px solid #10b981 !important;
+}
+
+article.row-completed:hover,
+.mobile-cards-container article.row-completed:hover,
+.po-mobile-cards-view article.row-completed:hover {
+  background: #ecfdf5 !important;
+  border-color: #6ee7b7 !important;
+  box-shadow: 0 6px 18px rgba(16, 185, 129, 0.12) !important;
+}
+
+/* 3. Table Rows (.row-completed) in Desktop Tables for PR, PO, Payment */
+tr.row-completed,
+table.draft-table tbody tr.row-completed,
+table.payment-grid tbody tr.row-completed,
+table.payment-grid tr.row-done {
+  background-color: #f0fdf4 !important;
+}
+
+tr.row-completed td,
+table.draft-table tbody tr.row-completed td,
+table.payment-grid tbody tr.row-completed td,
+table.payment-grid tr.row-done td {
+  background-color: #f0fdf4 !important;
+}
+
+tr.row-completed:hover td,
+table.draft-table tbody tr.row-completed:hover td,
+table.payment-grid tbody tr.row-completed:hover td {
+  background-color: #ecfdf5 !important;
+}
+
 }

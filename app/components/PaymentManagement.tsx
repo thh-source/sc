@@ -635,12 +635,7 @@ export function PaymentManagement({
     });
 
     return list.sort((a, b) => {
-      const aDone = isPaymentCompleted(a);
-      const bDone = isPaymentCompleted(b);
-      // Ưu tiên: Chưa hoàn thành lên trên cùng, Đã hoàn thành đẩy xuống dưới
-      if (aDone !== bDone) {
-        return aDone ? 1 : -1;
-      }
+      // Giữ nguyên thứ tự mới ở trên, cũ ở dưới (không đẩy mục đã hoàn tất xuống dưới)
       const na = Number(a.legacy_stt || a.id) || 0;
       const nb = Number(b.legacy_stt || b.id) || 0;
       if (nb !== na) return nb - na;
