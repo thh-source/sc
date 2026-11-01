@@ -1,6 +1,7 @@
 import React, { useState, useRef } from "react";
-import { X, Printer, ExternalLink, ZoomIn, ZoomOut, RotateCw, Maximize2, FileText, Image as ImageIcon } from "lucide-react";
+import { X, Printer, ExternalLink, ZoomIn, ZoomOut, RotateCw, Maximize2, FileText, Image as ImageIcon, Share2, Download } from "lucide-react";
 import { PR } from "../types";
+import { ShareFileModal } from "./ShareFileModal";
 
 interface PRScanPreviewModalProps {
   pr: PR | { number: string; scan_file_url?: string; department?: string };
@@ -10,12 +11,40 @@ interface PRScanPreviewModalProps {
 export function PRScanPreviewModal({ pr, onClose }: PRScanPreviewModalProps) {
   const [zoom, setZoom] = useState(1);
   const [rotation, setRotation] = useState(0);
+  const [shareData, setShareData] = useState<{ isOpen: boolean; shareUrl: string } | null>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
   const scanUrl = pr.scan_file_url || "";
   const isPdf =
     scanUrl.toLowerCase().includes(".pdf") ||
     (scanUrl.toLowerCase().includes("key=") && scanUrl.toLowerCase().includes(".pdf"));
+
+  const handleCreateShareLink = async () => {
+    if (!scanUrl) return;
+    try {
+      const res = await fetch("/api/share-file", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          fileUrl: scanUrl,
+          fileName: `Bản scan PR #${pr.number}`,
+          fileType: isPdf ? "application/pdf" : "image/jpeg",
+          entityCode: pr.number,
+          entityType: "pr",
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) throw new Error(data.error || "Không thể tạo link chia sẻ");
+
+      navigator.clipboard.writeText(data.shareUrl);
+      setShareData({
+        isOpen: true,
+        shareUrl: data.shareUrl,
+      });
+    } catch (err: any) {
+      alert(err.message || "Lỗi tạo link chia sẻ");
+    }
+  };
 
   const handleZoomIn = () => setZoom((z) => Math.min(3, +(z + 0.25).toFixed(2)));
   const handleZoomOut = () => setZoom((z) => Math.max(0.5, +(z - 0.25).toFixed(2)));
@@ -211,6 +240,28 @@ export function PRScanPreviewModal({ pr, onClose }: PRScanPreviewModalProps) {
 
             <button
               type="button"
+              className="btn btn-secondary"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "6px",
+                padding: "6px 12px",
+                fontSize: "13px",
+                fontWeight: 600,
+                backgroundColor: "#eff6ff",
+                borderColor: "#bfdbfe",
+                color: "#1d4ed8",
+                borderRadius: "6px",
+                cursor: "pointer",
+              }}
+              onClick={handleCreateShareLink}
+              title="Tạo link chia sẻ cho người khác xem, tải xuống hoặc in trực tiếp"
+            >
+              <Share2 size={15} /> Chia sẻ
+            </button>
+
+            <button
+              type="button"
               className="btn btn-primary"
               style={{
                 display: "inline-flex",
@@ -230,6 +281,28 @@ export function PRScanPreviewModal({ pr, onClose }: PRScanPreviewModalProps) {
             >
               <Printer size={15} /> In bản scan
             </button>
+
+            <a
+              href={scanUrl}
+              download
+              className="btn btn-secondary"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "6px",
+                padding: "6px 10px",
+                fontSize: "13px",
+                fontWeight: 600,
+                backgroundColor: "#f8fafc",
+                borderColor: "#cbd5e1",
+                color: "#334155",
+                borderRadius: "6px",
+                textDecoration: "none",
+              }}
+              title="Tải file scan về máy"
+            >
+              <Download size={15} />
+            </a>
 
             <a
               href={scanUrl}
@@ -333,6 +406,16 @@ export function PRScanPreviewModal({ pr, onClose }: PRScanPreviewModalProps) {
           )}
         </div>
       </div>
+
+      {shareData && (
+        <ShareFileModal
+          isOpen={shareData.isOpen}
+          onClose={() => setShareData(null)}
+          fileName={`Bản scan PR #${pr.number}`}
+          shareUrl={shareData.shareUrl}
+          entityCode={pr.number}
+        />
+      )}
     </div>
   );
 }

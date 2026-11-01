@@ -1,7 +1,9 @@
 "use client";
 
 import { ChangeEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { Share2, Download, ExternalLink } from "lucide-react";
 import { compressUploadFile } from "../utils/compressUploadFile";
+import { ShareFileModal } from "./ShareFileModal";
 
 type DocumentFile = {
   id: string;
@@ -62,6 +64,36 @@ export default function DocumentManager({
     [status, setStatus] = useState(DOC_STATUSES[0]),
     [expiresAt, setExpiresAt] = useState(""),
     [note, setNote] = useState("");
+  const [shareData, setShareData] = useState<{ isOpen: boolean; shareUrl: string; fileName: string } | null>(null);
+
+  const handleShareFile = async (file: DocumentFile) => {
+    try {
+      const res = await fetch("/api/share-file", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          fileUrl: `/api/files/${encodeURIComponent(file.id)}`,
+          fileName: file.fileName,
+          fileType: file.contentType || (file.fileName.toLowerCase().endsWith(".pdf") ? "application/pdf" : "image/jpeg"),
+          entityType,
+          entityCode: entityId,
+          fileSize: file.size,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) throw new Error(data.error || "Không thể tạo link chia sẻ");
+
+      navigator.clipboard.writeText(data.shareUrl);
+      setShareData({
+        isOpen: true,
+        shareUrl: data.shareUrl,
+        fileName: file.fileName,
+      });
+      onStatus?.(`Đã tạo & sao chép link chia sẻ cho ${file.fileName}`);
+    } catch (err: any) {
+      alert(err.message || "Lỗi tạo link chia sẻ");
+    }
+  };
   const storageUsed = useMemo(
     () => files.reduce((total, file) => total + Number(file.size || 0), 0),
     [files],
@@ -227,11 +259,70 @@ export default function DocumentManager({
                     {left < 0 ? "Đã quá hạn" : `Còn ${left} ngày`}
                   </b>
                 )}
-                {!readOnly && (
-                  <button onClick={() => removeFile(file.id)} title="Xóa hồ sơ">
-                    ×
+
+                <div style={{ display: "inline-flex", alignItems: "center", gap: "6px", marginLeft: "auto" }}>
+                  <button
+                    type="button"
+                    onClick={() => handleShareFile(file)}
+                    title="Tạo link chia sẻ xem, in & tải file không cần đăng nhập"
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "4px",
+                      padding: "4px 8px",
+                      borderRadius: "6px",
+                      fontSize: "12px",
+                      fontWeight: 600,
+                      backgroundColor: "#eff6ff",
+                      border: "1px solid #bfdbfe",
+                      color: "#1d4ed8",
+                      cursor: "pointer",
+                    }}
+                  >
+                    <Share2 size={13} /> Chia sẻ
                   </button>
-                )}
+
+                  <a
+                    href={`/api/files/${encodeURIComponent(file.id)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    title="Mở hoặc tải file"
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "4px",
+                      padding: "4px 8px",
+                      borderRadius: "6px",
+                      fontSize: "12px",
+                      fontWeight: 500,
+                      backgroundColor: "#f8fafc",
+                      border: "1px solid #cbd5e1",
+                      color: "#475569",
+                      textDecoration: "none",
+                    }}
+                  >
+                    <Download size={13} />
+                  </a>
+
+                  {!readOnly && (
+                    <button
+                      type="button"
+                      onClick={() => removeFile(file.id)}
+                      title="Xóa hồ sơ"
+                      style={{
+                        padding: "3px 8px",
+                        borderRadius: "6px",
+                        border: "1px solid #fecaca",
+                        backgroundColor: "#fef2f2",
+                        color: "#dc2626",
+                        cursor: "pointer",
+                        fontSize: "13px",
+                      }}
+                    >
+                      ×
+                    </button>
+                  )}
+                </div>
               </article>
             );
           })
@@ -239,6 +330,16 @@ export default function DocumentManager({
           <p>Chưa có hồ sơ nào được tải lên cho mục này.</p>
         )}
       </div>
+
+      {shareData && (
+        <ShareFileModal
+          isOpen={shareData.isOpen}
+          onClose={() => setShareData(null)}
+          fileName={shareData.fileName}
+          shareUrl={shareData.shareUrl}
+          entityCode={entityId}
+        />
+      )}
     </section>
   );
 }
