@@ -3,7 +3,7 @@
    Project ID: 4631497660392194780 | Asset ID: 756a80cb98ce482da9d50303d2df16d1
    STRICT SAFEGUARDS:
    1. Strictly scoped to @media screen and (min-width: 769px) -> Mobile APK (<= 768px) is 100% untouched.
-   2. Explicitly excludes @media print, .paper, .handover-paper, #paymentPrintPortal -> Print templates are 100% untouched.
+   2. Explicitly excludes .paper, .handover-paper, #paymentPrintPortal -> Print templates are 100% untouched.
    3. Preserves original /phenikaa-logo.png in .brand.
    ========================================================================== */
 
@@ -1415,4 +1415,389 @@ table.payment-grid tbody tr.row-completed:hover td {
   background-color: #ecfdf5 !important;
 }
 
+
+/* =========================================================================
+   STITCH ENTERPRISE SYSTEM-WIDE TYPOGRAPHY HARMONIZATION
+   Tiêu chuẩn hóa font chữ, kích cỡ và độ đậm nhạt toàn bộ hệ thống
+   ========================================================================= */
+
+/* 1. FONT FAMILY TOÀN BỘ HỆ THỐNG */
+html,
+body,
+button,
+input,
+select,
+textarea,
+table,
+th,
+td,
+span,
+p,
+div,
+label,
+a {
+  font-family: var(--font-manrope), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
+
+/* Các trường số liệu, mã code, số tiền, ngày tháng, mã PR/PO dùng JetBrains Mono sắc nét */
+.font-mono,
+.stitch-kpi-num,
+.amount,
+.money-cell,
+.m-card-amount,
+.po-total strong,
+.po-number-badge,
+.currency-val {
+  font-family: var(--font-jetbrains-mono), "SFMono-Regular", Menlo, Monaco, Consolas, monospace !important;
+}
+
+/* 2. PAGE & SECTION HEADINGS (TIÊU ĐỀ TRANG & PHÂN HỆ ĐỒNG BỘ TẤT CẢ CÁC TAB) */
+.heading h1,
+.stitch-page-banner h1,
+.pr-page .heading h1,
+.po-list-page .heading h1,
+.payment-page .heading h1,
+.handover-page .heading h1,
+.approval-page .heading h1,
+.dashboard-heading h1 {
+  font-size: 20px !important;
+  font-weight: 800 !important;
+  line-height: 1.25 !important;
+  letter-spacing: -0.015em !important;
+  color: #0f172a !important;
+  margin: 0 !important;
+}
+
+/* Breadcrumb dẫn hướng đồng bộ */
+.stitch-breadcrumb,
+.stitch-breadcrumb span,
+.stitch-breadcrumb b {
+  font-size: 11.5px !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.03em !important;
+  text-transform: uppercase !important;
+  line-height: 1 !important;
+}
+
+/* Đoạn mô tả phụ dưới tiêu đề trang */
+.stitch-subtitle,
+.heading p,
+.stitch-page-banner p {
+  font-size: 12.5px !important;
+  font-weight: 500 !important;
+  line-height: 1.4 !important;
+  color: #64748b !important;
+  margin: 4px 0 0 0 !important;
+}
+
+/* Tiêu đề khối / Section Header */
+.section-heading h2,
+.section-heading h3,
+.form-card h2,
+.form-card h3,
+.payment-modal-header h3,
+.modal-header h3 {
+  font-size: 15px !important;
+  font-weight: 750 !important;
+  line-height: 1.3 !important;
+  letter-spacing: -0.01em !important;
+}
+
+/* 3. BENTO KPI STRIP (DẢI THẺ CHỈ SỐ ĐỒNG BỘ TOÀN BỘ CÁC TAB) */
+.stitch-kpi-card .stitch-kpi-body small,
+.pr-stat-box small,
+.po-stat-box small,
+.stat-card small {
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.03em !important;
+  color: #64748b !important;
+  display: block !important;
+  margin-bottom: 2px !important;
+}
+
+.stitch-kpi-card .stitch-kpi-body strong,
+.pr-stat-box strong,
+.po-stat-box strong,
+.stat-card strong {
+  font-size: 21px !important;
+  font-weight: 800 !important;
+  line-height: 1.2 !important;
+  letter-spacing: -0.02em !important;
+  color: #0f172a !important;
+}
+
+.stitch-kpi-card .stitch-kpi-body .stitch-kpi-sub,
+.pr-stat-box .sub,
+.po-stat-box .sub {
+  font-size: 11.5px !important;
+  font-weight: 500 !important;
+  color: #64748b !important;
+}
+
+/* 4. BUTTONS (NÚT BẤM TOÀN HỆ THỐNG - ĐỒNG BỘ 100% KÍCH CỠ & ĐỘ ĐẬM) */
+.btn,
+.btn-md,
+.btn-primary,
+.btn-secondary,
+.btn-teal,
+.btn-accent,
+.btn-danger,
+button.primary,
+button.secondary,
+.po-create-btn,
+.payment-btn,
+.action-btn {
+  font-size: 12.5px !important;
+  font-weight: 650 !important;
+  letter-spacing: 0.01em !important;
+  height: 36px !important;
+  padding: 0 14px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 6px !important;
+  border-radius: 8px !important;
+}
+
+/* Nút nhỏ / Phụ trợ */
+.btn-sm,
+.btn-icon,
+.m-card-desktop-tools button,
+.cell-action-btn,
+.btn-compact {
+  font-size: 11.5px !important;
+  font-weight: 600 !important;
+  height: 28px !important;
+  padding: 0 10px !important;
+  border-radius: 6px !important;
+}
+
+/* Segmented Control Buttons */
+.stitch-seg-btn {
+  font-size: 12px !important;
+  font-weight: 700 !important;
+  height: 32px !important;
+  padding: 0 12px !important;
+}
+
+/* 5. FORM CONTROLS & INPUTS (Ô NHẬP LIỆU & DROPDOWN TOÀN HỆ THỐNG) */
+input:not([type="checkbox"]):not([type="radio"]),
+select,
+textarea {
+  font-size: 12.5px !important;
+  font-weight: 500 !important;
+  line-height: 1.4 !important;
+  color: #0f172a !important;
+  height: 36px !important;
+  border-radius: 8px !important;
+  border: 1px solid #cbd5e1 !important;
+  padding: 0 10px !important;
+}
+
+textarea {
+  height: auto !important;
+  padding: 8px 10px !important;
+}
+
+input::placeholder,
+textarea::placeholder {
+  font-size: 12.5px !important;
+  font-weight: 400 !important;
+  color: #94a3b8 !important;
+}
+
+/* Label tiêu đề trường nhập liệu */
+label,
+.form-group label,
+.field-label {
+  font-size: 11.5px !important;
+  font-weight: 700 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.025em !important;
+  color: #475569 !important;
+  margin-bottom: 4px !important;
+  display: block !important;
+}
+
+/* 6. TABLES (BẢNG DỮ LIỆU DESKTOP TRÊN TẤT CẢ CÁC PHÂN HỆ PR, PO, ĐNPD, BÀN GIAO, THANH TOÁN...) */
+table thead th,
+table.draft-table thead th,
+table.payment-grid thead th,
+table.po-table thead th,
+table.smart-table thead th {
+  font-size: 11.5px !important;
+  font-weight: 750 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.035em !important;
+  color: #475569 !important;
+  height: 38px !important;
+  padding: 8px 10px !important;
+  white-space: nowrap !important;
+  vertical-align: middle !important;
+}
+
+table tbody td,
+table.draft-table tbody td,
+table.payment-grid tbody td,
+table.po-table tbody td,
+table.smart-table tbody td {
+  font-size: 12.5px !important;
+  font-weight: 500 !important;
+  line-height: 1.45 !important;
+  color: #1e293b !important;
+  padding: 8px 10px !important;
+  vertical-align: middle !important;
+}
+
+/* Ô tên mặt hàng, tên NCC, nội dung chính */
+table tbody td .item-name,
+table tbody td .supplier-name,
+table tbody td .primary-text,
+table.payment-grid tbody td.col-payee,
+table.po-table tbody td.col-supplier {
+  font-size: 12.5px !important;
+  font-weight: 650 !important;
+  color: #0f172a !important;
+}
+
+/* Ô số tiền, số lượng, ngày tháng, mã chứng từ */
+table tbody td .amount,
+table tbody td .money,
+table tbody td .code,
+table tbody td .date,
+table.payment-grid tbody td.col-amount,
+table.draft-table tbody td.col-money {
+  font-family: var(--font-jetbrains-mono), monospace !important;
+  font-size: 12px !important;
+  font-weight: 650 !important;
+}
+
+/* Dòng tổng kết / Footer bảng */
+table tfoot td,
+table.draft-table tfoot td,
+.table-footer {
+  font-size: 12.5px !important;
+  font-weight: 700 !important;
+}
+
+/* 7. CARDS (THẺ BÀN GIAO, THẺ THANH TOÁN, THẺ PO, THẺ PR) */
+.m-card-payee,
+.handover-batch-card .batch-title,
+article.po-card .po-card-title,
+article.pr-card .pr-card-title {
+  font-size: 14.5px !important;
+  font-weight: 750 !important;
+  line-height: 1.35 !important;
+  color: #0f172a !important;
+}
+
+.m-card-amount,
+.po-card-amount {
+  font-family: var(--font-jetbrains-mono), monospace !important;
+  font-size: 17px !important;
+  font-weight: 800 !important;
+  line-height: 1.2 !important;
+}
+
+.m-card-desc,
+.po-card-desc,
+.pr-card-desc {
+  font-size: 12px !important;
+  font-weight: 500 !important;
+  line-height: 1.4 !important;
+  color: #334155 !important;
+}
+
+.m-card-meta,
+.po-card-meta {
+  font-size: 11.5px !important;
+  font-weight: 500 !important;
+  line-height: 1.45 !important;
+  color: #475569 !important;
+}
+
+.m-card-meta b,
+.po-card-meta b {
+  font-weight: 700 !important;
+  color: #0f172a !important;
+}
+
+/* Bảng con trong thẻ */
+.m-card table,
+.handover-batch-card table {
+  font-size: 11.5px !important;
+}
+
+.m-card table th,
+.handover-batch-card table th {
+  font-size: 10.5px !important;
+  font-weight: 750 !important;
+  text-transform: uppercase !important;
+}
+
+.m-card table td,
+.handover-batch-card table td {
+  font-size: 11.5px !important;
+  font-weight: 500 !important;
+}
+
+/* 8. BADGES & PILLS (NHÃN TRẠNG THÁI) */
+.status,
+.m-badge,
+.status-badge,
+.stitch-count-pill,
+.stitch-action-pill,
+.m-doc-tag {
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.02em !important;
+  line-height: 1.1 !important;
+  border-radius: 9999px !important;
+  padding: 3px 8px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 4px !important;
+}
+
+/* 9. SIDEBAR NAVIGATION */
+aside nav button,
+aside nav a,
+.nav-item {
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.01em !important;
+}
+
+/* 10. MODALS & POPUPS */
+.payment-modal-header h3,
+.modal-header h3,
+.modal-title {
+  font-size: 16px !important;
+  font-weight: 800 !important;
+  letter-spacing: -0.01em !important;
+}
+
+.payment-modal-header small,
+.modal-header small,
+.modal-subtitle {
+  font-size: 11.5px !important;
+  font-weight: 500 !important;
+}
+
+/* 11. BẢO TỒN MẪU IN A4 */
+.paper,
+.paper *,
+.handover-paper,
+.handover-paper *,
+#paymentPrintPortal,
+#paymentPrintPortal * {
+  font-family: 'Times New Roman', Times, serif !important;
+}
+
+}
+
+@media print { * { font-family: 'Times New Roman', Times, serif !important; } }
