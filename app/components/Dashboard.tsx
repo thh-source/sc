@@ -75,6 +75,8 @@ export function Dashboard({
   onCreatePR,
   onCreateApproval,
   onCreatePO,
+  onCreatePayment,
+  onCreateHandover,
   onSelectPR,
   onSelectPO,
   onSelectApproval,
@@ -96,6 +98,8 @@ export function Dashboard({
   onCreatePR?: () => void;
   onCreateApproval?: () => void;
   onCreatePO?: () => void;
+  onCreatePayment?: () => void;
+  onCreateHandover?: () => void;
   onSelectPR?: (pr: PR) => void;
   onSelectPO?: (po: PO) => void;
   onSelectApproval?: (id: number) => void;
@@ -106,6 +110,11 @@ export function Dashboard({
   onToggleCompletePO?: (po: PO) => void;
   onToggleCompleteApproval?: (appr: ApprovalRequest) => void;
 }) {
+  const handleCreatePR = onCreatePR || (() => onNavigate?.({ view: "create" }));
+  const handleCreateApproval = onCreateApproval || (() => onNavigate?.({ view: "approval" }));
+  const handleCreatePO = onCreatePO || (() => onNavigate?.({ view: "po-list" }));
+  const handleCreatePayment = onCreatePayment || (() => onNavigate?.({ view: "payment" }));
+  const handleCreateHandover = onCreateHandover || (() => onNavigate?.({ view: "handover" }));
   // Current date for comparison
   const todayStr = useMemo(() => new Date().toISOString().slice(0, 10), []);
 
@@ -1034,44 +1043,369 @@ export function Dashboard({
   return (
     <section className="content dashboard-workspace">
       {/* -------------------------------------------------------------
-          DASHBOARD HEADER & QUICK ACTIONS
+          DASHBOARD TOPBAR: WORKFLOW QUICK ACTIONS STRIP
           ------------------------------------------------------------- */}
       <div className="dashboard-topbar">
         <div className="dashboard-topbar-title">
-          <h1>Trung tâm Điều hành Mua hàng</h1>
+          <div className="topbar-title-row">
+            <span className="live-status-dot"></span>
+            <h1>Trung tâm Điều hành Mua hàng</h1>
+          </div>
+          <p className="dashboard-topbar-sub">Ưu tiên xử lý việc cần làm và truy cập nhanh các phân hệ nghiệp vụ mua sắm</p>
         </div>
 
-        {/* Quick Actions Bar (Khu vực 4) */}
-        <div className="dashboard-quick-actions">
+        {/* 5 Nút chức năng nghiệp vụ đưa ra ngoài màn hình chính ấn để vào ngay */}
+        <div className="dashboard-workflow-actions">
           <button
             type="button"
-            className="btn btn-secondary btn-sm"
+            className="workflow-action-btn action-pr"
+            onClick={handleCreatePR}
+            title="Tạo Yêu cầu mua sắm PR mới"
+          >
+            <Plus size={15} />
+            <span>Tạo PR</span>
+          </button>
+          <button
+            type="button"
+            className="workflow-action-btn action-approval"
+            onClick={handleCreateApproval}
+            title="Lập Đề nghị phê duyệt ĐNPD"
+          >
+            <FileCheck size={15} />
+            <span>Tạo ĐNPD</span>
+          </button>
+          <button
+            type="button"
+            className="workflow-action-btn action-po"
+            onClick={handleCreatePO}
+            title="Lập Đơn mua hàng PO"
+          >
+            <Package size={15} />
+            <span>Tạo PO</span>
+          </button>
+          <button
+            type="button"
+            className="workflow-action-btn action-payment"
+            onClick={handleCreatePayment}
+            title="Tạo Đề nghị thanh toán ĐNTT"
+          >
+            <CreditCard size={15} />
+            <span>Tạo ĐNTT</span>
+          </button>
+          <button
+            type="button"
+            className="workflow-action-btn action-handover"
+            onClick={handleCreateHandover}
+            title="Tạo Đợt bàn giao nội bộ"
+          >
+            <Truck size={15} />
+            <span>Tạo Bàn giao</span>
+          </button>
+          <button
+            type="button"
+            className="workflow-action-btn action-search"
             onClick={onOpenSpotlight}
             title="Tìm kiếm nhanh chứng từ (Ctrl + K)"
           >
-            <Search size={14} /> Tra cứu (Ctrl+K)
+            <Search size={14} />
+            <span>Tra cứu</span>
+            <kbd className="action-kbd">Ctrl K</kbd>
           </button>
-          <button
-            type="button"
-            className="btn btn-secondary btn-sm"
-            onClick={onCreatePR}
-          >
-            <Plus size={14} /> Tạo PR
-          </button>
-          <button
-            type="button"
-            className="btn btn-secondary btn-sm"
-            onClick={onCreateApproval}
-          >
-            <CheckCircle2 size={14} /> Lập ĐNPD
-          </button>
-          <button
-            type="button"
-            className="btn btn-primary btn-sm"
-            onClick={onCreatePO}
-          >
-            <Package size={14} /> Tạo PO
-          </button>
+        </div>
+      </div>
+
+      {/* -------------------------------------------------------------
+          MỤC ƯU TIÊN SỐ 1: BẢNG CÔNG VIỆC CẦN LÀM TRONG NGÀY (TO-DO LIST)
+          ------------------------------------------------------------- */}
+      <div className="dashboard-card todo-hero-card">
+        <div className="card-header todo-hero-header">
+          <div className="card-title-group">
+            <span className="card-badge-icon badge-green">
+              <CheckCircle2 size={18} />
+            </span>
+            <div>
+              <div className="todo-title-row">
+                <h2>Công việc Cần làm trong ngày (To-Do List)</h2>
+                {activeTodoCount > 0 ? (
+                  <span className="todo-counter-pill active">
+                    Còn <b>{activeTodoCount}</b> việc cần làm
+                  </span>
+                ) : (
+                  <span className="todo-counter-pill done">
+                    ✓ Đã xong hết việc hôm nay!
+                  </span>
+                )}
+                {todos.some((t) => t.priority === "high" && !t.completed) && (
+                  <span className="todo-counter-pill urgent">
+                    🔥 Có việc gấp
+                  </span>
+                )}
+              </div>
+              <p>Gắn nhanh chứng từ bằng cách gõ <code>@PO</code>, <code>#PR</code>, <code>@DNPD</code>, <code>@NCC</code> để tạo liên kết trực tiếp</p>
+            </div>
+          </div>
+
+          {/* Filter Pills & Clear */}
+          <div className="todo-header-actions">
+            <div className="todo-filter-pills">
+              <button
+                type="button"
+                className={`todo-pill ${todoFilter === "all" ? "active" : ""}`}
+                onClick={() => setTodoFilter("all")}
+              >
+                Tất cả ({todos.length})
+              </button>
+              <button
+                type="button"
+                className={`todo-pill ${todoFilter === "active" ? "active" : ""}`}
+                onClick={() => setTodoFilter("active")}
+              >
+                Chưa xong ({activeTodoCount})
+              </button>
+              <button
+                type="button"
+                className={`todo-pill ${todoFilter === "completed" ? "active" : ""}`}
+                onClick={() => setTodoFilter("completed")}
+              >
+                Đã xong ({Math.max(0, todos.length - activeTodoCount)})
+              </button>
+            </div>
+            {todos.some((t) => t.completed) && (
+              <button
+                type="button"
+                className="clear-completed-btn"
+                onClick={handleClearCompletedTodos}
+                title="Xóa các việc đã hoàn thành"
+              >
+                Dọn dẹp đã xong
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Quick Add Form */}
+        <form className="todo-hero-input-form" onSubmit={handleAddTodo}>
+          <div className="todo-hero-input-row">
+            <input
+              ref={inputRef}
+              type="text"
+              className="todo-hero-input"
+              placeholder="Thêm việc cần làm hôm nay... gõ @PO, #PR, @DNPD, @NCC để chọn nhanh"
+              value={todoInput}
+              onChange={handleInputChange}
+              onKeyDown={handleInputKeyDown}
+              autoComplete="off"
+            />
+            <div className="todo-priority-toggle">
+              <label>
+                <input
+                  type="checkbox"
+                  checked={todoPriority === "high"}
+                  onChange={(e) =>
+                    setTodoPriority(e.target.checked ? "high" : "normal")
+                  }
+                />
+                <span className={todoPriority === "high" ? "high-label" : ""}>
+                  Ưu tiên gấp
+                </span>
+              </label>
+            </div>
+            <button
+              type="submit"
+              className="btn btn-primary todo-hero-add-btn"
+              disabled={!todoInput.trim()}
+            >
+              <Plus size={15} /> Thêm việc
+            </button>
+
+            {/* Auto-Complete Mention Dropdown */}
+            {mentionState.isOpen && (
+              <div
+                ref={mentionDropdownRef}
+                className="todo-mention-dropdown"
+                onMouseDown={(e) => e.preventDefault()}
+              >
+                <div className="mention-header">
+                  <div className="mention-tabs">
+                    <button
+                      type="button"
+                      className={`mention-tab ${mentionCategoryTab === "all" ? "active" : ""}`}
+                      onClick={() => setMentionCategoryTab("all")}
+                    >
+                      Tất cả
+                    </button>
+                    <button
+                      type="button"
+                      className={`mention-tab tab-po ${mentionCategoryTab === "po" ? "active" : ""}`}
+                      onClick={() => setMentionCategoryTab("po")}
+                    >
+                      Đơn PO ({pos.length})
+                    </button>
+                    <button
+                      type="button"
+                      className={`mention-tab tab-pr ${mentionCategoryTab === "pr" ? "active" : ""}`}
+                      onClick={() => setMentionCategoryTab("pr")}
+                    >
+                      Phiếu PR ({prs.length})
+                    </button>
+                    <button
+                      type="button"
+                      className={`mention-tab tab-approval ${mentionCategoryTab === "dnpd" ? "active" : ""}`}
+                      onClick={() => setMentionCategoryTab("dnpd")}
+                    >
+                      ĐNPD ({approvalRequests.length})
+                    </button>
+                    <button
+                      type="button"
+                      className={`mention-tab tab-ncc ${mentionCategoryTab === "ncc" ? "active" : ""}`}
+                      onClick={() => setMentionCategoryTab("ncc")}
+                    >
+                      NCC ({suppliers.length})
+                    </button>
+                  </div>
+                  <button
+                    type="button"
+                    className="mention-close-btn"
+                    onClick={() => setMentionState((prev) => ({ ...prev, isOpen: false }))}
+                    title="Đóng (Esc)"
+                  >
+                    <X size={13} />
+                  </button>
+                </div>
+
+                <div className="mention-list">
+                  {filteredMentionItems.length === 0 ? (
+                    <div className="mention-empty">
+                      Không tìm thấy chứng từ phù hợp với từ khóa &ldquo;{mentionState.query}&rdquo;
+                    </div>
+                  ) : (
+                    filteredMentionItems.map((item, idx) => (
+                      <div
+                        key={item.id}
+                        className={`mention-item ${idx === mentionState.selectedIndex ? "selected" : ""}`}
+                        onClick={() => applyMentionItem(item)}
+                        onMouseEnter={() =>
+                          setMentionState((prev) => ({ ...prev, selectedIndex: idx }))
+                        }
+                      >
+                        <span className={`mention-badge badge-${item.category}`}>
+                          {item.badge}
+                        </span>
+                        <div className="mention-info">
+                          <div className="mention-top-line">
+                            <strong className="mention-title">{item.title}</strong>
+                            {item.status && (
+                              <span className="mention-status">{item.status}</span>
+                            )}
+                          </div>
+                          {(item.subtitle || item.meta) && (
+                            <div className="mention-meta">
+                              {item.subtitle && <span className="mention-sub">{item.subtitle}</span>}
+                              {item.subtitle && item.meta && <span className="meta-sep">·</span>}
+                              {item.meta && <span className="mention-extra">{item.meta}</span>}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+
+                <div className="mention-footer">
+                  <span>↑↓ điều hướng · Enter / Tab chọn · Esc đóng</span>
+                  <span>{filteredMentionItems.length} kết quả</span>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Smart Tag Helper Pills */}
+          <div className="todo-hero-helpers">
+            <span className="helpers-label">Gắn chứng từ nhanh:</span>
+            <button
+              type="button"
+              className="helper-chip chip-po"
+              onClick={() => handleInsertHelperTag("@PO-")}
+              title="Chọn đơn hàng PO"
+            >
+              + @PO
+            </button>
+            <button
+              type="button"
+              className="helper-chip chip-pr"
+              onClick={() => handleInsertHelperTag("#PR-")}
+              title="Chọn yêu cầu mua sắm PR"
+            >
+              + #PR
+            </button>
+            <button
+              type="button"
+              className="helper-chip chip-approval"
+              onClick={() => handleInsertHelperTag("@DNPD-")}
+              title="Chọn tờ trình đề nghị phê duyệt"
+            >
+              + @DNPD
+            </button>
+            <button
+              type="button"
+              className="helper-chip chip-supplier"
+              onClick={() => handleInsertHelperTag("@NCC-")}
+              title="Chọn nhà cung cấp"
+            >
+              + @NCC
+            </button>
+          </div>
+        </form>
+
+        {/* Todo List Items */}
+        <div className="todo-hero-list-wrap">
+          {filteredTodos.length === 0 ? (
+            <div className="todo-empty-state">
+              <Sparkles size={26} className="empty-sparkle" />
+              <p>Không có công việc nào trong mục này.</p>
+            </div>
+          ) : (
+            <ul className="todo-hero-items-list">
+              {filteredTodos.map((item) => (
+                <li
+                  key={item.id}
+                  className={`todo-hero-item ${item.completed ? "completed" : ""} ${item.priority === "high" ? "priority-high" : ""}`}
+                >
+                  <label className="todo-checkbox-label">
+                    <input
+                      type="checkbox"
+                      className="todo-checkbox"
+                      checked={item.completed}
+                      onChange={() => handleToggleTodo(item.id)}
+                    />
+                    <span className="custom-check-box">
+                      {item.completed && <Check size={12} strokeWidth={3} />}
+                    </span>
+                  </label>
+
+                  <div className="todo-body">
+                    <div className="todo-text">
+                      {item.priority === "high" && !item.completed && (
+                        <span className="priority-flag" title="Việc gấp cần giải quyết ngay">
+                          GẤP
+                        </span>
+                      )}
+                      {renderSmartTodoText(item.text)}
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    className="todo-del-btn"
+                    title="Xóa việc này"
+                    onClick={() => handleDeleteTodo(item.id)}
+                  >
+                    <Trash2 size={13} />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       </div>
 
@@ -1872,292 +2206,8 @@ export function Dashboard({
           </div>
         </div>
 
-        {/* RIGHT COLUMN (4 Cols): PROCUREMENT TO-DO LIST & QUICK PULSE */}
+        {/* RIGHT COLUMN (4 Cols): OPERATIONAL PULSE & SUMMARY */}
         <div className="dashboard-side-col">
-          {/* KHU VỰC 3: BẢNG CÔNG VIỆC CÁ NHÂN (TO-DO LIST) */}
-          <div className="dashboard-card todo-card">
-            <div className="card-header todo-header">
-              <div className="card-title-group">
-                <span className="card-badge-icon badge-green">
-                  <CheckCircle2 size={16} />
-                </span>
-                <div>
-                  <h2>Công việc Cá nhân</h2>
-                  <p>
-                    Còn <b>{activeTodoCount}</b> việc cần làm trong ngày
-                  </p>
-                </div>
-              </div>
-
-              {/* Todo Filter Pills */}
-              <div className="todo-filter-pills">
-                <button
-                  type="button"
-                  className={`todo-pill ${todoFilter === "all" ? "active" : ""}`}
-                  onClick={() => setTodoFilter("all")}
-                >
-                  Tất cả ({todos.length})
-                </button>
-                <button
-                  type="button"
-                  className={`todo-pill ${todoFilter === "active" ? "active" : ""}`}
-                  onClick={() => setTodoFilter("active")}
-                >
-                  Chưa xong ({activeTodoCount})
-                </button>
-                <button
-                  type="button"
-                  className={`todo-pill ${todoFilter === "completed" ? "active" : ""}`}
-                  onClick={() => setTodoFilter("completed")}
-                >
-                  Đã xong
-                </button>
-              </div>
-            </div>
-
-            {/* Quick Add Form */}
-            <form className="todo-input-form" onSubmit={handleAddTodo}>
-              <div className="todo-input-row">
-                <input
-                  ref={inputRef}
-                  type="text"
-                  className="todo-input"
-                  placeholder="Thêm việc... gõ @PO, #PR, @DNPD, @NCC để chọn nhanh"
-                  value={todoInput}
-                  onChange={handleInputChange}
-                  onKeyDown={handleInputKeyDown}
-                  autoComplete="off"
-                />
-                <button
-                  type="submit"
-                  className="btn btn-primary btn-sm todo-add-btn"
-                  disabled={!todoInput.trim()}
-                >
-                  <Plus size={15} /> Thêm
-                </button>
-
-                {/* Auto-Complete Mention Dropdown */}
-                {mentionState.isOpen && (
-                  <div
-                    ref={mentionDropdownRef}
-                    className="todo-mention-dropdown"
-                    onMouseDown={(e) => e.preventDefault()}
-                  >
-                    <div className="mention-header">
-                      <div className="mention-tabs">
-                        <button
-                          type="button"
-                          className={`mention-tab ${mentionCategoryTab === "all" ? "active" : ""}`}
-                          onClick={() => setMentionCategoryTab("all")}
-                        >
-                          Tất cả
-                        </button>
-                        <button
-                          type="button"
-                          className={`mention-tab tab-po ${mentionCategoryTab === "po" ? "active" : ""}`}
-                          onClick={() => setMentionCategoryTab("po")}
-                        >
-                          Đơn PO ({pos.length})
-                        </button>
-                        <button
-                          type="button"
-                          className={`mention-tab tab-pr ${mentionCategoryTab === "pr" ? "active" : ""}`}
-                          onClick={() => setMentionCategoryTab("pr")}
-                        >
-                          Phiếu PR ({prs.length})
-                        </button>
-                        <button
-                          type="button"
-                          className={`mention-tab tab-approval ${mentionCategoryTab === "dnpd" ? "active" : ""}`}
-                          onClick={() => setMentionCategoryTab("dnpd")}
-                        >
-                          ĐNPD ({approvalRequests.length})
-                        </button>
-                        <button
-                          type="button"
-                          className={`mention-tab tab-ncc ${mentionCategoryTab === "ncc" ? "active" : ""}`}
-                          onClick={() => setMentionCategoryTab("ncc")}
-                        >
-                          NCC ({suppliers.length})
-                        </button>
-                      </div>
-                      <button
-                        type="button"
-                        className="mention-close-btn"
-                        onClick={() => setMentionState((prev) => ({ ...prev, isOpen: false }))}
-                        title="Đóng (Esc)"
-                      >
-                        <X size={13} />
-                      </button>
-                    </div>
-
-                    <div className="mention-list">
-                      {filteredMentionItems.length === 0 ? (
-                        <div className="mention-empty">
-                          Không tìm thấy chứng từ phù hợp với từ khóa &ldquo;{mentionState.query}&rdquo;
-                        </div>
-                      ) : (
-                        filteredMentionItems.map((item, idx) => (
-                          <div
-                            key={item.id}
-                            className={`mention-item ${idx === mentionState.selectedIndex ? "selected" : ""}`}
-                            onClick={() => applyMentionItem(item)}
-                            onMouseEnter={() =>
-                              setMentionState((prev) => ({ ...prev, selectedIndex: idx }))
-                            }
-                          >
-                            <span className={`mention-badge badge-${item.category}`}>
-                              {item.badge}
-                            </span>
-                            <div className="mention-info">
-                              <div className="mention-top-line">
-                                <strong className="mention-title">{item.title}</strong>
-                                {item.status && (
-                                  <span className="mention-status">{item.status}</span>
-                                )}
-                              </div>
-                              {(item.subtitle || item.meta) && (
-                                <div className="mention-meta">
-                                  {item.subtitle && <span className="mention-sub">{item.subtitle}</span>}
-                                  {item.subtitle && item.meta && <span className="meta-sep">·</span>}
-                                  {item.meta && <span className="mention-extra">{item.meta}</span>}
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        ))
-                      )}
-                    </div>
-
-                    <div className="mention-footer">
-                      <span>↑↓ điều hướng · Enter / Tab chọn · Esc đóng</span>
-                      <span>{filteredMentionItems.length} kết quả</span>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Smart Tag Helper Pills */}
-              <div className="todo-helpers">
-                <span className="helpers-label">Gắn nhanh:</span>
-                <button
-                  type="button"
-                  className="helper-chip chip-po"
-                  onClick={() => handleInsertHelperTag("@PO-")}
-                  title="Chọn đơn hàng PO"
-                >
-                  + @PO
-                </button>
-                <button
-                  type="button"
-                  className="helper-chip chip-pr"
-                  onClick={() => handleInsertHelperTag("#PR-")}
-                  title="Chọn yêu cầu mua sắm PR"
-                >
-                  + #PR
-                </button>
-                <button
-                  type="button"
-                  className="helper-chip chip-approval"
-                  onClick={() => handleInsertHelperTag("@DNPD-")}
-                  title="Chọn tờ trình đề nghị phê duyệt"
-                >
-                  + @DNPD
-                </button>
-                <button
-                  type="button"
-                  className="helper-chip chip-supplier"
-                  onClick={() => handleInsertHelperTag("@NCC-")}
-                  title="Chọn nhà cung cấp"
-                >
-                  + @NCC
-                </button>
-
-                <div className="todo-priority-toggle">
-                  <label>
-                    <input
-                      type="checkbox"
-                      checked={todoPriority === "high"}
-                      onChange={(e) =>
-                        setTodoPriority(e.target.checked ? "high" : "normal")
-                      }
-                    />
-                    <span className={todoPriority === "high" ? "high-label" : ""}>
-                      Ưu tiên cao
-                    </span>
-                  </label>
-                </div>
-              </div>
-            </form>
-
-            {/* Todo List Items */}
-            <div className="todo-list-wrap">
-              {filteredTodos.length === 0 ? (
-                <div className="todo-empty-state">
-                  <Sparkles size={24} className="empty-sparkle" />
-                  <p>Không có công việc nào trong mục này.</p>
-                </div>
-              ) : (
-                <ul className="todo-items-list">
-                  {filteredTodos.map((item) => (
-                    <li
-                      key={item.id}
-                      className={`todo-item ${item.completed ? "completed" : ""} ${item.priority === "high" ? "priority-high" : ""}`}
-                    >
-                      <label className="todo-checkbox-label">
-                        <input
-                          type="checkbox"
-                          className="todo-checkbox"
-                          checked={item.completed}
-                          onChange={() => handleToggleTodo(item.id)}
-                        />
-                        <span className="custom-check-box">
-                          {item.completed && <Check size={12} strokeWidth={3} />}
-                        </span>
-                      </label>
-
-                      <div className="todo-body">
-                        <div className="todo-text">
-                          {item.priority === "high" && !item.completed && (
-                            <span className="priority-flag" title="Việc gấp">
-                              GẤP
-                            </span>
-                          )}
-                          {renderSmartTodoText(item.text)}
-                        </div>
-                      </div>
-
-                      <button
-                        type="button"
-                        className="todo-del-btn"
-                        title="Xóa việc này"
-                        onClick={() => handleDeleteTodo(item.id)}
-                      >
-                        <Trash2 size={13} />
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-
-            {/* Todo Footer Actions */}
-            {todos.some((t) => t.completed) && (
-              <div className="todo-footer-bar">
-                <span>
-                  Đã hoàn thành {todos.filter((t) => t.completed).length}/{todos.length} việc
-                </span>
-                <button
-                  type="button"
-                  className="clear-completed-btn"
-                  onClick={handleClearCompletedTodos}
-                >
-                  Dọn dẹp đã xong
-                </button>
-              </div>
-            )}
-          </div>
-
           {/* KHU VỰC PHỤ: TÓM TẮT NHỊP ĐỘ VẬN HÀNH (OPERATIONAL PULSE) */}
           <div className="dashboard-card pulse-card">
             <div className="card-header">

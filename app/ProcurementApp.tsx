@@ -2754,6 +2754,8 @@ function ProcurementAppInner({
             onCreatePR={() => navigateTo({ view: "create" })}
             onCreateApproval={() => navigateTo({ view: "approval" })}
             onCreatePO={() => navigateTo({ view: "po-list" })}
+            onCreatePayment={() => navigateTo({ view: "payment" })}
+            onCreateHandover={() => navigateTo({ view: "handover" })}
             onSelectPR={(pr) => {
               loadComparePR(pr);
               navigateTo({ view: "compare", prId: pr.id });
