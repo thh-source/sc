@@ -4,13 +4,13 @@
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"/>
   <title>Phenikaa Mua Hàng</title>
-  <meta name="theme-color" content="#082f58"/>
+  <meta name="theme-color" content="#2B6DF8"/>
   <link rel="icon" href="/favicon.svg"/>
   <script>
     // Fetch Proxy cho Capacitor Native
     (function() {
       if (typeof window !== "undefined" && window.Capacitor && window.Capacitor.isNativePlatform()) {
-        var REMOTE = "https://quan-ly-mua-hang.sc-pnk.workers.dev";
+        var REMOTE = "https://pnk.sc-pnk.workers.dev";
         var origFetch = window.fetch;
         window.fetch = function(input, init) {
           if (typeof input === "string" && input.startsWith("/api/")) {

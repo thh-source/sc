@@ -42,14 +42,14 @@ await send("Emulation.setDeviceMetricsOverride", { width: 1440, height: 900, dev
 await send("Network.setCookie", {
   name: "mh_session",
   value: "test_token_settings_download_12345",
-  domain: "quan-ly-mua-hang.sc-pnk.workers.dev",
+  domain: "pnk.sc-pnk.workers.dev",
   path: "/",
   httpOnly: true,
   secure: true,
 });
 
 // Chụp Desktop PO
-await send("Page.navigate", { url: "https://quan-ly-mua-hang.sc-pnk.workers.dev/#po-list" });
+await send("Page.navigate", { url: "https://pnk.sc-pnk.workers.dev/#po-list" });
 await new Promise((r) => setTimeout(r, 4000));
 let shot = await send("Page.captureScreenshot", { format: "png" });
 fs.writeFileSync(path.join(artifactDir, "web-desktop-po-rollback.png"), Buffer.from(shot.data, "base64"));

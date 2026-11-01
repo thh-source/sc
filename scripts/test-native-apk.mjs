@@ -39,13 +39,13 @@ const server = http.createServer((req, res) => {
 
   // Proxy /api/ requests directly to Cloudflare Worker D1 Live
   if (reqPath.startsWith("/api/")) {
-    const remoteUrl = "https://quan-ly-mua-hang.sc-pnk.workers.dev" + req.url;
+    const remoteUrl = "https://pnk.sc-pnk.workers.dev" + req.url;
     const bodyChunks = [];
     req.on("data", (chunk) => bodyChunks.push(chunk));
     req.on("end", async () => {
       try {
         const body = bodyChunks.length > 0 ? Buffer.concat(bodyChunks) : undefined;
-        const headers = { ...req.headers, host: "quan-ly-mua-hang.sc-pnk.workers.dev" };
+        const headers = { ...req.headers, host: "pnk.sc-pnk.workers.dev" };
         delete headers.connection;
         delete headers.host;
 

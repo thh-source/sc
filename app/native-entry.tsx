@@ -5,7 +5,7 @@ import "./globals.css";
 import "./mobile.css";
 
 // Proxy Fetch cho môi trường Capacitor Native (gọi API Cloudflare Worker)
-const REMOTE_WORKER_URL = "https://quan-ly-mua-hang.sc-pnk.workers.dev";
+const REMOTE_WORKER_URL = "https://pnk.sc-pnk.workers.dev";
 if (typeof window !== "undefined") {
   const origFetch = window.fetch;
   window.fetch = function (input: RequestInfo | URL, init?: RequestInit) {

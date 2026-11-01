@@ -11,7 +11,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const rootDir = path.resolve(__dirname, "..");
 
-const REMOTE_WORKER_URL = "https://quan-ly-mua-hang.sc-pnk.workers.dev";
+const REMOTE_WORKER_URL = "https://pnk.sc-pnk.workers.dev";
 
 // 1. Phân tích tham số phiên bản
 let version = process.argv[2];

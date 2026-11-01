@@ -9,7 +9,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.resolve(__dirname, "..");
 const publicDir = path.join(rootDir, "android", "app", "src", "main", "assets", "public");
 const PORT = 8790;
-const REMOTE_WORKER = "https://quan-ly-mua-hang.sc-pnk.workers.dev";
+const REMOTE_WORKER = "https://pnk.sc-pnk.workers.dev";
 
 const mimeTypes = {
   ".html": "text/html; charset=utf-8",
