@@ -102,6 +102,8 @@ export interface HandoverManagementProps {
   initialSearchQuery?: string;
   paymentRequests?: PaymentRequestEntry[];
   onNavigateToPayment?: (req: PaymentRequestEntry) => void;
+  autoOpenCreate?: boolean;
+  onClearAutoCreate?: () => void;
 }
 
 export function HandoverManagement({
@@ -115,8 +117,17 @@ export function HandoverManagement({
   initialSearchQuery,
   paymentRequests = [],
   onNavigateToPayment,
+  autoOpenCreate = false,
+  onClearAutoCreate,
 }: HandoverManagementProps) {
   const { t } = useTranslation();
+
+  useEffect(() => {
+    if (autoOpenCreate) {
+      openImportDocModal();
+      onClearAutoCreate?.();
+    }
+  }, [autoOpenCreate]);
 
   const getHandoverColLabel = (id: string, fallback: string) => {
     switch (id) {
@@ -2203,6 +2214,27 @@ export function HandoverManagement({
                 onClick={() => handleSwitchImportType("contract")}
               >
                 📑 Hợp đồng kinh tế ({contractsList.length > 0 ? contractsList.length : pos.length})
+              </button>
+              <button
+                type="button"
+                style={{
+                  marginLeft: "auto",
+                  padding: "6px 14px",
+                  borderRadius: "6px",
+                  fontSize: "13px",
+                  cursor: "pointer",
+                  border: "1px solid #059669",
+                  background: "#ecfdf5",
+                  color: "#059669",
+                  fontWeight: 700,
+                }}
+                onClick={() => {
+                  setShowImportDocModal(false);
+                  handleAddHandoverRow();
+                }}
+                title="Thêm dòng bàn giao thủ công nhập tay"
+              >
+                + Thêm dòng nhập tay
               </button>
             </div>
 

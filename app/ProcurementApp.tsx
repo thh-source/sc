@@ -139,6 +139,12 @@ function ProcurementAppInner({
     }
     return "dashboard";
   }),
+    [routeModal, setRouteModal] = useState<string | null>(() => {
+      if (typeof window !== "undefined") {
+        return parseRouteFromHash().modal || null;
+      }
+      return null;
+    }),
     [collapsed, setCollapsed] = useState(false),
     [prs, setPrs] = useState(prs0),
     [selectedPR, setSelectedPR] = useState(emptyPR);
@@ -2336,10 +2342,20 @@ function ProcurementAppInner({
   }, []);
 
   // Áp dụng route chuẩn hóa vào React state
+  const handleClearRouteModal = useCallback(() => {
+    setRouteModal(null);
+    if (typeof window !== "undefined" && window.location.hash.includes("modal=")) {
+      const currentRoute = parseRouteFromHash(window.location.hash);
+      const { modal: _m, ...cleanRoute } = currentRoute;
+      navigateTo(cleanRoute, { replace: true });
+    }
+  }, []);
+
   const applyRoute = useCallback(
     (route: AppRoute) => {
       setView(route.view);
       setIsPrintApproval(Boolean(route.isPrint));
+      setRouteModal(route.modal || null);
 
       if (route.view === "approval") {
         setActiveApprovalId(route.id ?? null);
@@ -2752,10 +2768,10 @@ function ProcurementAppInner({
             onNavigate={(route) => navigateTo(route)}
             onOpenSpotlight={() => setSpotlightOpen(true)}
             onCreatePR={() => navigateTo({ view: "create" })}
-            onCreateApproval={() => navigateTo({ view: "approval" })}
-            onCreatePO={() => navigateTo({ view: "po-list" })}
-            onCreatePayment={() => navigateTo({ view: "payment" })}
-            onCreateHandover={() => navigateTo({ view: "handover" })}
+            onCreateApproval={() => navigateTo({ view: "approval", modal: "create" })}
+            onCreatePO={() => navigateTo({ view: "po-list", modal: "create" })}
+            onCreatePayment={() => navigateTo({ view: "payment", modal: "create" })}
+            onCreateHandover={() => navigateTo({ view: "handover", modal: "create" })}
             onSelectPR={(pr) => {
               loadComparePR(pr);
               navigateTo({ view: "compare", prId: pr.id });
@@ -2837,6 +2853,8 @@ function ProcurementAppInner({
             onUpdatePO={updatePO}
             onToggleCompletePayment={handleToggleCompletePayment}
             readOnly={reportMode}
+            autoOpenCreate={routeModal === "create"}
+            onClearAutoCreate={handleClearRouteModal}
           />
         )}
         {view === "handover" && (
@@ -2853,6 +2871,8 @@ function ProcurementAppInner({
             }}
             onNavigateToPayment={handleCreatePaymentRequestFromHandover}
             readOnly={reportMode}
+            autoOpenCreate={routeModal === "create"}
+            onClearAutoCreate={handleClearRouteModal}
           />
         )}
         {view === "approval" && (
@@ -2919,6 +2939,8 @@ function ProcurementAppInner({
               trash={trash}
               onNavigate={(route) => navigateTo(route)}
               onToggleComplete={handleToggleCompleteApproval}
+              autoOpenCreate={routeModal === "create"}
+              onClearAutoCreate={handleClearRouteModal}
             />
           </ErrorBoundary>
         )}
@@ -3008,6 +3030,8 @@ function ProcurementAppInner({
               onAddSupplier={handleAddSupplier}
               onAddProduct={handleAddProduct}
               onUpdatePO={handleUpdatePONumber}
+              autoOpenCreate={routeModal === "create"}
+              onClearAutoCreate={handleClearRouteModal}
               onCreatePO={(newPO, openDetail, sourcePrId) => {
                 setPos((list) => [newPO, ...list]);
                 setCurrentPO(newPO);

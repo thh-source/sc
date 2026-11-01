@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { Plus, ArrowRight, Trash2, Truck, Search, CheckCircle2, Circle, Pencil, RotateCcw, CreditCard, Eye, ClipboardCheck } from "lucide-react";
 import { Supplier, PO, PR, Item, ApprovalRequest, PaymentRequestEntry, PaymentHandoverItem, getPOContractInfo, formatPONumber, generatePOCode, isPONumberExists, TrashItem, calcPOTotal } from "../types";
 import { fmt, dateVN, makeId } from "../utils";
@@ -45,6 +45,8 @@ export function POList({
   onUpdatePO,
   trash = [],
   readOnly = false,
+  autoOpenCreate = false,
+  onClearAutoCreate,
 }: {
   pos: PO[];
   suppliers: Supplier[];
@@ -65,12 +67,22 @@ export function POList({
   onUpdatePO?: (po: PO, oldNumber?: string) => void;
   trash?: TrashItem[];
   readOnly?: boolean;
+  autoOpenCreate?: boolean;
+  onClearAutoCreate?: () => void;
 }) {
   const { t } = useTranslation();
   const [q, setQ] = useState("");
 
   // Create Direct PO Modal State
   const [showCreateModal, setShowCreateModal] = useState(false);
+
+  useEffect(() => {
+    if (autoOpenCreate) {
+      resetDraft();
+      setShowCreateModal(true);
+      onClearAutoCreate?.();
+    }
+  }, [autoOpenCreate]);
   const [editingPONumberModal, setEditingPONumberModal] = useState<PO | null>(null);
   const [editNewNumber, setEditNewNumber] = useState("");
 

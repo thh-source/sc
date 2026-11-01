@@ -148,6 +148,8 @@ interface ApprovalManagementProps {
   paymentHandovers?: PaymentHandoverItem[];
   onNavigate?: (route: any) => void;
   onToggleComplete?: (req: ApprovalRequest) => void;
+  autoOpenCreate?: boolean;
+  onClearAutoCreate?: () => void;
 }
 
 type FlatColDescriptor =
@@ -737,9 +739,18 @@ export default function ApprovalManagement({
   trash = [],
   onNavigate,
   onToggleComplete,
+  autoOpenCreate = false,
+  onClearAutoCreate,
 }: ApprovalManagementProps) {
   const isMobile = useIsMobile();
   const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    if (autoOpenCreate) {
+      setSourceModalMode("compare");
+      onClearAutoCreate?.();
+    }
+  }, [autoOpenCreate]);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
   const [sourceModalMode, setSourceModalMode] = useState<"compare" | "pr" | null>(
@@ -5140,6 +5151,35 @@ export default function ApprovalManagement({
               onClick={() => setSourceModalMode(null)}
             >
               ×
+            </button>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 16px", background: "#f8fafc", borderBottom: "1px solid #e2e8f0", gap: 10, flexWrap: "wrap" }}>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button
+                type="button"
+                className={`btn btn-sm ${sourceModalMode === "compare" ? "btn-primary" : "btn-secondary"}`}
+                onClick={() => setSourceModalMode("compare")}
+              >
+                📊 Từ Bảng So sánh giá PR
+              </button>
+              <button
+                type="button"
+                className={`btn btn-sm ${sourceModalMode === "pr" ? "btn-primary" : "btn-secondary"}`}
+                onClick={() => setSourceModalMode("pr")}
+              >
+                📋 Từ PR trực tiếp
+              </button>
+            </div>
+            <button
+              type="button"
+              className="btn btn-sm btn-teal"
+              onClick={() => {
+                setSourceModalMode(null);
+                handleCreateManual();
+              }}
+              title="Tạo tờ trình ĐNPD độc lập không liên kết PR"
+            >
+              ➕ Tạo phiếu ĐNPD mới (Trắng)
             </button>
           </div>
           <div

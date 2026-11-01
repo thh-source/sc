@@ -245,6 +245,8 @@ export interface PaymentManagementProps {
   readOnly?: boolean;
   initialSearchQuery?: string;
   initialActiveId?: number;
+  autoOpenCreate?: boolean;
+  onClearAutoCreate?: () => void;
 }
 
 export function PaymentManagement({
@@ -261,12 +263,23 @@ export function PaymentManagement({
   initialActiveId,
   onUpdatePO,
   onToggleCompletePayment,
+  autoOpenCreate = false,
+  onClearAutoCreate,
 }: PaymentManagementProps) {
   // Mobile / Desktop & Card view detection
   const isAutoMobile = useIsMobile(768);
   const [userMobileToggle, setUserMobileToggle] = useState<boolean | null>(null);
   const isPhoneScreen = isAutoMobile;
   const { t } = useTranslation();
+
+  useEffect(() => {
+    if (autoOpenCreate) {
+      setPoFilterType("all");
+      setPoSearch("");
+      setShowPOPickerModal(true);
+      onClearAutoCreate?.();
+    }
+  }, [autoOpenCreate]);
 
   const getPaymentColLabel = (id: string, fallback: string) => {
     switch (id) {
@@ -3552,6 +3565,27 @@ export function PaymentManagement({
               >
                 📑 Hợp đồng kinh tế ({contractCount})
               </button>
+              <button
+                type="button"
+                style={{
+                  marginLeft: "auto",
+                  padding: "6px 14px",
+                  borderRadius: "6px",
+                  fontSize: "13px",
+                  cursor: "pointer",
+                  border: "1px solid #059669",
+                  background: "#ecfdf5",
+                  color: "#059669",
+                  fontWeight: 700,
+                }}
+                onClick={() => {
+                  setShowPOPickerModal(false);
+                  handleAddNewFromCardView();
+                }}
+                title="Tạo đề nghị thanh toán độc lập không theo PO / Hợp đồng"
+              >
+                + Tạo ĐNTT trực tiếp (nhập tay)
+              </button>
             </div>
 
             <input
@@ -3784,6 +3818,27 @@ export function PaymentManagement({
                 onClick={() => setPoFilterType("contract")}
               >
                 📑 Hợp đồng kinh tế ({contractCount})
+              </button>
+              <button
+                type="button"
+                style={{
+                  marginLeft: "auto",
+                  padding: "6px 14px",
+                  borderRadius: "6px",
+                  fontSize: "13px",
+                  cursor: "pointer",
+                  border: "1px solid #059669",
+                  background: "#ecfdf5",
+                  color: "#059669",
+                  fontWeight: 700,
+                }}
+                onClick={() => {
+                  setShowPOPickerModal(false);
+                  handleAddNewFromCardView();
+                }}
+                title="Tạo đề nghị thanh toán độc lập không theo PO / Hợp đồng"
+              >
+                + Tạo ĐNTT trực tiếp (nhập tay)
               </button>
             </div>
 
