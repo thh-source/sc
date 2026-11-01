@@ -20,6 +20,7 @@ import {
   Paperclip,
   Circle,
   CheckCircle2,
+  ClipboardPaste,
 } from "lucide-react";
 import {
   PO,
@@ -412,6 +413,12 @@ export function PaymentManagement({
 
   // Selection states
   const [checkedIds, setCheckedIds] = useState<Set<number>>(new Set());
+  const toggleCheck = (id: number, checked: boolean) => {
+    const next = new Set(checkedIds);
+    if (checked) next.add(id);
+    else next.delete(id);
+    setCheckedIds(next);
+  };
   const [activeRequestId, setActiveRequestId] = useState<number | null>(() =>
     initialActiveId !== undefined ? initialActiveId : paymentRequests[0]?.id ?? null
   );
@@ -1717,8 +1724,7 @@ export function PaymentManagement({
               Tổng tiền hiển thị:{" "}
               <b>
                 {fmtMoney(
-                  filteredRequests.reduce((s, r) => s + (Number(r.amount) || 0), 0),
-                  "VND"
+                  filteredRequests.reduce((s, r) => s + (Number(r.amount) || 0), 0)
                 )}{" "}
                 ₫
               </b>
@@ -1813,8 +1819,24 @@ export function PaymentManagement({
                 <button
                   type="button"
                   className="btn btn-secondary btn-md"
-                  onClick={() => setShowPasteModal(true)}
-                  title="Dán dữ liệu từ file Excel (Ctrl+V)"
+                  onClick={async () => {
+                    try {
+                      if (typeof navigator !== "undefined" && navigator.clipboard && navigator.clipboard.readText) {
+                        const text = await navigator.clipboard.readText();
+                        if (text && (text.includes("\t") || text.includes("\n"))) {
+                          const fakeEvent = {
+                            clipboardData: {
+                              getData: () => text,
+                            },
+                          } as any;
+                          handlePaymentTablePaste(fakeEvent);
+                          return;
+                        }
+                      }
+                    } catch {}
+                    alert("Để dán dữ liệu từ Excel:\n1. Chọn và copy (Ctrl+C) các dòng trong Excel\n2. Bấm vào bảng kê thanh toán rồi nhấn phím Ctrl+V");
+                  }}
+                  title="Dán dữ liệu từ file Excel (hoặc bấm vào bảng rồi nhấn Ctrl+V)"
                 >
                   <ClipboardPaste size={16} /> Dán Excel
                 </button>
