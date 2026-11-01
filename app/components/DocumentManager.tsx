@@ -1,6 +1,7 @@
 "use client";
 
 import { ChangeEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { compressUploadFile } from "../utils/compressUploadFile";
 
 type DocumentFile = {
   id: string;
@@ -89,17 +90,22 @@ export default function DocumentManager({
     const file = event.target.files?.[0];
     if (!file) return;
     setUploading(true);
-    onStatus?.(`Đang tải hồ sơ ${file.name}...`);
-    const form = new FormData();
-    form.append("file", file);
-    form.append("entityType", entityType);
-    form.append("entityId", entityId);
-    form.append("workspaceId", workspaceId);
-    form.append("documentType", documentType);
-    form.append("status", status);
-    form.append("expiresAt", expiresAt);
-    form.append("note", note);
+    onStatus?.(`Đang tối ưu hóa tài liệu ${file.name}...`);
     try {
+      const finalFile = await compressUploadFile(file, {
+        onProgress: (_pct, msg) => onStatus?.(msg),
+      });
+      const form = new FormData();
+      form.append("file", finalFile);
+      form.append("entityType", entityType);
+      form.append("entityId", entityId);
+      form.append("workspaceId", workspaceId);
+      form.append("documentType", documentType);
+      form.append("status", status);
+      form.append("expiresAt", expiresAt);
+      form.append("note", note);
+
+      onStatus?.(`Đang tải hồ sơ ${finalFile.name}...`);
       const response = await fetch("/api/files", { method: "POST", body: form });
       if (!response.ok) {
         const body = (await response.json().catch(() => ({}))) as { error?: string };

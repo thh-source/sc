@@ -83,11 +83,11 @@ export async function POST(request: Request) {
       return Response.json({ error: "Không tìm thấy file hợp lệ trong form dữ liệu" }, { status: 400 });
     }
 
-    // Giới hạn 5MB/file
-    const MAX_SIZE = 5 * 1024 * 1024;
+    // Giới hạn 15MB/file (được tự động nén siêu gọn từ Client)
+    const MAX_SIZE = 15 * 1024 * 1024;
     if (file.size > MAX_SIZE) {
       return Response.json(
-        { error: "Dung lượng file vượt quá giới hạn 5MB. Vui lòng chọn file nhẹ hơn hoặc nén ảnh." },
+        { error: "Dung lượng file sau khi tối ưu vẫn vượt quá 15MB. Vui lòng chọn tài liệu gọn hơn." },
         { status: 413 }
       );
     }

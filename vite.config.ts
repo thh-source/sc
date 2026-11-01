@@ -71,8 +71,13 @@ export default defineConfig(async () => {
         ? { watch: { useFsEvents: false, usePolling: true } }
         : {}),
     },
+    resolve: {
+      alias: {
+        canvas: resolve(rootDir, "app/utils/emptyCanvasMock.ts"),
+      },
+    },
     build: {
-      rolldownOptions: { external: ["cloudflare:workers"] },
+      rolldownOptions: { external: ["cloudflare:workers", "canvas"] },
     },
     plugins,
   };

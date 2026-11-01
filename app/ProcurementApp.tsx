@@ -36,7 +36,7 @@ import { POList } from "./components/POList";
 import { PODetail } from "./components/PODetail";
 import { PRList } from "./components/PRList";
 import { PRScanPreviewModal } from "./components/PRScanPreviewModal";
-import { compressImageIfNeeded } from "./utils/compressImage";
+import { compressUploadFile } from "./utils/compressUploadFile";
 import { KnowledgeBase, KnowledgeBaseDrawer } from "./components/KnowledgeBase";
 import { DocFlowLinks } from "./components/DocFlowLinks";
 import { resolveDocFlow } from "./utils/docFlow";
@@ -287,6 +287,7 @@ function ProcurementAppInner({
   const [catalogSubTab, setCatalogSubTab] = useState<"products" | "suppliers">("products");
   const [previewScanPR, setPreviewScanPR] = useState<PR | null>(null);
   const [uploadingScanPrId, setUploadingScanPrId] = useState<number | null>(null);
+  const [compareCompressProgress, setCompareCompressProgress] = useState<string>("");
   const compareScanInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -1142,25 +1143,22 @@ function ProcurementAppInner({
 
   const handleUploadScanInCompare = async (pr: PR, file: File) => {
     if (!file) return;
-    if (file.size > 5 * 1024 * 1024 && file.type === "application/pdf") {
-      alert("File PDF vượt quá 5MB. Vui lòng chọn file nhẹ hơn.");
-      return;
-    }
 
     setUploadingScanPrId(pr.id);
+    setCompareCompressProgress("Đang tối ưu tài liệu...");
     try {
-      const finalFile = await compressImageIfNeeded(file);
-      if (finalFile.size > 5 * 1024 * 1024) {
-        alert("Ảnh sau khi nén vẫn vượt quá 5MB. Vui lòng chọn ảnh dung lượng vừa phải hơn.");
-        setUploadingScanPrId(null);
-        return;
-      }
+      const finalFile = await compressUploadFile(file, {
+        onProgress: (_pct, msg) => {
+          setCompareCompressProgress(msg);
+        },
+      });
 
       const formData = new FormData();
       formData.append("file", finalFile);
       formData.append("pr_code", pr.number);
       formData.append("prId", String(pr.id));
 
+      setCompareCompressProgress("Đang lưu trữ...");
       const res = await fetch("/api/upload-scan", {
         method: "POST",
         body: formData,
@@ -1176,6 +1174,7 @@ function ProcurementAppInner({
       alert(err.message || "Lỗi tải lên bản scan");
     } finally {
       setUploadingScanPrId(null);
+      setCompareCompressProgress("");
     }
   };
 
@@ -3223,7 +3222,7 @@ function ProcurementAppInner({
                       {uploadingScanPrId === selectedPR.id ? (
                         <>
                           <Loader2 size={14} className="animate-spin text-emerald-600" />
-                          <span>Đang tải scan...</span>
+                          <span>{compareCompressProgress || "Đang tối ưu scan..."}</span>
                         </>
                       ) : (
                         <>

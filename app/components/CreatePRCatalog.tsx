@@ -1,6 +1,6 @@
 import React, { ChangeEvent, useState, useMemo, useEffect } from "react";
 import { ArrowLeft, Check, Plus, Download, Upload, Paperclip, Eye, Trash2, Loader2, AlertTriangle, RotateCcw, ChevronRight } from "lucide-react";
-import { compressImageIfNeeded } from "../utils/compressImage";
+import { compressUploadFile } from "../utils/compressUploadFile";
 import { PRScanPreviewModal } from "./PRScanPreviewModal";
 import { Item, ColumnKey, SortState } from "../types";
 import { fmt, makeId, emptyItem, applyTools, BASE_COLUMNS } from "../utils";
@@ -61,6 +61,7 @@ export function CreatePRCatalog({
   }, []);
 
   const [uploadingScan, setUploadingScan] = useState(false);
+  const [scanProgressMessage, setScanProgressMessage] = useState("");
   const [scanFileName, setScanFileName] = useState("");
   const [scanError, setScanError] = useState("");
   const [isDragging, setIsDragging] = useState(false);
@@ -119,24 +120,20 @@ export function CreatePRCatalog({
     setScanError("");
     if (!file) return;
 
-    if (file.size > 5 * 1024 * 1024 && file.type === "application/pdf") {
-      setScanError("File PDF vượt quá 5MB. Vui lòng chọn file nhẹ hơn.");
-      return;
-    }
-
     setUploadingScan(true);
+    setScanProgressMessage("Đang tối ưu tài liệu...");
     try {
-      const finalFile = await compressImageIfNeeded(file);
-      if (finalFile.size > 5 * 1024 * 1024) {
-        setScanError("Ảnh sau khi nén vẫn vượt quá 5MB. Vui lòng chọn ảnh dung lượng vừa phải hơn.");
-        setUploadingScan(false);
-        return;
-      }
+      const finalFile = await compressUploadFile(file, {
+        onProgress: (_pct, msg) => {
+          setScanProgressMessage(msg);
+        },
+      });
 
       const formData = new FormData();
       formData.append("file", finalFile);
       formData.append("pr_code", draft.number || "PR");
 
+      setScanProgressMessage("Đang lưu trữ...");
       const res = await fetch("/api/upload-scan", {
         method: "POST",
         body: formData,
@@ -153,6 +150,7 @@ export function CreatePRCatalog({
       setScanError(err.message || "Lỗi tải lên bản scan");
     } finally {
       setUploadingScan(false);
+      setScanProgressMessage("");
     }
   };
 
@@ -1093,7 +1091,7 @@ export function CreatePRCatalog({
                 {uploadingScan ? (
                   <>
                     <Loader2 size={14} className="animate-spin text-sky-600" />
-                    <span>Đang nén &amp; lưu...</span>
+                    <span>{scanProgressMessage || "Đang nén & lưu..."}</span>
                   </>
                 ) : (
                   <>

@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Plus, ArrowRight, Trash2, Search, CheckCircle2, Circle, Scale, Eye, Printer, Paperclip, Loader2, Truck } from "lucide-react";
-import { compressImageIfNeeded } from "../utils/compressImage";
+import { compressUploadFile } from "../utils/compressUploadFile";
 import { PRScanPreviewModal } from "./PRScanPreviewModal";
 import { PR, PO, ApprovalRequest, PaymentRequestEntry, PaymentHandoverItem } from "../types";
 import { fmt, dateVN } from "../utils";
@@ -43,29 +43,27 @@ export function PRList({
   const [previewScanPR, setPreviewScanPR] = useState<PR | null>(null);
   const [uploadingPrId, setUploadingPrId] = useState<number | null>(null);
   const [targetUploadPR, setTargetUploadPR] = useState<PR | null>(null);
+  const [compressProgress, setCompressProgress] = useState<string>("");
   const rowScanInputRef = React.useRef<HTMLInputElement>(null);
 
   const handleUploadScanForPR = async (pr: PR, file: File) => {
     if (!file) return;
-    if (file.size > 5 * 1024 * 1024 && file.type === "application/pdf") {
-      alert("File PDF vượt quá 5MB. Vui lòng chọn file nhẹ hơn.");
-      return;
-    }
 
     setUploadingPrId(pr.id);
+    setCompressProgress("Đang tối ưu tài liệu...");
     try {
-      const finalFile = await compressImageIfNeeded(file);
-      if (finalFile.size > 5 * 1024 * 1024) {
-        alert("Ảnh sau khi nén vẫn vượt quá 5MB. Vui lòng chọn ảnh dung lượng vừa phải hơn.");
-        setUploadingPrId(null);
-        return;
-      }
+      const finalFile = await compressUploadFile(file, {
+        onProgress: (_pct, msg) => {
+          setCompressProgress(msg);
+        },
+      });
 
       const formData = new FormData();
       formData.append("file", finalFile);
       formData.append("pr_code", pr.number);
       formData.append("prId", String(pr.id));
 
+      setCompressProgress("Đang lưu trữ...");
       const res = await fetch("/api/upload-scan", {
         method: "POST",
         body: formData,
@@ -83,6 +81,7 @@ export function PRList({
     } finally {
       setUploadingPrId(null);
       setTargetUploadPR(null);
+      setCompressProgress("");
     }
   };
 
@@ -404,11 +403,16 @@ export function PRList({
                       disabled={uploadingPrId === pr.id}
                     >
                       {uploadingPrId === pr.id ? (
-                        <Loader2 size={17} className="animate-spin text-sky-600" />
+                        <span style={{ fontSize: "11px", display: "inline-flex", alignItems: "center", gap: "4px" }}>
+                          <Loader2 size={15} className="animate-spin text-sky-600" />
+                          <span>{compressProgress || "Đang nén..."}</span>
+                        </span>
                       ) : (
-                        <Paperclip size={17} />
+                        <>
+                          <Paperclip size={17} />
+                          <span>Tải scan</span>
+                        </>
                       )}
-                      <span>Tải scan</span>
                     </button>
                   )}
 
@@ -605,7 +609,7 @@ export function PRList({
                           {uploadingPrId === pr.id ? (
                             <>
                               <Loader2 size={13} className="animate-spin text-sky-600" />
-                              <span>Đang tải...</span>
+                              <span>{compressProgress || "Đang tối ưu..."}</span>
                             </>
                           ) : (
                             <>
