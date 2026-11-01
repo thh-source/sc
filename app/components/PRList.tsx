@@ -430,16 +430,17 @@ export function PRList({
 
         {/* DESKTOP PR TABLE (STITCH v2 REDESIGNED) */}
         <div className="pr-table" style={{ width: "100%", overflowX: "auto" }}>
-          <table style={{ width: "100%", minWidth: "1140px", tableLayout: "auto" }}>
+          <table style={{ width: "100%", minWidth: "1240px", tableLayout: "auto" }}>
             <colgroup>
               <col style={{ width: "130px" }} />
               <col style={{ width: "130px" }} />
               <col style={{ width: "auto" }} />
               <col style={{ width: "85px" }} />
               <col style={{ width: "135px" }} />
+              <col style={{ width: "130px" }} />
               <col style={{ width: "135px" }} />
-              <col style={{ width: "205px" }} />
-              <col style={{ width: "255px" }} />
+              <col style={{ width: "190px" }} />
+              <col style={{ width: "220px" }} />
             </colgroup>
             <thead>
               <tr>
@@ -449,6 +450,7 @@ export function PRList({
                 <th className="cell-center">{t("table.items_count")}</th>
                 <th className="cell-right">{t("table.est_amount")}</th>
                 <th className="cell-center">{t("table.status")}</th>
+                <th className="cell-center">Bản scan PR</th>
                 <th className="cell-left">Tiến độ luồng</th>
                 <th className="cell-right" style={{ paddingRight: "16px" }}>Thao tác tác nghiệp</th>
               </tr>
@@ -550,6 +552,70 @@ export function PRList({
                         {pr.status}
                       </span>
                     </td>
+                    <td className="cell-center">
+                      {pr.scan_file_url ? (
+                        <div style={{ display: "inline-flex", gap: "5px", alignItems: "center", justifyContent: "center" }}>
+                          <button
+                            type="button"
+                            className="stitch-action-pill pill-sky"
+                            onClick={() => setPreviewScanPR(pr)}
+                            title="Xem bản scan PR gốc"
+                            style={{ padding: "4px 8px", fontSize: "11.5px" }}
+                          >
+                            <Eye size={13} /> Xem scan
+                          </button>
+                          <button
+                            type="button"
+                            className="btn-icon secondary-ghost"
+                            onClick={() => handleQuickPrint(pr)}
+                            title="In bản scan PR"
+                            style={{
+                              color: "#475569",
+                              backgroundColor: "#f8fafc",
+                              border: "1px solid #cbd5e1",
+                              borderRadius: "6px",
+                              padding: "4px 6px",
+                              display: "inline-flex",
+                              alignItems: "center",
+                              cursor: "pointer",
+                            }}
+                          >
+                            <Printer size={13} />
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          className="stitch-action-pill"
+                          onClick={() => {
+                            setTargetUploadPR(pr);
+                            rowScanInputRef.current?.click();
+                          }}
+                          title="Tải lên file scan / ảnh phiếu yêu cầu PR"
+                          disabled={uploadingPrId === pr.id}
+                          style={{
+                            padding: "4px 9px",
+                            fontSize: "11.5px",
+                            color: "#0369a1",
+                            backgroundColor: "#f0f9ff",
+                            border: "1px dashed #7dd3fc",
+                            cursor: "pointer",
+                          }}
+                        >
+                          {uploadingPrId === pr.id ? (
+                            <>
+                              <Loader2 size={13} className="animate-spin text-sky-600" />
+                              <span>Đang tải...</span>
+                            </>
+                          ) : (
+                            <>
+                              <Paperclip size={13} />
+                              <span>+ Tải scan</span>
+                            </>
+                          )}
+                        </button>
+                      )}
+                    </td>
                     <td>
                       <DocFlowLinks flow={flow} currentView="prs" onNavigate={onNavigate} compact />
                     </td>
@@ -571,69 +637,6 @@ export function PRList({
                             title="Tạo biên bản bàn giao từ PR này"
                           >
                             <Truck size={13} /> Bàn giao
-                          </button>
-                        )}
-                        {pr.scan_file_url ? (
-                          <div style={{ display: "inline-flex", gap: "4px", alignItems: "center" }}>
-                            <button
-                              type="button"
-                              className="btn-icon primary-ghost"
-                              onClick={() => setPreviewScanPR(pr)}
-                              title="Xem bản scan PR"
-                              style={{
-                                color: "#0284c7",
-                                backgroundColor: "#f0f9ff",
-                                border: "1px solid #bae6fd",
-                                borderRadius: "6px",
-                                padding: "5px 7px",
-                                display: "inline-flex",
-                                alignItems: "center",
-                                cursor: "pointer",
-                              }}
-                            >
-                              <Eye size={14} />
-                            </button>
-                            <button
-                              type="button"
-                              className="btn-icon secondary-ghost"
-                              onClick={() => handleQuickPrint(pr)}
-                              title="In bản scan"
-                              style={{
-                                color: "#475569",
-                                backgroundColor: "#f8fafc",
-                                border: "1px solid #cbd5e1",
-                                borderRadius: "6px",
-                                padding: "5px 7px",
-                                display: "inline-flex",
-                                alignItems: "center",
-                                cursor: "pointer",
-                              }}
-                            >
-                              <Printer size={14} />
-                            </button>
-                          </div>
-                        ) : (
-                          <button
-                            type="button"
-                            className="btn-icon"
-                            onClick={() => {
-                              setTargetUploadPR(pr);
-                              rowScanInputRef.current?.click();
-                            }}
-                            title="Tải lên bản scan PR"
-                            disabled={uploadingPrId === pr.id}
-                            style={{
-                              color: "#64748b",
-                              backgroundColor: "#f8fafc",
-                              border: "1px dashed #cbd5e1",
-                              borderRadius: "6px",
-                              padding: "5px 7px",
-                              display: "inline-flex",
-                              alignItems: "center",
-                              cursor: "pointer",
-                            }}
-                          >
-                            {uploadingPrId === pr.id ? <Loader2 size={14} className="animate-spin text-sky-600" /> : <Paperclip size={14} />}
                           </button>
                         )}
                         {onDelete && (

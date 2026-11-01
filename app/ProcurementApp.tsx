@@ -35,6 +35,8 @@ import { Dashboard } from "./components/Dashboard";
 import { POList } from "./components/POList";
 import { PODetail } from "./components/PODetail";
 import { PRList } from "./components/PRList";
+import { PRScanPreviewModal } from "./components/PRScanPreviewModal";
+import { compressImageIfNeeded } from "./utils/compressImage";
 import { KnowledgeBase, KnowledgeBaseDrawer } from "./components/KnowledgeBase";
 import { DocFlowLinks } from "./components/DocFlowLinks";
 import { resolveDocFlow } from "./utils/docFlow";
@@ -105,6 +107,10 @@ import {
   BookOpen,
   HelpCircle,
   Menu,
+  Eye,
+  Paperclip,
+  Loader2,
+  Printer,
 } from "lucide-react";
 import {
   AppRoute,
@@ -279,6 +285,9 @@ function ProcurementAppInner({
   const [settingsModalOpen, setSettingsModalOpen] = useState(false);
   const [mobileActionSheetOpen, setMobileActionSheetOpen] = useState(false);
   const [catalogSubTab, setCatalogSubTab] = useState<"products" | "suppliers">("products");
+  const [previewScanPR, setPreviewScanPR] = useState<PR | null>(null);
+  const [uploadingScanPrId, setUploadingScanPrId] = useState<number | null>(null);
+  const compareScanInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
@@ -1128,6 +1137,46 @@ function ProcurementAppInner({
     setPrs((list) =>
       list.map((pr) => (pr.id === prId ? { ...pr, scan_file_url: scanUrl } : pr))
     );
+    setSelectedPR((prev) => (prev && prev.id === prId ? { ...prev, scan_file_url: scanUrl } : prev));
+  };
+
+  const handleUploadScanInCompare = async (pr: PR, file: File) => {
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024 && file.type === "application/pdf") {
+      alert("File PDF vượt quá 5MB. Vui lòng chọn file nhẹ hơn.");
+      return;
+    }
+
+    setUploadingScanPrId(pr.id);
+    try {
+      const finalFile = await compressImageIfNeeded(file);
+      if (finalFile.size > 5 * 1024 * 1024) {
+        alert("Ảnh sau khi nén vẫn vượt quá 5MB. Vui lòng chọn ảnh dung lượng vừa phải hơn.");
+        setUploadingScanPrId(null);
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append("file", finalFile);
+      formData.append("pr_code", pr.number);
+      formData.append("prId", String(pr.id));
+
+      const res = await fetch("/api/upload-scan", {
+        method: "POST",
+        body: formData,
+      });
+
+      const data: any = await res.json();
+      if (!res.ok || !data.ok) {
+        throw new Error(data.error || "Tải lên bản scan thất bại");
+      }
+
+      handleUpdatePRScan(pr.id, data.scan_file_url);
+    } catch (err: any) {
+      alert(err.message || "Lỗi tải lên bản scan");
+    } finally {
+      setUploadingScanPrId(null);
+    }
   };
 
   const savePR = () => {
@@ -3101,6 +3150,91 @@ function ProcurementAppInner({
               </nav>
 
               <div style={{ display: "inline-flex", alignItems: "center", gap: "8px" }}>
+                {selectedPR && (
+                  selectedPR.scan_file_url ? (
+                    <div style={{ display: "inline-flex", gap: "6px", alignItems: "center" }}>
+                      <button
+                        type="button"
+                        onClick={() => setPreviewScanPR(selectedPR)}
+                        title="Xem bản scan PR gốc"
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: "6px",
+                          padding: "5px 12px",
+                          fontSize: "12.5px",
+                          fontWeight: 600,
+                          backgroundColor: "#f0f9ff",
+                          color: "#0284c7",
+                          border: "1px solid #bae6fd",
+                          borderRadius: "6px",
+                          cursor: "pointer",
+                        }}
+                      >
+                        <Eye size={15} /> Xem bản scan PR
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => compareScanInputRef.current?.click()}
+                        title="Tải lên bản scan khác thay thế"
+                        disabled={uploadingScanPrId === selectedPR.id}
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: "5px",
+                          padding: "5px 10px",
+                          fontSize: "12px",
+                          fontWeight: 500,
+                          backgroundColor: "#ffffff",
+                          color: "#475569",
+                          border: "1px solid #cbd5e1",
+                          borderRadius: "6px",
+                          cursor: "pointer",
+                        }}
+                      >
+                        {uploadingScanPrId === selectedPR.id ? (
+                          <Loader2 size={13} className="animate-spin text-sky-600" />
+                        ) : (
+                          <Paperclip size={13} />
+                        )}
+                        <span>Đổi scan</span>
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => compareScanInputRef.current?.click()}
+                      title="Tải lên bản scan PR gốc (PDF hoặc ảnh)"
+                      disabled={uploadingScanPrId === selectedPR.id}
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: "6px",
+                        padding: "5px 12px",
+                        fontSize: "12.5px",
+                        fontWeight: 600,
+                        backgroundColor: "#f0fdf4",
+                        color: "#15803d",
+                        border: "1px dashed #86efac",
+                        borderRadius: "6px",
+                        cursor: "pointer",
+                      }}
+                    >
+                      {uploadingScanPrId === selectedPR.id ? (
+                        <>
+                          <Loader2 size={14} className="animate-spin text-emerald-600" />
+                          <span>Đang tải scan...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Paperclip size={14} />
+                          <span>+ Tải bản scan PR</span>
+                        </>
+                      )}
+                    </button>
+                  )
+                )}
+
                 <button
                   type="button"
                   className="btn btn-secondary"
@@ -3349,6 +3483,19 @@ function ProcurementAppInner({
                 onStatus={setStorageStatus}
               />
             )}
+            <input
+              ref={compareScanInputRef}
+              type="file"
+              accept="application/pdf,image/png,image/jpeg,image/webp"
+              hidden
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f && selectedPR) {
+                  handleUploadScanInCompare(selectedPR, f);
+                }
+                e.target.value = "";
+              }}
+            />
           </section>
         )}
         {view === "guide" && (
@@ -4271,6 +4418,14 @@ function ProcurementAppInner({
             setStorageStatus(`✓ Đã liên kết đợt "${stage.phase}" với ĐNTT #${req.legacy_stt || req.id}`);
             setLinkModalFromPicker(null);
           }}
+        />
+      )}
+
+      {/* PR Scan Preview Modal */}
+      {previewScanPR && (
+        <PRScanPreviewModal
+          pr={previewScanPR}
+          onClose={() => setPreviewScanPR(null)}
         />
       )}
 
