@@ -2129,12 +2129,6 @@ export function PaymentManagement({
                       {r.invoice_date && <span style={{ color: "#64748b" }}>({r.invoice_date})</span>}
                     </div>
                   )}
-                  {r.bank && (
-                    <div>🏦 {r.bank} - TK: <b>{r.account_no || "---"}</b></div>
-                  )}
-                  {r.address && (
-                    <div>📍 {r.address}</div>
-                  )}
                 </div>
 
                 {docs.length > 0 && (
@@ -2207,51 +2201,51 @@ export function PaymentManagement({
                   </div>
                 ) : (
                   /* Desktop Card Actions: Đầy đủ tính năng sửa, in, hồ sơ, xóa trên máy tính */
-                  <div className="m-card-desktop-tools">
+                  <div className="m-card-desktop-tools" style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: "4px", width: "100%", marginTop: "8px" }}>
                     <button
                       type="button"
                       className="m-btn-edit-card"
                       onClick={() => setEditModalReqId(r.id)}
                       title="Chỉnh sửa chi tiết thông tin đề nghị thanh toán"
-                      style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}
+                      style={{ width: "100%", height: "29px", padding: "0 2px", fontSize: "11px", fontWeight: 700, display: "inline-flex", alignItems: "center", justifyContent: "center", gap: "3px" }}
                     >
-                      <Pencil size={13} /> Sửa
+                      <Pencil size={12} /> Sửa
                     </button>
                     <button
                       type="button"
                       className={`m-btn-toggle-done ${isDone ? "is-done" : ""}`}
                       onClick={() => handleTogglePaid(r.id, !isDone)}
                       title={isDone ? "Bỏ đánh dấu đã thanh toán" : "Đánh dấu đã thanh toán"}
-                      style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}
+                      style={{ width: "100%", height: "29px", padding: "0 2px", fontSize: "11px", fontWeight: 700, display: "inline-flex", alignItems: "center", justifyContent: "center", gap: "2px" }}
                     >
-                      {isDone ? <Check size={13} /> : null} {isDone ? "Đã TT" : "Đánh dấu TT"}
-                    </button>
-                    <button
-                      type="button"
-                      className="m-btn-icon-action"
-                      onClick={() => handlePrintSingle(r)}
-                      title="In phiếu thanh toán này"
-                      style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}
-                    >
-                      <Printer size={13} /> In
+                      {isDone ? <Check size={12} /> : null} {isDone ? "Đã TT" : "Đánh dấu TT"}
                     </button>
                     <button
                       type="button"
                       className="m-btn-icon-action"
                       onClick={() => setDocModalReqId(r.id)}
                       title="Hồ sơ chứng từ"
-                      style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}
+                      style={{ width: "100%", height: "29px", padding: "0 2px", fontSize: "11px", fontWeight: 700, display: "inline-flex", alignItems: "center", justifyContent: "center", gap: "3px" }}
                     >
-                      <Paperclip size={13} /> Hồ sơ
+                      <Paperclip size={12} /> Hồ sơ
+                    </button>
+                    <button
+                      type="button"
+                      className="m-btn-icon-action"
+                      onClick={() => handlePrintSingle(r)}
+                      title="In phiếu thanh toán này"
+                      style={{ width: "100%", height: "29px", padding: "0 2px", fontSize: "11px", fontWeight: 700, display: "inline-flex", alignItems: "center", justifyContent: "center", gap: "3px" }}
+                    >
+                      <Printer size={12} /> In
                     </button>
                     <button
                       type="button"
                       className="m-btn-icon-action btn-danger"
                       onClick={() => handleDeleteRequest(r.id)}
-                      title="Xóa đề nghị này"
-                      style={{ display: "inline-flex", alignItems: "center", justifyContent: "center" }}
+                      title="Xóa đề nghị thanh toán này"
+                      style={{ width: "100%", height: "29px", padding: "0 2px", fontSize: "11px", fontWeight: 700, display: "inline-flex", alignItems: "center", justifyContent: "center", gap: "3px" }}
                     >
-                      <Trash2 size={14} />
+                      <Trash2 size={12} /> Xóa
                     </button>
                   </div>
                 )}
