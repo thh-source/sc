@@ -34,7 +34,7 @@ aside {
   height: 100vh;
   position: sticky;
   top: 0;
-  background: linear-gradient(180deg, #0b1a2d 0%, #0d2440 100%);
+  background: linear-gradient(180deg, #2B6DF8 0%, #1E57D8 52%, #1442B0 100%);
   color: white;
   display: flex;
   flex-direction: column;

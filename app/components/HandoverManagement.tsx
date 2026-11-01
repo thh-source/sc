@@ -1458,7 +1458,7 @@ export function HandoverManagement({
                 style={{
                   background: "#ffffff",
                   border: allChecked ? "2px solid #0284c7" : "1px solid #cbd5e1",
-                  borderLeft: allChecked ? "5px solid #0284c7" : "5px solid #0c326f",
+                  borderLeft: allChecked ? "5px solid #0284c7" : "5px solid #2B6DF8",
                   borderRadius: "14px",
                   padding: "16px 18px",
                   boxShadow: "0 4px 14px rgba(15, 23, 42, 0.05)",
@@ -1487,7 +1487,7 @@ export function HandoverManagement({
                             fontSize: "11px",
                             fontWeight: 800,
                             color: "#ffffff",
-                            background: "linear-gradient(135deg, #0c326f 0%, #1e40af 100%)",
+                            background: "linear-gradient(135deg, #2B6DF8 0%, #1e40af 100%)",
                             padding: "2px 8px",
                             borderRadius: "6px",
                           }}
@@ -1599,7 +1599,7 @@ export function HandoverManagement({
                     <div style={{ fontSize: "10.5px", fontWeight: 700, color: "#64748b", textTransform: "uppercase" }}>
                       Số danh mục
                     </div>
-                    <div style={{ fontSize: "15px", fontWeight: 800, color: "#0c326f", marginTop: "1px" }}>
+                    <div style={{ fontSize: "15px", fontWeight: 800, color: "#2B6DF8", marginTop: "1px" }}>
                       {batch.items.length} <span style={{ fontSize: "11.5px", fontWeight: 600 }}>mặt hàng</span>
                     </div>
                   </div>

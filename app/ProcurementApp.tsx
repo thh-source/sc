@@ -3390,7 +3390,7 @@ function ProcurementAppInner({
                     </button>
                     <button
                       className="btn btn-primary"
-                      style={{ background: "#0f2b5b", color: "#fff" }}
+                      style={{ background: "#2B6DF8", color: "#fff" }}
                       onClick={openApproval}
                       title="Kế thừa danh sách hàng hóa, NCC và đơn giá của PR này sang Đề nghị Phê duyệt Lựa chọn NCC"
                     >

@@ -1842,7 +1842,7 @@ export default function ApprovalManagement({
                     <dl>
                       <div>
                         <dt>NCC đề xuất</dt>
-                        <dd style={{ color: "#0f2b5b" }}>
+                        <dd style={{ color: "#2B6DF8" }}>
                           {req.recommendedSupplierName || selectedCol?.supplierName || "Chưa chọn"}
                         </dd>
                       </div>
@@ -2005,7 +2005,7 @@ export default function ApprovalManagement({
                           </span>
                         </td>
                         <td>
-                          <strong style={{ color: "#0f2b5b", fontSize: 13 }}>
+                          <strong style={{ color: "#2B6DF8", fontSize: 13 }}>
                             {req.recommendedSupplierName ||
                               selectedCol?.supplierName ||
                               "Chưa chọn"}
@@ -5166,7 +5166,7 @@ export default function ApprovalManagement({
                       }
                     >
                       <div>
-                        <div style={{ fontWeight: 700, color: "#0f2b5b" }}>
+                        <div style={{ fontWeight: 700, color: "#2B6DF8" }}>
                           PR số: {pr.number} — {pr.department}
                         </div>
                         <div style={{ fontSize: 13, color: "#475569" }}>

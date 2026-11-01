@@ -668,7 +668,7 @@ export function CreatePRCatalog({
             top: 0,
             bottom: 0,
             width: "5px",
-            background: "linear-gradient(180deg, #0c326f 0%, #e65100 100%)",
+            background: "linear-gradient(180deg, #2B6DF8 0%, #e65100 100%)",
           }}
         />
         <div style={{ paddingLeft: "6px" }}>
@@ -683,7 +683,7 @@ export function CreatePRCatalog({
               marginBottom: "4px",
             }}
           >
-            <span style={{ cursor: "pointer", color: "#0c326f" }} onClick={onCancel}>
+            <span style={{ cursor: "pointer", color: "#2B6DF8" }} onClick={onCancel}>
               Yêu cầu Mua sắm (PR)
             </span>
             <span>/</span>
@@ -706,7 +706,7 @@ export function CreatePRCatalog({
               margin: 0,
               fontSize: "20px",
               fontWeight: 800,
-              color: "#0c326f",
+              color: "#2B6DF8",
               letterSpacing: "-0.015em",
             }}
           >
@@ -856,7 +856,7 @@ export function CreatePRCatalog({
               borderRadius: "8px",
               fontSize: "13px",
               fontWeight: 800,
-              background: "linear-gradient(135deg, #0c326f 0%, #1e40af 100%)",
+              background: "linear-gradient(135deg, #2B6DF8 0%, #1e40af 100%)",
               color: "#ffffff",
               display: "grid",
               placeItems: "center",
@@ -899,7 +899,7 @@ export function CreatePRCatalog({
                 fontSize: "13.5px",
                 fontWeight: 700,
                 fontFamily: "var(--stitch-font-mono, monospace)",
-                color: "#0c326f",
+                color: "#2B6DF8",
                 outline: 0,
                 background: "#f8fafc",
               }}
@@ -1301,7 +1301,7 @@ export function CreatePRCatalog({
           }}
         >
           <div className="catalog-picker-left" style={{ display: "flex", alignItems: "center", gap: "10px", flex: 1, minWidth: "320px" }}>
-            <span className="picker-label" style={{ fontSize: "12.5px", fontWeight: 700, color: "#0c326f", whiteSpace: "nowrap" }}>
+            <span className="picker-label" style={{ fontSize: "12.5px", fontWeight: 700, color: "#2B6DF8", whiteSpace: "nowrap" }}>
               📦 Chọn từ kho Danh mục:
             </span>
             <select

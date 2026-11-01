@@ -1048,7 +1048,7 @@ export function POList({
                     </td>
                     <td style={{ whiteSpace: "nowrap", fontWeight: 600, color: "#334155" }}>{dateVN(po.createdDate)}</td>
                     <td style={{ whiteSpace: "nowrap", color: "#475569" }}>{dateVN(po.expectedDate)}</td>
-                    <td className="money" style={{ whiteSpace: "nowrap", textAlign: "right", fontSize: "13.5px", fontWeight: 800, color: "#0c326f" }}>{fmt(total)} ₫</td>
+                    <td className="money" style={{ whiteSpace: "nowrap", textAlign: "right", fontSize: "13.5px", fontWeight: 800, color: "#2B6DF8" }}>{fmt(total)} ₫</td>
                     <td style={{ textAlign: "center", minWidth: "175px" }}>
                       {/* Dòng 1: Tiến độ giao hàng */}
                       <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "3px", marginBottom: "5px" }}>

@@ -9,9 +9,9 @@
 
 @media screen and (min-width: 769px) {
   :root {
-    --stitch-navy: #0c326f;
-    --stitch-navy-dark: #071e46;
-    --stitch-navy-light: #16438d;
+    --stitch-navy: #2B6DF8;
+    --stitch-navy-dark: #1442B0;
+    --stitch-navy-light: #4A84F9;
     --stitch-cobalt: #1e40af;
     --stitch-orange: #e65100;
     --stitch-orange-light: #f97316;
@@ -33,7 +33,7 @@
   }
 
   /* ------------------------------------------------------------------------
-     1. APP SHELL & LEFT NAVIGATION SIDEBAR (Phenikaa Deep Navy #0C326F -> #071E46)
+     1. APP SHELL & LEFT NAVIGATION SIDEBAR (Phenikaa Deep Navy #2B6DF8 -> #071E46)
      ------------------------------------------------------------------------ */
   .app {
     grid-template-columns: 236px minmax(0, 1fr);
@@ -44,9 +44,9 @@
   }
 
   .app > aside {
-    background: linear-gradient(180deg, #0c326f 0%, #0a2756 52%, #071e46 100%);
+    background: linear-gradient(180deg, #2B6DF8 0%, #1E57D8 52%, #1442B0 100%);
     border-right: 1px solid rgba(255, 255, 255, 0.1);
-    box-shadow: 4px 0 24px rgba(7, 30, 70, 0.18);
+    box-shadow: 4px 0 24px rgba(20, 66, 176, 0.18);
   }
 
   /* Original Phenikaa Logo Badge Container */
@@ -145,7 +145,7 @@
   .app > aside nav button.active {
     background: linear-gradient(90deg, rgba(230, 81, 0, 0.22) 0%, rgba(255, 255, 255, 0.11) 100%) !important;
     color: #ffffff !important;
-    box-shadow: inset 4px 0 0 #e65100, 0 4px 14px rgba(7, 30, 70, 0.32) !important;
+    box-shadow: inset 4px 0 0 #e65100, 0 4px 14px rgba(20, 66, 176, 0.32) !important;
     border: 1px solid rgba(255, 255, 255, 0.14);
     font-weight: 700;
   }
@@ -157,7 +157,7 @@
 
   /* Sidebar Footer & User Card */
   .sidebar-bottom-actions {
-    background: rgba(7, 30, 70, 0.55);
+    background: rgba(20, 66, 176, 0.55);
     border-top: 1px solid rgba(255, 255, 255, 0.1);
     padding: 12px;
   }
@@ -205,12 +205,12 @@
   .pr-toolbar > button.primary,
   .product-toolbar > button.primary,
   .supplier-toolbar > button.primary {
-    background: linear-gradient(135deg, #0c326f 0%, #1e40af 100%) !important;
+    background: linear-gradient(135deg, #2B6DF8 0%, #1e40af 100%) !important;
     color: #ffffff !important;
     border: 1px solid #1e3a8a !important;
     border-radius: 8px !important;
     font-weight: 600 !important;
-    box-shadow: 0 4px 12px rgba(12, 50, 111, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.22) !important;
+    box-shadow: 0 4px 12px rgba(43, 109, 248, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.22) !important;
     transition: all 0.16s cubic-bezier(0.16, 1, 0.3, 1) !important;
   }
 
@@ -221,7 +221,7 @@
     background: linear-gradient(135deg, #16438d 0%, #2563eb 100%) !important;
     border-color: #1d4ed8 !important;
     transform: translateY(-1px) !important;
-    box-shadow: 0 6px 16px rgba(12, 50, 111, 0.32), inset 0 1px 0 rgba(255, 255, 255, 0.28) !important;
+    box-shadow: 0 6px 16px rgba(43, 109, 248, 0.32), inset 0 1px 0 rgba(255, 255, 255, 0.28) !important;
   }
 
   button.primary:active:not(:disabled),
@@ -296,7 +296,7 @@
   .new-product-btn:hover:not(:disabled) {
     background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%) !important;
     border-color: #94a3b8 !important;
-    color: #0c326f !important;
+    color: #2B6DF8 !important;
     transform: translateY(-1px) !important;
     box-shadow: 0 4px 10px rgba(15, 23, 42, 0.08), inset 0 1px 0 #ffffff !important;
   }
@@ -323,7 +323,7 @@
   .po-preset-pill:hover:not(:disabled) {
     background: #eff6ff !important;
     border-color: #3b82f6 !important;
-    color: #0c326f !important;
+    color: #2B6DF8 !important;
     transform: translateY(-1px) !important;
     box-shadow: 0 3px 8px rgba(30, 64, 175, 0.14) !important;
   }
@@ -416,7 +416,7 @@
   .product-kpis article:hover,
   .contract-kpis article:hover {
     transform: translateY(-2px);
-    box-shadow: 0 8px 20px -4px rgba(12, 50, 111, 0.1), 0 2px 6px rgba(15, 23, 42, 0.04);
+    box-shadow: 0 8px 20px -4px rgba(43, 109, 248, 0.1), 0 2px 6px rgba(15, 23, 42, 0.04);
     border-color: #cbd5e1;
   }
 
@@ -443,9 +443,9 @@
   .seg-pill.active,
   .vat-compare-segmented .seg-btn.active {
     background: #ffffff !important;
-    color: #0c326f !important;
+    color: #2B6DF8 !important;
     font-weight: 700 !important;
-    box-shadow: 0 2px 6px rgba(12, 50, 111, 0.1), 0 0 0 1px rgba(226, 232, 240, 0.8) !important;
+    box-shadow: 0 2px 6px rgba(43, 109, 248, 0.1), 0 0 0 1px rgba(226, 232, 240, 0.8) !important;
   }
 
   /* Payment Sub-tabs */
@@ -469,9 +469,9 @@
 
   .payment-tab-btn.active {
     background: #ffffff;
-    color: #0c326f;
+    color: #2B6DF8;
     font-weight: 700;
-    box-shadow: 0 2px 6px rgba(12, 50, 111, 0.1), 0 0 0 1px rgba(226, 232, 240, 0.8);
+    box-shadow: 0 2px 6px rgba(43, 109, 248, 0.1), 0 0 0 1px rgba(226, 232, 240, 0.8);
   }
 
   /* ------------------------------------------------------------------------
@@ -528,7 +528,7 @@
     border-radius: 6px;
     background: #eff6ff;
     border: 1px solid #bfdbfe;
-    color: #0c326f !important;
+    color: #2B6DF8 !important;
     font-size: 12px;
     font-weight: 700;
     transition: all 0.15s ease;
@@ -562,7 +562,7 @@
   .spotlight-modal {
     border-radius: 16px !important;
     border: 1px solid rgba(203, 213, 225, 0.9) !important;
-    box-shadow: 0 25px 60px -15px rgba(12, 50, 111, 0.34), 0 0 0 1px rgba(255, 255, 255, 0.85) inset !important;
+    box-shadow: 0 25px 60px -15px rgba(43, 109, 248, 0.34), 0 0 0 1px rgba(255, 255, 255, 0.85) inset !important;
   }
 
   /* Unified Stitch v2 Deep Navy Header across Popups */
@@ -570,7 +570,7 @@
   .po-handover-modal-card > div:first-child,
   .payment-link-modal-card > div:first-child,
   .payment-modal-card > div:first-child {
-    background: linear-gradient(135deg, #0c326f 0%, #071e46 100%) !important;
+    background: linear-gradient(135deg, #2B6DF8 0%, #1442B0 100%) !important;
     color: #ffffff !important;
     border-bottom: 1px solid rgba(255, 255, 255, 0.14) !important;
   }
@@ -632,7 +632,7 @@
 
   /* Spotlight Search Modal Enhancements */
   .spotlight-header {
-    background: linear-gradient(135deg, #0c326f 0%, #071e46 100%) !important;
+    background: linear-gradient(135deg, #2B6DF8 0%, #1442B0 100%) !important;
     border-bottom: 1px solid rgba(255, 255, 255, 0.14) !important;
     padding: 16px 20px !important;
   }
@@ -654,10 +654,10 @@
   }
 
   .spotlight-tab-btn.active {
-    background: linear-gradient(135deg, #0c326f 0%, #1e40af 100%) !important;
+    background: linear-gradient(135deg, #2B6DF8 0%, #1e40af 100%) !important;
     color: #ffffff !important;
     border-color: #1e3a8a !important;
-    box-shadow: 0 3px 10px rgba(12, 50, 111, 0.24) !important;
+    box-shadow: 0 3px 10px rgba(43, 109, 248, 0.24) !important;
   }
 
   /* Form Inputs Focus Ring inside Workspace & Modals */
@@ -695,7 +695,7 @@
     margin-bottom: 4px !important;
     background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%) !important;
     border: 1px solid #e2e8f0 !important;
-    border-left: 3px solid #0c326f !important;
+    border-left: 3px solid #2B6DF8 !important;
     border-radius: 6px !important;
     box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04) !important;
     min-height: 36px !important;
@@ -754,10 +754,10 @@
     top: 0;
     bottom: 0;
     width: 4px;
-    background: #0c326f;
+    background: #2B6DF8;
   }
 
-  .stitch-kpi-card.kpi-navy::before { background: #0c326f; }
+  .stitch-kpi-card.kpi-navy::before { background: #2B6DF8; }
   .stitch-kpi-card.kpi-orange::before { background: #e65100; }
   .stitch-kpi-card.kpi-emerald::before { background: #059669; }
   .stitch-kpi-card.kpi-sky::before { background: #0284c7; }
@@ -839,7 +839,7 @@
   .stitch-kpi-sub b {
     font-family: var(--stitch-font-mono);
     font-weight: 700;
-    color: #0c326f;
+    color: #2B6DF8;
   }
 
   /* Stitch Filter Bar & Segmented Pill Group */
@@ -892,7 +892,7 @@
 
   .stitch-seg-btn.active {
     background: #ffffff !important;
-    color: #0c326f !important;
+    color: #2B6DF8 !important;
     box-shadow: 0 1px 3px rgba(15, 23, 42, 0.12) !important;
   }
 
@@ -904,7 +904,7 @@
   .stitch-count-pill {
     font-size: 12px;
     font-weight: 700;
-    color: #0c326f;
+    color: #2B6DF8;
     background: #eff6ff;
     border: 1px solid #bfdbfe;
     padding: 5px 12px;
@@ -928,16 +928,16 @@
   }
 
   .stitch-action-pill.pill-navy {
-    background: linear-gradient(135deg, #0c326f 0%, #1e40af 100%) !important;
+    background: linear-gradient(135deg, #2B6DF8 0%, #1e40af 100%) !important;
     color: #ffffff !important;
     border: 1px solid #1e3a8a !important;
-    box-shadow: 0 2px 6px rgba(12, 50, 111, 0.2) !important;
+    box-shadow: 0 2px 6px rgba(43, 109, 248, 0.2) !important;
   }
 
   .stitch-action-pill.pill-navy:hover {
-    background: linear-gradient(135deg, #092554 0%, #1d4ed8 100%) !important;
+    background: linear-gradient(135deg, #1E57D8 0%, #1d4ed8 100%) !important;
     transform: translateY(-1px) !important;
-    box-shadow: 0 4px 10px rgba(12, 50, 111, 0.28) !important;
+    box-shadow: 0 4px 10px rgba(43, 109, 248, 0.28) !important;
   }
 
   .stitch-action-pill.pill-emerald {
@@ -1077,7 +1077,7 @@
     font-family: var(--stitch-font-mono) !important;
     font-size: 15px !important;
     font-weight: 800 !important;
-    color: #0c326f !important;
+    color: #2B6DF8 !important;
   }
 
   /* ========================================================================
@@ -1093,7 +1093,7 @@
     max-height: 18px !important;
     padding: 0 !important;
     margin: 0 auto !important;
-    accent-color: #0c326f !important;
+    accent-color: #2B6DF8 !important;
     cursor: pointer !important;
     box-shadow: none !important;
   }
@@ -1138,7 +1138,7 @@
   .po-detail > .heading {
     background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%) !important;
     border: 1px solid #e2e8f0 !important;
-    border-left: 5px solid #0c326f !important;
+    border-left: 5px solid #2B6DF8 !important;
     border-radius: 14px !important;
     padding: 18px 24px !important;
     margin-bottom: 16px !important;
@@ -1167,11 +1167,11 @@
   }
 
   .po-total {
-    background: linear-gradient(135deg, #0c326f 0%, #1e3a8a 100%) !important;
+    background: linear-gradient(135deg, #2B6DF8 0%, #1e3a8a 100%) !important;
     color: #ffffff !important;
     border-radius: 12px !important;
     padding: 10px 18px !important;
-    box-shadow: 0 6px 16px rgba(12, 50, 111, 0.22) !important;
+    box-shadow: 0 6px 16px rgba(43, 109, 248, 0.22) !important;
     border: 1px solid rgba(255, 255, 255, 0.15) !important;
   }
 
@@ -1218,7 +1218,7 @@
 
   .po-tabs a:hover {
     background: #eff6ff !important;
-    color: #0c326f !important;
+    color: #2B6DF8 !important;
   }
 
   .po-section {
@@ -1244,11 +1244,11 @@
 
   /* Approval Detail Topbar & Config Bar */
   .approval-detail-topbar {
-    background: linear-gradient(135deg, #0c326f 0%, #09224c 100%) !important;
+    background: linear-gradient(135deg, #2B6DF8 0%, #1442B0 100%) !important;
     border-radius: 14px !important;
     padding: 14px 20px !important;
     margin-bottom: 12px !important;
-    box-shadow: 0 8px 22px -6px rgba(12, 50, 111, 0.32) !important;
+    box-shadow: 0 8px 22px -6px rgba(43, 109, 248, 0.32) !important;
     border: 1px solid rgba(255, 255, 255, 0.12) !important;
   }
 
@@ -1279,7 +1279,7 @@
   .mobile-cards-container .m-card {
     background: #ffffff !important;
     border: 1px solid #e2e8f0 !important;
-    border-left: 4px solid #0c326f !important;
+    border-left: 4px solid #2B6DF8 !important;
     border-radius: 14px !important;
     padding: 16px 18px !important;
     box-shadow: 0 4px 12px rgba(15, 23, 42, 0.05) !important;
@@ -1331,7 +1331,7 @@
   .compare-page > .heading {
     background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%) !important;
     border: 1px solid #e2e8f0 !important;
-    border-left: 5px solid #0c326f !important;
+    border-left: 5px solid #2B6DF8 !important;
     border-radius: 14px !important;
     padding: 16px 22px !important;
     margin-bottom: 14px !important;

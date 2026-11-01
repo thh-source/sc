@@ -68,7 +68,7 @@ export function SupplierPickerModal({
         {/* Stitch v2 Deep Navy Header */}
         <div
           style={{
-            background: "linear-gradient(135deg, #0c326f 0%, #071e46 100%)",
+            background: "linear-gradient(135deg, #2B6DF8 0%, #1442B0 100%)",
             padding: "18px 22px",
             color: "#ffffff",
             display: "flex",
@@ -187,7 +187,7 @@ export function SupplierPickerModal({
                         fontSize: "11px",
                         fontWeight: 700,
                         background: "#eff6ff",
-                        color: "#0c326f",
+                        color: "#2B6DF8",
                         border: "1px solid #bfdbfe",
                         padding: "2px 7px",
                         borderRadius: "5px",
@@ -215,7 +215,7 @@ export function SupplierPickerModal({
                   style={{
                     padding: "5px 11px",
                     borderRadius: "7px",
-                    background: "linear-gradient(135deg, #0c326f 0%, #1e40af 100%)",
+                    background: "linear-gradient(135deg, #2B6DF8 0%, #1e40af 100%)",
                     color: "#ffffff",
                     fontSize: "11.5px",
                     fontWeight: 700,
