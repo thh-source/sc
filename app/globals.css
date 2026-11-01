@@ -30,17 +30,25 @@
   grid-template-columns: 68px minmax(0, 1fr);
 }
 
+@keyframes azureWaveShift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
 aside {
   height: 100vh;
   position: sticky;
   top: 0;
-  background: linear-gradient(180deg, #2B6DF8 0%, #1E57D8 52%, #1442B0 100%);
+  background: linear-gradient(135deg, #3B82F6 0%, #2563EB 38%, #1D4ED8 75%, #1E40AF 100%);
+  background-size: 300% 300%;
+  animation: azureWaveShift 10s ease infinite;
   color: white;
   display: flex;
   flex-direction: column;
   overflow: hidden;
   z-index: 30;
-  border-right: 1px solid rgba(255, 255, 255, 0.07);
+  border-right: 1px solid rgba(255, 255, 255, 0.15);
   box-shadow: 1px 0 4px rgba(0, 0, 0, 0.15);
 }
 
