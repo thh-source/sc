@@ -132,7 +132,13 @@ function ProcurementAppInner({
   };
 }) {
   const { t } = useTranslation();
-  const [view, setView] = useState<View>("dashboard"),
+  const [view, setView] = useState<View>(() => {
+    if (typeof window !== "undefined") {
+      const v = new URLSearchParams(window.location.search).get("view");
+      if (v) return v as View;
+    }
+    return "dashboard";
+  }),
     [collapsed, setCollapsed] = useState(false),
     [prs, setPrs] = useState(prs0),
     [selectedPR, setSelectedPR] = useState(emptyPR);

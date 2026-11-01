@@ -684,60 +684,48 @@
     display: none !important;
   }
 
-  /* Stitch Page Banner (Executive Header Card) */
+  /* Stitch Page Banner (Executive Header Card) - ULTRA COMPACT */
   .stitch-page-banner {
     display: flex !important;
     align-items: center !important;
     justify-content: space-between !important;
     flex-wrap: wrap !important;
-    gap: 16px !important;
-    padding: 18px 24px !important;
-    margin-bottom: 16px !important;
+    gap: 6px !important;
+    padding: 3px 10px !important;
+    margin-bottom: 4px !important;
     background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%) !important;
     border: 1px solid #e2e8f0 !important;
-    border-left: 5px solid #0c326f !important;
-    border-radius: 14px !important;
-    box-shadow: 0 4px 16px -4px rgba(15, 23, 42, 0.06), 0 1px 3px rgba(15, 23, 42, 0.03) !important;
+    border-left: 3px solid #0c326f !important;
+    border-radius: 6px !important;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04) !important;
+    min-height: 36px !important;
   }
 
-  .stitch-breadcrumb {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 11px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    color: #0284c7;
-    background: #f0f9ff;
-    border: 1px solid #bae6fd;
-    padding: 3px 10px;
-    border-radius: 999px;
-    margin-bottom: 6px;
+  /* ẨN TOÀN BỘ BREADCRUMB & PHỤ ĐỀ MÔ TẢ ĐỂ DỒN TỐI ĐA DIỆN TÍCH CHO BẢNG */
+  .stitch-breadcrumb,
+  .stitch-subtitle {
+    display: none !important;
   }
 
   .stitch-page-banner h1 {
-    font-size: 22px !important;
+    font-size: 15px !important;
     font-weight: 800 !important;
     color: #0f172a !important;
-    letter-spacing: -0.025em !important;
+    letter-spacing: -0.01em !important;
     margin: 0 !important;
-    line-height: 1.25 !important;
+    line-height: 1.15 !important;
   }
 
-  .stitch-subtitle {
-    margin: 4px 0 0 !important;
-    font-size: 13px !important;
-    color: #64748b !important;
-    font-weight: 500 !important;
-  }
-
-  /* Bento KPI Strip (3 or 4 Metric Cards) */
-  .stitch-kpi-strip {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-    gap: 14px;
-    margin-bottom: 16px;
+  /* Bento KPI Strip (3 or 4 Metric Cards) - ẨN TRÊN MỌI THIẾT BỊ ĐỂ TỐI ĐA DIỆN TÍCH LÀM VIỆC */
+  .stitch-kpi-strip,
+  .stitch-kpi-card,
+  .cards,
+  .pr-stats,
+  .po-kpis,
+  .supplier-summary,
+  .contract-kpis,
+  .product-kpis {
+    display: none !important;
   }
 
   .stitch-kpi-card {
@@ -860,18 +848,19 @@
     align-items: center !important;
     justify-content: space-between !important;
     flex-wrap: wrap !important;
-    gap: 12px !important;
-    padding: 14px 20px !important;
+    gap: 6px 10px !important;
+    padding: 5px 10px !important;
     background: #f8fafc !important;
     border-bottom: 1px solid #e2e8f0 !important;
+    border-radius: 8px !important;
   }
 
   .stitch-seg-group {
     display: inline-flex;
     align-items: center;
     background: #e2e8f0;
-    padding: 3px;
-    border-radius: 10px;
+    padding: 2px;
+    border-radius: 8px;
     gap: 2px;
   }
 
@@ -879,14 +868,15 @@
     border: none !important;
     background: transparent !important;
     color: #475569 !important;
-    font-size: 12.5px !important;
+    font-size: 11.5px !important;
     font-weight: 700 !important;
-    padding: 6px 12px !important;
-    border-radius: 8px !important;
+    height: 27px !important;
+    padding: 0 9px !important;
+    border-radius: 6px !important;
     cursor: pointer !important;
     display: inline-flex !important;
     align-items: center !important;
-    gap: 6px !important;
+    gap: 5px !important;
     transition: all 0.15s ease !important;
     box-shadow: none !important;
   }
@@ -1121,17 +1111,18 @@
 
   .pr-table th,
   .pr-table td {
-    padding: 11px 12px !important;
+    padding: 4px 6px !important;
+    line-height: 1.25 !important;
   }
 
   /* Payment & Handover Toolbar & Table Polish */
   .payment-toolbar {
     background: #ffffff !important;
     border: 1px solid #e2e8f0 !important;
-    border-radius: 12px !important;
-    padding: 12px 16px !important;
-    margin-bottom: 14px !important;
-    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.03) !important;
+    border-radius: 8px !important;
+    padding: 5px 10px !important;
+    margin-bottom: 6px !important;
+    box-shadow: 0 2px 6px rgba(15, 23, 42, 0.03) !important;
   }
 
   /* ========================================================================
@@ -1628,28 +1619,37 @@ table thead th,
 table.draft-table thead th,
 table.payment-grid thead th,
 table.po-table thead th,
-table.smart-table thead th {
-  font-size: 11.5px !important;
+table.smart-table thead th,
+.delivery-table th,
+.compare-matrix-table th,
+.pr-table th {
+  font-size: 11px !important;
   font-weight: 750 !important;
   text-transform: uppercase !important;
-  letter-spacing: 0.035em !important;
+  letter-spacing: 0.03em !important;
   color: #475569 !important;
-  height: 38px !important;
-  padding: 8px 10px !important;
+  height: 30px !important;
+  padding: 4px 6px !important;
   white-space: nowrap !important;
   vertical-align: middle !important;
+  line-height: 1.2 !important;
 }
 
 table tbody td,
 table.draft-table tbody td,
 table.payment-grid tbody td,
 table.po-table tbody td,
-table.smart-table tbody td {
-  font-size: 12.5px !important;
+table.smart-table tbody td,
+.delivery-table td,
+.compare-matrix-table td,
+.pr-table td {
+  font-size: 11.5px !important;
   font-weight: 500 !important;
-  line-height: 1.45 !important;
+  line-height: 1.25 !important;
   color: #1e293b !important;
-  padding: 8px 10px !important;
+  padding: 4px 6px !important;
+  height: auto !important;
+  min-height: 28px !important;
   vertical-align: middle !important;
 }
 
@@ -1659,8 +1659,9 @@ table tbody td .supplier-name,
 table tbody td .primary-text,
 table.payment-grid tbody td.col-payee,
 table.po-table tbody td.col-supplier {
-  font-size: 12.5px !important;
+  font-size: 11.5px !important;
   font-weight: 650 !important;
+  line-height: 1.25 !important;
   color: #0f172a !important;
 }
 
@@ -1672,16 +1673,18 @@ table tbody td .date,
 table.payment-grid tbody td.col-amount,
 table.draft-table tbody td.col-money {
   font-family: var(--font-jetbrains-mono), monospace !important;
-  font-size: 12px !important;
+  font-size: 11.5px !important;
   font-weight: 650 !important;
+  line-height: 1.2 !important;
 }
 
 /* Dòng tổng kết / Footer bảng */
 table tfoot td,
 table.draft-table tfoot td,
 .table-footer {
-  font-size: 12.5px !important;
+  font-size: 11.5px !important;
   font-weight: 700 !important;
+  padding: 4px 6px !important;
 }
 
 /* 7. CARDS (THẺ BÀN GIAO, THẺ THANH TOÁN, THẺ PO, THẺ PR) */
@@ -1808,45 +1811,46 @@ aside nav a,
    COMPACT PAYMENT CARD & 5 EQUAL-WIDTH ACTION BUTTONS
    ========================================================================= */
 .mobile-cards-container .m-card {
-  padding: 12px 14px !important;
-  border-radius: 12px !important;
+  padding: 8px 10px !important;
+  border-radius: 10px !important;
+  margin-bottom: 6px !important;
   gap: 0 !important;
 }
 
 .m-card-header {
-  margin-bottom: 2px !important;
+  margin-bottom: 1px !important;
 }
 
 .m-card-payee {
-  font-size: 13.5px !important;
+  font-size: 12.5px !important;
   font-weight: 750 !important;
-  margin: 3px 0 2px 0 !important;
-  line-height: 1.3 !important;
+  margin: 1px 0 !important;
+  line-height: 1.25 !important;
 }
 
 .m-card-amount {
-  font-size: 15.5px !important;
+  font-size: 14.5px !important;
   font-weight: 800 !important;
-  margin: 1px 0 3px 0 !important;
-  line-height: 1.2 !important;
+  margin: 1px 0 2px 0 !important;
+  line-height: 1.15 !important;
 }
 
 .m-card-desc {
-  font-size: 11.5px !important;
-  line-height: 1.35 !important;
-  margin: 2px 0 5px 0 !important;
+  font-size: 11px !important;
+  line-height: 1.25 !important;
+  margin: 1px 0 3px 0 !important;
   color: #334155 !important;
 }
 
 .m-card-meta {
-  padding: 6px 10px !important;
-  margin: 4px 0 !important;
-  font-size: 11px !important;
-  line-height: 1.35 !important;
+  padding: 4px 6px !important;
+  margin: 2px 0 !important;
+  font-size: 10.5px !important;
+  line-height: 1.25 !important;
   display: flex !important;
   flex-direction: column !important;
-  gap: 2px !important;
-  border-radius: 8px !important;
+  gap: 1px !important;
+  border-radius: 6px !important;
 }
 
 .m-card-meta > div {
@@ -1859,22 +1863,179 @@ aside nav a,
   grid-template-columns: repeat(5, 1fr) !important;
   gap: 4px !important;
   width: 100% !important;
-  margin-top: 8px !important;
+  margin-top: 6px !important;
 }
 
 .m-card-desktop-tools > button {
   width: 100% !important;
   min-width: 0 !important;
-  height: 29px !important;
+  height: 26px !important;
   padding: 0 2px !important;
-  font-size: 11px !important;
+  font-size: 10.5px !important;
   font-weight: 700 !important;
   display: inline-flex !important;
   align-items: center !important;
   justify-content: center !important;
-  gap: 3px !important;
+  gap: 2px !important;
   white-space: nowrap !important;
-  border-radius: 6px !important;
+  border-radius: 5px !important;
   overflow: hidden !important;
   text-overflow: ellipsis !important;
+}
+
+/* =========================================================================
+   ULTRA-COMPACT DENSITY: TỐI ĐA DIỆN TÍCH LÀM VIỆC TRÊN MỌI THIẾT BỊ
+   ========================================================================= */
+.content {
+  padding: 4px 8px 0 !important;
+  max-width: 100% !important;
+}
+
+main {
+  padding-bottom: 8px !important;
+}
+
+.heading {
+  margin-bottom: 4px !important;
+}
+
+.compare-breadcrumb-bar {
+  padding: 3px 8px !important;
+  margin-bottom: 4px !important;
+  border-radius: 6px !important;
+  min-height: 30px !important;
+}
+
+.compare-page > .heading,
+.po-detail > .heading,
+.pr-detail > .heading {
+  padding: 3px 8px !important;
+  margin-bottom: 4px !important;
+  border-radius: 6px !important;
+}
+
+.compare-page > .heading h1,
+.compare-page > .heading h2,
+.po-detail > .heading h1,
+.po-detail > .heading h2 {
+  font-size: 14px !important;
+  margin: 0 !important;
+}
+
+.po-section {
+  margin-bottom: 4px !important;
+  border-radius: 6px !important;
+}
+
+.section-heading,
+.po-section > .section-heading {
+  min-height: 32px !important;
+  padding: 3px 8px !important;
+}
+
+.section-heading h2 {
+  font-size: 13px !important;
+  margin: 0 !important;
+}
+
+.compare-toolbar {
+  padding: 3px 8px !important;
+  margin-bottom: 4px !important;
+  border-radius: 6px !important;
+  min-height: 30px !important;
+}
+
+/* Goods & Delivery Table inside PO Detail */
+.delivery-table td {
+  height: auto !important;
+  min-height: 26px !important;
+  padding: 2.5px 6px !important;
+  font-size: 11px !important;
+  line-height: 1.2 !important;
+}
+
+.delivery-table th {
+  height: 26px !important;
+  padding: 3px 6px !important;
+  font-size: 10.5px !important;
+}
+
+.delivery-table input,
+.delivery-table select {
+  height: 24px !important;
+  font-size: 11px !important;
+  padding: 0 4px !important;
+}
+
+.po-tabs {
+  position: sticky !important;
+  top: 0 !important;
+  padding: 2px !important;
+  margin-bottom: 4px !important;
+  gap: 2px !important;
+}
+
+.po-tabs a {
+  padding: 3px 6px !important;
+  font-size: 10.5px !important;
+}
+
+.timeline {
+  padding: 6px 10px !important;
+}
+
+.timeline article {
+  min-height: 42px !important;
+}
+
+/* Compare Matrix Table */
+.compare-matrix-table td {
+  height: 26px !important;
+}
+
+.compare-matrix-table td input:not([type="checkbox"]):not([type="radio"]),
+.vat-quote-table td input:not([type="checkbox"]):not([type="radio"]) {
+  min-height: 26px !important;
+  height: 26px !important;
+  padding: 1px 4px !important;
+  font-size: 11px !important;
+}
+
+/* Panels and Containers */
+.pr-panel,
+.payment-table-container,
+.supplier-list-panel,
+.tablewrap,
+.tablewrap-common,
+.trash-table {
+  margin-bottom: 4px !important;
+  border-radius: 6px !important;
+}
+
+.handover-batch-card {
+  padding: 6px 10px !important;
+  margin-bottom: 4px !important;
+  border-radius: 6px !important;
+}
+
+.stitch-action-pill,
+.row-action,
+.history-btn {
+  height: 22px !important;
+  padding: 0 6px !important;
+  font-size: 10px !important;
+  line-height: 1 !important;
+  gap: 2px !important;
+  border-radius: 4px !important;
+}
+
+.status,
+.m-badge,
+.status-badge,
+.stitch-count-pill,
+.m-doc-tag {
+  font-size: 10px !important;
+  padding: 1px 6px !important;
+  line-height: 1.1 !important;
+  height: 20px !important;
 }

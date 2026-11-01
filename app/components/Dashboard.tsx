@@ -1451,10 +1451,11 @@ export function Dashboard({
               </div>
             </div>
 
-            {/* KPI Tóm tắt Dòng tiền & Tiến độ thanh toán PO */}
+            {/* KPI Tóm tắt Dòng tiền & Tiến độ thanh toán PO - Ẩn để tối ưu diện tích */}
             <div
+              className="dashboard-payment-kpis"
               style={{
-                display: "grid",
+                display: "none",
                 gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
                 gap: "12px",
                 padding: "12px 16px",
