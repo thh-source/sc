@@ -1,0 +1,1349 @@
+/* ==========================================================================
+   PHENIKAA SCMH ENTERPRISE v2.0 — GOOGLE STITCH DESIGN SYSTEM (WEBAPP UI/UX)
+   Project ID: 4631497660392194780 | Asset ID: 756a80cb98ce482da9d50303d2df16d1
+   STRICT SAFEGUARDS:
+   1. Strictly scoped to @media screen and (min-width: 769px) -> Mobile APK (<= 768px) is 100% untouched.
+   2. Explicitly excludes @media print, .paper, .handover-paper, #paymentPrintPortal -> Print templates are 100% untouched.
+   3. Preserves original /phenikaa-logo.png in .brand.
+   ========================================================================== */
+
+@media screen and (min-width: 769px) {
+  :root {
+    --stitch-navy: #0c326f;
+    --stitch-navy-dark: #071e46;
+    --stitch-navy-light: #16438d;
+    --stitch-cobalt: #1e40af;
+    --stitch-orange: #e65100;
+    --stitch-orange-light: #f97316;
+    --stitch-emerald: #059669;
+    --stitch-emerald-light: #10b981;
+    --stitch-surface: #f8fafc;
+    --stitch-card: #ffffff;
+    --stitch-border: #e2e8f0;
+    --stitch-border-strong: #cbd5e1;
+    --stitch-font-sans: var(--font-manrope), var(--font-geist-sans), "Inter", -apple-system, sans-serif;
+    --stitch-font-mono: var(--font-jetbrains-mono), var(--font-geist-mono), monospace;
+  }
+
+  html,
+  body {
+    font-family: var(--stitch-font-sans) !important;
+    background-color: var(--stitch-surface) !important;
+    color: #0f172a !important;
+  }
+
+  /* ------------------------------------------------------------------------
+     1. APP SHELL & LEFT NAVIGATION SIDEBAR (Phenikaa Deep Navy #0C326F -> #071E46)
+     ------------------------------------------------------------------------ */
+  .app {
+    grid-template-columns: 236px minmax(0, 1fr);
+    background-color: var(--stitch-surface);
+  }
+  .app.collapsed {
+    grid-template-columns: 72px minmax(0, 1fr);
+  }
+
+  .app > aside {
+    background: linear-gradient(180deg, #0c326f 0%, #0a2756 52%, #071e46 100%);
+    border-right: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 4px 0 24px rgba(7, 30, 70, 0.18);
+  }
+
+  /* Original Phenikaa Logo Badge Container */
+  .app > aside .brand {
+    min-height: 76px;
+    padding: 14px 16px;
+    gap: 12px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    background: linear-gradient(90deg, rgba(255, 255, 255, 0.04) 0%, transparent 100%);
+  }
+
+  .app > aside .brand > span {
+    width: 44px;
+    height: 44px;
+    background: #ffffff;
+    border-radius: 10px;
+    padding: 4px;
+    box-shadow: 0 4px 14px rgba(0, 15, 40, 0.35), inset 0 1px 0 #ffffff;
+    border: 1px solid rgba(255, 255, 255, 0.9);
+    flex-shrink: 0;
+  }
+
+  .app > aside .brand > b strong {
+    font-size: 15px;
+    font-weight: 800;
+    letter-spacing: -0.01em;
+    color: #ffffff;
+  }
+
+  .app > aside .brand > b small {
+    font-size: 10px;
+    color: #bfdbfe;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+  }
+
+  /* Sidebar Spotlight Search Button (Ctrl + K) */
+  .sidebar-search-btn {
+    margin: 12px 10px 6px !important;
+    height: 38px !important;
+    border-radius: 9px !important;
+    background: rgba(255, 255, 255, 0.08) !important;
+    border: 1px solid rgba(255, 255, 255, 0.15) !important;
+    color: #e2e8f0 !important;
+    padding: 0 11px !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    cursor: pointer !important;
+    transition: all 0.16s cubic-bezier(0.16, 1, 0.3, 1) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08) !important;
+  }
+
+  .sidebar-search-btn:hover {
+    background: rgba(255, 255, 255, 0.14) !important;
+    border-color: rgba(255, 255, 255, 0.28) !important;
+    color: #ffffff !important;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2) !important;
+  }
+
+  .sidebar-search-btn .search-kbd {
+    margin-left: auto;
+    background: rgba(15, 23, 42, 0.45);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    color: #bfdbfe;
+    border-radius: 5px;
+    padding: 2px 6px;
+    font-family: var(--stitch-font-mono);
+    font-size: 10px;
+    font-weight: 600;
+  }
+
+  /* Sidebar Navigation Items */
+  .app > aside nav {
+    padding: 8px 10px;
+    gap: 4px;
+  }
+
+  .app > aside nav button {
+    height: 41px;
+    border-radius: 9px;
+    padding: 0 12px;
+    color: #cbd5e1;
+    font-weight: 500;
+    position: relative;
+    transition: all 0.16s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .app > aside nav button:hover {
+    background: rgba(255, 255, 255, 0.09);
+    color: #ffffff;
+    transform: translateX(2px);
+  }
+
+  .app > aside nav button.active {
+    background: linear-gradient(90deg, rgba(230, 81, 0, 0.22) 0%, rgba(255, 255, 255, 0.11) 100%) !important;
+    color: #ffffff !important;
+    box-shadow: inset 4px 0 0 #e65100, 0 4px 14px rgba(7, 30, 70, 0.32) !important;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    font-weight: 700;
+  }
+
+  .app > aside nav button.active b {
+    font-weight: 700;
+    letter-spacing: -0.005em;
+  }
+
+  /* Sidebar Footer & User Card */
+  .sidebar-bottom-actions {
+    background: rgba(7, 30, 70, 0.55);
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 12px;
+  }
+
+  .sidebar-secondary-btn {
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.07);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    font-weight: 600;
+    font-size: 11.5px !important;
+    padding: 0 8px !important;
+    min-width: 0;
+    white-space: nowrap;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  }
+
+  .sidebar-secondary-btn:hover {
+    background: rgba(255, 255, 255, 0.16);
+    border-color: rgba(255, 255, 255, 0.3);
+    transform: translateY(-1px);
+  }
+
+  .sidebar-user-card {
+    background: rgba(255, 255, 255, 0.07);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 10px;
+    padding: 8px 10px;
+  }
+
+  .sidebar-user-card .user-avatar {
+    background: linear-gradient(135deg, #e65100 0%, #f97316 100%);
+    box-shadow: 0 2px 8px rgba(230, 81, 0, 0.4);
+  }
+
+  /* ------------------------------------------------------------------------
+     2. TACTILE & CRAFTED BUTTON ARCHITECTURE (NÚT BẤM NỔI BẬT CHUẨN STITCH v2)
+     ------------------------------------------------------------------------ */
+  /* Primary Navy Gradient Tactile Buttons */
+  button.primary,
+  .btn-primary,
+  .payment-btn.btn-primary,
+  .m-btn-edit-card,
+  .filter-actions button:last-child,
+  .po-toolbar > button.primary,
+  .pr-toolbar > button.primary,
+  .product-toolbar > button.primary,
+  .supplier-toolbar > button.primary {
+    background: linear-gradient(135deg, #0c326f 0%, #1e40af 100%) !important;
+    color: #ffffff !important;
+    border: 1px solid #1e3a8a !important;
+    border-radius: 8px !important;
+    font-weight: 600 !important;
+    box-shadow: 0 4px 12px rgba(12, 50, 111, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.22) !important;
+    transition: all 0.16s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  }
+
+  button.primary:hover:not(:disabled),
+  .btn-primary:hover:not(:disabled),
+  .payment-btn.btn-primary:hover:not(:disabled),
+  .m-btn-edit-card:hover:not(:disabled) {
+    background: linear-gradient(135deg, #16438d 0%, #2563eb 100%) !important;
+    border-color: #1d4ed8 !important;
+    transform: translateY(-1px) !important;
+    box-shadow: 0 6px 16px rgba(12, 50, 111, 0.32), inset 0 1px 0 rgba(255, 255, 255, 0.28) !important;
+  }
+
+  button.primary:active:not(:disabled),
+  .btn-primary:active:not(:disabled),
+  .payment-btn.btn-primary:active:not(:disabled) {
+    transform: translateY(0) scale(0.99) !important;
+  }
+
+  /* High-Priority Orange Gradient CTA Buttons */
+  .po-create-btn,
+  .btn-accent,
+  .approval-source-btn.source-compare {
+    background: linear-gradient(135deg, #e65100 0%, #f97316 100%) !important;
+    color: #ffffff !important;
+    border: 1px solid #c2410c !important;
+    border-radius: 8px !important;
+    font-weight: 700 !important;
+    box-shadow: 0 4px 14px rgba(230, 81, 0, 0.26), inset 0 1px 0 rgba(255, 255, 255, 0.25) !important;
+    transition: all 0.16s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  }
+
+  .po-create-btn:hover:not(:disabled),
+  .btn-accent:hover:not(:disabled),
+  .approval-source-btn.source-compare:hover:not(:disabled) {
+    background: linear-gradient(135deg, #c2410c 0%, #ea580c 100%) !important;
+    transform: translateY(-1px) !important;
+    box-shadow: 0 6px 18px rgba(230, 81, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.3) !important;
+  }
+
+  /* Emerald Tactile Action Buttons */
+  .payment-btn.btn-success,
+  .btn-teal,
+  .m-btn-toggle-done.is-done,
+  .approval-source-btn.source-pr {
+    background: linear-gradient(135deg, #059669 0%, #10b981 100%) !important;
+    color: #ffffff !important;
+    border: 1px solid #047857 !important;
+    border-radius: 8px !important;
+    font-weight: 700 !important;
+    box-shadow: 0 4px 12px rgba(5, 150, 105, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.22) !important;
+    transition: all 0.16s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  }
+
+  .payment-btn.btn-success:hover:not(:disabled),
+  .btn-teal:hover:not(:disabled),
+  .m-btn-toggle-done.is-done:hover:not(:disabled),
+  .approval-source-btn.source-pr:hover:not(:disabled) {
+    background: linear-gradient(135deg, #047857 0%, #059669 100%) !important;
+    transform: translateY(-1px) !important;
+    box-shadow: 0 6px 16px rgba(5, 150, 105, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.25) !important;
+  }
+
+  /* Secondary / Tonal Tactile Buttons */
+  button.ghost,
+  .btn-secondary,
+  .payment-btn:not(.btn-primary):not(.btn-success):not(.btn-danger),
+  .m-btn-icon-action:not(.btn-danger),
+  .new-product-btn {
+    background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%) !important;
+    color: #0f172a !important;
+    border: 1px solid #cbd5e1 !important;
+    border-radius: 8px !important;
+    font-weight: 600 !important;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05), inset 0 1px 0 #ffffff !important;
+    transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  }
+
+  button.ghost:hover:not(:disabled),
+  .btn-secondary:hover:not(:disabled),
+  .payment-btn:not(.btn-primary):not(.btn-success):not(.btn-danger):hover:not(:disabled),
+  .m-btn-icon-action:not(.btn-danger):hover:not(:disabled),
+  .new-product-btn:hover:not(:disabled) {
+    background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%) !important;
+    border-color: #94a3b8 !important;
+    color: #0c326f !important;
+    transform: translateY(-1px) !important;
+    box-shadow: 0 4px 10px rgba(15, 23, 42, 0.08), inset 0 1px 0 #ffffff !important;
+  }
+
+  /* Inline Table Row Action Pills */
+  .row-action,
+  .history-btn,
+  .restore-action,
+  .po-preset-pill {
+    border-radius: 7px !important;
+    font-weight: 600 !important;
+    font-size: 11.5px !important;
+    height: 30px !important;
+    padding: 0 11px !important;
+    background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%) !important;
+    border: 1px solid #cbd5e1 !important;
+    color: #1e293b !important;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04) !important;
+    transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  }
+
+  .row-action:hover:not(:disabled),
+  .history-btn:hover:not(:disabled),
+  .po-preset-pill:hover:not(:disabled) {
+    background: #eff6ff !important;
+    border-color: #3b82f6 !important;
+    color: #0c326f !important;
+    transform: translateY(-1px) !important;
+    box-shadow: 0 3px 8px rgba(30, 64, 175, 0.14) !important;
+  }
+
+  /* Danger / Delete Tactile Buttons */
+  .delete-action,
+  .danger-action,
+  .payment-btn.btn-danger,
+  .m-btn-icon-action.btn-danger,
+  .po-stage-del-btn,
+  .btn-danger {
+    background: linear-gradient(180deg, #fff5f5 0%, #fef2f2 100%) !important;
+    color: #dc2626 !important;
+    border: 1px solid #fecaca !important;
+    border-radius: 7px !important;
+    font-weight: 600 !important;
+    box-shadow: 0 1px 2px rgba(220, 38, 38, 0.06) !important;
+    transition: all 0.15s ease !important;
+  }
+
+  .delete-action:hover:not(:disabled),
+  .danger-action:hover:not(:disabled),
+  .payment-btn.btn-danger:hover:not(:disabled),
+  .m-btn-icon-action.btn-danger:hover:not(:disabled),
+  .po-stage-del-btn:hover:not(:disabled),
+  .btn-danger:hover:not(:disabled) {
+    background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%) !important;
+    color: #ffffff !important;
+    border-color: #b91c1c !important;
+    transform: translateY(-1px) !important;
+    box-shadow: 0 4px 10px rgba(220, 38, 38, 0.25) !important;
+  }
+
+  .danger-confirm,
+  .btn-danger-solid {
+    background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%) !important;
+    color: #ffffff !important;
+    border: 1px solid #991b1b !important;
+    border-radius: 8px !important;
+    font-weight: 700 !important;
+    box-shadow: 0 4px 12px rgba(220, 38, 38, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.2) !important;
+  }
+
+  /* ------------------------------------------------------------------------
+     3. BENTO KPI CARDS, WORKSPACE HEADERS & SEGMENTED PILL SWITCHERS
+     ------------------------------------------------------------------------ */
+  .dashboard-topbar,
+  .approval-detail-topbar,
+  .approval-config-bar,
+  .payment-toolbar,
+  .supplier-toolbar,
+  .product-toolbar,
+  .pr-toolbar,
+  .toolbar,
+  .compare-toolbar,
+  .compare-breadcrumb-bar {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04), 0 4px 12px rgba(15, 23, 42, 0.02);
+  }
+
+  .pr-toolbar,
+  .toolbar,
+  .product-toolbar {
+    border-radius: 12px 12px 0 0;
+  }
+
+  .cards article,
+  .pr-stats article,
+  .po-kpis article,
+  .payment-card,
+  .product-kpis article,
+  .contract-kpis article,
+  .dashboard-card,
+  .form-card,
+  .po-section,
+  .admin-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04), 0 4px 14px rgba(15, 23, 42, 0.025);
+    transition: transform 0.16s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.16s ease, border-color 0.16s ease;
+  }
+
+  .cards article:hover,
+  .pr-stats article:hover,
+  .po-kpis article:hover,
+  .payment-card:hover,
+  .product-kpis article:hover,
+  .contract-kpis article:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px -4px rgba(12, 50, 111, 0.1), 0 2px 6px rgba(15, 23, 42, 0.04);
+    border-color: #cbd5e1;
+  }
+
+  /* Segmented Control Pill Switchers */
+  .queue-tabs,
+  .segmented-pills,
+  .vat-compare-segmented .seg-buttons {
+    background: #f1f5f9 !important;
+    padding: 4px !important;
+    border-radius: 10px !important;
+    border: 1px solid #e2e8f0 !important;
+    box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.04);
+  }
+
+  .queue-tab-btn,
+  .seg-pill,
+  .vat-compare-segmented .seg-btn {
+    border-radius: 7px !important;
+    font-weight: 600 !important;
+    transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  }
+
+  .queue-tab-btn.active,
+  .seg-pill.active,
+  .vat-compare-segmented .seg-btn.active {
+    background: #ffffff !important;
+    color: #0c326f !important;
+    font-weight: 700 !important;
+    box-shadow: 0 2px 6px rgba(12, 50, 111, 0.1), 0 0 0 1px rgba(226, 232, 240, 0.8) !important;
+  }
+
+  /* Payment Sub-tabs */
+  .payment-tabs {
+    background: #f1f5f9;
+    padding: 5px;
+    border-radius: 11px;
+    border: 1px solid #e2e8f0;
+    border-bottom: 1px solid #e2e8f0;
+    gap: 4px;
+  }
+
+  .payment-tab-btn {
+    border-radius: 8px;
+    border-bottom: none !important;
+    padding: 8px 16px;
+    font-size: 12.5px;
+    font-weight: 600;
+    color: #475569;
+  }
+
+  .payment-tab-btn.active {
+    background: #ffffff;
+    color: #0c326f;
+    font-weight: 700;
+    box-shadow: 0 2px 6px rgba(12, 50, 111, 0.1), 0 0 0 1px rgba(226, 232, 240, 0.8);
+  }
+
+  /* ------------------------------------------------------------------------
+     4. HIGH-CONTRAST ENTERPRISE DATA TABLES & JETBRAINS MONO NUMBERS
+     (Strictly excludes .paper and .handover-paper print tables)
+     ------------------------------------------------------------------------ */
+  .pr-panel,
+  .po-list-panel,
+  .payment-table-container,
+  .supplier-list-panel,
+  .tablewrap,
+  .tablewrap-common,
+  .trash-table {
+    border-radius: 12px;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04), 0 4px 14px rgba(15, 23, 42, 0.025);
+  }
+
+  .tablewrap,
+  .product-table {
+    border-radius: 0 0 12px 12px;
+  }
+
+  table:not(.hb-box):not(.hb-table) thead th:not(.paper th):not(.handover-paper th) {
+    background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+    color: #1e293b;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    border-bottom: 2px solid #cbd5e1;
+  }
+
+  /* Monospace Tabular Numbers & Reference IDs (JetBrains Mono) */
+  .money,
+  .num,
+  .col-amount,
+  .pr-link,
+  .product-code,
+  .supplier-list-code,
+  .crumb-code,
+  .m-card-amount,
+  .payment-card-value,
+  .cards article > strong,
+  .po-kpis b,
+  .pr-stats strong {
+    font-family: var(--stitch-font-mono);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.015em;
+  }
+
+  .pr-link {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 8px;
+    border-radius: 6px;
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+    color: #0c326f !important;
+    font-size: 12px;
+    font-weight: 700;
+    transition: all 0.15s ease;
+  }
+
+  .pr-link:hover {
+    background: #dbeafe;
+    border-color: #60a5fa;
+    transform: translateY(-1px);
+  }
+
+  /* ------------------------------------------------------------------------
+     5. ELEVATED GLASSMORPHIC POPUPS & MODALS (STITCH v2 SHOWCASE)
+     (Excludes print preview papers)
+     ------------------------------------------------------------------------ */
+  .backdrop,
+  .payment-modal-overlay,
+  .po-handover-modal-overlay,
+  .spotlight-backdrop {
+    background: rgba(15, 23, 42, 0.55) !important;
+    backdrop-filter: blur(8px) !important;
+    -webkit-backdrop-filter: blur(8px) !important;
+  }
+
+  .modal,
+  .po-cart-modal,
+  .payment-modal-card,
+  .payment-link-modal-card,
+  .po-handover-modal-card,
+  .settings-modal,
+  .spotlight-modal {
+    border-radius: 16px !important;
+    border: 1px solid rgba(203, 213, 225, 0.9) !important;
+    box-shadow: 0 25px 60px -15px rgba(12, 50, 111, 0.34), 0 0 0 1px rgba(255, 255, 255, 0.85) inset !important;
+  }
+
+  /* Unified Stitch v2 Deep Navy Header across Popups */
+  .po-cart-modal > header,
+  .po-handover-modal-card > div:first-child,
+  .payment-link-modal-card > div:first-child,
+  .payment-modal-card > div:first-child {
+    background: linear-gradient(135deg, #0c326f 0%, #071e46 100%) !important;
+    color: #ffffff !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.14) !important;
+  }
+
+  .payment-modal-card > div:first-child h3,
+  .po-handover-modal-card > div:first-child h3,
+  .payment-link-modal-card > div:first-child h3 {
+    color: #ffffff !important;
+    font-weight: 800 !important;
+  }
+
+  .payment-modal-card > div:first-child div,
+  .po-handover-modal-card > div:first-child div,
+  .payment-link-modal-card > div:first-child div {
+    color: #bfdbfe !important;
+  }
+
+  .payment-modal-card > div:first-child .payment-modal-close {
+    color: #ffffff !important;
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.12) !important;
+    display: grid;
+    place-items: center;
+  }
+
+  .po-cart-modal > header em {
+    color: #fdba74 !important;
+    background: rgba(230, 81, 0, 0.25);
+    padding: 3px 8px;
+    border-radius: 5px;
+    border: 1px solid rgba(249, 115, 22, 0.4);
+  }
+
+  .po-cart-modal > header h2 {
+    color: #ffffff !important;
+    font-weight: 800 !important;
+  }
+
+  .po-cart-modal > header p {
+    color: #cbd5e1 !important;
+  }
+
+  .po-cart-modal > header > button {
+    color: #cbd5e1 !important;
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.08);
+    display: grid;
+    place-items: center;
+  }
+
+  .po-cart-modal > header > button:hover {
+    background: rgba(255, 255, 255, 0.18);
+    color: #ffffff !important;
+  }
+
+  /* Spotlight Search Modal Enhancements */
+  .spotlight-header {
+    background: linear-gradient(135deg, #0c326f 0%, #071e46 100%) !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.14) !important;
+    padding: 16px 20px !important;
+  }
+
+  .spotlight-input {
+    color: #ffffff !important;
+    font-weight: 600 !important;
+  }
+
+  .spotlight-input::placeholder {
+    color: #93c5fd !important;
+  }
+
+  .spotlight-close-kbd {
+    background: rgba(255, 255, 255, 0.14) !important;
+    color: #ffffff !important;
+    border-color: rgba(255, 255, 255, 0.24) !important;
+    font-family: var(--stitch-font-mono) !important;
+  }
+
+  .spotlight-tab-btn.active {
+    background: linear-gradient(135deg, #0c326f 0%, #1e40af 100%) !important;
+    color: #ffffff !important;
+    border-color: #1e3a8a !important;
+    box-shadow: 0 3px 10px rgba(12, 50, 111, 0.24) !important;
+  }
+
+  /* Form Inputs Focus Ring inside Workspace & Modals */
+  .form-grid input:focus,
+  .form-grid select:focus,
+  .form-grid textarea:focus,
+  .modal label input:focus,
+  .modal label select:focus,
+  .payment-toolbar input:focus,
+  .payment-toolbar select:focus,
+  .card-edit-input:focus {
+    border-color: #1e40af !important;
+    box-shadow: 0 0 0 3px rgba(30, 64, 175, 0.16) !important;
+  }
+
+  /* ========================================================================
+   * 8. STITCH V2 ENTERPRISE REDESIGN: PAGE BANNERS, BENTO KPI STRIPS,
+   *    SEGMENTED FILTER BARS, DRAFT SPREADSHEET & ACTION PILLS
+   * ======================================================================== */
+
+  /* Strictly hide mobile card layouts on Desktop (> 768px) */
+  .mobile-items-cards,
+  .mobile-record-list {
+    display: none !important;
+  }
+
+  /* Stitch Page Banner (Executive Header Card) */
+  .stitch-page-banner {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    flex-wrap: wrap !important;
+    gap: 16px !important;
+    padding: 18px 24px !important;
+    margin-bottom: 16px !important;
+    background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%) !important;
+    border: 1px solid #e2e8f0 !important;
+    border-left: 5px solid #0c326f !important;
+    border-radius: 14px !important;
+    box-shadow: 0 4px 16px -4px rgba(15, 23, 42, 0.06), 0 1px 3px rgba(15, 23, 42, 0.03) !important;
+  }
+
+  .stitch-breadcrumb {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #0284c7;
+    background: #f0f9ff;
+    border: 1px solid #bae6fd;
+    padding: 3px 10px;
+    border-radius: 999px;
+    margin-bottom: 6px;
+  }
+
+  .stitch-page-banner h1 {
+    font-size: 22px !important;
+    font-weight: 800 !important;
+    color: #0f172a !important;
+    letter-spacing: -0.025em !important;
+    margin: 0 !important;
+    line-height: 1.25 !important;
+  }
+
+  .stitch-subtitle {
+    margin: 4px 0 0 !important;
+    font-size: 13px !important;
+    color: #64748b !important;
+    font-weight: 500 !important;
+  }
+
+  /* Bento KPI Strip (3 or 4 Metric Cards) */
+  .stitch-kpi-strip {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 14px;
+    margin-bottom: 16px;
+  }
+
+  .stitch-kpi-card {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 16px 20px;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+    box-shadow: 0 2px 10px rgba(15, 23, 42, 0.04);
+    position: relative;
+    overflow: hidden;
+    transition: transform 0.16s ease, box-shadow 0.16s ease;
+  }
+
+  .stitch-kpi-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px -4px rgba(15, 23, 42, 0.09);
+  }
+
+  .stitch-kpi-card::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 4px;
+    background: #0c326f;
+  }
+
+  .stitch-kpi-card.kpi-navy::before { background: #0c326f; }
+  .stitch-kpi-card.kpi-orange::before { background: #e65100; }
+  .stitch-kpi-card.kpi-emerald::before { background: #059669; }
+  .stitch-kpi-card.kpi-sky::before { background: #0284c7; }
+
+  .stitch-kpi-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    font-weight: 700;
+  }
+
+  .stitch-kpi-card.kpi-navy .stitch-kpi-icon {
+    background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+    color: #1e40af;
+    border: 1px solid #bfdbfe;
+  }
+
+  .stitch-kpi-card.kpi-orange .stitch-kpi-icon {
+    background: linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%);
+    color: #ea580c;
+    border: 1px solid #fed7aa;
+  }
+
+  .stitch-kpi-card.kpi-emerald .stitch-kpi-icon {
+    background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+    color: #059669;
+    border: 1px solid #a7f3d0;
+  }
+
+  .stitch-kpi-card.kpi-sky .stitch-kpi-icon {
+    background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+    color: #0284c7;
+    border: 1px solid #bae6fd;
+  }
+
+  .stitch-kpi-body {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
+
+  .stitch-kpi-body small {
+    font-size: 11.5px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #64748b;
+  }
+
+  .stitch-kpi-body strong {
+    font-size: 22px;
+    font-weight: 800;
+    color: #0f172a;
+    line-height: 1.2;
+    font-variant-numeric: tabular-nums;
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+  }
+
+  .stitch-kpi-body strong em {
+    font-style: normal;
+    font-size: 12px;
+    font-weight: 600;
+    color: #64748b;
+  }
+
+  .stitch-kpi-sub {
+    font-size: 12px;
+    color: #475569;
+    font-weight: 500;
+  }
+
+  .stitch-kpi-sub b {
+    font-family: var(--stitch-font-mono);
+    font-weight: 700;
+    color: #0c326f;
+  }
+
+  /* Stitch Filter Bar & Segmented Pill Group */
+  .stitch-filter-bar {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    flex-wrap: wrap !important;
+    gap: 12px !important;
+    padding: 14px 20px !important;
+    background: #f8fafc !important;
+    border-bottom: 1px solid #e2e8f0 !important;
+  }
+
+  .stitch-seg-group {
+    display: inline-flex;
+    align-items: center;
+    background: #e2e8f0;
+    padding: 3px;
+    border-radius: 10px;
+    gap: 2px;
+  }
+
+  .stitch-seg-btn {
+    border: none !important;
+    background: transparent !important;
+    color: #475569 !important;
+    font-size: 12.5px !important;
+    font-weight: 700 !important;
+    padding: 6px 12px !important;
+    border-radius: 8px !important;
+    cursor: pointer !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+    transition: all 0.15s ease !important;
+    box-shadow: none !important;
+  }
+
+  .stitch-seg-btn b {
+    background: rgba(15, 23, 42, 0.08);
+    color: #334155;
+    padding: 1px 6px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-family: var(--stitch-font-mono);
+  }
+
+  .stitch-seg-btn.active {
+    background: #ffffff !important;
+    color: #0c326f !important;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.12) !important;
+  }
+
+  .stitch-seg-btn.active b {
+    background: #dbeafe;
+    color: #1e40af;
+  }
+
+  .stitch-count-pill {
+    font-size: 12px;
+    font-weight: 700;
+    color: #0c326f;
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+    padding: 5px 12px;
+    border-radius: 999px;
+    white-space: nowrap;
+  }
+
+  /* Stitch Labeled Action Pills in Data Tables */
+  .stitch-action-pill {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 5px !important;
+    padding: 6px 11px !important;
+    border-radius: 8px !important;
+    font-size: 12px !important;
+    font-weight: 700 !important;
+    cursor: pointer !important;
+    transition: all 0.15s ease !important;
+    white-space: nowrap !important;
+    line-height: 1.2 !important;
+  }
+
+  .stitch-action-pill.pill-navy {
+    background: linear-gradient(135deg, #0c326f 0%, #1e40af 100%) !important;
+    color: #ffffff !important;
+    border: 1px solid #1e3a8a !important;
+    box-shadow: 0 2px 6px rgba(12, 50, 111, 0.2) !important;
+  }
+
+  .stitch-action-pill.pill-navy:hover {
+    background: linear-gradient(135deg, #092554 0%, #1d4ed8 100%) !important;
+    transform: translateY(-1px) !important;
+    box-shadow: 0 4px 10px rgba(12, 50, 111, 0.28) !important;
+  }
+
+  .stitch-action-pill.pill-emerald {
+    background: #ecfdf5 !important;
+    color: #047857 !important;
+    border: 1px solid #a7f3d0 !important;
+  }
+
+  .stitch-action-pill.pill-emerald:hover {
+    background: #d1fae5 !important;
+    border-color: #6ee7b7 !important;
+    transform: translateY(-1px) !important;
+  }
+
+  .stitch-action-pill.pill-sky {
+    background: #f0f9ff !important;
+    color: #0369a1 !important;
+    border: 1px solid #bae6fd !important;
+  }
+
+  .stitch-action-pill.pill-sky:hover {
+    background: #e0f2fe !important;
+    border-color: #7dd3fc !important;
+    transform: translateY(-1px) !important;
+  }
+
+  .stitch-action-pill.pill-orange {
+    background: #fff7ed !important;
+    color: #c2410c !important;
+    border: 1px solid #fed7aa !important;
+  }
+
+  .stitch-action-pill.pill-orange:hover {
+    background: #ffedd5 !important;
+    border-color: #fdba74 !important;
+    transform: translateY(-1px) !important;
+  }
+
+  /* ========================================================================
+   * 9. DRAFT ITEMS TABLE (Tạo PR Mới) HIGH-CRAFT SPREADSHEET STYLING
+   * ======================================================================== */
+  .draft-table-wrapper {
+    border: 1px solid #cbd5e1 !important;
+    border-radius: 12px !important;
+    overflow-x: auto !important;
+    background: #ffffff !important;
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04) !important;
+  }
+
+  .draft-table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+  }
+
+  .draft-table thead th {
+    background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%) !important;
+    color: #1e293b !important;
+    font-size: 11.5px !important;
+    font-weight: 800 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.04em !important;
+    padding: 11px 10px !important;
+    border-bottom: 2px solid #cbd5e1 !important;
+    border-right: 1px solid #e2e8f0 !important;
+  }
+
+  .draft-table tbody td {
+    padding: 6px 8px !important;
+    border-bottom: 1px solid #e2e8f0 !important;
+    border-right: 1px solid #f1f5f9 !important;
+    background: #ffffff !important;
+    vertical-align: middle !important;
+  }
+
+  .draft-table tbody tr:hover td {
+    background: #f8fafc !important;
+  }
+
+  .draft-cell-input,
+  .draft-cell-textarea {
+    width: 100% !important;
+    border: 1px solid transparent !important;
+    border-radius: 6px !important;
+    padding: 6px 8px !important;
+    font-size: 13px !important;
+    color: #0f172a !important;
+    background: transparent !important;
+    font-family: var(--stitch-font-sans) !important;
+    transition: all 0.14s ease !important;
+  }
+
+  .draft-cell-input:hover,
+  .draft-cell-textarea:hover {
+    background: #f1f5f9 !important;
+    border-color: #cbd5e1 !important;
+  }
+
+  .draft-cell-input:focus,
+  .draft-cell-textarea:focus {
+    background: #ffffff !important;
+    border-color: #1e40af !important;
+    box-shadow: 0 0 0 3px rgba(30, 64, 175, 0.15) !important;
+    outline: none !important;
+  }
+
+  .draft-del-btn {
+    width: 30px !important;
+    height: 30px !important;
+    border-radius: 7px !important;
+    border: 1px solid transparent !important;
+    background: transparent !important;
+    color: #94a3b8 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    cursor: pointer !important;
+  }
+
+  .draft-del-btn:hover {
+    background: #fef2f2 !important;
+    border-color: #fecaca !important;
+    color: #dc2626 !important;
+  }
+
+  .draft-table-footer {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    padding: 12px 18px !important;
+    background: linear-gradient(90deg, #f8fafc 0%, #eff6ff 100%) !important;
+    border-top: 1px solid #cbd5e1 !important;
+    font-size: 13px !important;
+    color: #334155 !important;
+  }
+
+  .draft-total-highlight {
+    font-family: var(--stitch-font-mono) !important;
+    font-size: 15px !important;
+    font-weight: 800 !important;
+    color: #0c326f !important;
+  }
+
+  /* ========================================================================
+   * 10. CHECKBOX & RADIO PROTECTION + RESPONSIVE TABLE FIT ON 1440px DESKTOP
+   * ======================================================================== */
+  input[type="checkbox"],
+  input[type="radio"] {
+    width: 16px !important;
+    height: 16px !important;
+    min-width: 16px !important;
+    min-height: 16px !important;
+    max-width: 18px !important;
+    max-height: 18px !important;
+    padding: 0 !important;
+    margin: 0 auto !important;
+    accent-color: #0c326f !important;
+    cursor: pointer !important;
+    box-shadow: none !important;
+  }
+
+  .pr-table {
+    width: 100% !important;
+    overflow-x: auto !important;
+  }
+
+  .pr-table > table {
+    width: 100% !important;
+    min-width: 0 !important;
+    table-layout: auto !important;
+  }
+
+  .pr-table th,
+  .pr-table td {
+    padding: 11px 12px !important;
+  }
+
+  /* Payment & Handover Toolbar & Table Polish */
+  .payment-toolbar {
+    background: #ffffff !important;
+    border: 1px solid #e2e8f0 !important;
+    border-radius: 12px !important;
+    padding: 12px 16px !important;
+    margin-bottom: 14px !important;
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.03) !important;
+  }
+
+  /* ========================================================================
+   * 11. DETAIL WORKSPACES & POPUP MODALS (PO DETAIL, COMPARE, ĐNPD, PAYMENT, HANDOVER)
+   * ======================================================================== */
+
+  /* Strictly hide PO Mobile Cards when in "auto" mode on Desktop */
+  .po-mobile-cards-view {
+    display: none !important;
+  }
+
+  /* PO Detail Executive Header & Sections */
+  .po-detail > .heading {
+    background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%) !important;
+    border: 1px solid #e2e8f0 !important;
+    border-left: 5px solid #0c326f !important;
+    border-radius: 14px !important;
+    padding: 18px 24px !important;
+    margin-bottom: 16px !important;
+    box-shadow: 0 4px 16px -4px rgba(15, 23, 42, 0.06) !important;
+  }
+
+  .po-detail > .heading em {
+    display: inline-block;
+    font-style: normal !important;
+    font-size: 11px !important;
+    font-weight: 800 !important;
+    letter-spacing: 0.06em !important;
+    color: #0284c7 !important;
+    background: #f0f9ff !important;
+    border: 1px solid #bae6fd !important;
+    padding: 3px 10px !important;
+    border-radius: 999px !important;
+    margin-bottom: 6px !important;
+  }
+
+  .po-detail > .heading h1 {
+    font-size: 21px !important;
+    font-weight: 800 !important;
+    color: #0f172a !important;
+    margin: 2px 0 6px !important;
+  }
+
+  .po-total {
+    background: linear-gradient(135deg, #0c326f 0%, #1e3a8a 100%) !important;
+    color: #ffffff !important;
+    border-radius: 12px !important;
+    padding: 10px 18px !important;
+    box-shadow: 0 6px 16px rgba(12, 50, 111, 0.22) !important;
+    border: 1px solid rgba(255, 255, 255, 0.15) !important;
+  }
+
+  .po-total span {
+    color: #93c5fd !important;
+    font-size: 10.5px !important;
+    font-weight: 700 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.05em !important;
+  }
+
+  .po-total b {
+    color: #ffffff !important;
+    font-family: var(--stitch-font-mono) !important;
+    font-size: 18px !important;
+    font-weight: 800 !important;
+  }
+
+  .po-total i {
+    color: #6ee7b7 !important;
+    font-style: normal !important;
+    font-weight: 700 !important;
+    font-size: 11px !important;
+  }
+
+  .po-tabs {
+    background: #ffffff !important;
+    border: 1px solid #e2e8f0 !important;
+    border-radius: 12px !important;
+    padding: 8px 14px !important;
+    margin-bottom: 16px !important;
+    box-shadow: 0 2px 6px rgba(15, 23, 42, 0.03) !important;
+  }
+
+  .po-tabs a {
+    padding: 7px 14px !important;
+    border-radius: 8px !important;
+    font-size: 12.5px !important;
+    font-weight: 700 !important;
+    color: #475569 !important;
+    text-decoration: none !important;
+    transition: all 0.15s ease !important;
+  }
+
+  .po-tabs a:hover {
+    background: #eff6ff !important;
+    color: #0c326f !important;
+  }
+
+  .po-section {
+    background: #ffffff !important;
+    border: 1px solid #e2e8f0 !important;
+    border-radius: 14px !important;
+    box-shadow: 0 2px 10px rgba(15, 23, 42, 0.04) !important;
+    margin-bottom: 16px !important;
+    overflow: hidden !important;
+  }
+
+  .po-section > .section-heading {
+    background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%) !important;
+    border-bottom: 1px solid #e2e8f0 !important;
+    padding: 13px 18px !important;
+  }
+
+  .po-section > .section-heading h2 {
+    font-size: 14.5px !important;
+    font-weight: 800 !important;
+    color: #0f172a !important;
+  }
+
+  /* Approval Detail Topbar & Config Bar */
+  .approval-detail-topbar {
+    background: linear-gradient(135deg, #0c326f 0%, #09224c 100%) !important;
+    border-radius: 14px !important;
+    padding: 14px 20px !important;
+    margin-bottom: 12px !important;
+    box-shadow: 0 8px 22px -6px rgba(12, 50, 111, 0.32) !important;
+    border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  }
+
+  .approval-detail-topbar .crumb-code {
+    color: #ffffff !important;
+    font-family: var(--stitch-font-mono) !important;
+    font-weight: 800 !important;
+    font-size: 14px !important;
+  }
+
+  .approval-config-bar {
+    background: #ffffff !important;
+    border: 1px solid #cbd5e1 !important;
+    border-radius: 12px !important;
+    padding: 12px 18px !important;
+    margin-bottom: 16px !important;
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04) !important;
+  }
+
+  /* Desktop Card Grid View for Payment & Handover ("Chế độ Thẻ") */
+  .mobile-cards-container {
+    display: grid !important;
+    grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)) !important;
+    gap: 16px !important;
+    padding: 4px 0 20px !important;
+  }
+
+  .mobile-cards-container .m-card {
+    background: #ffffff !important;
+    border: 1px solid #e2e8f0 !important;
+    border-left: 4px solid #0c326f !important;
+    border-radius: 14px !important;
+    padding: 16px 18px !important;
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.05) !important;
+    transition: transform 0.15s ease, box-shadow 0.15s ease !important;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: space-between !important;
+  }
+
+  .mobile-cards-container .m-card .m-card-desktop-tools {
+    margin-top: 14px !important;
+  }
+
+  .mobile-cards-container .m-card:hover {
+    transform: translateY(-2px) !important;
+    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.09) !important;
+  }
+
+  /* Fix inline labels inside PO Section Headings & Compare Breadcrumb Nav */
+  .po-section > .section-heading label,
+  .po-detail > .heading label {
+    display: inline-flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    white-space: nowrap !important;
+    gap: 6px !important;
+  }
+
+  .po-section > .section-heading label > span {
+    white-space: nowrap !important;
+  }
+
+  .compare-breadcrumb-bar {
+    background: #ffffff !important;
+    border: 1px solid #e2e8f0 !important;
+    border-radius: 12px !important;
+    padding: 10px 18px !important;
+    box-shadow: 0 2px 6px rgba(15, 23, 42, 0.03) !important;
+  }
+
+  .compare-breadcrumb-bar nav {
+    display: inline-flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    gap: 8px !important;
+    width: auto !important;
+  }
+
+  .compare-page > .heading {
+    background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%) !important;
+    border: 1px solid #e2e8f0 !important;
+    border-left: 5px solid #0c326f !important;
+    border-radius: 14px !important;
+    padding: 16px 22px !important;
+    margin-bottom: 14px !important;
+    box-shadow: 0 4px 14px -4px rgba(15, 23, 42, 0.06) !important;
+  }
+}

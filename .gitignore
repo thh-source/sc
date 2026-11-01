@@ -4,6 +4,8 @@ dist
 .env
 .dev.vars
 .gemini
+.vinext
+.stitch
 *.tsbuildinfo
 backup_*.json
 *.backup.json

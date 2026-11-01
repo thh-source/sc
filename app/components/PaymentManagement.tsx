@@ -287,7 +287,7 @@ export function PaymentManagement({
     }
   };
 
-  const isCardView = userMobileToggle !== null ? userMobileToggle : isAutoMobile;
+  const isCardView = userMobileToggle !== null ? userMobileToggle : true;
   const showMobileCards = isCardView;
 
   // Card view Edit modal state (allows editing on computer in card mode)
@@ -1623,10 +1623,112 @@ export function PaymentManagement({
         }}
       />
 
-      {/* Top Heading */}
-      <div className="heading">
+      {/* Stitch v2 Executive Page Header */}
+      <div className="heading stitch-page-banner">
         <div>
+          <div className="stitch-breadcrumb">
+            <span>Tài chính & Kế toán Thanh toán</span>
+            <span>/</span>
+            <b>Đề nghị Thanh toán (ĐNTT)</b>
+          </div>
           <h1>{t("payment.title")}</h1>
+          <p className="stitch-subtitle">
+            Quản lý hồ sơ thanh toán, đối chiếu hóa đơn GTGT, theo dõi công nợ Nhà cung cấp và xuất biểu mẫu 01-TT
+          </p>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
+          <div className="stitch-seg-group">
+            <button
+              type="button"
+              className={`stitch-seg-btn ${isCardView ? "active" : ""}`}
+              onClick={() => setUserMobileToggle(true)}
+              title="Xem danh sách dưới dạng các thẻ Hồ sơ Đề nghị Thanh toán"
+            >
+              <LayoutGrid size={15} /> Theo Hồ Sơ ĐNTT <span className="stitch-count-pill">{paymentRequests.length}</span>
+            </button>
+            <button
+              type="button"
+              className={`stitch-seg-btn ${!isCardView ? "active" : ""}`}
+              onClick={() => setUserMobileToggle(false)}
+              title="Xem danh sách dưới dạng bảng tính kế toán"
+            >
+              <Table size={15} /> Bảng Kê Kế Toán <span className="stitch-count-pill">{paymentRequests.length}</span>
+            </button>
+          </div>
+
+          <button
+            type="button"
+            className="btn btn-accent btn-md"
+            onClick={() => {
+              setPoFilterType("all");
+              setPoSearch("");
+              setShowPOPickerModal(true);
+            }}
+          >
+            <FileText size={16} /> Lập ĐNTT từ PO / HĐ
+          </button>
+          <button
+            type="button"
+            className="btn btn-primary btn-md"
+            onClick={isCardView ? handleAddNewFromCardView : handleAddRequestRow}
+          >
+            <Plus size={16} /> Thêm ĐNTT
+          </button>
+        </div>
+      </div>
+
+      {/* Stitch v2 Bento KPI Strip */}
+      <div className="stitch-kpi-strip">
+        <div className="stitch-kpi-card kpi-navy">
+          <div className="stitch-kpi-icon">
+            <FileText size={20} />
+          </div>
+          <div className="stitch-kpi-body">
+            <small>Tổng Hồ Sơ Đề Nghị Thanh Toán</small>
+            <strong>
+              {paymentRequests.length} <em>đề nghị</em>
+            </strong>
+            <span className="stitch-kpi-sub">
+              Đang hiển thị: <b>{filteredRequests.length}</b> hồ sơ
+            </span>
+          </div>
+        </div>
+
+        <div className="stitch-kpi-card kpi-orange">
+          <div className="stitch-kpi-icon">
+            <Printer size={20} />
+          </div>
+          <div className="stitch-kpi-body">
+            <small>Chờ Đi Tiền / Bổ Sung Hồ Sơ</small>
+            <strong>
+              {paymentRequests.filter((r) => !isPaymentCompleted(r)).length} <em>hồ sơ đang mở</em>
+            </strong>
+            <span className="stitch-kpi-sub">
+              Đã chọn in gộp: <b>{checkedIds.size}</b> đề nghị
+            </span>
+          </div>
+        </div>
+
+        <div className="stitch-kpi-card kpi-emerald">
+          <div className="stitch-kpi-icon">
+            <Check size={20} />
+          </div>
+          <div className="stitch-kpi-body">
+            <small>Đã Hoàn Tất Thanh Toán</small>
+            <strong>
+              {paymentRequests.filter((r) => isPaymentCompleted(r)).length} <em>hồ sơ hoàn tất</em>
+            </strong>
+            <span className="stitch-kpi-sub">
+              Tổng tiền hiển thị:{" "}
+              <b>
+                {fmtMoney(
+                  filteredRequests.reduce((s, r) => s + (Number(r.amount) || 0), 0),
+                  "VND"
+                )}{" "}
+                ₫
+              </b>
+            </span>
+          </div>
         </div>
       </div>
 
@@ -1634,50 +1736,130 @@ export function PaymentManagement({
       <div className={`payment-toolbar ${isPhoneScreen ? "payment-toolbar-mobile" : ""}`}>
         {!isPhoneScreen && (
           <>
-            <button
-              type="button"
-              className="btn btn-primary btn-md"
-              onClick={isCardView ? handleAddNewFromCardView : handleAddRequestRow}
-              title={isCardView ? "Thêm một đề nghị thanh toán mới và chỉnh sửa" : "Thêm một dòng đề nghị thanh toán mới vào bảng"}
-            >
-              <Plus size={16} /> Thêm ĐNTT
-            </button>
-
-            <button
-              type="button"
-              className="btn btn-accent btn-md"
-              onClick={() => {
-                setPoFilterType("all");
-                setPoSearch("");
-                setShowPOPickerModal(true);
-              }}
-              title="Lập đề nghị thanh toán từ đơn đặt hàng PO hoặc Hợp đồng kinh tế"
-            >
-              <FileText size={16} /> Từ PO/HĐ
-            </button>
-
-            <button
-              type="button"
-              className={`btn btn-secondary btn-md btn-workspace-toggle ${isWorkspaceExpanded ? "active" : ""}`}
-              onClick={() => setIsWorkspaceExpanded(!isWorkspaceExpanded)}
-              title={isWorkspaceExpanded ? "Thu gọn về giao diện chuẩn" : "Mở rộng không gian làm việc (giống So sánh báo giá)"}
-            >
-              {isWorkspaceExpanded ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
-              {isWorkspaceExpanded ? "Thu gọn" : "Mở rộng"}
-            </button>
-
-            <button
-              type="button"
-              className="btn btn-secondary btn-md"
-              onClick={() => setUserMobileToggle(!isCardView)}
-              title="Chuyển đổi giao diện giữa dạng bảng tính desktop và dạng thẻ trực quan"
-            >
-              {isCardView ? <Table size={16} /> : <LayoutGrid size={16} />}
-              {isCardView ? "Dạng bảng" : "Dạng thẻ"}
-            </button>
+            {isCardView ? (
+              <>
+                <button
+                  type="button"
+                  className="btn btn-primary btn-md"
+                  onClick={handleAddNewFromCardView}
+                  title="Thêm một đề nghị thanh toán mới và chỉnh sửa"
+                >
+                  <Plus size={16} /> Thêm ĐNTT
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-accent btn-md"
+                  onClick={() => {
+                    setPoFilterType("all");
+                    setPoSearch("");
+                    setShowPOPickerModal(true);
+                  }}
+                  title="Lập đề nghị thanh toán từ PO hoặc Hợp đồng"
+                >
+                  <FileText size={16} /> Từ PO/HĐ
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-teal btn-md"
+                  onClick={handlePrintChecked}
+                  title="In biểu mẫu 01-TT cho các hồ sơ đã chọn"
+                >
+                  <Printer size={16} /> In ({checkedIds.size})
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-md"
+                  onClick={() => {
+                    if (checkedIds.size === 0) return;
+                    const next = paymentRequests.map((r) =>
+                      checkedIds.has(r.id)
+                        ? { ...r, status: isPaymentCompleted(r) ? "Đã giao KT, chờ đi tiền" : "Đã thanh toán (Hoàn tất)" }
+                        : r
+                    );
+                    onUpdateState({ paymentRequests: next });
+                  }}
+                  disabled={checkedIds.size === 0}
+                  title="Đánh dấu đã thanh toán cho các hồ sơ đang chọn"
+                >
+                  <Check size={16} /> Đã TT ({checkedIds.size})
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-danger btn-md"
+                  onClick={handleDeleteSelectedRequests}
+                  disabled={checkedIds.size === 0}
+                  title="Xóa các hồ sơ đang chọn"
+                >
+                  <Trash2 size={16} /> Xóa ({checkedIds.size})
+                </button>
+              </>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  className="btn btn-primary btn-md"
+                  onClick={handleAddRequestRow}
+                  title="Thêm một dòng đề nghị thanh toán mới vào bảng"
+                >
+                  <Plus size={16} /> Thêm dòng
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-accent btn-md"
+                  onClick={() => {
+                    setPoFilterType("all");
+                    setPoSearch("");
+                    setShowPOPickerModal(true);
+                  }}
+                  title="Lập đề nghị thanh toán từ đơn đặt hàng PO hoặc Hợp đồng kinh tế"
+                >
+                  <FileText size={16} /> Từ PO/HĐ
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-md"
+                  onClick={() => setShowPasteModal(true)}
+                  title="Dán dữ liệu từ file Excel (Ctrl+V)"
+                >
+                  <ClipboardPaste size={16} /> Dán Excel
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-md"
+                  onClick={() => setShowColumnConfigModal(true)}
+                  title="Tùy chỉnh thứ tự các cột, ẩn hiện cột và chọn các cột cần cố định"
+                >
+                  <Settings size={15} /> Cột ({columns.filter((c) => c.visible).length}/{columns.length})
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-teal btn-md"
+                  onClick={handlePrintChecked}
+                  title="In các đề nghị thanh toán đã chọn (Mẫu 01-TT)"
+                >
+                  <Printer size={16} /> In ({checkedIds.size})
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-danger btn-md"
+                  onClick={handleDeleteSelectedRequests}
+                  title="Xóa các đề nghị thanh toán đã chọn"
+                >
+                  <Trash2 size={16} /> Xóa ({checkedIds.size})
+                </button>
+                <button
+                  type="button"
+                  className={`btn btn-secondary btn-md btn-workspace-toggle ${isWorkspaceExpanded ? "active" : ""}`}
+                  onClick={() => setIsWorkspaceExpanded(!isWorkspaceExpanded)}
+                  title={isWorkspaceExpanded ? "Thu gọn về giao diện chuẩn" : "Mở rộng không gian làm việc (giống So sánh báo giá)"}
+                >
+                  {isWorkspaceExpanded ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+                  {isWorkspaceExpanded ? "Thu gọn" : "Mở rộng"}
+                </button>
+              </>
+            )}
           </>
         )}
-
         <div style={{ position: "relative", display: "inline-flex", alignItems: "center", width: isPhoneScreen ? "100%" : "250px" }}>
           <input
             placeholder="Tìm NCC, STT, nội dung, hóa đơn..."
@@ -1852,7 +2034,19 @@ export function PaymentManagement({
                 onClick={() => setActiveRequestId(r.id)}
               >
                 <div className="m-card-header">
-                  <div className="m-card-stt" style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                  <div className="m-card-stt" style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                    {!isPhoneScreen && (
+                      <input
+                        type="checkbox"
+                        checked={checkedIds.has(r.id)}
+                        onChange={(e) => {
+                          e.stopPropagation();
+                          toggleCheck(r.id, e.target.checked);
+                        }}
+                        title="Tích chọn hồ sơ ĐNTT này"
+                        style={{ width: "16px", height: "16px", cursor: "pointer", accentColor: "#0284c7" }}
+                      />
+                    )}
                     <button
                       type="button"
                       className={`completion-toggle-btn ${isDone ? "completed" : ""}`}
@@ -1866,6 +2060,22 @@ export function PaymentManagement({
                       {isDone ? <CheckCircle2 size={18} className="text-emerald-600" /> : <Circle size={18} className="text-slate-400" />}
                     </button>
                     <span>STT {r.legacy_stt || r.id}</span>
+                    {r.group_code && (
+                      <span
+                        style={{
+                          fontSize: "11px",
+                          fontWeight: 800,
+                          color: "#0369a1",
+                          background: "#f0f9ff",
+                          border: "1px solid #bae6fd",
+                          padding: "2px 8px",
+                          borderRadius: "6px",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        📦 {r.group_code}
+                      </span>
+                    )}
                   </div>
                   {isPhoneScreen ? (
                     <span className={`m-badge ${stClass}`}>{r.status}</span>
@@ -1941,20 +2151,37 @@ export function PaymentManagement({
                 )}
 
                 {lines.length > 0 && (
-                  <details className="m-card-lines">
-                    <summary>Chi tiết {lines.length} hóa đơn / hàng hóa</summary>
-                    <div className="m-lines-list">
-                      {lines.map((l, li) => (
-                        <div key={li} className="m-line-item">
-                          <div>{li + 1}. {l.description || "Hàng hóa"}</div>
-                          <div>
-                            {l.invoice_no && <span style={{ color: "#64748b", marginRight: "6px" }}>HĐ: {l.invoice_no}</span>}
-                            <b>{fmtMoney(l.amount)} {r.currency}</b>
-                          </div>
-                        </div>
-                      ))}
+                  <div style={{ marginTop: "12px", border: "1px solid #e2e8f0", borderRadius: "10px", overflow: "hidden", background: "#f8fafc" }}>
+                    <div style={{ padding: "6px 10px", background: "#f1f5f9", borderBottom: "1px solid #e2e8f0", fontSize: "11px", fontWeight: 700, color: "#475569", display: "flex", justifyContent: "space-between" }}>
+                      <span>DANH MỤC HÓA ĐƠN / HÀNG HÓA ({lines.length})</span>
+                      <span>SỐ TIỀN ({r.currency || "VND"})</span>
                     </div>
-                  </details>
+                    <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12px" }}>
+                      <tbody>
+                        {lines.slice(0, 3).map((l, li) => (
+                          <tr key={li} style={{ borderBottom: li < Math.min(lines.length, 3) - 1 ? "1px solid #f1f5f9" : "none" }}>
+                            <td style={{ padding: "6px 10px", fontWeight: 600, color: "#1e293b" }}>
+                              <div style={{ lineHeight: 1.3 }}>{l.description || "Hàng hóa vật tư"}</div>
+                              {l.invoice_no && (
+                                <small style={{ color: "#64748b", fontSize: "10.5px" }}>HĐ: {l.invoice_no}</small>
+                              )}
+                            </td>
+                            <td style={{ padding: "6px 10px", textAlign: "right", fontWeight: 800, color: "#047857", whiteSpace: "nowrap" }}>
+                              {fmtMoney(l.amount)}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    {lines.length > 3 && (
+                      <div
+                        onClick={() => !isPhoneScreen && setEditModalReqId(r.id)}
+                        style={{ padding: "5px 10px", fontSize: "11px", fontWeight: 700, color: "#0284c7", textAlign: "center", background: "#f1f5f9", cursor: "pointer" }}
+                      >
+                        + Xem thêm {lines.length - 3} hóa đơn / mặt hàng khác ➔
+                      </div>
+                    )}
+                  </div>
                 )}
 
                 {/* Mobile: Chỉ cho xem và có 1 tính năng duy nhất: Đánh dấu đã thanh toán */}

@@ -633,26 +633,131 @@ export function CreatePRCatalog({
   }
 
   return (
-    <div
-      className="create-page w-full min-h-full p-4 md:p-6 pb-32 space-y-4"
+    <section
+      className="content create-page stitch-create-pr-page"
       style={{
         width: "100%",
         minHeight: "100%",
-        paddingBottom: "140px",
+        padding: "20px 24px 120px",
         boxSizing: "border-box",
+        display: "flex",
+        flexDirection: "column",
+        gap: "16px",
       }}
     >
-      <div className="heading">
-        <div>
-          <h1>Tạo PR mới</h1>
+      {/* STITCH v2 WORKSPACE HEADER BAR */}
+      <div
+        className="stitch-workspace-header"
+        style={{
+          background: "#ffffff",
+          border: "1px solid #e2e8f0",
+          borderRadius: "14px",
+          padding: "16px 22px",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: "16px",
+          flexWrap: "wrap",
+          boxShadow: "0 1px 3px rgba(15, 23, 42, 0.04), 0 4px 12px rgba(15, 23, 42, 0.02)",
+          position: "relative",
+          overflow: "hidden",
+        }}
+      >
+        <div
+          style={{
+            position: "absolute",
+            left: 0,
+            top: 0,
+            bottom: 0,
+            width: "5px",
+            background: "linear-gradient(180deg, #0c326f 0%, #e65100 100%)",
+          }}
+        />
+        <div style={{ paddingLeft: "6px" }}>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "6px",
+              fontSize: "11.5px",
+              fontWeight: 600,
+              color: "#64748b",
+              marginBottom: "4px",
+            }}
+          >
+            <span style={{ cursor: "pointer", color: "#0c326f" }} onClick={onCancel}>
+              Yêu cầu Mua sắm (PR)
+            </span>
+            <span>/</span>
+            <span
+              style={{
+                background: "#eff6ff",
+                color: "#1e40af",
+                padding: "1px 8px",
+                borderRadius: "5px",
+                border: "1px solid #bfdbfe",
+                fontFamily: "var(--stitch-font-mono, monospace)",
+                fontWeight: 700,
+              }}
+            >
+              {draft.number || "PR-MỚI"}
+            </span>
+          </div>
+          <h1
+            style={{
+              margin: 0,
+              fontSize: "20px",
+              fontWeight: 800,
+              color: "#0c326f",
+              letterSpacing: "-0.015em",
+            }}
+          >
+            Khởi tạo Yêu cầu Mua sắm (PR) &amp; Dự toán Vật tư
+          </h1>
         </div>
-        <div className="actions">
-          <button type="button" className="btn btn-secondary" onClick={onCancel}>
+
+        <div style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "14px",
+              background: "#f8fafc",
+              border: "1px solid #e2e8f0",
+              borderRadius: "10px",
+              padding: "7px 14px",
+            }}
+          >
+            <div>
+              <div style={{ fontSize: "10.5px", fontWeight: 700, color: "#64748b", textTransform: "uppercase" }}>
+                Số mặt hàng
+              </div>
+              <div style={{ fontSize: "14px", fontWeight: 800, color: "#0f172a", fontFamily: "var(--stitch-font-mono, monospace)" }}>
+                {draft.items.filter((i) => i.code || i.name).length} mục
+              </div>
+            </div>
+            <div style={{ width: "1px", height: "26px", background: "#cbd5e1" }} />
+            <div>
+              <div style={{ fontSize: "10.5px", fontWeight: 700, color: "#64748b", textTransform: "uppercase" }}>
+                Tổng ngân sách dự kiến
+              </div>
+              <div style={{ fontSize: "14px", fontWeight: 800, color: "#e65100", fontFamily: "var(--stitch-font-mono, monospace)" }}>
+                {fmt(total)} ₫
+              </div>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            className="btn btn-secondary"
+            onClick={onCancel}
+            style={{ height: "40px", padding: "0 16px", display: "inline-flex", alignItems: "center", gap: "6px" }}
+          >
             <ArrowLeft size={16} /> Quay lại
           </button>
           <button
             type="button"
-            className="btn btn-primary"
+            className="btn btn-primary po-create-btn"
             onClick={onSave}
             disabled={
               !draft.number ||
@@ -660,8 +765,9 @@ export function CreatePRCatalog({
               !draft.department ||
               !draft.purpose
             }
+            style={{ height: "40px", padding: "0 20px", display: "inline-flex", alignItems: "center", gap: "6px" }}
           >
-            <Check size={16} /> Lưu PR
+            <Check size={16} /> Lưu &amp; Phát hành PR
           </button>
         </div>
       </div>
@@ -671,23 +777,23 @@ export function CreatePRCatalog({
           style={{
             backgroundColor: "#fffbeb",
             border: "1px solid #fde68a",
-            borderRadius: "8px",
-            padding: "10px 14px",
-            marginBottom: "12px",
+            borderRadius: "12px",
+            padding: "12px 18px",
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
             gap: "12px",
             flexWrap: "wrap",
+            boxShadow: "0 2px 8px rgba(217, 119, 6, 0.08)",
           }}
         >
           <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
             <AlertTriangle size={18} style={{ color: "#d97706", flexShrink: 0 }} />
             <div>
-              <div style={{ fontSize: "13px", fontWeight: 600, color: "#92400e" }}>
+              <div style={{ fontSize: "13px", fontWeight: 700, color: "#92400e" }}>
                 Phát hiện bản nháp PR chưa hoàn thành (lưu lúc {draftPrompt.time})
               </div>
-              <div style={{ fontSize: "11px", color: "#b45309" }}>
+              <div style={{ fontSize: "11.5px", color: "#b45309" }}>
                 {draftPrompt.data.department ? `Bộ phận: ${draftPrompt.data.department} · ` : ""}
                 {draftPrompt.data.purpose ? `Mục đích: ${draftPrompt.data.purpose.slice(0, 40)}... · ` : ""}
                 {draftPrompt.data.items?.length || 0} mặt hàng
@@ -698,7 +804,7 @@ export function CreatePRCatalog({
             <button
               type="button"
               className="btn btn-primary btn-sm"
-              style={{ fontSize: "12px", padding: "4px 10px" }}
+              style={{ fontSize: "12px", padding: "6px 12px" }}
               onClick={() => {
                 setDraft(draftPrompt.data);
                 setDraftPrompt(null);
@@ -709,7 +815,7 @@ export function CreatePRCatalog({
             <button
               type="button"
               className="btn btn-secondary btn-sm"
-              style={{ fontSize: "12px", padding: "4px 8px" }}
+              style={{ fontSize: "12px", padding: "6px 10px" }}
               onClick={() => {
                 void clearFormDraft("pr_draft_form");
                 setDraftPrompt(null);
@@ -720,12 +826,55 @@ export function CreatePRCatalog({
           </div>
         </div>
       )}
-      <div className="form-card pr-info-card" style={{ padding: "12px 16px", marginBottom: "12px", background: "#ffffff", borderRadius: "8px", border: "1px solid #e2e8f0" }}>
-        <div className="section-title" style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "8px" }}>
-          <span className="section-step" style={{ width: "24px", height: "24px", minWidth: "24px", borderRadius: "6px", fontSize: "12px", fontWeight: 700, background: "#0f172a", color: "#ffffff", display: "grid", placeItems: "center", flexShrink: 0 }}>1</span>
-          <div style={{ display: "flex", alignItems: "baseline", gap: "8px", flexWrap: "wrap" }}>
-            <h2 style={{ fontSize: "14px", fontWeight: 700, margin: 0, color: "#0f172a" }}>Thông tin PR</h2>
-            <p style={{ fontSize: "12px", color: "#64748b", margin: 0, fontWeight: 400 }}>· Nhận diện, mục đích & bản scan</p>
+
+      {/* BƯỚC 1: THÔNG TIN ĐỊNH DANH & HỒ SƠ SCAN PR */}
+      <div
+        className="form-card pr-info-card"
+        style={{
+          padding: "20px 22px",
+          background: "#ffffff",
+          borderRadius: "14px",
+          border: "1px solid #e2e8f0",
+          boxShadow: "0 1px 3px rgba(15, 23, 42, 0.04), 0 4px 12px rgba(15, 23, 42, 0.02)",
+        }}
+      >
+        <div
+          className="section-title"
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "12px",
+            marginBottom: "16px",
+            paddingBottom: "12px",
+            borderBottom: "1px solid #f1f5f9",
+          }}
+        >
+          <span
+            className="section-step"
+            style={{
+              width: "30px",
+              height: "30px",
+              minWidth: "30px",
+              borderRadius: "8px",
+              fontSize: "13px",
+              fontWeight: 800,
+              background: "linear-gradient(135deg, #0c326f 0%, #1e40af 100%)",
+              color: "#ffffff",
+              display: "grid",
+              placeItems: "center",
+              flexShrink: 0,
+              boxShadow: "0 2px 6px rgba(12, 50, 111, 0.25)",
+            }}
+          >
+            01
+          </span>
+          <div>
+            <h2 style={{ fontSize: "15px", fontWeight: 800, margin: 0, color: "#0f172a" }}>
+              Thông tin Định danh &amp; Chứng từ Yêu cầu Mua sắm (PR)
+            </h2>
+            <p style={{ fontSize: "12px", color: "#64748b", margin: "2px 0 0", fontWeight: 500 }}>
+              Khai báo mã số PR, phòng ban đề xuất, mục đích sử dụng và đính kèm bản scan phiếu gốc
+            </p>
           </div>
         </div>
 
@@ -733,44 +882,46 @@ export function CreatePRCatalog({
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))",
-            gap: "10px",
-            marginBottom: "8px",
+            gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+            gap: "14px",
+            marginBottom: "14px",
           }}
         >
-          <label style={{ display: "flex", flexDirection: "column", gap: "3px", fontSize: "12px", fontWeight: 600, color: "#475569" }}>
-            <span>Số PR <b style={{ color: "#ef4444" }}>*</b></span>
+          <label style={{ display: "flex", flexDirection: "column", gap: "5px", fontSize: "12px", fontWeight: 700, color: "#334155" }}>
+            <span>Mã số PR <b style={{ color: "#ef4444" }}>*</b></span>
             <input
               type="text"
               value={draft.number}
               onChange={(e) => setDraft((d) => ({ ...d, number: e.target.value }))}
               style={{
-                height: "36px",
-                border: "1px solid #cbd5e1",
-                borderRadius: "6px",
-                padding: "0 10px",
-                fontSize: "13px",
-                fontWeight: 600,
-                color: "#0f172a",
+                height: "40px",
+                border: "1.5px solid #cbd5e1",
+                borderRadius: "8px",
+                padding: "0 12px",
+                fontSize: "13.5px",
+                fontWeight: 700,
+                fontFamily: "var(--stitch-font-mono, monospace)",
+                color: "#0c326f",
                 outline: 0,
-                background: "#ffffff",
+                background: "#f8fafc",
               }}
               placeholder="VD: PR-2026-0001"
             />
           </label>
 
-          <label style={{ display: "flex", flexDirection: "column", gap: "3px", fontSize: "12px", fontWeight: 600, color: "#475569" }}>
-            <span>Ngày PR <b style={{ color: "#ef4444" }}>*</b></span>
+          <label style={{ display: "flex", flexDirection: "column", gap: "5px", fontSize: "12px", fontWeight: 700, color: "#334155" }}>
+            <span>Ngày lập PR <b style={{ color: "#ef4444" }}>*</b></span>
             <input
               type="date"
               value={draft.date}
               onChange={(e) => setDraft((d) => ({ ...d, date: e.target.value }))}
               style={{
-                height: "36px",
-                border: "1px solid #cbd5e1",
-                borderRadius: "6px",
-                padding: "0 10px",
+                height: "40px",
+                border: "1.5px solid #cbd5e1",
+                borderRadius: "8px",
+                padding: "0 12px",
                 fontSize: "13px",
+                fontWeight: 600,
                 color: "#1e293b",
                 outline: 0,
                 background: "#ffffff",
@@ -778,8 +929,8 @@ export function CreatePRCatalog({
             />
           </label>
 
-          <label style={{ display: "flex", flexDirection: "column", gap: "3px", fontSize: "12px", fontWeight: 600, color: "#475569" }}>
-            <span>Đơn vị / Phòng ban <b style={{ color: "#ef4444" }}>*</b></span>
+          <label style={{ display: "flex", flexDirection: "column", gap: "5px", fontSize: "12px", fontWeight: 700, color: "#334155" }}>
+            <span>Đơn vị / Phòng ban đề xuất <b style={{ color: "#ef4444" }}>*</b></span>
             <select
               value={draft.department}
               onChange={(e) => {
@@ -795,18 +946,19 @@ export function CreatePRCatalog({
                 setDraft((d) => ({ ...d, department: val }));
               }}
               style={{
-                height: "36px",
-                border: "1px solid #cbd5e1",
-                borderRadius: "6px",
-                padding: "0 10px",
+                height: "40px",
+                border: "1.5px solid #cbd5e1",
+                borderRadius: "8px",
+                padding: "0 12px",
                 fontSize: "13px",
+                fontWeight: 600,
                 color: "#1e293b",
                 outline: 0,
                 background: "#ffffff",
                 cursor: "pointer",
               }}
             >
-              <option value="">-- Chọn đơn vị --</option>
+              <option value="">-- Chọn đơn vị / phòng ban --</option>
               {sysDepts.map((d) => (
                 <option key={d} value={d}>
                   {d}
@@ -816,9 +968,9 @@ export function CreatePRCatalog({
             </select>
           </label>
 
-          <div style={{ display: "flex", flexDirection: "column", gap: "3px" }}>
-            <span style={{ fontSize: "12px", fontWeight: 600, color: "#475569", display: "inline-flex", alignItems: "center", gap: "4px" }}>
-              <Paperclip size={13} style={{ color: "#0284c7" }} /> Bản scan PR (PDF/Ảnh)
+          <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
+            <span style={{ fontSize: "12px", fontWeight: 700, color: "#334155", display: "inline-flex", alignItems: "center", gap: "5px" }}>
+              <Paperclip size={13} style={{ color: "#0284c7" }} /> Hồ sơ Scan PR gốc (PDF/Ảnh)
             </span>
             <input
               ref={scanInputRef}
@@ -833,14 +985,14 @@ export function CreatePRCatalog({
             {draft.scan_file_url ? (
               <div
                 style={{
-                  height: "36px",
+                  height: "40px",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "space-between",
-                  padding: "0 8px",
+                  padding: "0 10px",
                   background: "#f0fdf4",
-                  border: "1px solid #86efac",
-                  borderRadius: "6px",
+                  border: "1.5px solid #86efac",
+                  borderRadius: "8px",
                   fontSize: "12px",
                 }}
               >
@@ -848,17 +1000,17 @@ export function CreatePRCatalog({
                   style={{
                     display: "inline-flex",
                     alignItems: "center",
-                    gap: "4px",
+                    gap: "5px",
                     color: "#166534",
-                    fontWeight: 600,
+                    fontWeight: 700,
                     overflow: "hidden",
                     textOverflow: "ellipsis",
                     whiteSpace: "nowrap",
-                    maxWidth: "115px",
+                    maxWidth: "135px",
                   }}
                   title={scanFileName || "Bản scan PR"}
                 >
-                  <span style={{ color: "#16a34a", fontWeight: 700 }}>✓</span> {scanFileName || "Đã có scan"}
+                  <span style={{ color: "#16a34a", fontWeight: 800 }}>✓</span> {scanFileName || "Đã đính kèm scan"}
                 </span>
                 <div style={{ display: "inline-flex", gap: "4px" }}>
                   <button
@@ -866,13 +1018,13 @@ export function CreatePRCatalog({
                     onClick={() => setShowPreviewModal(true)}
                     title="Xem trực tiếp bản scan"
                     style={{
-                      padding: "3px 6px",
+                      padding: "4px 8px",
                       fontSize: "11px",
-                      fontWeight: 600,
+                      fontWeight: 700,
                       color: "#0369a1",
                       backgroundColor: "#ffffff",
                       border: "1px solid #bae6fd",
-                      borderRadius: "4px",
+                      borderRadius: "6px",
                       cursor: "pointer",
                       display: "inline-flex",
                       alignItems: "center",
@@ -888,12 +1040,12 @@ export function CreatePRCatalog({
                     }}
                     title="Xóa file scan"
                     style={{
-                      padding: "3px 6px",
+                      padding: "4px 8px",
                       fontSize: "11px",
                       color: "#dc2626",
                       backgroundColor: "#ffffff",
                       border: "1px solid #fecaca",
-                      borderRadius: "4px",
+                      borderRadius: "6px",
                       cursor: "pointer",
                       display: "inline-flex",
                       alignItems: "center",
@@ -920,19 +1072,19 @@ export function CreatePRCatalog({
                 }}
                 disabled={uploadingScan}
                 style={{
-                  height: "36px",
+                  height: "40px",
                   display: "inline-flex",
                   alignItems: "center",
                   justifyContent: "center",
                   gap: "6px",
-                  border: `1px dashed ${isDragging ? "#0284c7" : "#0284c7"}`,
+                  border: `1.5px dashed #38bdf8`,
                   background: isDragging ? "#e0f2fe" : "#f0f9ff",
-                  borderRadius: "6px",
+                  borderRadius: "8px",
                   color: "#0369a1",
-                  fontSize: "12px",
-                  fontWeight: 600,
+                  fontSize: "12.5px",
+                  fontWeight: 700,
                   cursor: "pointer",
-                  padding: "0 8px",
+                  padding: "0 12px",
                   width: "100%",
                   transition: "all 0.15s ease",
                 }}
@@ -941,12 +1093,12 @@ export function CreatePRCatalog({
                 {uploadingScan ? (
                   <>
                     <Loader2 size={14} className="animate-spin text-sky-600" />
-                    <span>Đang nén & lưu...</span>
+                    <span>Đang nén &amp; lưu...</span>
                   </>
                 ) : (
                   <>
                     <Paperclip size={14} />
-                    <span>Đính kèm scan PR</span>
+                    <span>+ Đính kèm bản scan PR</span>
                   </>
                 )}
               </button>
@@ -955,7 +1107,7 @@ export function CreatePRCatalog({
         </div>
 
         {scanError && (
-          <div style={{ color: "#ef4444", fontSize: "11.5px", marginBottom: "6px", fontWeight: 600 }}>
+          <div style={{ color: "#ef4444", fontSize: "12px", marginBottom: "8px", fontWeight: 600 }}>
             ⚠ {scanError}
           </div>
         )}
@@ -964,27 +1116,27 @@ export function CreatePRCatalog({
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
-            gap: "10px",
+            gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))",
+            gap: "14px",
           }}
         >
-          <label style={{ display: "flex", flexDirection: "column", gap: "3px", fontSize: "12px", fontWeight: 600, color: "#475569" }}>
-            <span>Mục đích sử dụng <b style={{ color: "#ef4444" }}>*</b></span>
+          <label style={{ display: "flex", flexDirection: "column", gap: "5px", fontSize: "12px", fontWeight: 700, color: "#334155" }}>
+            <span>Mục đích mua sắm / Nội dung đề xuất <b style={{ color: "#ef4444" }}>*</b></span>
             <textarea
               rows={2}
               value={draft.purpose}
               onChange={(e) => setDraft((d) => ({ ...d, purpose: e.target.value }))}
-              placeholder="Nhập mục đích sử dụng (bắt buộc)..."
+              placeholder="Nhập mục đích sử dụng hàng hóa / vật tư (bắt buộc)..."
               style={{
-                height: "56px",
-                minHeight: "56px",
-                maxHeight: "120px",
-                border: "1px solid #cbd5e1",
-                borderRadius: "6px",
-                padding: "6px 10px",
+                height: "62px",
+                minHeight: "62px",
+                maxHeight: "130px",
+                border: "1.5px solid #cbd5e1",
+                borderRadius: "8px",
+                padding: "8px 12px",
                 fontSize: "13px",
-                lineHeight: 1.35,
-                color: "#1e293b",
+                lineHeight: 1.4,
+                color: "#0f172a",
                 outline: 0,
                 resize: "vertical",
                 background: "#ffffff",
@@ -993,13 +1145,13 @@ export function CreatePRCatalog({
           </label>
 
           {showNoteField || Boolean(draft.note && draft.note.trim()) ? (
-            <label style={{ display: "flex", flexDirection: "column", gap: "3px", fontSize: "12px", fontWeight: 600, color: "#475569" }}>
+            <label style={{ display: "flex", flexDirection: "column", gap: "5px", fontSize: "12px", fontWeight: 700, color: "#334155" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <span>Ghi chú chung PR</span>
                 <button
                   type="button"
                   onClick={() => { setDraft((d) => ({ ...d, note: "" })); setShowNoteField(false); }}
-                  style={{ background: "transparent", border: 0, color: "#64748b", fontSize: "11px", cursor: "pointer" }}
+                  style={{ background: "transparent", border: 0, color: "#64748b", fontSize: "11.5px", cursor: "pointer", fontWeight: 600 }}
                 >
                   ✕ Ẩn ghi chú
                 </button>
@@ -1010,15 +1162,15 @@ export function CreatePRCatalog({
                 onChange={(e) => setDraft((d) => ({ ...d, note: e.target.value }))}
                 placeholder="Nhập ghi chú hoặc thông tin bổ sung (nếu có)..."
                 style={{
-                  height: "56px",
-                  minHeight: "56px",
-                  maxHeight: "120px",
-                  border: "1px solid #cbd5e1",
-                  borderRadius: "6px",
-                  padding: "6px 10px",
+                  height: "62px",
+                  minHeight: "62px",
+                  maxHeight: "130px",
+                  border: "1.5px solid #cbd5e1",
+                  borderRadius: "8px",
+                  padding: "8px 12px",
                   fontSize: "13px",
-                  lineHeight: 1.35,
-                  color: "#1e293b",
+                  lineHeight: 1.4,
+                  color: "#0f172a",
                   outline: 0,
                   resize: "vertical",
                   background: "#ffffff",
@@ -1026,44 +1178,94 @@ export function CreatePRCatalog({
               />
             </label>
           ) : (
-            <div style={{ display: "flex", alignItems: "flex-end", height: "56px" }}>
+            <div style={{ display: "flex", alignItems: "flex-end", height: "100%" }}>
               <button
                 type="button"
                 onClick={() => setShowNoteField(true)}
                 style={{
-                  padding: "6px 12px",
-                  borderRadius: "6px",
-                  border: "1px dashed #cbd5e1",
+                  height: "40px",
+                  padding: "0 14px",
+                  borderRadius: "8px",
+                  border: "1.5px dashed #cbd5e1",
                   background: "#f8fafc",
                   color: "#475569",
-                  fontSize: "12px",
+                  fontSize: "12.5px",
                   fontWeight: 600,
                   cursor: "pointer",
                   display: "inline-flex",
                   alignItems: "center",
-                  gap: "4px",
+                  gap: "6px",
                 }}
               >
-                <Plus size={13} /> Thêm Ghi chú chung PR
+                <Plus size={14} /> Thêm Ghi chú chung PR
               </button>
             </div>
           )}
         </div>
       </div>
-      <div className="form-card items-card">
-        <div className="items-heading">
-          <div className="section-title">
-            <span className="section-step">2</span>
+
+      {/* BƯỚC 2: DANH SÁCH VẬT TƯ HÀNG HÓA */}
+      <div
+        className="form-card items-card"
+        style={{
+          padding: "20px 22px",
+          background: "#ffffff",
+          borderRadius: "14px",
+          border: "1px solid #e2e8f0",
+          boxShadow: "0 1px 3px rgba(15, 23, 42, 0.04), 0 4px 12px rgba(15, 23, 42, 0.02)",
+          display: "flex",
+          flexDirection: "column",
+          gap: "14px",
+        }}
+      >
+        <div
+          className="items-heading"
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            flexWrap: "wrap",
+            gap: "12px",
+            paddingBottom: "12px",
+            borderBottom: "1px solid #f1f5f9",
+          }}
+        >
+          <div className="section-title" style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+            <span
+              className="section-step"
+              style={{
+                width: "30px",
+                height: "30px",
+                minWidth: "30px",
+                borderRadius: "8px",
+                fontSize: "13px",
+                fontWeight: 800,
+                background: "linear-gradient(135deg, #e65100 0%, #f97316 100%)",
+                color: "#ffffff",
+                display: "grid",
+                placeItems: "center",
+                flexShrink: 0,
+                boxShadow: "0 2px 6px rgba(230, 81, 0, 0.25)",
+              }}
+            >
+              02
+            </span>
             <div>
-              <h2>Danh sách hàng hóa</h2>
-              <p>Chọn sản phẩm có sẵn từ danh mục hoặc nhập mới trực tiếp vào bảng</p>
+              <h2 style={{ fontSize: "15px", fontWeight: 800, margin: 0, color: "#0f172a" }}>
+                Chi tiết Danh mục Hàng hóa &amp; Dự toán Ngân sách
+              </h2>
+              <p style={{ fontSize: "12px", color: "#64748b", margin: "2px 0 0", fontWeight: 500 }}>
+                Chọn từ kho danh mục ({products.length} vật tư), nhập trực tiếp hoặc dán nhanh từ bảng tính Excel (Ctrl+V)
+              </p>
             </div>
           </div>
-          <div className="excel-actions">
+
+          <div className="excel-actions" style={{ display: "flex", alignItems: "center", gap: "8px" }}>
             <a
               className="btn btn-secondary btn-sm download"
               href="/mau-nhap-danh-sach-hang-hoa-pr.xlsx"
               download
+              style={{ height: "36px", padding: "0 12px", display: "inline-flex", alignItems: "center", gap: "6px", textDecoration: "none", fontSize: "12.5px" }}
             >
               <Download size={14} /> Tải Excel mẫu
             </a>
@@ -1078,24 +1280,53 @@ export function CreatePRCatalog({
               type="button"
               className="btn btn-secondary btn-sm excel-upload"
               onClick={() => fileRef.current?.click()}
+              style={{ height: "36px", padding: "0 12px", display: "inline-flex", alignItems: "center", gap: "6px", fontSize: "12.5px" }}
             >
-              <Upload size={14} /> Nhập Excel
+              <Upload size={14} /> Nhập từ File Excel
             </button>
           </div>
         </div>
 
-        <div className="catalog-picker-toolbar">
-          <div className="catalog-picker-left">
-            <span className="picker-label">Thêm từ danh mục:</span>
+        {/* Thanh chọn nhanh từ Danh mục */}
+        <div
+          className="catalog-picker-toolbar"
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            flexWrap: "wrap",
+            gap: "10px",
+            padding: "12px 14px",
+            background: "#f8fafc",
+            border: "1px solid #e2e8f0",
+            borderRadius: "10px",
+          }}
+        >
+          <div className="catalog-picker-left" style={{ display: "flex", alignItems: "center", gap: "10px", flex: 1, minWidth: "320px" }}>
+            <span className="picker-label" style={{ fontSize: "12.5px", fontWeight: 700, color: "#0c326f", whiteSpace: "nowrap" }}>
+              📦 Chọn từ kho Danh mục:
+            </span>
             <select
               className="catalog-select"
               value={selectedProduct}
               onChange={(e) => setSelectedProduct(e.target.value)}
+              style={{
+                flex: 1,
+                maxWidth: "520px",
+                height: "38px",
+                borderRadius: "8px",
+                border: "1.5px solid #cbd5e1",
+                padding: "0 12px",
+                fontSize: "13px",
+                fontWeight: 500,
+                background: "#ffffff",
+                color: "#0f172a",
+              }}
             >
-              <option value="">— Tìm và chọn hàng hóa từ kho danh mục —</option>
+              <option value="">— Tìm và chọn hàng hóa từ kho danh mục ({products.length} mã vật tư) —</option>
               {products.map((p) => (
                 <option key={p.id} value={p.id}>
-                  {p.code} · {p.name} · {p.spec}
+                  [{p.code}] {p.name} {p.spec ? `· ${p.spec}` : ""}
                 </option>
               ))}
             </select>
@@ -1104,14 +1335,16 @@ export function CreatePRCatalog({
               className="btn btn-primary btn-sm"
               disabled={!selectedProduct}
               onClick={addCatalogProduct}
+              style={{ height: "38px", padding: "0 14px", display: "inline-flex", alignItems: "center", gap: "5px", whiteSpace: "nowrap" }}
             >
-              <Plus size={14} /> Thêm vào PR
+              <Plus size={15} /> Thêm vào PR
             </button>
           </div>
           <div className="catalog-picker-right">
             <button
               type="button"
               className="btn btn-secondary btn-sm"
+              style={{ height: "38px", padding: "0 14px", display: "inline-flex", alignItems: "center", gap: "5px" }}
               onClick={() =>
                 setDraft((d) => ({
                   ...d,
@@ -1125,7 +1358,7 @@ export function CreatePRCatalog({
                 }))
               }
             >
-              <Plus size={14} /> Tạo hàng hóa mới
+              <Plus size={15} /> Thêm dòng hàng mới
             </button>
           </div>
         </div>
@@ -1133,6 +1366,15 @@ export function CreatePRCatalog({
         {message && (
           <div
             className={`import-message ${message.startsWith("Không") ? "error" : ""}`}
+            style={{
+              padding: "10px 14px",
+              borderRadius: "8px",
+              fontSize: "12.5px",
+              fontWeight: 600,
+              background: message.startsWith("Không") ? "#fef2f2" : "#f0fdf4",
+              color: message.startsWith("Không") ? "#dc2626" : "#15803d",
+              border: `1px solid ${message.startsWith("Không") ? "#fecaca" : "#bbf7d0"}`,
+            }}
           >
             {message}
           </div>
@@ -1155,10 +1397,11 @@ export function CreatePRCatalog({
           />
         </div>
 
-        <div className="table-bottom-actions">
+        <div className="table-bottom-actions" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingTop: "4px" }}>
           <button
             type="button"
             className="btn btn-secondary add-row-btn"
+            style={{ height: "38px", padding: "0 16px", display: "inline-flex", alignItems: "center", gap: "6px" }}
             onClick={() =>
               setDraft((d) => ({
                 ...d,
@@ -1168,36 +1411,34 @@ export function CreatePRCatalog({
           >
             <Plus size={15} /> Thêm dòng hàng hóa
           </button>
+
+          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={onCancel}
+              style={{ height: "40px", padding: "0 18px", display: "inline-flex", alignItems: "center", gap: "6px" }}
+            >
+              <ArrowLeft size={16} /> Hủy &amp; Quay lại
+            </button>
+            <button
+              type="button"
+              className="btn btn-primary po-create-btn"
+              onClick={onSave}
+              disabled={
+                !draft.number ||
+                !draft.date ||
+                !draft.department ||
+                !draft.purpose
+              }
+              style={{ height: "40px", padding: "0 22px", display: "inline-flex", alignItems: "center", gap: "6px" }}
+            >
+              <Check size={16} /> Hoàn tất &amp; Lưu PR
+            </button>
+          </div>
         </div>
       </div>
 
-      <div className="create-footer">
-        <div className="create-footer-summary">
-          <span className="summary-badge">PR Workspace</span>
-          <p>
-            Đang có <b>{draft.items.filter((i) => i.code || i.name).length}</b> mặt hàng hợp lệ ·
-            Tổng dự kiến: <strong>{fmt(total)} ₫</strong>
-          </p>
-        </div>
-        <div className="create-footer-actions">
-          <button type="button" className="btn btn-secondary" onClick={onCancel}>
-            <ArrowLeft size={16} /> Quay lại
-          </button>
-          <button
-            type="button"
-            className="btn btn-primary"
-            onClick={onSave}
-            disabled={
-              !draft.number ||
-              !draft.date ||
-              !draft.department ||
-              !draft.purpose
-            }
-          >
-            <Check size={16} /> Lưu PR
-          </button>
-        </div>
-      </div>
       {showPreviewModal && draft.scan_file_url && (
         <PRScanPreviewModal
           pr={{
@@ -1208,7 +1449,7 @@ export function CreatePRCatalog({
           onClose={() => setShowPreviewModal(false)}
         />
       )}
-    </div>
+    </section>
   );
 }
 

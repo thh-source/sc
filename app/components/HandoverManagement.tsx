@@ -137,10 +137,12 @@ export function HandoverManagement({
     if (onUpdateHandovers) onUpdateHandovers(next);
     if (onUpdateState) onUpdateState({ paymentHandovers: next });
   };
-  // Mobile card view detection (auto <= 768px, with manual toggle override)
+  // Mặc định hiển thị theo Thẻ của từng Đợt bàn giao (có thể chuyển sang Bảng chi tiết từng vật tư)
   const isAutoMobile = useIsMobile(768);
-  const [userMobileToggle, setUserMobileToggle] = useState<boolean | null>(null);
-  const showMobileCards = userMobileToggle !== null ? userMobileToggle : isAutoMobile;
+  const [userMobileToggle, setUserMobileToggle] = useState<boolean | null>(true);
+  const showMobileCards = userMobileToggle !== null ? userMobileToggle : true;
+  const [expandedBatchKeys, setExpandedBatchKeys] = useState<Set<string>>(new Set());
+  const [editingBatchKey, setEditingBatchKey] = useState<string | null>(null);
 
   // Column customization modal state & persistence
   const [showColumnConfigModal, setShowColumnConfigModal] = useState(false);
@@ -383,6 +385,94 @@ export function HandoverManagement({
     });
     return list.sort((a, b) => (Number(b.id) || 0) - (Number(a.id) || 0));
   }, [paymentHandovers, handoverDeptFilter, handoverSearch]);
+
+  // Nhóm danh sách vật tư bàn giao thành các ĐỢT BÀN GIAO (Handover Batches)
+  const handoverBatches = useMemo(() => {
+    const groupMap = new Map<string, PaymentHandoverItem[]>();
+
+    for (const h of filteredHandovers) {
+      let key = "";
+      if (h.batch_id && h.batch_id.trim()) {
+        key = `BATCH__${h.batch_id.trim()}`;
+      } else if (h.source_number && h.source_number.trim()) {
+        const srcType = (h.source_type || "PO").trim().toUpperCase();
+        const srcNum = h.source_number.trim().toUpperCase();
+        const dateStr = (h.handover_date || "").trim();
+        const deptStr = (h.department || "").trim().toLowerCase();
+        key = `SRC__${srcType}__${srcNum}__${dateStr}__${deptStr}`;
+      } else {
+        const dateStr = (h.handover_date || "NO_DATE").trim();
+        const deptStr = (h.department || "NO_DEPT").trim().toLowerCase();
+        const recvStr = (h.receiver_name || "").trim().toLowerCase();
+        const sendStr = (h.sender_name || "").trim().toLowerCase();
+        key = `MANUAL__${dateStr}__${deptStr}__${recvStr}__${sendStr}`;
+      }
+      const arr = groupMap.get(key) || [];
+      arr.push(h);
+      groupMap.set(key, arr);
+    }
+
+    // Đếm số đợt theo từng chứng từ gốc để đánh số Đợt 1, Đợt 2...
+    const rawGroups = Array.from(groupMap.entries()).map(([key, rawItems]) => {
+      const sortedItems = sortHandoversByPOLineOrder(rawItems, pos);
+      const first = sortedItems[0] || rawItems[0];
+      const maxId = rawItems.reduce((m, it) => Math.max(m, Number(it.id) || 0), 0);
+      const minId = rawItems.reduce((m, it) => Math.min(m, Number(it.id) || 0), Number(first?.id) || 0);
+      const srcNum = (first?.source_number || "").trim();
+      const srcType = (first?.source_type || (srcNum ? "PO" : "")).trim();
+      const matchedPO = srcNum
+        ? pos.find((p) => (p.number || "").trim().toLowerCase() === srcNum.toLowerCase())
+        : undefined;
+      const matchedSupplier = matchedPO
+        ? suppliers.find((s) => Number(s.id) === Number(matchedPO.supplierId))
+        : undefined;
+
+      const totalDocQty = sortedItems.reduce((s, it) => s + (Number(it.quantity_doc) || 0), 0);
+      const totalPassQty = sortedItems.reduce((s, it) => s + (Number(it.quantity_pass) || 0), 0);
+      const totalFailQty = sortedItems.reduce((s, it) => s + (Number(it.quantity_fail) || 0), 0);
+
+      return {
+        batchKey: key,
+        items: sortedItems,
+        maxId,
+        minId,
+        date: first?.handover_date || "",
+        department: first?.department || "Chưa chọn bộ phận",
+        senderName: first?.sender_name || "Trần Hải Hà",
+        receiverName: first?.receiver_name || "",
+        sourceType: srcType,
+        sourceNumber: srcNum,
+        matchedPO,
+        supplierName: matchedSupplier?.name || "",
+        totalDocQty,
+        totalPassQty,
+        totalFailQty,
+        batchNumber: first?.batch_number || 1,
+      };
+    });
+
+    // Đánh số thứ tự đợt tăng dần theo ngày cho các đợt cùng chứng từ gốc
+    const bySource = new Map<string, typeof rawGroups>();
+    rawGroups.forEach((g) => {
+      const sKey = g.sourceNumber ? g.sourceNumber.toUpperCase() : `__MANUAL__${g.batchKey}`;
+      const list = bySource.get(sKey) || [];
+      list.push(g);
+      bySource.set(sKey, list);
+    });
+    bySource.forEach((list) => {
+      if (list.length > 1) {
+        list
+          .slice()
+          .sort((a, b) => (a.date || "").localeCompare(b.date || "") || a.minId - b.minId)
+          .forEach((g, idx) => {
+            g.batchNumber = idx + 1;
+          });
+      }
+    });
+
+    // Sắp xếp các đợt mới nhất lên đầu
+    return rawGroups.sort((a, b) => b.maxId - a.maxId);
+  }, [filteredHandovers, pos, suppliers]);
 
 
 
@@ -745,15 +835,17 @@ export function HandoverManagement({
     );
   };
 
-  // Create Payment Request (ĐNTT) from selected handover items
-  const handleCreatePaymentRequestFromSelected = () => {
+  // Create Payment Request (ĐNTT) from selected handover items or a specific batch
+  const handleCreatePaymentRequestFromSelected = (customItems?: PaymentHandoverItem[]) => {
     if (readOnly) return;
-    if (checkedHandovers.size === 0) {
-      alert("Vui lòng tích chọn ít nhất 1 vật tư bàn giao để lập đề nghị thanh toán.");
+    const chosen =
+      Array.isArray(customItems) && customItems.length > 0
+        ? customItems
+        : paymentHandovers.filter((h) => checkedHandovers.has(h.id));
+    if (chosen.length === 0) {
+      alert("Vui lòng tích chọn ít nhất 1 đợt hoặc vật tư bàn giao để lập đề nghị thanh toán.");
       return;
     }
-    const chosen = paymentHandovers.filter((h) => checkedHandovers.has(h.id));
-    if (chosen.length === 0) return;
 
     // Detect primary source and supplier
     const firstSourceNumber = chosen[0]?.source_number;
@@ -1058,26 +1150,98 @@ export function HandoverManagement({
         }}
       />
 
-      {/* Top Heading */}
-      <div className="heading">
+      {/* Stitch v2 Executive Page Header */}
+      <div className="heading stitch-page-banner">
         <div>
+          <div className="stitch-breadcrumb">
+            <span>Điều hành Kho & Nghiệm thu</span>
+            <span>/</span>
+            <b>Bàn giao & Kiểm định</b>
+          </div>
           <h1>{t("handover.title")}</h1>
+          <p className="stitch-subtitle">
+            Kiểm soát số lượng hàng về theo chứng từ, nghiệm thu chất lượng (Đạt / Không đạt) và in Biên bản bàn giao A4
+          </p>
         </div>
-        <div className="actions">
+        <div className="actions" style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+          <div className="stitch-seg-group">
+            <button
+              type="button"
+              className={`stitch-seg-btn ${showMobileCards ? "active" : ""}`}
+              onClick={() => setUserMobileToggle(true)}
+              title="Hiển thị dạng Thẻ theo từng Đợt bàn giao (Biên bản bàn giao)"
+            >
+              <LayoutGrid size={14} /> Theo Đợt Bàn Giao <b>{handoverBatches.length} đợt</b>
+            </button>
+            <button
+              type="button"
+              className={`stitch-seg-btn ${!showMobileCards ? "active" : ""}`}
+              onClick={() => setUserMobileToggle(false)}
+              title="Hiển thị dạng Bảng tính chi tiết từng dòng vật tư (hỗ trợ dán Excel)"
+            >
+              <Table size={14} /> Bảng Chi Tiết Vật Tư <b>{filteredHandovers.length}</b>
+            </button>
+          </div>
           <button
-            className="payment-btn"
-            onClick={() => setUserMobileToggle(!showMobileCards)}
-            title="Chuyển đổi giao diện giữa dạng bảng tính desktop và dạng thẻ di động"
-            style={{ display: "inline-flex", alignItems: "center", gap: "5px" }}
+            className="btn btn-primary btn-md"
+            onClick={openImportDocModal}
+            style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}
           >
-            {showMobileCards ? <Table size={15} /> : <LayoutGrid size={15} />}
-            {showMobileCards ? "Dạng bảng" : "Dạng thẻ"}
+            <FileText size={16} /> + Tạo Đợt Bàn Giao (Từ PR/PO/HĐ)
           </button>
         </div>
       </div>
 
+      {/* Stitch v2 Bento KPI Strip */}
+      <div className="stitch-kpi-strip">
+        <div className="stitch-kpi-card kpi-navy">
+          <div className="stitch-kpi-icon">
+            <Package size={20} />
+          </div>
+          <div className="stitch-kpi-body">
+            <small>Tổng Số Đợt Bàn Giao</small>
+            <strong>
+              {handoverBatches.length} <em>đợt bàn giao</em>
+            </strong>
+            <span className="stitch-kpi-sub">
+              Tổng cộng: <b>{filteredHandovers.length}</b> / {paymentHandovers.length} dòng vật tư
+            </span>
+          </div>
+        </div>
+
+        <div className="stitch-kpi-card kpi-emerald">
+          <div className="stitch-kpi-icon">
+            <Printer size={20} />
+          </div>
+          <div className="stitch-kpi-body">
+            <small>Đã Chọn In Biên Bản / Lập ĐNTT</small>
+            <strong>
+              {checkedHandovers.size} <em>mục đang tích</em>
+            </strong>
+            <span className="stitch-kpi-sub">
+              Hỗ trợ in gộp Biên bản 2 liên & chuyển thẳng sang ĐNTT
+            </span>
+          </div>
+        </div>
+
+        <div className="stitch-kpi-card kpi-sky">
+          <div className="stitch-kpi-icon">
+            <Receipt size={20} />
+          </div>
+          <div className="stitch-kpi-body">
+            <small>Phòng Ban / Đơn Vị Tiếp Nhận</small>
+            <strong>
+              {handoverDepts.length} <em>đơn vị</em>
+            </strong>
+            <span className="stitch-kpi-sub">
+              {handoverDeptFilter ? `Đang lọc: ${handoverDeptFilter}` : "Tất cả phòng ban trong hệ thống"}
+            </span>
+          </div>
+        </div>
+      </div>
+
       {/* Main Toolbar */}
-      <div className={`payment-toolbar ${showMobileCards ? "payment-toolbar-mobile" : ""}`}>
+      <div className="payment-toolbar" style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
         {!showMobileCards ? (
           <>
             <button className="btn btn-primary btn-md" onClick={handleAddHandoverRow}>
@@ -1141,10 +1305,10 @@ export function HandoverManagement({
             </button>
           </>
         ) : (
-          <div style={{ display: "flex", gap: "8px", width: "100%", flexWrap: "wrap" }}>
+          <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
             <button
               className="btn btn-secondary btn-md"
-              style={{ flex: 1, justifyContent: "center" }}
+              
               onClick={openImportDocModal}
               title="Nhập sản phẩm từ PR, PO hoặc Hợp đồng vào danh sách bàn giao"
             >
@@ -1152,7 +1316,7 @@ export function HandoverManagement({
             </button>
             <button
               className="btn btn-teal btn-md"
-              style={{ flex: 1, justifyContent: "center" }}
+              
               onClick={() => handlePrintHandoverDirect()}
               title="In biên bản bàn giao các vật tư đã chọn"
             >
@@ -1161,7 +1325,7 @@ export function HandoverManagement({
             <button
               type="button"
               className="btn btn-accent btn-md"
-              style={{ flex: 1, justifyContent: "center" }}
+              
               onClick={handleCreatePaymentRequestFromSelected}
               disabled={checkedHandovers.size === 0}
               title="Lập ĐNTT cho các vật tư đã chọn"
@@ -1174,7 +1338,7 @@ export function HandoverManagement({
         <select
           value={handoverDeptFilter}
           onChange={(e) => setHandoverDeptFilter(e.target.value)}
-          style={{ width: showMobileCards ? "100%" : "auto", minWidth: "170px" }}
+          style={{ width: "auto", minWidth: "185px" }}
         >
           <option value="">Tất cả phòng ban nhận</option>
           {handoverDepts.map((d) => (
@@ -1188,11 +1352,11 @@ export function HandoverManagement({
           placeholder="Tìm vật tư, ĐVT, ghi chú, phòng ban..."
           value={handoverSearch}
           onChange={(e) => setHandoverSearch(e.target.value)}
-          style={{ width: showMobileCards ? "100%" : "260px" }}
+          style={{ flex: 1, minWidth: "240px" }}
         />
 
-        <span style={{ marginLeft: showMobileCards ? "0" : "auto", fontSize: "12px", color: "#64748b" }}>
-          {filteredHandovers.length} / {paymentHandovers.length} vật tư
+        <span style={{ marginLeft: "auto", fontSize: "12.5px", fontWeight: 700, color: "#475569", whiteSpace: "nowrap" }}>
+          {handoverBatches.length} đợt ({filteredHandovers.length} vật tư)
           {checkedHandovers.size > 0 && ` · Đã chọn: ${checkedHandovers.size}`}
         </span>
       </div>
@@ -1233,80 +1397,366 @@ export function HandoverManagement({
         ))}
       </datalist>
 
-      {/* Mobile Cards View */}
+      {/* Handover Batch Cards View (Hiển thị Thẻ theo từng Đợt Bàn Giao) */}
       {showMobileCards ? (
-        <div className="mobile-cards-container">
-          {filteredHandovers.map((h) => {
-            const isChecked = checkedHandovers.has(h.id);
+        <div
+          className="handover-batches-grid"
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fill, minmax(460px, 1fr))",
+            gap: "16px",
+            padding: "4px 0 24px",
+          }}
+        >
+          {handoverBatches.map((batch, bIdx) => {
+            const batchIds = batch.items.map((it) => it.id);
+            const allChecked = batchIds.length > 0 && batchIds.every((id) => checkedHandovers.has(id));
+            const someChecked = batchIds.some((id) => checkedHandovers.has(id));
+            const isExpanded = expandedBatchKeys.has(batch.batchKey);
+            const previewItems = isExpanded ? batch.items : batch.items.slice(0, 4);
+
+            const toggleBatchCheck = (checked: boolean) => {
+              const next = new Set(checkedHandovers);
+              batchIds.forEach((id) => {
+                if (checked) next.add(id);
+                else next.delete(id);
+              });
+              setCheckedHandovers(next);
+            };
+
+            const toggleExpand = () => {
+              setExpandedBatchKeys((prev) => {
+                const next = new Set(prev);
+                if (next.has(batch.batchKey)) next.delete(batch.batchKey);
+                else next.add(batch.batchKey);
+                return next;
+              });
+            };
+
+            const handleDeleteBatch = () => {
+              if (readOnly) return;
+              if (
+                !confirm(
+                  `Bạn có chắc muốn xóa Đợt bàn giao "${batch.sourceNumber || batch.department}" gồm ${batch.items.length} mặt hàng không?`
+                )
+              ) {
+                return;
+              }
+              const removeSet = new Set(batchIds);
+              triggerUpdateHandovers(paymentHandovers.filter((h) => !removeSet.has(h.id)));
+              setCheckedHandovers((prev) => {
+                const next = new Set(prev);
+                batchIds.forEach((id) => next.delete(id));
+                return next;
+              });
+            };
+
             return (
-              <div key={h.id} className={`m-card ${isChecked ? "m-card-checked" : ""}`}>
-                <div className="m-card-header">
-                  <div className="m-card-stt">STT {h.id}</div>
-                  <span className="m-badge mb-badge-dept">🏢 {h.department || "Chưa chọn bộ phận"}</span>
-                </div>
-                <div className="m-card-payee">{h.item_name || (h as any).name || (h as any).itemName || "Chưa có tên vật tư"}</div>
-                <div className="m-card-desc">
-                  {h.specification ? `Quy cách: ${h.specification}` : "Chưa có quy cách"} · ĐVT: <b>{h.unit || "Cái"}</b>
-                </div>
-                <div className="m-handover-qty-grid">
-                  <div className="m-qty-box">
-                    <small>Chứng từ</small>
-                    <b>{h.quantity_doc}</b>
-                  </div>
-                  <div className="m-qty-box pass">
-                    <small>Đạt chuẩn</small>
-                    <b>{h.quantity_pass}</b>
-                  </div>
-                  <div className={`m-qty-box ${Number(h.quantity_fail) > 0 ? "fail" : ""}`}>
-                    <small>Hỏng / Lỗi</small>
-                    <b>{h.quantity_fail || 0}</b>
-                  </div>
-                </div>
-                <div className="m-card-meta">
-                  {h.handover_date && <div>📅 Ngày bàn giao: <b>{h.handover_date}</b></div>}
-                  {(h.sender_name || h.receiver_name) && (
-                    <div>
-                      👤 Giao: <b>{h.sender_name || "—"}</b> · Nhận: <b>{h.receiver_name || "—"}</b>
-                    </div>
-                  )}
-                  {h.note && <div>📝 Ghi chú: <i>{h.note}</i></div>}
-                </div>
-                <div className="m-card-actions">
-                  <label
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "8px",
-                      fontSize: "13px",
-                      cursor: "pointer",
-                      padding: "8px 12px",
-                      background: isChecked ? "#e0f2fe" : "#f8fafc",
-                      borderRadius: "6px",
-                      border: `1px solid ${isChecked ? "#38bdf8" : "#cbd5e1"}`,
-                      width: "100%",
-                      fontWeight: 600,
-                      color: isChecked ? "#0284c7" : "#475569",
-                    }}
-                  >
+              <div
+                key={batch.batchKey}
+                className={`m-card handover-batch-card ${allChecked ? "m-card-checked" : ""}`}
+                style={{
+                  background: "#ffffff",
+                  border: allChecked ? "2px solid #0284c7" : "1px solid #cbd5e1",
+                  borderLeft: allChecked ? "5px solid #0284c7" : "5px solid #0c326f",
+                  borderRadius: "14px",
+                  padding: "16px 18px",
+                  boxShadow: "0 4px 14px rgba(15, 23, 42, 0.05)",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "12px",
+                }}
+              >
+                {/* Header của Đợt bàn giao */}
+                <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "10px" }}>
+                  <div style={{ display: "flex", alignItems: "flex-start", gap: "10px", minWidth: 0 }}>
                     <input
                       type="checkbox"
-                      checked={isChecked}
-                      onChange={(e) => {
-                        const next = new Set(checkedHandovers);
-                        if (e.target.checked) next.add(h.id);
-                        else next.delete(h.id);
-                        setCheckedHandovers(next);
+                      checked={allChecked}
+                      ref={(el) => {
+                        if (el) el.indeterminate = !allChecked && someChecked;
                       }}
-                      style={{ width: "18px", height: "18px" }}
+                      onChange={(e) => toggleBatchCheck(e.target.checked)}
+                      title="Chọn / Bỏ chọn toàn bộ các mặt hàng trong đợt bàn giao này"
+                      style={{ marginTop: "3px" }}
                     />
-                    <span>{isChecked ? "✓ Đã chọn để in / lập ĐNTT" : "Chọn vật tư này để in hoặc lập ĐNTT"}</span>
-                  </label>
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
+                        <span
+                          style={{
+                            fontSize: "11px",
+                            fontWeight: 800,
+                            color: "#ffffff",
+                            background: "linear-gradient(135deg, #0c326f 0%, #1e40af 100%)",
+                            padding: "2px 8px",
+                            borderRadius: "6px",
+                          }}
+                        >
+                          ĐỢT BÀN GIAO #{handoverBatches.length - bIdx}
+                        </span>
+                        {batch.sourceNumber ? (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (batch.matchedPO) {
+                                navigateTo({ view: "po-detail", id: batch.matchedPO.id });
+                              } else {
+                                navigateTo({ view: "po-list" });
+                              }
+                            }}
+                            style={{
+                              fontSize: "11.5px",
+                              fontWeight: 800,
+                              color: "#0369a1",
+                              background: "#f0f9ff",
+                              border: "1px solid #bae6fd",
+                              padding: "2px 8px",
+                              borderRadius: "6px",
+                              cursor: "pointer",
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: "4px",
+                            }}
+                            title="Mở xem chứng từ gốc"
+                          >
+                            📦 {batch.sourceType || "PO"}: {batch.sourceNumber}
+                          </button>
+                        ) : (
+                          <span
+                            style={{
+                              fontSize: "11px",
+                              fontWeight: 700,
+                              color: "#475569",
+                              background: "#f1f5f9",
+                              padding: "2px 8px",
+                              borderRadius: "6px",
+                            }}
+                          >
+                            📋 Bàn giao trực tiếp
+                          </span>
+                        )}
+                        {batch.batchNumber > 1 && (
+                          <span
+                            style={{
+                              fontSize: "11px",
+                              fontWeight: 700,
+                              color: "#c2410c",
+                              background: "#fff7ed",
+                              border: "1px solid #fed7aa",
+                              padding: "1px 7px",
+                              borderRadius: "6px",
+                            }}
+                          >
+                            Lần giao {batch.batchNumber}
+                          </span>
+                        )}
+                      </div>
+
+                      <div style={{ fontSize: "15px", fontWeight: 800, color: "#0f172a", marginTop: "5px", lineHeight: 1.3 }}>
+                        {batch.supplierName
+                          ? batch.supplierName
+                          : batch.sourceNumber
+                          ? `Bàn giao theo ${batch.sourceType || "PO"} #${batch.sourceNumber}`
+                          : `Đợt bàn giao về ${batch.department}`}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "4px", flexShrink: 0 }}>
+                    <span
+                      style={{
+                        fontSize: "11.5px",
+                        fontWeight: 700,
+                        color: "#047857",
+                        background: "#ecfdf5",
+                        border: "1px solid #a7f3d0",
+                        padding: "3px 9px",
+                        borderRadius: "999px",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      🏢 {batch.department}
+                    </span>
+                    <span style={{ fontSize: "11.5px", fontWeight: 600, color: "#64748b", whiteSpace: "nowrap" }}>
+                      📅 {batch.date || "Chưa ghi ngày"}
+                    </span>
+                  </div>
+                </div>
+
+                {/* 3 Ô Tổng hợp Số lượng của cả Đợt Bàn Giao */}
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "repeat(3, 1fr)",
+                    gap: "8px",
+                    background: "#f8fafc",
+                    padding: "8px 10px",
+                    borderRadius: "10px",
+                    border: "1px solid #e2e8f0",
+                  }}
+                >
+                  <div style={{ textAlign: "center" }}>
+                    <div style={{ fontSize: "10.5px", fontWeight: 700, color: "#64748b", textTransform: "uppercase" }}>
+                      Số danh mục
+                    </div>
+                    <div style={{ fontSize: "15px", fontWeight: 800, color: "#0c326f", marginTop: "1px" }}>
+                      {batch.items.length} <span style={{ fontSize: "11.5px", fontWeight: 600 }}>mặt hàng</span>
+                    </div>
+                  </div>
+                  <div style={{ textAlign: "center", borderLeft: "1px solid #e2e8f0", borderRight: "1px solid #e2e8f0" }}>
+                    <div style={{ fontSize: "10.5px", fontWeight: 700, color: "#047857", textTransform: "uppercase" }}>
+                      Tổng SL Đạt / Chứng từ
+                    </div>
+                    <div style={{ fontSize: "15px", fontWeight: 800, color: "#059669", marginTop: "1px" }}>
+                      {batch.totalPassQty} <span style={{ fontSize: "11.5px", color: "#64748b", fontWeight: 600 }}>/ {batch.totalDocQty}</span>
+                    </div>
+                  </div>
+                  <div style={{ textAlign: "center" }}>
+                    <div style={{ fontSize: "10.5px", fontWeight: 700, color: batch.totalFailQty > 0 ? "#dc2626" : "#64748b", textTransform: "uppercase" }}>
+                      SL Hỏng / Lỗi
+                    </div>
+                    <div style={{ fontSize: "15px", fontWeight: 800, color: batch.totalFailQty > 0 ? "#dc2626" : "#475569", marginTop: "1px" }}>
+                      {batch.totalFailQty}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Bảng danh sách các sản phẩm nằm trong Đợt Bàn Giao này */}
+                <div
+                  style={{
+                    border: "1px solid #e2e8f0",
+                    borderRadius: "9px",
+                    overflow: "hidden",
+                    background: "#ffffff",
+                  }}
+                >
+                  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12px" }}>
+                    <thead>
+                      <tr style={{ background: "#f1f5f9", color: "#334155", borderBottom: "1px solid #cbd5e1" }}>
+                        <th style={{ width: "34px", padding: "6px 4px", textAlign: "center", fontWeight: 700 }}>#</th>
+                        <th style={{ padding: "6px 8px", textAlign: "left", fontWeight: 700 }}>Danh mục vật tư trong đợt</th>
+                        <th style={{ width: "54px", padding: "6px 4px", textAlign: "center", fontWeight: 700 }}>ĐVT</th>
+                        <th style={{ width: "64px", padding: "6px 6px", textAlign: "right", fontWeight: 700 }}>Đạt</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {previewItems.map((it, idx) => (
+                        <tr key={it.id} style={{ borderBottom: "1px solid #f1f5f9" }}>
+                          <td style={{ padding: "6px 4px", textAlign: "center", color: "#64748b", fontWeight: 600 }}>
+                            {idx + 1}
+                          </td>
+                          <td style={{ padding: "6px 8px", color: "#0f172a", fontWeight: 600 }}>
+                            <div style={{ lineHeight: 1.3 }}>{it.item_name || "(Chưa nhập tên vật tư)"}</div>
+                            {it.note && (
+                              <div style={{ fontSize: "10.5px", color: "#64748b", fontWeight: 500, marginTop: "1px" }}>
+                                Ghi chú: {it.note}
+                              </div>
+                            )}
+                          </td>
+                          <td style={{ padding: "6px 4px", textAlign: "center", color: "#475569" }}>
+                            {it.unit || "Cái"}
+                          </td>
+                          <td style={{ padding: "6px 6px", textAlign: "right", fontWeight: 800, color: "#059669" }}>
+                            {it.quantity_pass || it.quantity_doc || 0}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  {batch.items.length > 4 && (
+                    <button
+                      type="button"
+                      onClick={toggleExpand}
+                      style={{
+                        width: "100%",
+                        padding: "6px 10px",
+                        background: "#f8fafc",
+                        border: "none",
+                        borderTop: "1px solid #e2e8f0",
+                        color: "#0284c7",
+                        fontSize: "11.5px",
+                        fontWeight: 700,
+                        cursor: "pointer",
+                      }}
+                    >
+                      {isExpanded
+                        ? "▲ Thu gọn danh sách vật tư"
+                        : `▼ Xem thêm ${batch.items.length - 4} mặt hàng khác trong đợt này (Tổng ${batch.items.length} mục)`}
+                    </button>
+                  )}
+                </div>
+
+                {/* Thông tin Người giao - Người nhận */}
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "11.5px", color: "#475569", flexWrap: "wrap", gap: "6px" }}>
+                  <span>
+                    👤 Bên giao: <b style={{ color: "#0f172a" }}>{batch.senderName || "Trần Hải Hà"}</b> · Bên nhận:{" "}
+                    <b style={{ color: "#0f172a" }}>{batch.receiverName || "Chưa ghi tên"}</b>
+                  </span>
+                  <span style={{ color: "#64748b" }}>
+                    Mã dòng: #{batch.minId}{batch.maxId !== batch.minId ? ` → #${batch.maxId}` : ""}
+                  </span>
+                </div>
+
+                {/* Footer Thao tác của cả Đợt Bàn Giao */}
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "8px",
+                    paddingTop: "8px",
+                    borderTop: "1px solid #e2e8f0",
+                    flexWrap: "wrap",
+                  }}
+                >
+                  <button
+                    type="button"
+                    className="stitch-action-pill pill-navy"
+                    onClick={() => setEditingBatchKey(batch.batchKey)}
+                    title="Mở xem & chỉnh sửa chi tiết đợt bàn giao này"
+                  >
+                    <span>✎ Chi tiết / Sửa đợt</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    className="stitch-action-pill pill-emerald"
+                    onClick={() => handlePrintHandoverDirect(batch.items)}
+                    title="In Biên bản bàn giao A4 (2 liên) cho đợt bàn giao này"
+                  >
+                    <Printer size={13} />
+                    <span>In biên bản ({batch.items.length})</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    className="stitch-action-pill pill-orange"
+                    onClick={() => handleCreatePaymentRequestFromSelected(batch.items)}
+                    title="Lập Đề nghị thanh toán (ĐNTT) từ đợt bàn giao này"
+                  >
+                    <Receipt size={13} />
+                    <span>Lập ĐNTT</span>
+                  </button>
+
+                  {!readOnly && (
+                    <button
+                      type="button"
+                      className="btn-icon danger-ghost"
+                      style={{ marginLeft: "auto" }}
+                      onClick={handleDeleteBatch}
+                      title="Xóa toàn bộ đợt bàn giao này"
+                    >
+                      <Trash2 size={15} />
+                    </button>
+                  )}
                 </div>
               </div>
             );
           })}
-          {filteredHandovers.length === 0 && (
-            <div className="m-empty">Không tìm thấy vật tư bàn giao nào</div>
+
+          {handoverBatches.length === 0 && (
+            <div className="m-empty" style={{ gridColumn: "1 / -1" }}>
+              Không tìm thấy đợt bàn giao nào khớp với bộ lọc hiện tại.
+            </div>
           )}
         </div>
       ) : (
@@ -1545,7 +1995,7 @@ export function HandoverManagement({
       {showPasteModal && (
         <div className="payment-modal-overlay">
           <div className="payment-modal-card" style={{ maxWidth: "1000px", width: "95vw" }}>
-            <div className="payment-modal-header">
+            <div className="payment-modal-header" style={{ padding: "16px 22px", margin: 0 }}>
               <h3 style={{ color: "#107c41" }}>📋 Dán danh sách vật tư từ file Excel</h3>
               <button type="button" onClick={() => setShowPasteModal(false)}>✕</button>
             </div>
@@ -2284,6 +2734,232 @@ export function HandoverManagement({
           </div>
         </div>
       )}
+
+      {/* POPUP XEM & SỬA CHI TIẾT TỪNG ĐỢT BÀN GIAO */}
+      {editingBatchKey && (() => {
+        const targetBatch = handoverBatches.find((b) => b.batchKey === editingBatchKey);
+        if (!targetBatch) return null;
+        const batchItemIds = new Set(targetBatch.items.map((i) => i.id));
+
+        const updateBatchMetadata = (key: keyof PaymentHandoverItem, value: string) => {
+          if (readOnly) return;
+          const next = paymentHandovers.map((h) =>
+            batchItemIds.has(h.id) ? { ...h, [key]: value } : h
+          );
+          triggerUpdateHandovers(next);
+        };
+
+        return (
+          <div className="payment-modal-overlay" onClick={() => setEditingBatchKey(null)}>
+            <div
+              className="payment-modal-card"
+              style={{ maxWidth: "1020px", width: "95vw", maxHeight: "90vh", display: "flex", flexDirection: "column", padding: 0, overflow: "hidden" }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="payment-modal-header">
+                <div>
+                  <h3 style={{ margin: 0, fontSize: "17px" }}>
+                    📦 Chi tiết Đợt Bàn Giao {targetBatch.sourceNumber ? `· ${targetBatch.sourceType || "PO"} #${targetBatch.sourceNumber}` : `· ${targetBatch.department}`}
+                  </h3>
+                  <small>
+                    Chỉnh sửa thông tin chung của đợt hoặc cập nhật số lượng nghiệm thu từng mặt hàng ({targetBatch.items.length} mặt hàng)
+                  </small>
+                </div>
+                <button
+                  type="button"
+                  className="payment-modal-close"
+                  onClick={() => setEditingBatchKey(null)}
+                >
+                  ×
+                </button>
+              </div>
+
+              <div style={{ padding: "16px 20px", overflowY: "auto", display: "flex", flexDirection: "column", gap: "16px" }}>
+                {/* Thông tin chung của Đợt bàn giao */}
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
+                    gap: "12px",
+                    background: "#f8fafc",
+                    padding: "14px 16px",
+                    borderRadius: "10px",
+                    border: "1px solid #e2e8f0",
+                  }}
+                >
+                  <div>
+                    <label style={{ display: "block", fontSize: "11.5px", fontWeight: 700, color: "#475569", marginBottom: "4px" }}>
+                      Bộ phận / Phòng ban nhận
+                    </label>
+                    <input
+                      list="deptSuggestions"
+                      value={targetBatch.department === "Chưa chọn bộ phận" ? "" : targetBatch.department}
+                      onChange={(e) => updateBatchMetadata("department", e.target.value)}
+                      placeholder="Chọn hoặc nhập phòng ban..."
+                      style={{ width: "100%" }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: "block", fontSize: "11.5px", fontWeight: 700, color: "#475569", marginBottom: "4px" }}>
+                      Ngày bàn giao (Áp dụng cả đợt)
+                    </label>
+                    <input
+                      value={targetBatch.date || ""}
+                      onChange={(e) => updateBatchMetadata("handover_date", e.target.value)}
+                      placeholder="YYYY-MM-DD hoặc DD/MM/YYYY"
+                      style={{ width: "100%" }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: "block", fontSize: "11.5px", fontWeight: 700, color: "#475569", marginBottom: "4px" }}>
+                      Người bàn giao (Bên giao)
+                    </label>
+                    <input
+                      list="handoverSenderSuggestions"
+                      value={targetBatch.senderName || ""}
+                      onChange={(e) => updateBatchMetadata("sender_name", e.target.value)}
+                      placeholder="Họ tên người giao..."
+                      style={{ width: "100%" }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: "block", fontSize: "11.5px", fontWeight: 700, color: "#475569", marginBottom: "4px" }}>
+                      Người tiếp nhận (Bên nhận)
+                    </label>
+                    <input
+                      list="handoverReceiverSuggestions"
+                      value={targetBatch.receiverName || ""}
+                      onChange={(e) => updateBatchMetadata("receiver_name", e.target.value)}
+                      placeholder="Họ tên người nhận..."
+                      style={{ width: "100%" }}
+                    />
+                  </div>
+                </div>
+
+                {/* Bảng chỉnh sửa các mặt hàng thuộc Đợt bàn giao */}
+                <div style={{ border: "1px solid #cbd5e1", borderRadius: "10px", overflow: "hidden" }}>
+                  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
+                    <thead>
+                      <tr style={{ background: "#f1f5f9", borderBottom: "2px solid #cbd5e1", color: "#1e293b" }}>
+                        <th style={{ width: "42px", padding: "10px 6px", textAlign: "center" }}>STT</th>
+                        <th style={{ padding: "10px 10px", textAlign: "left" }}>Tên vật tư, hàng hóa - Quy cách</th>
+                        <th style={{ width: "80px", padding: "10px 6px", textAlign: "center" }}>ĐVT</th>
+                        <th style={{ width: "95px", padding: "10px 6px", textAlign: "center" }}>SL Chứng từ</th>
+                        <th style={{ width: "95px", padding: "10px 6px", textAlign: "center" }}>SL Đạt</th>
+                        <th style={{ width: "85px", padding: "10px 6px", textAlign: "center" }}>SL Hỏng</th>
+                        <th style={{ width: "170px", padding: "10px 8px", textAlign: "left" }}>Ghi chú</th>
+                        {!readOnly && <th style={{ width: "44px", padding: "10px 4px", textAlign: "center" }}>Xóa</th>}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {targetBatch.items.map((item, idx) => (
+                        <tr key={item.id} style={{ borderBottom: "1px solid #e2e8f0" }}>
+                          <td style={{ textAlign: "center", fontWeight: 700, color: "#64748b" }}>{idx + 1}</td>
+                          <td style={{ padding: "6px 8px" }}>
+                            <input
+                              value={item.item_name || ""}
+                              onChange={(e) => handleEditHandover(item.id, "item_name", e.target.value)}
+                              placeholder="Tên hàng hóa..."
+                              style={{ width: "100%", fontWeight: 600 }}
+                            />
+                          </td>
+                          <td style={{ padding: "6px 4px" }}>
+                            <input
+                              list="unitSuggestions"
+                              value={item.unit || ""}
+                              onChange={(e) => handleEditHandover(item.id, "unit", e.target.value)}
+                              style={{ width: "100%", textAlign: "center" }}
+                            />
+                          </td>
+                          <td style={{ padding: "6px 4px" }}>
+                            <input
+                              value={item.quantity_doc || ""}
+                              onChange={(e) => handleEditHandover(item.id, "quantity_doc", e.target.value)}
+                              style={{ width: "100%", textAlign: "center", fontWeight: 600 }}
+                            />
+                          </td>
+                          <td style={{ padding: "6px 4px" }}>
+                            <input
+                              value={item.quantity_pass || ""}
+                              onChange={(e) => handleEditHandover(item.id, "quantity_pass", e.target.value)}
+                              style={{ width: "100%", textAlign: "center", fontWeight: 800, color: "#059669" }}
+                            />
+                          </td>
+                          <td style={{ padding: "6px 4px" }}>
+                            <input
+                              value={item.quantity_fail || ""}
+                              onChange={(e) => handleEditHandover(item.id, "quantity_fail", e.target.value)}
+                              style={{ width: "100%", textAlign: "center", color: "#dc2626", fontWeight: 700 }}
+                            />
+                          </td>
+                          <td style={{ padding: "6px 6px" }}>
+                            <input
+                              value={item.note || ""}
+                              onChange={(e) => handleEditHandover(item.id, "note", e.target.value)}
+                              placeholder="Ghi chú..."
+                              style={{ width: "100%" }}
+                            />
+                          </td>
+                          {!readOnly && (
+                            <td style={{ textAlign: "center" }}>
+                              <button
+                                type="button"
+                                className="btn-icon danger-ghost"
+                                onClick={() => handleDeleteHandover(item.id)}
+                                title="Xóa mặt hàng này khỏi đợt bàn giao"
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            </td>
+                          )}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  padding: "14px 20px",
+                  borderTop: "1px solid #e2e8f0",
+                  background: "#f8fafc",
+                }}
+              >
+                <div style={{ display: "flex", gap: "8px" }}>
+                  <button
+                    type="button"
+                    className="btn btn-teal btn-md"
+                    onClick={() => handlePrintHandoverDirect(targetBatch.items)}
+                  >
+                    <Printer size={15} /> In Biên bản Đợt này ({targetBatch.items.length} mục)
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-accent btn-md"
+                    onClick={() => {
+                      setEditingBatchKey(null);
+                      handleCreatePaymentRequestFromSelected(targetBatch.items);
+                    }}
+                  >
+                    <Receipt size={15} /> Lập ĐNTT từ Đợt này
+                  </button>
+                </div>
+                <button
+                  type="button"
+                  className="btn btn-primary btn-md"
+                  onClick={() => setEditingBatchKey(null)}
+                >
+                  <Check size={15} /> Hoàn tất & Đóng
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </section>
   );
 }

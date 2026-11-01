@@ -462,11 +462,41 @@ export function POList({
     setShowCreateModal(false);
   };
 
+  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "done">("all");
+
+  const poKpiStats = useMemo(() => {
+    const allPos = (pos || []).filter(Boolean);
+    const totalCount = allPos.length;
+    let doneCount = 0;
+    let totalValue = 0;
+    let paidValue = 0;
+    allPos.forEach((p) => {
+      if (isPOCompleted(p, paymentHandovers)) doneCount += 1;
+      const val = calcPOTotal(p);
+      totalValue += val;
+      const paid = (p.payments || [])
+        .filter((pm) => pm.status === "Đã thanh toán")
+        .reduce((n, pm) => n + (Number(pm.amount) || 0), 0);
+      paidValue += Math.min(val, paid);
+    });
+    return {
+      totalCount,
+      doneCount,
+      activeCount: totalCount - doneCount,
+      totalValue,
+      paidValue,
+    };
+  }, [pos, paymentHandovers]);
+
   const shown = (pos || [])
     .filter((po) => {
       if (!po) return false;
+      const isDone = isPOCompleted(po, paymentHandovers);
+      if (statusFilter === "active" && isDone) return false;
+      if (statusFilter === "done" && !isDone) return false;
       const s = suppliers.find((x) => Number(x.id) === Number(po.supplierId));
-      return ((po.number || "") + (po.prNumber || "") + (s?.name || ""))
+      const itemNames = (po.items || []).map((it) => it.name || "").join(" ");
+      return ((po.number || "") + (po.prNumber || "") + (s?.name || "") + " " + itemNames)
         .toLowerCase()
         .includes(q.toLowerCase());
     })
@@ -479,9 +509,18 @@ export function POList({
 
   return (
     <section className="content po-list-page">
-      <div className="heading">
+      {/* Stitch v2 Executive Page Header */}
+      <div className="heading stitch-page-banner">
         <div>
+          <div className="stitch-breadcrumb">
+            <span>Điều hành Thu mua</span>
+            <span>/</span>
+            <b>Đơn Mua Hàng (PO)</b>
+          </div>
           <h1>{t("po.title")}</h1>
+          <p className="stitch-subtitle">
+            Quản lý tập trung hợp đồng, đơn đặt hàng (PO), tiến độ nhận hàng thực tế và quyết toán công nợ NCC
+          </p>
         </div>
         {!readOnly && onCreatePO && (
           <div className="actions">
@@ -492,23 +531,100 @@ export function POList({
                 setShowCreateModal(true);
               }}
             >
-              <Plus size={16} /> Lập PO
+              <Plus size={16} /> Lập Đơn Mua Hàng (PO)
             </button>
           </div>
         )}
       </div>
 
+      {/* Stitch v2 Bento KPI Summary Strip */}
+      <div className="stitch-kpi-strip">
+        <div className="stitch-kpi-card kpi-navy">
+          <div className="stitch-kpi-icon">
+            <CreditCard size={20} />
+          </div>
+          <div className="stitch-kpi-body">
+            <small>Tổng Đơn Mua Hàng (PO)</small>
+            <strong>
+              {poKpiStats.totalCount} <em>đơn hàng</em>
+            </strong>
+            <span className="stitch-kpi-sub">
+              Tổng giá trị: <b>{fmt(poKpiStats.totalValue)} ₫</b>
+            </span>
+          </div>
+        </div>
+
+        <div className="stitch-kpi-card kpi-orange">
+          <div className="stitch-kpi-icon">
+            <Truck size={20} />
+          </div>
+          <div className="stitch-kpi-body">
+            <small>Đang Thực Hiện & Giao Hàng</small>
+            <strong>
+              {poKpiStats.activeCount} <em>đơn đang mở</em>
+            </strong>
+            <span className="stitch-kpi-sub">
+              Theo dõi giao hàng & chứng từ nghiệm thu
+            </span>
+          </div>
+        </div>
+
+        <div className="stitch-kpi-card kpi-emerald">
+          <div className="stitch-kpi-icon">
+            <CheckCircle2 size={20} />
+          </div>
+          <div className="stitch-kpi-body">
+            <small>Đã Hoàn Thành & Quyết Toán</small>
+            <strong>
+              {poKpiStats.doneCount} <em>đơn hoàn tất</em>
+            </strong>
+            <span className="stitch-kpi-sub">
+              Đã thanh toán: <b>{fmt(poKpiStats.paidValue)} ₫</b>
+            </span>
+          </div>
+        </div>
+      </div>
+
       <div className="po-list-panel">
-        <div className="pr-toolbar">
-          <label style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
-            <Search size={16} style={{ color: "var(--slate-400)" }} />
-            <input
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              placeholder={t("po.search_placeholder")}
-            />
-          </label>
-          <span>{shown.length} đơn mua hàng</span>
+        <div className="pr-toolbar stitch-filter-bar">
+          <div className="stitch-seg-group">
+            <button
+              type="button"
+              className={`stitch-seg-btn ${statusFilter === "all" ? "active" : ""}`}
+              onClick={() => setStatusFilter("all")}
+            >
+              Tất cả <b>{poKpiStats.totalCount}</b>
+            </button>
+            <button
+              type="button"
+              className={`stitch-seg-btn ${statusFilter === "active" ? "active" : ""}`}
+              onClick={() => setStatusFilter("active")}
+            >
+              Đang thực hiện <b>{poKpiStats.activeCount}</b>
+            </button>
+            <button
+              type="button"
+              className={`stitch-seg-btn ${statusFilter === "done" ? "active" : ""}`}
+              onClick={() => setStatusFilter("done")}
+            >
+              Đã hoàn thành <b>{poKpiStats.doneCount}</b>
+            </button>
+          </div>
+
+          <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap", flex: 1, justifyContent: "flex-end" }}>
+            <label style={{ display: "inline-flex", alignItems: "center", gap: "6px", position: "relative" }}>
+              <Search size={16} style={{ color: "var(--slate-400)", position: "absolute", left: "12px", pointerEvents: "none" }} />
+              <input
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                placeholder={t("po.search_placeholder")}
+                style={{ paddingLeft: "36px", minWidth: "280px" }}
+              />
+            </label>
+            <span className="stitch-count-pill">
+              Hiển thị <b>{shown.length}</b> / {poKpiStats.totalCount} đơn PO
+            </span>
+          </div>
         </div>
 
         <div className="mobile-record-list">
@@ -914,26 +1030,42 @@ export function POList({
                       )}
                     </td>
                     <td>
-                      <b>{s?.name || "Chưa có NCC"}</b>
-                      {s?.code && <small className="supplier-code">{s.code}</small>}
+                      <div style={{ display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
+                        <b style={{ color: "#0f172a", fontSize: "13.5px" }}>{s?.name || "Chưa có NCC"}</b>
+                        {s?.code && <small className="supplier-code">{s.code}</small>}
+                        {po.prNumber && (
+                          <span style={{ fontSize: "11px", fontWeight: 700, color: "#0369a1", background: "#f0f9ff", border: "1px solid #bae6fd", padding: "1px 7px", borderRadius: "6px" }}>
+                            PR: {po.prNumber}
+                          </span>
+                        )}
+                      </div>
+                      {items.length > 0 && (
+                        <div style={{ marginTop: "4px", fontSize: "11.5px", color: "#64748b", display: "flex", alignItems: "center", gap: "5px", flexWrap: "wrap" }}>
+                          <span style={{ background: "#f1f5f9", color: "#334155", padding: "1px 7px", borderRadius: "6px", fontWeight: 600 }}>
+                            📦 {items.slice(0, 2).map((it) => it.name || (it as any).itemName || "Mặt hàng").join(", ")}
+                            {items.length > 2 ? ` (+${items.length - 2} mục)` : ""}
+                          </span>
+                        </div>
+                      )}
                     </td>
-                    <td style={{ whiteSpace: "nowrap" }}>{dateVN(po.createdDate)}</td>
-                    <td style={{ whiteSpace: "nowrap" }}>{dateVN(po.expectedDate)}</td>
-                    <td className="money" style={{ whiteSpace: "nowrap", textAlign: "right" }}>{fmt(total)} ₫</td>
-                    <td style={{ textAlign: "center", minWidth: "165px" }}>
+                    <td style={{ whiteSpace: "nowrap", fontWeight: 600, color: "#334155" }}>{dateVN(po.createdDate)}</td>
+                    <td style={{ whiteSpace: "nowrap", color: "#475569" }}>{dateVN(po.expectedDate)}</td>
+                    <td className="money" style={{ whiteSpace: "nowrap", textAlign: "right", fontSize: "13.5px", fontWeight: 800, color: "#0c326f" }}>{fmt(total)} ₫</td>
+                    <td style={{ textAlign: "center", minWidth: "175px" }}>
                       {/* Dòng 1: Tiến độ giao hàng */}
-                      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "2px", marginBottom: "4px" }}>
-                        <span className="mini-progress" style={{ margin: "0 auto 3px" }}>
+                      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "3px", marginBottom: "5px" }}>
+                        <span className="mini-progress" style={{ margin: "0 auto 2px", width: "120px", height: "7px", borderRadius: "999px", background: "#e2e8f0" }}>
                           <i
                             style={{
                               width: `${deliveryStats.overallProgressPercent}%`,
-                              background: deliveryStats.isFullyDelivered ? "#16a34a" : undefined,
+                              background: deliveryStats.isFullyDelivered ? "#16a34a" : "#2563eb",
+                              borderRadius: "999px",
                             }}
                           />
                         </span>
-                        <small style={{ color: deliveryStats.isFullyDelivered ? "#15803d" : "#475569", fontWeight: deliveryStats.isFullyDelivered ? 700 : 500, fontSize: "11px" }}>
+                        <small style={{ color: deliveryStats.isFullyDelivered ? "#15803d" : "#334155", fontWeight: 700, fontSize: "11px" }}>
                           {deliveryStats.isFullyDelivered ? (
-                            "✓ Giao 100%"
+                            "✓ Giao đủ 100%"
                           ) : (
                             `Giao ${delivered}/${items.length} (${deliveryStats.overallProgressPercent}%)`
                           )}
@@ -947,8 +1079,8 @@ export function POList({
                     </td>
                     <td style={{ textAlign: "center" }}>
                       {docs.length === 0 ? (
-                        <span style={{ fontSize: "12px", color: "#94a3b8" }}>
-                          Không có
+                        <span style={{ fontSize: "11.5px", color: "#94a3b8", background: "#f8fafc", padding: "3px 8px", borderRadius: "6px", border: "1px solid #e2e8f0" }}>
+                          Chưa đính kèm
                         </span>
                       ) : (
                         <span
@@ -962,30 +1094,37 @@ export function POList({
                         </span>
                       )}
                     </td>
-                    <td style={{ width: "230px", minWidth: "230px", paddingRight: "16px" }}>
+                    <td style={{ width: "260px", minWidth: "260px", paddingRight: "16px" }}>
                       <div className="row-actions" style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: "6px", flexWrap: "nowrap" }}>
-                        <button className="btn-icon primary-ghost" onClick={() => onOpen(po)} title="Chi tiết PO">
-                          <ArrowRight size={16} />
+                        <button
+                          type="button"
+                          className="stitch-action-pill pill-navy"
+                          onClick={() => onOpen(po)}
+                          title="Mở chi tiết Đơn mua hàng (PO)"
+                        >
+                          <span>Chi tiết</span>
+                          <ArrowRight size={13} />
                         </button>
                         {onCreateHandover && (
                           <button
                             type="button"
-                            className="btn-icon info-ghost"
+                            className="stitch-action-pill pill-emerald"
                             onClick={() => onCreateHandover(po)}
                             title="Tạo biên bản bàn giao cho PO này"
                           >
-                            <Truck size={16} />
+                            <Truck size={13} />
+                            <span>Bàn giao</span>
                           </button>
                         )}
                         {onCreatePaymentRequest && (
                           <button
                             type="button"
-                            className="btn-icon"
+                            className="stitch-action-pill pill-sky"
                             onClick={() => onCreatePaymentRequest(po)}
                             title="Lập Đề nghị thanh toán (ĐNTT) và mở ngay bản in Mẫu 01-TT"
-                            style={{ color: "#0284c7" }}
                           >
-                            <CreditCard size={16} />
+                            <CreditCard size={13} />
+                            <span>ĐNTT</span>
                           </button>
                         )}
                         {onDelete && (
@@ -994,7 +1133,7 @@ export function POList({
                             onClick={() => onDelete(po)}
                             title="Xóa PO"
                           >
-                            <Trash2 size={16} />
+                            <Trash2 size={15} />
                           </button>
                         )}
                       </div>

@@ -1620,32 +1620,41 @@ export default function ApprovalManagement({
       <section className="content pr-page approval-list-page">
         {pasteToast && <div className="approval-toast no-print">{pasteToast}</div>}
 
-        <div className="heading">
+        {/* Stitch v2 Executive Page Header */}
+        <div className="heading stitch-page-banner">
           <div>
-            <h1>Đề nghị Phê duyệt</h1>
+            <div className="stitch-breadcrumb">
+              <span>Điều hành Thu mua</span>
+              <span>/</span>
+              <b>Đề nghị Phê duyệt NCC (ĐNPD)</b>
+            </div>
+            <h1>Đề nghị Phê duyệt Lựa chọn Nhà Cung Cấp</h1>
+            <p className="stitch-subtitle">
+              Tổng hợp ma trận báo giá cạnh tranh, thẩm định phương án tối ưu và trình ký phê duyệt NCC trúng thầu
+            </p>
           </div>
           {!isReportMode && (
-            <div className="approval-source-actions">
+            <div className="approval-source-actions" style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
               <button
                 type="button"
                 className="btn approval-source-btn source-compare"
                 onClick={() => setSourceModalMode("compare")}
               >
-                <Scale size={16} /> Từ So sánh
+                <Scale size={16} /> Lập từ So sánh giá
               </button>
               <button
                 type="button"
                 className="btn approval-source-btn source-pr"
                 onClick={() => setSourceModalMode("pr")}
               >
-                <FileText size={16} /> Từ PR
+                <FileText size={16} /> Lập từ PR
               </button>
               <button
                 type="button"
                 className="primary"
                 onClick={handleCreateManual}
               >
-                <Plus size={16} /> Tạo mới
+                <Plus size={16} /> Tạo phiếu ĐNPD mới
               </button>
               <button
                 type="button"
@@ -1661,16 +1670,96 @@ export default function ApprovalManagement({
           )}
         </div>
 
+        {/* Stitch v2 Bento KPI Summary Strip */}
+        <div className="stitch-kpi-strip">
+          <div className="stitch-kpi-card kpi-navy">
+            <div className="stitch-kpi-icon">
+              <FileText size={20} />
+            </div>
+            <div className="stitch-kpi-body">
+              <small>Tổng Phiếu Đề Nghị Phê Duyệt</small>
+              <strong>
+                {approvalRequests.length} <em>hồ sơ ĐNPD</em>
+              </strong>
+              <span className="stitch-kpi-sub">
+                Lưu trữ & đồng bộ trực tuyến Cloudflare D1
+              </span>
+            </div>
+          </div>
+
+          <div className="stitch-kpi-card kpi-orange">
+            <div className="stitch-kpi-icon">
+              <Scale size={20} />
+            </div>
+            <div className="stitch-kpi-body">
+              <small>Đang Thẩm Định & Chờ Duyệt</small>
+              <strong>
+                {pendingCount} <em>phiếu chờ duyệt</em>
+              </strong>
+              <span className="stitch-kpi-sub">
+                Bao gồm phiếu Nháp & Chờ Ban lãnh đạo ký duyệt
+              </span>
+            </div>
+          </div>
+
+          <div className="stitch-kpi-card kpi-emerald">
+            <div className="stitch-kpi-icon">
+              <CheckCircle2 size={20} />
+            </div>
+            <div className="stitch-kpi-body">
+              <small>Đã Phê Duyệt & Phát Hành PO</small>
+              <strong>
+                {approvedCount + poCreatedCount} <em>phiếu hoàn tất</em>
+              </strong>
+              <span className="stitch-kpi-sub">
+                Đã lên PO: <b>{poCreatedCount}</b> phiếu · Sẵn sàng tạo PO: <b>{approvedCount}</b>
+              </span>
+            </div>
+          </div>
+        </div>
+
         {/* Bảng Danh sách các phiếu Đề nghị Phê duyệt */}
         <div className="pr-panel">
-          <div className="pr-toolbar" style={{ flexWrap: "wrap", gap: 12 }}>
-            <div style={{ display: "flex", gap: 10, alignItems: "center", flex: 1 }}>
-              <label style={{ minWidth: 280, display: "inline-flex", alignItems: "center", gap: "6px" }}>
-                <Search size={16} style={{ color: "var(--slate-400)" }} />
+          <div className="pr-toolbar stitch-filter-bar">
+            <div className="stitch-seg-group">
+              <button
+                type="button"
+                className={`stitch-seg-btn ${statusFilter === "ALL" ? "active" : ""}`}
+                onClick={() => setStatusFilter("ALL")}
+              >
+                Tất cả <b>{approvalRequests.length}</b>
+              </button>
+              <button
+                type="button"
+                className={`stitch-seg-btn ${statusFilter === "Chờ phê duyệt" ? "active" : ""}`}
+                onClick={() => setStatusFilter("Chờ phê duyệt")}
+              >
+                Chờ duyệt <b>{pendingCount}</b>
+              </button>
+              <button
+                type="button"
+                className={`stitch-seg-btn ${statusFilter === "Đã phê duyệt" ? "active" : ""}`}
+                onClick={() => setStatusFilter("Đã phê duyệt")}
+              >
+                Đã duyệt <b>{approvedCount}</b>
+              </button>
+              <button
+                type="button"
+                className={`stitch-seg-btn ${statusFilter === "Đã tạo PO" ? "active" : ""}`}
+                onClick={() => setStatusFilter("Đã tạo PO")}
+              >
+                Đã tạo PO <b>{poCreatedCount}</b>
+              </button>
+            </div>
+
+            <div style={{ display: "flex", gap: 10, alignItems: "center", flex: 1, justifyContent: "flex-end", flexWrap: "wrap" }}>
+              <label style={{ minWidth: 280, display: "inline-flex", alignItems: "center", gap: "6px", position: "relative" }}>
+                <Search size={16} style={{ color: "var(--slate-400)", position: "absolute", left: "12px", pointerEvents: "none" }} />
                 <input
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Tìm theo số PR, tên nhà cung cấp, bộ phận, nội dung..."
+                  style={{ paddingLeft: "36px" }}
                 />
               </label>
               <select
@@ -1686,8 +1775,10 @@ export default function ApprovalManagement({
                 <option value="Đã phê duyệt">Đã phê duyệt</option>
                 <option value="Đã tạo PO">Đã tạo PO</option>
               </select>
+              <span className="stitch-count-pill">
+                Hiển thị <b>{filteredRequests.length}</b> phiếu ĐNPD
+              </span>
             </div>
-            <span>Hiển thị {filteredRequests.length} phiếu đề nghị phê duyệt</span>
           </div>
 
           {/* Danh sách thẻ hiển thị trên Mobile (thay thế pr-table khi màn hình nhỏ) */}
@@ -1948,24 +2039,26 @@ export default function ApprovalManagement({
                           >
                             <button
                               type="button"
-                              className="btn-icon primary-ghost"
+                              className="stitch-action-pill pill-navy"
                               onClick={() => setActiveApprovalId(req.id)}
-                              title="Mở phiếu"
+                              title="Mở xem chi tiết phiếu Đề nghị phê duyệt"
                             >
-                              <ArrowRight size={16} />
+                              <span>Mở phiếu</span>
+                              <ArrowRight size={13} />
                             </button>
                             {!isReportMode &&
                               (req.status === "Đã phê duyệt" ||
                                 req.status === "Đã tạo PO") && (
                                 <button
                                   type="button"
-                                  className="btn-icon accent-ghost"
+                                  className="stitch-action-pill pill-emerald"
                                   onClick={() => {
                                     handleOpenPOCreateModal(req);
                                   }}
                                   title="Phát hành đơn mua hàng (PO) từ phiếu đã duyệt này"
                                 >
-                                  <PackagePlus size={16} />
+                                  <PackagePlus size={13} />
+                                  <span>Tạo PO</span>
                                 </button>
                               )}
                             {!isReportMode && (

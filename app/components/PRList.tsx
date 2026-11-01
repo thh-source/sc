@@ -38,6 +38,8 @@ export function PRList({
 }) {
   const { t } = useTranslation();
   const [q, setQ] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "done">("all");
+  const [deptFilter, setDeptFilter] = useState<string>("");
   const [previewScanPR, setPreviewScanPR] = useState<PR | null>(null);
   const [uploadingPrId, setUploadingPrId] = useState<number | null>(null);
   const [targetUploadPR, setTargetUploadPR] = useState<PR | null>(null);
@@ -137,42 +139,158 @@ export function PRList({
       }
     }
   };
+
+  const departments = Array.from(new Set(prs.map((p) => (p.department || "").trim()).filter(Boolean)));
+  const totalPrBudget = prs.reduce(
+    (sum, pr) => sum + (pr.items || []).reduce((s, it) => s + (Number(it.qty) || 0) * (Number(it.estimate) || 0), 0),
+    0
+  );
+  const completedPrCount = prs.filter((p) => isPRCompleted(p)).length;
+  const activePrCount = prs.length - completedPrCount;
+
   const shown = prs
-    .filter((p) =>
-      (p.number + p.department + p.purpose)
+    .filter((p) => {
+      const isDone = isPRCompleted(p);
+      if (statusFilter === "active" && isDone) return false;
+      if (statusFilter === "done" && !isDone) return false;
+      if (deptFilter && (p.department || "").trim() !== deptFilter) return false;
+      const itemNames = (p.items || []).map((it) => it.name || "").join(" ");
+      return (p.number + " " + p.department + " " + p.purpose + " " + itemNames)
         .toLowerCase()
-        .includes(q.toLowerCase()),
-    )
+        .includes(q.toLowerCase());
+    })
     .sort((a, b) => {
       const aDone = isPRCompleted(a);
       const bDone = isPRCompleted(b);
-      // Ưu tiên: Chưa hoàn thành lên trên cùng, Đã hoàn thành xuống dưới
       if (aDone !== bDone) return aDone ? 1 : -1;
       return (b.date || "").localeCompare(a.date || "") || (b.id - a.id);
     });
+
   return (
     <section className="content pr-page">
-      <div className="heading">
+      {/* STITCH v2 WORKSPACE HEADER */}
+      <div className="heading stitch-page-banner">
         <div>
+          <div className="stitch-breadcrumb">
+            <span>Điều hành Thu mua</span>
+            <span>/</span>
+            <b>Yêu cầu Mua sắm (PR)</b>
+          </div>
           <h1>{t("pr.title")}</h1>
+          <p className="stitch-subtitle">
+            Quản lý tập trung yêu cầu vật tư từ các phòng ban, theo dõi hồ sơ scan và luồng chuyển tiếp báo giá ĐNPD / PO
+          </p>
         </div>
-        <button className="primary" onClick={onCreate}>
-          <Plus size={16} /> Tạo PR
-        </button>
+        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+          <button className="primary po-create-btn" onClick={onCreate} style={{ height: "40px", padding: "0 18px" }}>
+            <Plus size={17} /> + Tạo Yêu cầu PR mới
+          </button>
+        </div>
+      </div>
+
+      {/* STITCH v2 BENTO KPI STRIP (Desktop only via CSS) */}
+      <div className="stitch-kpi-strip">
+        <div className="stitch-kpi-card kpi-navy">
+          <div className="stitch-kpi-body">
+            <span className="stitch-kpi-label">Tổng Yêu cầu Mua sắm (PR)</span>
+            <div className="stitch-kpi-val-row">
+              <strong className="stitch-kpi-num">{prs.length} PR</strong>
+              <span className="stitch-kpi-subval">{fmt(totalPrBudget)} ₫</span>
+            </div>
+            <span className="stitch-kpi-desc">Tổng giá trị ngân sách dự toán lũy kế</span>
+          </div>
+          <div className="stitch-kpi-icon icon-navy">📋</div>
+        </div>
+
+        <div className="stitch-kpi-card kpi-orange">
+          <div className="stitch-kpi-body">
+            <span className="stitch-kpi-label">Đang xử lý &amp; Lấy báo giá</span>
+            <div className="stitch-kpi-val-row">
+              <strong className="stitch-kpi-num text-orange">{activePrCount} PR</strong>
+              <span className="stitch-kpi-badge badge-orange">Cần theo dõi</span>
+            </div>
+            <span className="stitch-kpi-desc">Đang trong luồng so sánh giá ĐNPD hoặc chờ lập PO</span>
+          </div>
+          <div className="stitch-kpi-icon icon-orange">⚖️</div>
+        </div>
+
+        <div className="stitch-kpi-card kpi-emerald">
+          <div className="stitch-kpi-body">
+            <span className="stitch-kpi-label">Đã hoàn thành / Đã lên PO</span>
+            <div className="stitch-kpi-val-row">
+              <strong className="stitch-kpi-num text-emerald">{completedPrCount} PR</strong>
+              <span className="stitch-kpi-badge badge-emerald">
+                {prs.length > 0 ? Math.round((completedPrCount / prs.length) * 100) : 0}% hoàn tất
+              </span>
+            </div>
+            <span className="stitch-kpi-desc">Đã phát hành đủ PO hoặc hoàn tất bàn giao</span>
+          </div>
+          <div className="stitch-kpi-icon icon-emerald">✓</div>
+        </div>
       </div>
 
       <div className="pr-panel">
-        <div className="pr-toolbar">
-          <label style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
-            <Search size={16} style={{ color: "var(--slate-400)" }} />
-            <input
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              placeholder={t("pr.search_placeholder")}
-            />
-          </label>
-          <span>{t("pr.requests_count", { count: shown.length })}</span>
+        <div className="pr-toolbar stitch-filter-bar">
+          <div className="stitch-seg-group">
+            <button
+              type="button"
+              className={`stitch-seg-btn ${statusFilter === "all" ? "active" : ""}`}
+              onClick={() => setStatusFilter("all")}
+            >
+              Tất cả ({prs.length})
+            </button>
+            <button
+              type="button"
+              className={`stitch-seg-btn ${statusFilter === "active" ? "active" : ""}`}
+              onClick={() => setStatusFilter("active")}
+            >
+              Đang xử lý ({activePrCount})
+            </button>
+            <button
+              type="button"
+              className={`stitch-seg-btn ${statusFilter === "done" ? "active" : ""}`}
+              onClick={() => setStatusFilter("done")}
+            >
+              Đã hoàn thành ({completedPrCount})
+            </button>
+          </div>
+
+          <div style={{ display: "flex", alignItems: "center", gap: "10px", flex: 1, justifyContent: "flex-end", flexWrap: "wrap" }}>
+            <label style={{ display: "inline-flex", alignItems: "center", gap: "8px", minWidth: "260px" }}>
+              <Search size={16} style={{ color: "var(--slate-400)" }} />
+              <input
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                placeholder={t("pr.search_placeholder")}
+              />
+            </label>
+            <select
+              value={deptFilter}
+              onChange={(e) => setDeptFilter(e.target.value)}
+              style={{
+                height: "36px",
+                borderRadius: "8px",
+                border: "1px solid #cbd5e1",
+                padding: "0 12px",
+                fontSize: "12.5px",
+                fontWeight: 600,
+                color: "#334155",
+                background: "#ffffff",
+                cursor: "pointer",
+              }}
+            >
+              <option value="">Tất cả phòng ban ({departments.length})</option>
+              {departments.map((d) => (
+                <option key={d} value={d}>
+                  {d}
+                </option>
+              ))}
+            </select>
+            <span className="stitch-count-pill">{t("pr.requests_count", { count: shown.length })}</span>
+          </div>
         </div>
+
+        {/* MOBILE RECORD LIST (100% UNTOUCHED FOR APK MOBILE) */}
         <div className="mobile-record-list">
           {shown.map((pr) => {
             const flow = resolveDocFlow({ pr }, { prs, pos, approvalRequests, paymentRequests, paymentHandovers });
@@ -311,40 +429,47 @@ export function PRList({
             );
           })}
         </div>
+
+        {/* DESKTOP PR TABLE (STITCH v2 REDESIGNED) */}
         <div className="pr-table" style={{ width: "100%", overflowX: "auto" }}>
-          <table style={{ width: "100%", minWidth: "1120px", tableLayout: "auto" }}>
+          <table style={{ width: "100%", minWidth: "1140px", tableLayout: "auto" }}>
             <colgroup>
-              <col style={{ width: "115px" }} />
-              <col style={{ width: "100px" }} />
-              <col style={{ width: "140px" }} />
+              <col style={{ width: "130px" }} />
+              <col style={{ width: "130px" }} />
               <col style={{ width: "auto" }} />
-              <col style={{ width: "75px" }} />
-              <col style={{ width: "125px" }} />
-              <col style={{ width: "125px" }} />
-              <col style={{ width: "210px" }} />
-              <col style={{ width: "235px" }} />
+              <col style={{ width: "85px" }} />
+              <col style={{ width: "135px" }} />
+              <col style={{ width: "135px" }} />
+              <col style={{ width: "205px" }} />
+              <col style={{ width: "255px" }} />
             </colgroup>
             <thead>
               <tr>
-                <th className="cell-center">{t("table.pr_number")}</th>
-                <th className="cell-center">{t("table.pr_date")}</th>
-                <th className="cell-left">{t("table.department")}</th>
-                <th className="cell-left">{t("table.purpose")}</th>
+                <th className="cell-left" style={{ paddingLeft: "16px" }}>{t("table.pr_number")}</th>
+                <th className="cell-left">Ngày &amp; Đơn vị</th>
+                <th className="cell-left">Nội dung mua sắm &amp; Tóm tắt vật tư</th>
                 <th className="cell-center">{t("table.items_count")}</th>
                 <th className="cell-right">{t("table.est_amount")}</th>
                 <th className="cell-center">{t("table.status")}</th>
                 <th className="cell-left">Tiến độ luồng</th>
-                <th className="cell-center">Thao tác</th>
+                <th className="cell-right" style={{ paddingRight: "16px" }}>Thao tác tác nghiệp</th>
               </tr>
             </thead>
             <tbody>
               {shown.map((pr) => {
                 const flow = resolveDocFlow({ pr }, { prs, pos, approvalRequests, paymentRequests, paymentHandovers });
                 const isDone = isPRCompleted(pr);
+                const itemCount = pr.items?.length || 0;
+                const firstTwoNames = (pr.items || [])
+                  .slice(0, 2)
+                  .map((it) => it.name || (it as any).itemName || (it as any).item_name || "")
+                  .filter(Boolean)
+                  .join(", ");
+
                 return (
                   <tr key={pr.id} className={isDone ? "row-completed" : ""}>
-                    <td className="cell-center">
-                      <div style={{ display: "inline-flex", alignItems: "center", gap: "6px", justifyContent: "center" }}>
+                    <td className="cell-left" style={{ paddingLeft: "16px" }}>
+                      <div style={{ display: "inline-flex", alignItems: "center", gap: "8px" }}>
                         {onToggleComplete && (
                           <button
                             type="button"
@@ -353,7 +478,7 @@ export function PRList({
                             onClick={() => onToggleComplete(pr)}
                             style={{ background: "transparent", border: "none", cursor: "pointer", display: "inline-flex", padding: 0 }}
                           >
-                            {isDone ? <CheckCircle2 size={16} className="text-emerald-600" /> : <Circle size={16} className="text-slate-400 hover:text-slate-600" />}
+                            {isDone ? <CheckCircle2 size={17} className="text-emerald-600" /> : <Circle size={17} className="text-slate-400 hover:text-slate-600" />}
                           </button>
                         )}
                         <button className="pr-link" onClick={() => onOpen(pr)}>
@@ -361,11 +486,63 @@ export function PRList({
                         </button>
                       </div>
                     </td>
-                    <td className="cell-center">{dateVN(pr.date)}</td>
-                    <td className="cell-left">{pr.department}</td>
-                    <td className="purpose-cell cell-left">{pr.purpose}</td>
-                    <td className="cell-center">{pr.items?.length || 0}</td>
-                    <td className="money cell-right">
+                    <td className="cell-left">
+                      <div style={{ fontWeight: 700, fontSize: "12.5px", color: "#0f172a" }}>{dateVN(pr.date)}</div>
+                      <span
+                        style={{
+                          display: "inline-block",
+                          marginTop: "3px",
+                          padding: "1px 7px",
+                          borderRadius: "5px",
+                          fontSize: "11px",
+                          fontWeight: 700,
+                          background: "#f1f5f9",
+                          color: "#334155",
+                          border: "1px solid #cbd5e1",
+                        }}
+                      >
+                        🏢 {pr.department || "Chưa rõ"}
+                      </span>
+                    </td>
+                    <td className="purpose-cell cell-left">
+                      <div style={{ fontWeight: 700, color: "#0f172a", fontSize: "13px" }}>{pr.purpose || "Mua sắm vật tư"}</div>
+                      {firstTwoNames && (
+                        <div
+                          style={{
+                            fontSize: "11.5px",
+                            color: "#64748b",
+                            marginTop: "3px",
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                            whiteSpace: "nowrap",
+                            maxWidth: "380px",
+                          }}
+                          title={firstTwoNames}
+                        >
+                          📦 {firstTwoNames}
+                          {itemCount > 2 ? ` (+${itemCount - 2} món khác)` : ""}
+                        </div>
+                      )}
+                    </td>
+                    <td className="cell-center">
+                      <span
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          padding: "2px 9px",
+                          borderRadius: "999px",
+                          fontSize: "11.5px",
+                          fontWeight: 700,
+                          background: "#eff6ff",
+                          color: "#1e40af",
+                          border: "1px solid #bfdbfe",
+                        }}
+                      >
+                        {itemCount} mục
+                      </span>
+                    </td>
+                    <td className="money cell-right" style={{ fontWeight: 700, color: "#0f172a" }}>
                       {fmt((pr.items || []).reduce((s, i) => s + i.qty * i.estimate, 0))} ₫
                     </td>
                     <td className="cell-center">
@@ -378,8 +555,26 @@ export function PRList({
                     <td>
                       <DocFlowLinks flow={flow} currentView="prs" onNavigate={onNavigate} compact />
                     </td>
-                    <td className="cell-center">
-                      <div className="row-actions" style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
+                    <td className="cell-right" style={{ paddingRight: "16px" }}>
+                      <div className="row-actions" style={{ display: "inline-flex", alignItems: "center", justifyContent: "flex-end", gap: "6px" }}>
+                        <button
+                          type="button"
+                          className="stitch-action-pill pill-navy"
+                          onClick={() => onOpen(pr)}
+                          title="Mở Bảng so sánh báo giá của PR này"
+                        >
+                          <Scale size={13} /> So sánh giá
+                        </button>
+                        {onCreateHandover && (
+                          <button
+                            type="button"
+                            className="stitch-action-pill pill-emerald"
+                            onClick={() => onCreateHandover(pr)}
+                            title="Tạo biên bản bàn giao từ PR này"
+                          >
+                            <Truck size={13} /> Bàn giao
+                          </button>
+                        )}
                         {pr.scan_file_url ? (
                           <div style={{ display: "inline-flex", gap: "4px", alignItems: "center" }}>
                             <button
@@ -391,14 +586,14 @@ export function PRList({
                                 color: "#0284c7",
                                 backgroundColor: "#f0f9ff",
                                 border: "1px solid #bae6fd",
-                                borderRadius: "4px",
-                                padding: "4px 6px",
+                                borderRadius: "6px",
+                                padding: "5px 7px",
                                 display: "inline-flex",
                                 alignItems: "center",
                                 cursor: "pointer",
                               }}
                             >
-                              <Eye size={15} />
+                              <Eye size={14} />
                             </button>
                             <button
                               type="button"
@@ -409,14 +604,14 @@ export function PRList({
                                 color: "#475569",
                                 backgroundColor: "#f8fafc",
                                 border: "1px solid #cbd5e1",
-                                borderRadius: "4px",
-                                padding: "4px 6px",
+                                borderRadius: "6px",
+                                padding: "5px 7px",
                                 display: "inline-flex",
                                 alignItems: "center",
                                 cursor: "pointer",
                               }}
                             >
-                              <Printer size={15} />
+                              <Printer size={14} />
                             </button>
                           </div>
                         ) : (
@@ -430,11 +625,11 @@ export function PRList({
                             title="Tải lên bản scan PR"
                             disabled={uploadingPrId === pr.id}
                             style={{
-                              color: "#94a3b8",
-                              backgroundColor: "transparent",
+                              color: "#64748b",
+                              backgroundColor: "#f8fafc",
                               border: "1px dashed #cbd5e1",
-                              borderRadius: "4px",
-                              padding: "4px 6px",
+                              borderRadius: "6px",
+                              padding: "5px 7px",
                               display: "inline-flex",
                               alignItems: "center",
                               cursor: "pointer",
@@ -443,58 +638,9 @@ export function PRList({
                             {uploadingPrId === pr.id ? <Loader2 size={14} className="animate-spin text-sky-600" /> : <Paperclip size={14} />}
                           </button>
                         )}
-                        {onCreateHandover && (
-                          <button
-                            type="button"
-                            className="btn btn-secondary btn-xs"
-                            style={{
-                              display: "inline-flex",
-                              alignItems: "center",
-                              gap: "4px",
-                              padding: "3px 8px",
-                              fontSize: "11.5px",
-                              fontWeight: 600,
-                              color: "#15803d",
-                              backgroundColor: "#f0fdf4",
-                              border: "1px solid #86efac",
-                              borderRadius: "4px",
-                              cursor: "pointer",
-                              whiteSpace: "nowrap",
-                            }}
-                            onClick={() => onCreateHandover(pr)}
-                            title="Tạo biên bản bàn giao từ PR này"
-                          >
-                            <Truck size={13} /> Bàn giao
-                          </button>
-                        )}
-                        <button
-                          type="button"
-                          className="btn btn-secondary btn-xs"
-                          style={{
-                            display: "inline-flex",
-                            alignItems: "center",
-                            gap: "4px",
-                            padding: "3px 8px",
-                            fontSize: "11.5px",
-                            fontWeight: 600,
-                            color: "#0369a1",
-                            backgroundColor: "#f0f9ff",
-                            border: "1px solid #bae6fd",
-                            borderRadius: "4px",
-                            cursor: "pointer",
-                            whiteSpace: "nowrap",
-                          }}
-                          onClick={() => onOpen(pr)}
-                          title="Mở Bảng so sánh báo giá của PR này"
-                        >
-                          <Scale size={13} /> So sánh giá
-                        </button>
-                        <button className="btn-icon primary-ghost" onClick={() => onOpen(pr)} title="Mở PR / So sánh giá">
-                          <ArrowRight size={16} />
-                        </button>
                         {onDelete && (
                           <button className="btn-icon danger-ghost" onClick={() => onDelete(pr)} title="Xóa PR">
-                            <Trash2 size={16} />
+                            <Trash2 size={15} />
                           </button>
                         )}
                       </div>
@@ -529,4 +675,3 @@ export function PRList({
     </section>
   );
 }
-
