@@ -1922,7 +1922,6 @@ export default function ApprovalManagement({
                   <th style={{ width: 135 }}>Số PR / Mã phiếu</th>
                   <th style={{ width: 105 }}>Ngày lập</th>
                   <th style={{ width: 155 }}>Bộ phận lập</th>
-                  <th>Nội dung đề nghị phê duyệt</th>
                   <th style={{ width: 130, textAlign: "center" }}>Quy mô đánh giá</th>
                   <th style={{ width: 220 }}>NCC đề xuất lựa chọn</th>
                   <th style={{ width: 145, textAlign: "right" }}>
@@ -1936,7 +1935,7 @@ export default function ApprovalManagement({
                 {filteredRequests.length === 0 ? (
                   <tr>
                     <td
-                      colSpan={9}
+                      colSpan={8}
                       style={{
                         textAlign: "center",
                         padding: "36px 16px",
@@ -1998,7 +1997,6 @@ export default function ApprovalManagement({
                         </td>
                         <td>{req.createdDate}</td>
                         <td>{req.department}</td>
-                        <td className="purpose-cell">{req.section1Title}</td>
                         <td className="center">
                           <span className="scale-pill">
                             {req.supplierColumns.length} NCC · {req.rows.length} mục
