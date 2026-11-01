@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from "react";
-import { Plus, ArrowRight, Trash2, Truck, Search, CheckCircle2, Circle, Pencil, RotateCcw, CreditCard, Eye } from "lucide-react";
+import { Plus, ArrowRight, Trash2, Truck, Search, CheckCircle2, Circle, Pencil, RotateCcw, CreditCard, Eye, ClipboardCheck } from "lucide-react";
 import { Supplier, PO, PR, Item, ApprovalRequest, PaymentRequestEntry, PaymentHandoverItem, getPOContractInfo, formatPONumber, generatePOCode, isPONumberExists, TrashItem, calcPOTotal } from "../types";
 import { fmt, dateVN, makeId } from "../utils";
 import { SupplierSearchCombobox } from "./SupplierSearchCombobox";
@@ -819,8 +819,8 @@ export function POList({
                       onClick={() => onCreateHandover(po)}
                       title={deliveryStats.isFullyDelivered ? "Đơn hàng đã bàn giao đủ 100% (Bấm để xem biên bản)" : "Tạo biên bản bàn giao hàng hóa"}
                     >
-                      <Truck size={17} />
-                      <span>{deliveryStats.isFullyDelivered ? "Đã giao đủ" : "Tạo biên bản"}</span>
+                      <ClipboardCheck size={17} />
+                      <span>{deliveryStats.isFullyDelivered ? "Đã bàn giao NB" : "Bàn giao nội bộ"}</span>
                     </button>
                   )}
                   {onCreatePaymentRequest && (
@@ -1110,8 +1110,8 @@ export function POList({
                             onClick={() => onCreateHandover(po)}
                             title="Tạo biên bản bàn giao cho PO này"
                           >
-                            <Truck size={13} />
-                            <span>Bàn giao</span>
+                            <ClipboardCheck size={13} />
+                            <span>Bàn giao nội bộ</span>
                           </button>
                         )}
                         {onCreatePaymentRequest && (

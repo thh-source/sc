@@ -1998,17 +1998,9 @@ function ProcurementAppInner({
     setPaymentHandovers((prev) => [...newHandovers, ...prev]);
     setSpotlightHandoverSearch(handoverPickerPO.number);
 
-    // Mở trực tiếp Modal Preview Bản in Biên bản bàn giao, không redirect tab
-    setPrintHandoverData({
-      isOpen: true,
-      items: newHandovers,
-      po: updatedPO,
-      department: payload.department,
-      handoverDate: payload.handoverDate,
-      senderName: payload.senderName,
-      receiverName: payload.receiverName,
-    });
-    setStorageStatus(`✓ Đã bàn giao ${newHandovers.length} mặt hàng cho ${payload.department} từ ${docTypeLabel} #${handoverPickerPO.number}. Mở bản in biên bản.`);
+    // Tự động chuyển thẳng sang tab Bàn giao theo đúng luồng bàn giao nội bộ không qua kho
+    navigateTo({ view: "handover" });
+    setStorageStatus(`✓ Đã tạo phiếu bàn giao nội bộ không qua kho (${newBatchId}) cho ${payload.department} từ ${docTypeLabel} #${handoverPickerPO.number}. Đang xem tại tab Bàn giao.`);
   };
 
   const handleOpenBatchHandoverPreview = (targetPO: PO | null, batch: PODeliveryBatch) => {

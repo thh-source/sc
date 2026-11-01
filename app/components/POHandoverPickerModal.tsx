@@ -288,12 +288,15 @@ export function POHandoverPickerModal({
           <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
             <span style={{ fontSize: "22px" }}>📋</span>
             <div>
-              <h3 style={{ margin: 0, fontSize: "16px", color: "#f8fafc" }}>
-                Bàn giao hàng hóa từ {docTypeLabel} {po.number}
+              <h3 style={{ margin: 0, fontSize: "16px", color: "#f8fafc", display: "flex", alignItems: "center", gap: "8px" }}>
+                <span>Lập Phiếu Bàn Giao Nội Bộ (Không qua kho)</span>
+                <span style={{ fontSize: "12px", background: "#1e3a8a", color: "#bfdbfe", padding: "2px 8px", borderRadius: "4px", fontWeight: 600 }}>
+                  {docTypeLabel} {po.number}
+                </span>
               </h3>
               <div style={{ fontSize: "12px", color: "#94a3b8", marginTop: "2px" }}>
-                {supplier?.name ? `NCC: ${supplier.name}` : "Chọn mặt hàng và bộ phận tiếp nhận"}
-                {po.prNumber ? ` · Theo ${po.prNumber}` : ""}
+                Nhân viên mua hàng (Phòng Cung ứng) bàn giao trực tiếp cho Bộ phận sử dụng · Tự động đẩy dữ liệu sang <b>Tab Bàn giao</b>
+                {linkedPR?.department ? ` · Đơn vị yêu cầu (PR): ${linkedPR.department}` : ""}
               </div>
             </div>
           </div>
@@ -427,10 +430,10 @@ export function POHandoverPickerModal({
             flexShrink: 0,
           }}
         >
-          {/* Bộ phận nhận bàn giao */}
+          {/* Bộ phận sử dụng nhận bàn giao */}
           <div>
             <label style={{ fontSize: "12.5px", fontWeight: 700, color: "#1e3a8a", display: "block", marginBottom: "4px" }}>
-              🏢 Bộ phận nhận bàn giao <b style={{ color: "#dc2626" }}>*</b>:
+              🏢 Bộ phận sử dụng nhận bàn giao <b style={{ color: "#dc2626" }}>*</b>:
             </label>
             <select
               value={department}
@@ -1028,11 +1031,11 @@ export function POHandoverPickerModal({
               }}
             >
               {isFullyDelivered ? (
-                <span>✓ Đã giao đủ 100%</span>
+                <span>✓ Đã bàn giao đủ 100%</span>
               ) : isAnySelectedInvalid ? (
                 <span>⚠ Vui lòng kiểm tra lại số lượng</span>
               ) : (
-                <span>✓ Lưu & In biên bản ({selectedCount})</span>
+                <span>✓ Tạo phiếu & Chuyển sang tab Bàn giao ({selectedCount})</span>
               )}
             </button>
           </div>

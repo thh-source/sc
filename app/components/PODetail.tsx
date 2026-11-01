@@ -18,6 +18,8 @@ import {
   Circle,
   Link2,
   AlertCircle,
+  Package,
+  ExternalLink,
 } from "lucide-react";
 import {
   Supplier,
@@ -113,6 +115,44 @@ export function PODetail({
   const poDeliveryStats = useMemo(() => {
     return calcPODeliveryStats(po, paymentHandovers);
   }, [po, paymentHandovers]);
+
+  const deliveredStats = useMemo(() => {
+    const list = items || [];
+    let deliveredItemsCount = 0;
+    let totalDeliveredQty = 0;
+    let totalQty = 0;
+    list.forEach((it) => {
+      const q = Number(it.qty) || 0;
+      const d = Number(it.deliveredQty) || 0;
+      totalQty += q;
+      totalDeliveredQty += d;
+      if (d >= q && q > 0) deliveredItemsCount++;
+    });
+    return {
+      deliveredItemsCount,
+      totalItems: list.length,
+      totalDeliveredQty,
+      totalQty,
+      isFullyDelivered: list.length > 0 && deliveredItemsCount === list.length,
+    };
+  }, [items]);
+
+  const linkedHandovers = useMemo(() => {
+    const cleanNum = (po?.number || "").trim().toLowerCase();
+    if (!cleanNum) return [];
+    return paymentHandovers.filter(
+      (h) => (h.source_number || "").trim().toLowerCase() === cleanNum
+    );
+  }, [po?.number, paymentHandovers]);
+
+  const linkedHandoverBatchesCount = useMemo(() => {
+    const set = new Set<string>();
+    linkedHandovers.forEach((h) => {
+      if (h.batch_id && h.batch_id.trim()) set.add(h.batch_id.trim());
+      else if (h.handover_date) set.add(h.handover_date);
+    });
+    return set.size;
+  }, [linkedHandovers]);
   const savedNoticeTimerRef = useRef<any>(null);
 
   useEffect(() => {
@@ -861,9 +901,9 @@ export function PODetail({
               className={poDeliveryStats.isFullyDelivered ? "btn btn-md" : "btn btn-primary btn-md"}
               style={poDeliveryStats.isFullyDelivered ? { background: "#f8fafc", color: "#15803d", border: "1.5px solid #86efac", fontWeight: 700 } : undefined}
               onClick={() => onCreateHandover(po)}
-              title={poDeliveryStats.isFullyDelivered ? "Đơn hàng đã bàn giao đủ 100% (Bấm để xem biên bản)" : "Tạo biên bản bàn giao cho các mặt hàng trong đơn này"}
+              title={poDeliveryStats.isFullyDelivered ? "Đơn hàng đã bàn giao nội bộ đủ 100% (Bấm để xem hoặc tạo thêm đợt)" : "Lập Phiếu Bàn giao nội bộ cho Bộ phận sử dụng (không qua kho)"}
             >
-              <Truck size={16} /> {poDeliveryStats.isFullyDelivered ? "Đã giao đủ (100%)" : "Bàn giao"}
+              <ClipboardCheck size={16} /> {poDeliveryStats.isFullyDelivered ? "Đã bàn giao nội bộ (100%)" : "Bàn giao nội bộ"}
             </button>
           )}
           {(onCreatePaymentRequest || onOpenGeneralPaymentRequest) && (
@@ -2473,7 +2513,7 @@ export function PODetail({
                 onClick={openDeliveryPopup}
                 style={{
                   height: "34px",
-                  padding: "0 14px",
+                  padding: "0 13px",
                   fontSize: "12.5px",
                   fontWeight: 700,
                   background: "#0284c7",
@@ -2485,9 +2525,34 @@ export function PODetail({
                   alignItems: "center",
                   gap: "6px",
                 }}
-                title="Mở popup tích chọn hàng hóa giao bao nhiêu vào ngày nào (áp dụng ngày chung cho các hàng giao cùng đợt)"
+                title="Ghi nhận đợt giao nhận hàng từ Nhà cung cấp đến Nhân viên mua hàng"
               >
                 <Truck size={14} /> Giao hàng
+              </button>
+            )}
+
+            {!readOnly && (
+              <button
+                type="button"
+                onClick={openDeliveryPopup}
+                style={{
+                  height: "34px",
+                  padding: "0 11px",
+                  fontSize: "12px",
+                  fontWeight: 600,
+                  background: deliveredStats.isFullyDelivered ? "#f0fdf4" : "#f8fafc",
+                  border: deliveredStats.isFullyDelivered ? "1px solid #86efac" : "1px solid #cbd5e1",
+                  color: deliveredStats.isFullyDelivered ? "#15803d" : "#334155",
+                  borderRadius: "6px",
+                  cursor: "pointer",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "5px",
+                }}
+                title="Xem tiến độ và chi tiết các đợt hàng đã nhận từ Nhà cung cấp"
+              >
+                <Package size={14} />
+                <span>Hàng đã nhận ({deliveredStats.deliveredItemsCount}/{deliveredStats.totalItems})</span>
               </button>
             )}
 
@@ -2497,21 +2562,51 @@ export function PODetail({
                 onClick={() => onCreateHandover(po)}
                 style={{
                   height: "34px",
-                  padding: "0 12px",
+                  padding: "0 13px",
+                  fontSize: "12.5px",
+                  fontWeight: 700,
+                  background: "#16a34a",
+                  border: "1px solid #15803d",
+                  color: "#ffffff",
+                  borderRadius: "6px",
+                  cursor: "pointer",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "6px",
+                  boxShadow: "0 1px 3px rgba(22, 163, 74, 0.25)",
+                }}
+                title="Nhân viên mua hàng bàn giao trực tiếp cho Bộ phận sử dụng (không qua kho), tự động đẩy dữ liệu sang Tab Bàn giao để tạo phiếu"
+              >
+                <ClipboardCheck size={14} /> Bàn giao nội bộ
+              </button>
+            )}
+
+            {linkedHandovers.length > 0 && (
+              <button
+                type="button"
+                onClick={() => {
+                  if (onNavigate) {
+                    onNavigate({ view: "handover", query: po.number });
+                  }
+                }}
+                style={{
+                  height: "34px",
+                  padding: "0 11px",
                   fontSize: "12px",
                   fontWeight: 600,
-                  background: "#f0fdf4",
-                  border: "1px solid #86efac",
-                  color: "#166534",
+                  background: "#eff6ff",
+                  border: "1px solid #bfdbfe",
+                  color: "#1d4ed8",
                   borderRadius: "6px",
                   cursor: "pointer",
                   display: "inline-flex",
                   alignItems: "center",
                   gap: "5px",
                 }}
-                title="Tạo biên bản bàn giao từ các mặt hàng trong PO này"
+                title={`Đã có ${linkedHandoverBatchesCount || 1} đợt bàn giao nội bộ từ PO này. Bấm để chuyển sang Tab Bàn giao.`}
               >
-                <ClipboardCheck size={14} /> Bàn giao
+                <ExternalLink size={13} />
+                <span>Tab Bàn giao ({linkedHandoverBatchesCount || 1})</span>
               </button>
             )}
 
