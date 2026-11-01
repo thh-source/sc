@@ -14,7 +14,6 @@ import {
   Check,
   Tag,
   Calendar,
-  Layers,
   Sparkles,
   DollarSign,
   TrendingUp,
@@ -2202,56 +2201,6 @@ export function Dashboard({
                   </tbody>
                 </table>
               )}
-            </div>
-          </div>
-        </div>
-
-        {/* RIGHT COLUMN (4 Cols): OPERATIONAL PULSE & SUMMARY */}
-        <div className="dashboard-side-col">
-          {/* KHU VỰC PHỤ: TÓM TẮT NHỊP ĐỘ VẬN HÀNH (OPERATIONAL PULSE) */}
-          <div className="dashboard-card pulse-card">
-            <div className="card-header">
-              <div className="card-title-group">
-                <span className="card-badge-icon badge-purple">
-                  <Layers size={16} />
-                </span>
-                <div>
-                  <h2>Nhịp độ Vận hành</h2>
-                  <p>Điểm nghẽn cần chú ý xử lý trong tuần</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="pulse-list">
-              <div className="pulse-item">
-                <div className="pulse-icon-box box-amber">
-                  <AlertTriangle size={16} />
-                </div>
-                <div className="pulse-info">
-                  <b>{advanceRequiredCount} đợt tạm ứng chờ tiền</b>
-                  <p>Cần giải ngân sớm để nhà cung cấp tiến hành giao hàng</p>
-                </div>
-              </div>
-
-              <div className="pulse-item">
-                <div className="pulse-icon-box box-blue">
-                  <Truck size={16} />
-                </div>
-                <div className="pulse-info">
-                  <b>{pendingDeliveryPOs.length} đơn PO chưa giao đủ</b>
-                  <p>Theo dõi sát với kho và nhà xe để hoàn tất nhận hàng</p>
-                </div>
-              </div>
-
-              <div className="pulse-item">
-                <div className="pulse-icon-box box-green">
-                  <CheckCircle2 size={16} />
-                </div>
-                <div className="pulse-info">
-                  <b>{pendingApprovals.length} tờ trình ĐNPD chờ duyệt</b>
-                  <p>Trình ký lãnh đạo để kịp phát hành PO đúng kế hoạch</p>
-                </div>
-              </div>
             </div>
           </div>
         </div>
