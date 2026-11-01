@@ -62,7 +62,10 @@ export function HandoverPrintPreviewModal({
     return sortHandoversByPOLineOrder(items, po);
   }, [items, po]);
 
-  const effectiveDept = department || items[0]?.department || "Phòng Cung ứng";
+  const rawDept = department || items[0]?.department || "";
+  const effectiveDept = (rawDept && rawDept.trim() !== "Phòng Cung ứng")
+    ? rawDept.trim()
+    : "....................................................";
   const effectiveDate = handoverDate || items[0]?.handover_date || new Date().toISOString().slice(0, 10);
   const parsedDate = parsePrintDate(effectiveDate);
   const curYear = parsedDate?.y || new Date().getFullYear().toString();
@@ -88,7 +91,7 @@ export function HandoverPrintPreviewModal({
                   }}
                 />
               </div>
-              <div className="hb-sender-dept">Bộ phận: Phòng Cung ứng</div>
+              <div className="hb-sender-dept">Bộ phận: {effectiveDept}</div>
             </td>
             <td className="hb-box-right">
               <div className="hb-title-main">
@@ -96,7 +99,7 @@ export function HandoverPrintPreviewModal({
               </div>
               <div className="hb-title-main">HÀNG HÓA</div>
               <div className="hb-title-sub">
-                (Không qua kho) - {copyIndex === 1 ? "Bản 1 (Bên giao giữ)" : "Bản 2 (Bên nhận giữ)"}
+                (Không qua kho)
               </div>
             </td>
           </tr>
@@ -105,7 +108,7 @@ export function HandoverPrintPreviewModal({
 
       <div className="hb-info">
         <div className="hb-line">
-          Hôm nay, ngày&nbsp;<b>{curDay}</b>&nbsp;tháng&nbsp;<b>{curMonth}</b>&nbsp;năm&nbsp;<b>{curYear}</b>
+          Hôm nay, ngày&nbsp;.....&nbsp;tháng&nbsp;.....&nbsp;năm 20.....
         </div>
         <div className="hb-line">Tại Công ty CP Dược phẩm Phenikaa</div>
         <div className="hb-line">
@@ -123,7 +126,7 @@ export function HandoverPrintPreviewModal({
           <div>Địa chỉ: <b>{effectiveDept}</b></div>
         </div>
         <div className="hb-line">
-          Cùng nhau tiến hành giao nhận và nghiệm thu số lượng vật tư theo PO/Đơn hàng <b>{po?.number || items[0]?.source_number || ""}</b>:
+          Cùng nhau tiến hành giao nhận và nghiệm thu số lượng vật tư:
         </div>
       </div>
 

@@ -581,7 +581,7 @@ export function PrintTemplatesManagement({
                                 }}
                               />
                             </div>
-                            <div className="hb-sender-dept">Bộ phận: Phòng Cung ứng</div>
+                            <div className="hb-sender-dept">Bộ phận: Sản xuất</div>
                           </td>
                           <td className="hb-box-right">
                             <div className="hb-title-main">BIÊN BẢN BÀN GIAO, NGHIỆM THU VẬT TƯ,</div>
@@ -594,7 +594,7 @@ export function PrintTemplatesManagement({
 
                     <div className="hb-info">
                       <div className="hb-line">
-                        Hôm nay, ngày&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;tháng&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;năm {new Date().getFullYear()}
+                        Hôm nay, ngày&nbsp;.....&nbsp;tháng&nbsp;.....&nbsp;năm 20.....
                       </div>
                       <div className="hb-line">Tại Công ty CP Dược phẩm Phenikaa</div>
                       <div className="hb-line">
@@ -609,7 +609,7 @@ export function PrintTemplatesManagement({
                         <div>Ông (bà): .................................................... Người nhận hàng</div>
                         <div>Địa chỉ: Sản xuất</div>
                       </div>
-                      <div className="hb-line">Cùng nhau tiến hành giao nhận và nghiệm thu số lượng vật tư sau:</div>
+                      <div className="hb-line">Cùng nhau tiến hành giao nhận và nghiệm thu số lượng vật tư:</div>
                     </div>
 
                     <table className="hb-table">
@@ -779,7 +779,7 @@ export function PrintTemplatesManagement({
                               }}
                             />
                           </div>
-                          <div className="hb-sender-dept">Bộ phận: Phòng Cung ứng</div>
+                          <div className="hb-sender-dept">Bộ phận: Sản xuất</div>
                         </td>
                         <td className="hb-box-right">
                           <div className="hb-title-main">BIÊN BẢN BÀN GIAO, NGHIỆM THU VẬT TƯ,</div>
@@ -792,7 +792,7 @@ export function PrintTemplatesManagement({
 
                   <div className="hb-info">
                     <div className="hb-line">
-                      Hôm nay, ngày&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;tháng&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;năm {new Date().getFullYear()}
+                      Hôm nay, ngày&nbsp;.....&nbsp;tháng&nbsp;.....&nbsp;năm 20.....
                     </div>
                     <div className="hb-line">Tại Công ty CP Dược phẩm Phenikaa</div>
                     <div className="hb-line">
@@ -807,7 +807,7 @@ export function PrintTemplatesManagement({
                       <div>Ông (bà): .................................................... Người nhận hàng</div>
                       <div>Địa chỉ: Sản xuất</div>
                     </div>
-                    <div className="hb-line">Cùng nhau tiến hành giao nhận và nghiệm thu số lượng vật tư sau:</div>
+                    <div className="hb-line">Cùng nhau tiến hành giao nhận và nghiệm thu số lượng vật tư:</div>
                   </div>
 
                   <table className="hb-table">

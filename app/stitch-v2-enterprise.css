@@ -1800,7 +1800,10 @@ aside nav a,
 
 }
 
-@media print { * { font-family: 'Times New Roman', Times, serif !important; } 
+@media print {
+  * { font-family: 'Times New Roman', Times, serif !important; }
+}
+
 /* =========================================================================
    COMPACT PAYMENT CARD & 5 EQUAL-WIDTH ACTION BUTTONS
    ========================================================================= */
@@ -1874,6 +1877,4 @@ aside nav a,
   border-radius: 6px !important;
   overflow: hidden !important;
   text-overflow: ellipsis !important;
-}
-
 }

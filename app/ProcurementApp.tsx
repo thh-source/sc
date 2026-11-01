@@ -2005,12 +2005,15 @@ function ProcurementAppInner({
 
   const handleOpenBatchHandoverPreview = (targetPO: PO | null, batch: PODeliveryBatch) => {
     if (!targetPO || !batch) return;
+    const cleanDept = (batch.department && batch.department.trim() !== "Phòng Cung ứng")
+      ? batch.department.trim()
+      : (prs.find((p) => p.number === targetPO.prNumber)?.department || "");
     setPrintHandoverData({
       isOpen: true,
       items: sortHandoversByPOLineOrder(batch.rawHandovers, targetPO),
       po: targetPO,
-      department: batch.department || "Phòng Cung ứng",
-      handoverDate: batch.date || localToday(),
+      department: cleanDept,
+      handoverDate: batch.date || "",
       senderName: batch.senderName || "Trần Hải Hà",
       receiverName: batch.receiverName || "",
     });
@@ -2025,13 +2028,15 @@ function ProcurementAppInner({
       alert(`Chưa có biên bản bàn giao nào cho đơn hàng #${targetPO.number}.`);
       return;
     }
-    const firstDept = matching[0]?.department || "Phòng Cung ứng";
+    const cleanDept = (matching[0]?.department && matching[0].department.trim() !== "Phòng Cung ứng")
+      ? matching[0].department.trim()
+      : (prs.find((p) => p.number === targetPO.prNumber)?.department || "");
     setPrintHandoverData({
       isOpen: true,
       items: sortHandoversByPOLineOrder(matching, targetPO),
       po: targetPO,
-      department: firstDept,
-      handoverDate: matching[0]?.handover_date || localToday(),
+      department: cleanDept,
+      handoverDate: matching[0]?.handover_date || "",
       senderName: matching[0]?.sender_name || "Trần Hải Hà",
       receiverName: matching[0]?.receiver_name || "",
     });

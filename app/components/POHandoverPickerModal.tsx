@@ -74,10 +74,12 @@ export function POHandoverPickerModal({
     return () => window.removeEventListener("scm_departments_updated", onDeptsUpdated);
   }, []);
 
-  // Department suggestions list
+  // Department suggestions list (loại bỏ Phòng Cung ứng vì Cung ứng là bên giao)
   const departmentOptions = useMemo(() => {
-    const set = new Set<string>(sysDepts);
-    if (linkedPR?.department?.trim()) set.add(linkedPR.department.trim());
+    const set = new Set<string>(sysDepts.filter((d) => d !== "Phòng Cung ứng"));
+    if (linkedPR?.department?.trim() && linkedPR.department.trim() !== "Phòng Cung ứng") {
+      set.add(linkedPR.department.trim());
+    }
     return Array.from(set).filter(Boolean);
   }, [sysDepts, linkedPR]);
 
@@ -112,7 +114,9 @@ export function POHandoverPickerModal({
   useEffect(() => {
     if (isOpen && po && deliveryStats) {
       const today = localToday();
-      const defaultDept = linkedPR?.department || "Phòng Cung ứng";
+      const defaultDept = (linkedPR?.department && linkedPR.department.trim() !== "Phòng Cung ứng")
+        ? linkedPR.department.trim()
+        : "";
       setDepartment(defaultDept);
       setHandoverDate(today);
       setSenderName("Trần Hải Hà");
@@ -196,8 +200,8 @@ export function POHandoverPickerModal({
     }
 
     const cleanDept = department.trim();
-    if (!cleanDept) {
-      alert("Vui lòng chọn hoặc nhập Bộ phận nhận bàn giao!");
+    if (!cleanDept || cleanDept === "Phòng Cung ứng") {
+      alert("Vui lòng chọn hoặc nhập Bộ phận sử dụng nhận bàn giao (Bộ phận nhận không thể là Phòng Cung ứng)!");
       return;
     }
 

@@ -2447,7 +2447,7 @@ export function HandoverManagement({
                                 }}
                               />
                             </div>
-                            <div className="hb-sender-dept">Bộ phận: Phòng Cung ứng</div>
+                            <div className="hb-sender-dept">Bộ phận: {dept && dept !== "Phòng Cung ứng" ? dept : "...................................................."}</div>
                           </td>
                           <td className="hb-box-right">
                             <div className="hb-title-main">
@@ -2464,7 +2464,7 @@ export function HandoverManagement({
 
                     <div className="hb-info">
                       <div className="hb-line">
-                        Hôm nay, ngày&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;tháng&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;năm {new Date().getFullYear()}
+                        Hôm nay, ngày&nbsp;.....&nbsp;tháng&nbsp;.....&nbsp;năm 20.....
                       </div>
                       <div className="hb-line">Tại Công ty CP Dược phẩm Phenikaa</div>
                       <div className="hb-line">
@@ -2480,10 +2480,10 @@ export function HandoverManagement({
                           Ông (bà): .................................................... Người nhận
                           hàng
                         </div>
-                        <div>Địa chỉ: {dept}</div>
+                        <div>Địa chỉ: {dept && dept !== "Phòng Cung ứng" ? dept : "...................................................."}</div>
                       </div>
                       <div className="hb-line">
-                        Cùng nhau tiến hành giao nhận và nghiệm thu số lượng vật tư sau:
+                        Cùng nhau tiến hành giao nhận và nghiệm thu số lượng vật tư:
                       </div>
                     </div>
 

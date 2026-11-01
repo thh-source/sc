@@ -894,10 +894,10 @@ table.payment-table td .smart-cell-textarea:focus {
   color: #000000 !important;
   box-sizing: border-box;
   background: #ffffff;
-  padding: 24px 24px;
-  width: 760px;
-  margin: 0 auto 20px;
-  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.15);
+  padding: 38px 48px;
+  width: 780px;
+  margin: 0 auto 24px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
 }
 
 .handover-paper * {
@@ -1082,6 +1082,11 @@ table.payment-table td .smart-cell-textarea:focus {
 
 /* @media print setup - hoàn toàn cô lập bản in, ẩn 100% giao diện webapp */
 @media print {
+  @page {
+    size: A4 portrait;
+    margin: 15mm 16mm 15mm 16mm;
+  }
+
   html,
   body {
     width: 100% !important;
