@@ -377,6 +377,27 @@ export async function PUT(request: Request) {
       }
     }
 
+    if (Array.isArray(merged.trash)) {
+      try {
+        await drizzleDb.delete(trashItems).where(eq(trashItems.workspaceId, workspaceId));
+        if (merged.trash.length > 0) {
+          await drizzleDb.insert(trashItems).values(
+            merged.trash.map((t: any) => ({
+              id: String(t.id),
+              workspaceId,
+              type: t.type || "",
+              label: t.label || "",
+              deletedAt: t.deletedAt || "",
+              expiresAt: t.expiresAt || "",
+              data: typeof t.data === "string" ? t.data : JSON.stringify(t.data || {}),
+            }))
+          );
+        }
+      } catch (e) {
+        console.warn("Dual-write trashItems error:", e);
+      }
+    }
+
     return Response.json({ ok: true, version: nextVersion, updatedAt: now });
   } catch (err: any) {
     return Response.json({ error: err.message }, { status: 500 });

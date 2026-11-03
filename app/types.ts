@@ -434,13 +434,15 @@ export const isContractPO = (
   return Boolean(po.contractNumber || po.number?.startsWith("HĐ-") || po.contractNote);
 };
 
+export type TrashType = "PR" | "PO" | "CONTRACT" | "APPROVAL" | "HANDOVER" | "PAYMENT";
+
 export type TrashItem = {
   id: string;
-  type: "PR" | "PO" | "CONTRACT";
+  type: TrashType;
   label: string;
   deletedAt: string;
   expiresAt: string;
-  data: PR | PO | { poId: number };
+  data: any;
 };
 
 export type View =

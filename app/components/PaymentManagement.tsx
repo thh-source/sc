@@ -240,6 +240,7 @@ export interface PaymentManagementProps {
   }) => void;
   onUpdatePO?: (po: PO) => void;
   onToggleCompletePayment?: (r: PaymentRequestEntry) => void;
+  onMoveToTrash?: (type: "PAYMENT", label: string, data: any, msg?: string) => void;
   readOnly?: boolean;
   initialSearchQuery?: string;
   initialActiveId?: number;
@@ -261,6 +262,7 @@ export function PaymentManagement({
   initialActiveId,
   onUpdatePO,
   onToggleCompletePayment,
+  onMoveToTrash,
   autoOpenCreate = false,
   onClearAutoCreate,
 }: PaymentManagementProps) {
@@ -886,6 +888,12 @@ export function PaymentManagement({
     if (!confirm(`Bạn có chắc muốn xóa ${toDelete.size} dòng đề nghị thanh toán đã chọn?`))
       return;
 
+    const selectedItems = paymentRequests.filter((r) => toDelete.has(r.id));
+    if (onMoveToTrash && selectedItems.length > 0) {
+      const label = `ĐNTT (${selectedItems.length} hồ sơ)`;
+      onMoveToTrash("PAYMENT", label, selectedItems, `✓ Đã chuyển ${label} vào thùng rác`);
+    }
+
     const next = paymentRequests.filter((r) => !toDelete.has(r.id));
     onUpdateState({ paymentRequests: next });
     setCheckedIds(new Set());
@@ -899,6 +907,10 @@ export function PaymentManagement({
     const target = paymentRequests.find((r) => r.id === id);
     if (!target) return;
     if (confirm(`Bạn có chắc muốn xóa đề nghị STT ${target.legacy_stt || target.id} (${target.payee_name || "Chưa có NCC"})?`)) {
+      if (onMoveToTrash) {
+        const label = `ĐNTT ${target.legacy_stt || target.id} - ${target.payee_name || "NCC"}`;
+        onMoveToTrash("PAYMENT", label, target, `✓ Đã chuyển ${label} vào thùng rác`);
+      }
       const next = paymentRequests.filter((r) => r.id !== id);
       onUpdateState({ paymentRequests: next });
       if (editModalReqId === id) setEditModalReqId(null);

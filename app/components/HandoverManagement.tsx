@@ -102,6 +102,7 @@ export interface HandoverManagementProps {
   initialSearchQuery?: string;
   paymentRequests?: PaymentRequestEntry[];
   onNavigateToPayment?: (req: PaymentRequestEntry) => void;
+  onMoveToTrash?: (type: "HANDOVER", label: string, data: any, msg?: string) => void;
   autoOpenCreate?: boolean;
   onClearAutoCreate?: () => void;
 }
@@ -117,6 +118,7 @@ export function HandoverManagement({
   initialSearchQuery,
   paymentRequests = [],
   onNavigateToPayment,
+  onMoveToTrash,
   autoOpenCreate = false,
   onClearAutoCreate,
 }: HandoverManagementProps) {
@@ -538,7 +540,15 @@ export function HandoverManagement({
 
   const handleDeleteHandover = (id: number) => {
     if (readOnly) return;
-    if (!confirm("Bạn có chắc muốn xóa vật tư này?")) return;
+    const target = paymentHandovers.find((h) => h.id === id);
+    if (!target) return;
+    if (!confirm(`Bạn có chắc muốn xóa mặt hàng "${target.itemName || target.sourceNumber || id}"?`)) return;
+    if (onMoveToTrash) {
+      const label = target.itemName
+        ? `${target.itemName} (${target.sourceNumber || target.department || "Bàn giao"})`
+        : `Bàn giao #${target.id}`;
+      onMoveToTrash("HANDOVER", label, target, `✓ Đã chuyển ${label} vào thùng rác`);
+    }
     const next = paymentHandovers.filter((h) => h.id !== id);
     triggerUpdateHandovers(next);
   };
@@ -550,6 +560,11 @@ export function HandoverManagement({
       return;
     }
     if (!confirm(`Bạn có chắc muốn xóa ${checkedHandovers.size} vật tư đã chọn?`)) return;
+    const selectedItems = paymentHandovers.filter((h) => checkedHandovers.has(h.id));
+    if (onMoveToTrash && selectedItems.length > 0) {
+      const label = `Đợt bàn giao (${selectedItems.length} vật tư)`;
+      onMoveToTrash("HANDOVER", label, selectedItems, `✓ Đã chuyển ${label} vào thùng rác`);
+    }
     const next = paymentHandovers.filter((h) => !checkedHandovers.has(h.id));
     triggerUpdateHandovers(next);
     setCheckedHandovers(new Set());
@@ -1452,6 +1467,10 @@ export function HandoverManagement({
                 )
               ) {
                 return;
+              }
+              if (onMoveToTrash && batch.items.length > 0) {
+                const label = `Đợt bàn giao "${batch.sourceNumber || batch.department}" (${batch.items.length} mặt hàng)`;
+                onMoveToTrash("HANDOVER", label, batch.items, `✓ Đã chuyển ${label} vào thùng rác`);
               }
               const removeSet = new Set(batchIds);
               triggerUpdateHandovers(paymentHandovers.filter((h) => !removeSet.has(h.id)));

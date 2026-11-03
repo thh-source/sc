@@ -878,6 +878,31 @@ function ProcurementAppInner({
       window.location.replace("/");
     }
   };
+  const moveToTrash = useCallback(
+    (
+      type: TrashItem["type"],
+      label: string,
+      data: any,
+      onSuccessMessage?: string,
+    ) => {
+      const now = new Date();
+      const expires = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+      const entry: TrashItem = {
+        id: crypto.randomUUID(),
+        type,
+        label,
+        deletedAt: now.toISOString(),
+        expiresAt: expires.toISOString(),
+        data,
+      };
+      setTrash((list) => [entry, ...list.filter((t) => t.id !== entry.id)]);
+      setStorageStatus(onSuccessMessage || `✓ Đã chuyển ${label} vào thùng rác`);
+      setTimeout(() => void persistState(false), 50);
+      return entry;
+    },
+    [persistState],
+  );
+
   const requestDelete = (type: TrashItem["type"], record: PR | PO) => {
     setDeleteTarget({ type, record });
     setDeletePassword("");
@@ -895,26 +920,21 @@ function ProcurementAppInner({
       });
       const body = (await response.json()) as { error?: string };
       if (!response.ok) throw new Error(body.error || "Mật khẩu không đúng");
-      const now = new Date(),
-        expires = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000),
-        record = deleteTarget.record,
-        entry: TrashItem = {
-          id: crypto.randomUUID(),
-          type: deleteTarget.type,
-          label:
-            deleteTarget.type === "PR"
-              ? (record as PR).number
-              : deleteTarget.type === "CONTRACT"
-                ? `HĐ-${(record as PO).number}`
-                : (record as PO).number,
-          deletedAt: now.toISOString(),
-          expiresAt: expires.toISOString(),
-          data:
-            deleteTarget.type === "CONTRACT"
-              ? { poId: (record as PO).id }
-              : record,
-        };
-      setTrash((list) => [entry, ...list]);
+
+      const record = deleteTarget.record;
+      const label =
+        deleteTarget.type === "PR"
+          ? (record as PR).number
+          : deleteTarget.type === "CONTRACT"
+            ? `HĐ-${(record as PO).number}`
+            : (record as PO).number;
+      const data =
+        deleteTarget.type === "CONTRACT"
+          ? { poId: (record as PO).id }
+          : record;
+
+      moveToTrash(deleteTarget.type, label, data);
+
       if (deleteTarget.type === "PR") {
         setPrs((list) => list.filter((pr) => Number(pr.id) !== Number(record.id)));
         if (Number(selectedPR.id) === Number(record.id)) setSelectedPR(emptyPR);
@@ -927,9 +947,9 @@ function ProcurementAppInner({
         setHiddenContractIds((ids) => [...new Set([...ids, record.id])]);
         navigateTo({ view: "contracts" });
       }
-      setStorageStatus(`✓ Đã chuyển ${entry.label} vào thùng rác`);
       setDeleteTarget(null);
       setDeletePassword("");
+      setTimeout(() => void persistState(false), 50);
     } catch (error) {
       setDeleteError(error instanceof Error ? error.message : "Không thể xóa");
     } finally {
@@ -947,11 +967,43 @@ function ProcurementAppInner({
       setPos((list) =>
         list.some((item) => item.id === po.id) ? list : [po, ...list],
       );
+    } else if (entry.type === "APPROVAL") {
+      const approval = entry.data as ApprovalRequest;
+      setApprovalRequests((list) =>
+        list.some((item) => item.id === approval.id) ? list : [approval, ...list],
+      );
+      handleSetActiveApprovalId(approval.id);
+    } else if (entry.type === "HANDOVER") {
+      const items = Array.isArray(entry.data) ? entry.data : [entry.data];
+      setPaymentHandovers((list) => {
+        const existingIds = new Set(list.map((h) => h.id));
+        const toAdd = items.filter((item: any) => !existingIds.has(item.id));
+        return [...toAdd, ...list];
+      });
+    } else if (entry.type === "PAYMENT") {
+      const items = Array.isArray(entry.data) ? entry.data : [entry.data];
+      setPaymentRequests((list) => {
+        const existingIds = new Set(list.map((p) => p.id));
+        const toAdd = items.filter((item: any) => !existingIds.has(item.id));
+        return [...toAdd, ...list];
+      });
     } else {
       const poId = (entry.data as { poId: number }).poId;
       setHiddenContractIds((ids) => ids.filter((id) => id !== poId));
     }
     setTrash((list) => list.filter((item) => item.id !== entry.id));
+    setStorageStatus(`✓ Đã phục hồi ${entry.label}`);
+    setTimeout(() => void persistState(false), 50);
+  };
+  const permanentDeleteTrash = (id: string) => {
+    setTrash((list) => list.filter((item) => item.id !== id));
+    setStorageStatus("✓ Đã xóa vĩnh viễn khỏi thùng rác");
+    setTimeout(() => void persistState(false), 50);
+  };
+  const emptyTrash = () => {
+    setTrash([]);
+    setStorageStatus("✓ Đã dọn sạch thùng rác");
+    setTimeout(() => void persistState(false), 50);
   };
   const filtered = useMemo(
     () =>
@@ -2832,6 +2884,7 @@ function ProcurementAppInner({
             }}
             onUpdatePO={updatePO}
             onToggleCompletePayment={handleToggleCompletePayment}
+            onMoveToTrash={moveToTrash}
             readOnly={reportMode}
             autoOpenCreate={routeModal === "create"}
             onClearAutoCreate={handleClearRouteModal}
@@ -2850,6 +2903,7 @@ function ProcurementAppInner({
               if (patch.paymentHandovers !== undefined) setPaymentHandovers(patch.paymentHandovers);
             }}
             onNavigateToPayment={handleCreatePaymentRequestFromHandover}
+            onMoveToTrash={moveToTrash}
             readOnly={reportMode}
             autoOpenCreate={routeModal === "create"}
             onClearAutoCreate={handleClearRouteModal}
@@ -2880,6 +2934,11 @@ function ProcurementAppInner({
                 setTimeout(() => void persistState(false), 50);
               }}
               onDeleteApproval={(delId) => {
+                const target = approvalRequests.find((r) => r.id === delId);
+                if (target) {
+                  const label = target.requestNumber || target.prNumber || `ĐNPD-${target.id}`;
+                  moveToTrash("APPROVAL", label, target, `✓ Đã chuyển ${label} vào thùng rác`);
+                }
                 setApprovalRequests((prev) => {
                   const remaining = prev.filter((r) => r.id !== delId);
                   if (activeApprovalId === delId) {
@@ -3043,7 +3102,12 @@ function ProcurementAppInner({
           </ErrorBoundary>
         )}
         {view === "trash" && (
-          <TrashPage entries={trash} onRestore={restoreTrash} />
+          <TrashPage
+            entries={trash}
+            onRestore={restoreTrash}
+            onPermanentDelete={permanentDeleteTrash}
+            onEmptyTrash={emptyTrash}
+          />
         )}
         {view === "po-detail" && (
           <ErrorBoundary key="po-detail" fallbackTitle="Lỗi hiển thị chi tiết Đơn mua hàng (PO)" onReset={() => navigateTo({ view: "po-list" })}>
