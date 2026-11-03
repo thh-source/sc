@@ -204,23 +204,28 @@ export function getQuotedProductTitle(req: ApprovalRequest): string {
  * Chuyển đổi chuỗi ngày định dạng DD/MM/YYYY hoặc YYYY-MM-DD thành số so sánh (YYYYMMDD)
  * để đảm bảo sắp xếp chính xác từ mới nhất đến cũ nhất.
  */
-export function parseApprovalDate(dateStr?: string): number {
-  if (!dateStr || typeof dateStr !== "string") return 0;
-  const parts = dateStr.trim().split(/[\/\-\.]/);
-  if (parts.length === 3) {
-    let day = parseInt(parts[0], 10);
-    let month = parseInt(parts[1], 10);
-    let year = parseInt(parts[2], 10);
-    if (parts[0].length === 4) {
-      year = parseInt(parts[0], 10);
-      month = parseInt(parts[1], 10);
-      day = parseInt(parts[2], 10);
-    } else if (year < 100) {
-      year += 2000;
+export function parseApprovalDate(dateStr?: string, id?: number): number {
+  if (dateStr && typeof dateStr === "string") {
+    const parts = dateStr.trim().split(/[\/\-\.]/);
+    if (parts.length === 3) {
+      let day = parseInt(parts[0], 10);
+      let month = parseInt(parts[1], 10);
+      let year = parseInt(parts[2], 10);
+      if (parts[0].length === 4) {
+        year = parseInt(parts[0], 10);
+        month = parseInt(parts[1], 10);
+        day = parseInt(parts[2], 10);
+      } else if (year < 100) {
+        year += 2000;
+      }
+      if (!isNaN(year) && !isNaN(month) && !isNaN(day)) {
+        return year * 10000 + month * 100 + day;
+      }
     }
-    if (!isNaN(year) && !isNaN(month) && !isNaN(day)) {
-      return year * 10000 + month * 100 + day;
-    }
+  }
+  if (id && id > 1500000000000 && id < 3000000000000) {
+    const d = new Date(id);
+    return d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate();
   }
   return 0;
 }
@@ -899,13 +904,11 @@ export default function ApprovalManagement({
         );
       })
       .sort((a, b) => {
-        const aDone = isApprovalCompleted(a);
-        const bDone = isApprovalCompleted(b);
-        if (aDone !== bDone) return aDone ? 1 : -1;
-        const dateA = parseApprovalDate(a.createdDate);
-        const dateB = parseApprovalDate(b.createdDate);
+        // Luôn sắp xếp thuần túy từ mới nhất đến cũ nhất
+        const dateA = parseApprovalDate(a.createdDate, a.id);
+        const dateB = parseApprovalDate(b.createdDate, b.id);
         if (dateB !== dateA) return dateB - dateA;
-        return (b.id || 0) - (a.id || 0);
+        return (Number(b.id) || 0) - (Number(a.id) || 0);
       });
   }, [approvalRequests, searchQuery, statusFilter]);
 
@@ -2128,7 +2131,7 @@ export default function ApprovalManagement({
                             </button>
                           </div>
                         </td>
-                        <td>{req.createdDate}</td>
+                        <td>{req.createdDate || (req.id > 1500000000000 ? dateVN(new Date(req.id).toISOString()) : "—")}</td>
                         <td className="center">
                           <span className="scale-pill">
                             {req.supplierColumns.length} NCC · {req.rows.length} mục

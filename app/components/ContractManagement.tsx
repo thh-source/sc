@@ -643,12 +643,14 @@ export function ContractManagement({
         .reduce((n, p) => n + p.amount, 0)
     : 0;
 
-  const shown = pos.filter((p) => {
-    const s = suppliers.find((x) => x.id === p.supplierId);
-    return (p.number + (s?.name || ""))
-      .toLowerCase()
-      .includes(query.toLowerCase());
-  });
+  const shown = pos
+    .filter((p) => {
+      const s = suppliers.find((x) => x.id === p.supplierId);
+      return (p.number + (s?.name || ""))
+        .toLowerCase()
+        .includes(query.toLowerCase());
+    })
+    .sort((a, b) => (b.createdDate || "").localeCompare(a.createdDate || "") || (Number(b.id) - Number(a.id)));
 
   const events = selected
     ? [

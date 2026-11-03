@@ -384,8 +384,7 @@ export function ProductCatalog({
         className="product-table-panel"
         style={{
           flex: 1,
-          minHeight: "420px",
-          maxHeight: "calc(100vh - 210px)",
+          minHeight: 0,
           backgroundColor: "#ffffff",
           borderRadius: "12px",
           border: "1px solid #e2e8f0",
