@@ -2,17 +2,10 @@
 
 import React, { useState, useMemo } from "react";
 import {
-  X,
   Search,
   Link2,
   Check,
   AlertCircle,
-  FileText,
-  Building,
-  Calendar,
-  DollarSign,
-  Tag,
-  ArrowRight,
 } from "lucide-react";
 import { PO, Payment, PaymentRequestEntry } from "../types";
 import { fmt } from "../utils";

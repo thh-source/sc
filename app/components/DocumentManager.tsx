@@ -1,7 +1,7 @@
 "use client";
 
 import { ChangeEvent, useCallback, useEffect, useMemo, useState } from "react";
-import { Share2, Download, ExternalLink } from "lucide-react";
+import { Share2, Download } from "lucide-react";
 import { compressUploadFile } from "../utils/compressUploadFile";
 import { ShareFileModal } from "./ShareFileModal";
 

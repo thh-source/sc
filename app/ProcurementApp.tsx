@@ -88,7 +88,6 @@ import {
   Check,
   ShoppingCart,
   Search,
-  LayoutDashboard,
   Layers,
   Home,
   LogOut,
@@ -104,13 +103,11 @@ import {
   Settings,
   Minimize2,
   Maximize2,
-  BookOpen,
   HelpCircle,
   Menu,
   Eye,
   Paperclip,
   Loader2,
-  Printer,
 } from "lucide-react";
 import {
   AppRoute,
@@ -657,32 +654,15 @@ function ProcurementAppInner({
       setPurchaseHistory(data.purchaseHistory || purchaseHistory0);
       setPurchaseHistoryImportIds(data.purchaseHistoryImportIds || []);
       
-      const hasPaymentRequests = data.paymentRequests && data.paymentRequests.length > 0;
-      if (hasPaymentRequests) {
-        setPaymentRequests(data.paymentRequests || []);
-        setPaymentGroups(data.paymentGroups || []);
-        setPaymentBeneficiaries(data.paymentBeneficiaries || []);
-        setPaymentHandovers(data.paymentHandovers || []);
-        setPaymentTemplate(data.paymentTemplate || DEFAULT_PAYMENT_TEMPLATE);
-      } else {
-        fetch("/default-payment-seed.json")
-          .then((res) => res.json() as Promise<any>)
-          .then((seed) => {
-            if (!active) return;
-            setPaymentRequests(seed.defaultPaymentRequests || []);
-            setPaymentGroups(seed.defaultPaymentGroups || []);
-            setPaymentBeneficiaries(seed.defaultPaymentBeneficiaries || []);
-            setPaymentHandovers(seed.defaultPaymentHandovers || []);
-            if (seed.defaultPaymentTemplate) {
-              setPaymentTemplate(seed.defaultPaymentTemplate);
-            }
-          })
-          .catch((err) => console.error("Không thể tải payment seed:", err));
-      }
+      setPaymentRequests(data.paymentRequests || []);
+      setPaymentGroups(data.paymentGroups || []);
+      setPaymentBeneficiaries(data.paymentBeneficiaries || []);
+      setPaymentHandovers(data.paymentHandovers || []);
+      setPaymentTemplate(data.paymentTemplate || DEFAULT_PAYMENT_TEMPLATE);
       if (Array.isArray(data.approvalRequests)) {
         setApprovalRequests(data.approvalRequests);
       } else {
-        setApprovalRequests(SAMPLE_PHENIKAA_APPROVALS);
+        setApprovalRequests([]);
       }
       if (data.prs?.length) setSelectedPR(data.prs[0]);
       if (data.pos?.length) setCurrentPO(data.pos[0]);
@@ -706,20 +686,6 @@ function ProcurementAppInner({
           try {
             const cached = window.localStorage?.getItem(`scmh_backup_${workspaceId}`);
             if (cached) data = JSON.parse(cached);
-          } catch {}
-        }
-        if (!data) {
-          try {
-            const prodRes = await fetch("/production-state.json");
-            if (prodRes.ok) {
-              const prodJson = await prodRes.json();
-              if (prodJson && prodJson.data) {
-                data = prodJson.data;
-                if (prodJson.version) serverVersionRef.current = prodJson.version;
-                void saveOfflineStateBackup(workspaceId, data, prodJson.version);
-                window.localStorage?.setItem(`scmh_backup_${workspaceId}`, JSON.stringify(data));
-              }
-            }
           } catch {}
         }
         if (data) {
@@ -762,20 +728,6 @@ function ProcurementAppInner({
           if (!data && typeof window !== "undefined" && window.localStorage) {
             const cached = window.localStorage.getItem(`scmh_backup_${workspaceId}`);
             if (cached) data = JSON.parse(cached);
-          }
-          if (!data) {
-            try {
-              const prodRes = await fetch("/production-state.json");
-              if (prodRes.ok) {
-                const prodJson = await prodRes.json();
-                if (prodJson && prodJson.data) {
-                  data = prodJson.data;
-                  if (prodJson.version) serverVersionRef.current = prodJson.version;
-                  void saveOfflineStateBackup(workspaceId, data, prodJson.version);
-                  window.localStorage?.setItem(`scmh_backup_${workspaceId}`, JSON.stringify(data));
-                }
-              }
-            } catch {}
           }
           if (data) {
             if (offlineBackup?.version) {

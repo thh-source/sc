@@ -8,10 +8,8 @@ import {
   Truck,
   ExternalLink,
   Pencil,
-  FileText,
   Check,
   X,
-  ArrowRight,
 } from "lucide-react";
 import { Supplier, PO, PaymentGroup, PaymentRequestEntry, Item, PR } from "../types";
 import { fmt, dateVN } from "../utils";

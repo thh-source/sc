@@ -4,16 +4,10 @@ import {
   Search,
   Building2,
   Phone,
-  User,
   CreditCard,
-  MapPin,
   ChevronDown,
   ChevronUp,
   X,
-  ExternalLink,
-  Package,
-  Clock,
-  Sparkles,
 } from "lucide-react";
 import { Supplier, PurchaseHistory } from "../types";
 import { fmt, dateVN, priceStats } from "../utils";

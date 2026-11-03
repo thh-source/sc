@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { X, CreditCard, Printer, Check, ArrowRight, Plus, Link2 } from "lucide-react";
+import { CreditCard, Printer, Plus, Link2 } from "lucide-react";
 import { PO, Payment, PaymentRequestEntry } from "../types";
 import { fmt } from "../utils";
 

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { X, Building2, CreditCard, MapPin, Check, AlertCircle } from "lucide-react";
+import { X, Building2, CreditCard, Check, AlertCircle } from "lucide-react";
 import { Supplier } from "../types";
 
 interface SupplierQuickBankModalProps {

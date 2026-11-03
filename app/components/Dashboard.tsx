@@ -13,7 +13,6 @@ import {
   Trash2,
   Check,
   Tag,
-  Calendar,
   Sparkles,
   DollarSign,
   TrendingUp,
@@ -366,26 +365,17 @@ export function Dashboard({
   // 3. TO-DO LIST & NOTES (Khu vực 3: Bảng công việc cá nhân đồng bộ D1)
   // -------------------------------------------------------------
   const [todos, setTodos] = useState<DashboardTodo[]>(() => {
-    const defaultInitial: DashboardTodo[] = [
-      {
-        id: "todo-1793260605931",
-        text: "Thứ 2 ký hợp đồng Viasco",
-        completed: false,
-        createdAt: "2026-10-29T07:56:46.019Z",
-        priority: "high",
-      },
-    ];
-    if (typeof window === "undefined") return defaultInitial;
+    if (typeof window === "undefined") return [];
     try {
       const saved = localStorage.getItem(STORAGE_KEY_TODOS);
       if (saved !== null) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed)) return parsed;
       }
     } catch {
       // fallback
     }
-    return defaultInitial;
+    return [];
   });
 
   // Tự động tải danh sách công việc mới nhất từ Cloudflare D1

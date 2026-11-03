@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { Copy, Check, ExternalLink, X, Share2, ShieldCheck, Printer, Download } from "lucide-react";
+import { Copy, Check, ExternalLink, X, Share2, ShieldCheck } from "lucide-react";
 
 interface ShareFileModalProps {
   isOpen: boolean;

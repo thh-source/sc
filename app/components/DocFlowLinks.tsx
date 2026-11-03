@@ -7,7 +7,6 @@ import {
   CreditCard,
   Truck,
   Plus,
-  ExternalLink,
 } from "lucide-react";
 import { ResolvedDocFlow } from "../utils/docFlow";
 

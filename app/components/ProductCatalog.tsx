@@ -10,13 +10,7 @@ import {
   TrendingDown,
   Minus,
   Package,
-  Clock,
-  Building2,
-  Tag,
-  DollarSign,
-  Calendar,
   Layers,
-  ArrowUpRight,
   Filter,
 } from "lucide-react";
 import { Item, Supplier, PurchaseHistory, PO } from "../types";

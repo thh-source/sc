@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { X, Printer, CheckCircle, Truck, ExternalLink } from "lucide-react";
+import { X, Printer, Truck, ExternalLink } from "lucide-react";
 import { PO, PaymentHandoverItem } from "../types";
 import { PHENIKAA_PHARMA_LOGO_BASE64, parsePrintDate } from "../payment-utils";
 import { sortHandoversByPOLineOrder } from "../utils/handoverBatches";
