@@ -1,4 +1,5 @@
 import {
+  ApprovalCustomSigner,
   ApprovalItemRow,
   ApprovalRequest,
   ApprovalSupplierColumn,
@@ -126,6 +127,52 @@ export function parseExcelClipboard(text: string): string[][] {
   }
 
   return rows;
+}
+
+
+export interface SavedApprovalSigners {
+  approverLeader?: string;
+  approverDeptHead?: string;
+  requesterName?: string;
+  customSigners?: Array<{ title: string; name: string }>;
+}
+
+const DEFAULT_SIGNERS_STORAGE_KEY = "scmh_default_approval_signers";
+
+export function getSavedApprovalSigners(): SavedApprovalSigners {
+  if (typeof window === "undefined") {
+    return {
+      approverLeader: "Đinh Anh Hào",
+      approverDeptHead: "Lưu Thị Thanh Xuân",
+      requesterName: "Trần Hải Hà",
+    };
+  }
+  try {
+    const raw = localStorage.getItem(DEFAULT_SIGNERS_STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      return {
+        approverLeader: parsed.approverLeader || "Đinh Anh Hào",
+        approverDeptHead: parsed.approverDeptHead || "Lưu Thị Thanh Xuân",
+        requesterName: parsed.requesterName || "Trần Hải Hà",
+        customSigners: Array.isArray(parsed.customSigners) ? parsed.customSigners : undefined,
+      };
+    }
+  } catch {}
+  return {
+    approverLeader: "Đinh Anh Hào",
+    approverDeptHead: "Lưu Thị Thanh Xuân",
+    requesterName: "Trần Hải Hà",
+  };
+}
+
+export function saveDefaultApprovalSigners(signers: Partial<SavedApprovalSigners>): void {
+  if (typeof window === "undefined") return;
+  try {
+    const current = getSavedApprovalSigners();
+    const updated = { ...current, ...signers };
+    localStorage.setItem(DEFAULT_SIGNERS_STORAGE_KEY, JSON.stringify(updated));
+  } catch {}
 }
 
 export function formatTodayVN(): string {
@@ -296,9 +343,9 @@ export function createApprovalFromCompare(
       "Hàng hóa đạt yêu cầu về chất lượng, thông số kỹ thuật. Đơn giá cạnh tranh nhất.",
       "Thời gian giao hàng đáp ứng tiến độ yêu cầu.",
     ],
-    approverLeader: "Đinh Anh Hào",
-    approverDeptHead: "Lưu Thị Thanh Xuân",
-    requesterName: "Trần Hải Hà",
+    approverLeader: getSavedApprovalSigners().approverLeader || "Đinh Anh Hào",
+    approverDeptHead: getSavedApprovalSigners().approverDeptHead || "Lưu Thị Thanh Xuân",
+    requesterName: getSavedApprovalSigners().requesterName || "Trần Hải Hà",
     status: "Chờ phê duyệt",
   };
 }
@@ -399,9 +446,9 @@ export function createApprovalFromPR(
       "Hàng hóa đạt yêu cầu về chất lượng, thông số kỹ thuật. Đơn giá rẻ nhất.",
       "Thời gian giao hàng: 5 ngày từ ngày đặt hàng.",
     ],
-    approverLeader: "Đinh Anh Hào",
-    approverDeptHead: "Lưu Thị Thanh Xuân",
-    requesterName: "Trần Hải Hà",
+    approverLeader: getSavedApprovalSigners().approverLeader || "Đinh Anh Hào",
+    approverDeptHead: getSavedApprovalSigners().approverDeptHead || "Lưu Thị Thanh Xuân",
+    requesterName: getSavedApprovalSigners().requesterName || "Trần Hải Hà",
     status: "Nháp",
   };
 }
@@ -411,41 +458,31 @@ export function createApprovalFromPR(
  */
 export function createManualApproval(
   existingCount: number,
-  suppliers?: Supplier[],
+  _suppliers?: Supplier[],
 ): ApprovalRequest {
-  const sups = suppliers && suppliers.length >= 2 ? suppliers.slice(0, 3) : [];
-  const supplierColumns: ApprovalSupplierColumn[] = sups.length >= 2
-    ? sups.map((s, idx) => ({
-        colId: `col_${s.id}_${idx + 1}`,
-        supplierId: s.id,
-        supplierName: s.name,
-        shortName: s.shortName || generateShortName(s.name),
-        isSelected: idx === 0,
-        deliveryTime: "",
-      }))
-    : [
-        {
-          colId: "col_1",
-          supplierName: "Nhà cung cấp 1",
-          shortName: "NCC 1",
-          isSelected: true,
-          deliveryTime: "",
-        },
-        {
-          colId: "col_2",
-          supplierName: "Nhà cung cấp 2",
-          shortName: "NCC 2",
-          isSelected: false,
-          deliveryTime: "",
-        },
-        {
-          colId: "col_3",
-          supplierName: "Nhà cung cấp 3",
-          shortName: "NCC 3",
-          isSelected: false,
-          deliveryTime: "",
-        },
-      ];
+  const supplierColumns: ApprovalSupplierColumn[] = [
+    {
+      colId: "col_1",
+      supplierName: "",
+      shortName: "",
+      isSelected: true,
+      deliveryTime: "",
+    },
+    {
+      colId: "col_2",
+      supplierName: "",
+      shortName: "",
+      isSelected: false,
+      deliveryTime: "",
+    },
+    {
+      colId: "col_3",
+      supplierName: "",
+      shortName: "",
+      isSelected: false,
+      deliveryTime: "",
+    },
+  ];
 
   const rows: ApprovalItemRow[] = Array.from({ length: 5 }, (_, idx) => {
     const supplierQuotes: Record<string, ApprovalSupplierQuoteLine[]> = {};
@@ -491,16 +528,16 @@ export function createManualApproval(
     printOrientation: "landscape",
     supplierColumns,
     rows,
-    recommendedSupplierName: selectedCol?.supplierName || "Nhà cung cấp 1",
+    recommendedSupplierName: "",
     deliveryTerms: "",
     paymentTerms: "Thanh toán 100% trước khi giao hàng.",
     reasons: [
       "Hàng hóa đạt yêu cầu về chất lượng, thông số kỹ thuật. Đơn giá rẻ nhất.",
       "Thời gian giao hàng: 5 ngày từ ngày đặt hàng.",
     ],
-    approverLeader: "Đinh Anh Hào",
-    approverDeptHead: "Lưu Thị Thanh Xuân",
-    requesterName: "Trần Hải Hà",
+    approverLeader: getSavedApprovalSigners().approverLeader || "Đinh Anh Hào",
+    approverDeptHead: getSavedApprovalSigners().approverDeptHead || "Lưu Thị Thanh Xuân",
+    requesterName: getSavedApprovalSigners().requesterName || "Trần Hải Hà",
     status: "Nháp",
   };
 }
@@ -509,668 +546,6 @@ export function createManualApproval(
  * 2 Mẫu chuẩn Phenikaa Pharma từ file Excel thực tế (PR 02/06/PR2602 & PR 16/03/PR2603)
  */
 export const SAMPLE_PHENIKAA_APPROVALS: ApprovalRequest[] = [
-  {
-    id: 260316,
-    requestNumber: "16/03/PR2603",
-    sourceType: "manual",
-    prNumber: "16/03/PR2603",
-    createdDate: "30/03/2026",
-    department: "Cung ứng",
-    requestingDepartment: "Sản xuất",
-    noteRef: "16/03/PR2603",
-    section1Title: formatApprovalSection1Title("Sản xuất"),
-    columnMode: "extended",
-    showQuotedProduct: true,
-    quotedProductHeader: "Sản phẩm",
-    showSupplierQty: true,
-    showDeliveryTimeRow: false,
-    printOrientation: "landscape",
-    supplierColumns: [
-      {
-        colId: "col_nam_anh",
-        supplierName: "CÔNG TY CỔ PHẦN VẬT TƯ NAM ANH",
-        shortName: "Nam Anh",
-        isSelected: true,
-        deliveryTime: "5 ngày từ ngày đặt hàng",
-      },
-      {
-        colId: "col_minox",
-        supplierName: "CÔNG TY TNHH MINOX VIỆT NAM",
-        shortName: "Minox",
-        isSelected: false,
-        deliveryTime: "7-10 ngày",
-      },
-    ],
-    rows: [
-      {
-        rowId: "r_1",
-        stt: 1,
-        itemName:
-          "Kép thu vi sinh inox 316L hai đầu clamp 45x21.7 (DN40-DN15)",
-        qty: 6,
-        unit: "Cái",
-        supplierQuotes: {
-          col_nam_anh: [
-            {
-              lineId: "l_1_na",
-              quotedProduct:
-                "Côn thu vi sinh 2 đầu clamp inox 316L 45x21.7 (DN40-DN15)",
-              unitPrice: 1930000,
-              qty: 6,
-              amount: 11580000,
-            },
-          ],
-          col_minox: [
-            {
-              lineId: "l_1_mn",
-              quotedProduct:
-                "Côn thu đồng tâm vi sinh chuẩn SMS hai đầu Clamp Size 38.1 x 19.05mm, L=106mm, Inox 316L",
-              unitPrice: 2770000,
-              qty: 6,
-              amount: 16620000,
-            },
-          ],
-        },
-      },
-      {
-        rowId: "r_2",
-        stt: 2,
-        itemName:
-          "Kép thu vi sinh inox 316L hai đầu clamp 57x21.7 (DN50-DN15)",
-        qty: 6,
-        unit: "Cái",
-        supplierQuotes: {
-          col_nam_anh: [
-            {
-              lineId: "l_2_na",
-              quotedProduct:
-                "Côn thu vi sinh 2 đầu clamp inox 316L 57x21.7 (DN50-DN15)",
-              unitPrice: 2150000,
-              qty: 6,
-              amount: 12900000,
-            },
-          ],
-          col_minox: [
-            {
-              lineId: "l_2_mn",
-              quotedProduct:
-                "Côn thu đồng tâm vi sinh chuẩn SMS hai đầu Clamp Size 50.8 x 19.05mm, L=142mm, Inox 316L",
-              unitPrice: 2875000,
-              qty: 6,
-              amount: 17250000,
-            },
-          ],
-        },
-      },
-      {
-        rowId: "r_3",
-        stt: 3,
-        itemName: "Mặt bích inox 304 DN40 PN10 RF",
-        qty: 2,
-        unit: "Cái",
-        supplierQuotes: {
-          col_nam_anh: [
-            {
-              lineId: "l_3_na",
-              quotedProduct: "Mặt bích rỗng inox 304 DN40 PN10 RF",
-              unitPrice: 160000,
-              qty: 2,
-              amount: 320000,
-            },
-          ],
-          col_minox: [
-            {
-              lineId: "l_3_mn",
-              quotedProduct: "Bích rỗng cổ hàn chuẩn DIN Size DN40 PN10, Inox 304",
-              unitPrice: 675000,
-              qty: 2,
-              amount: 1350000,
-            },
-          ],
-        },
-      },
-      {
-        rowId: "r_4",
-        stt: 4,
-        itemName: "Mặt bích inox 304 DN32 PN10 RF",
-        qty: 2,
-        unit: "Cái",
-        supplierQuotes: {
-          col_nam_anh: [
-            {
-              lineId: "l_4_na",
-              quotedProduct: "Mặt bích rỗng inox 304 DN32 PN10 RF",
-              unitPrice: 135000,
-              qty: 2,
-              amount: 270000,
-            },
-          ],
-          col_minox: [
-            {
-              lineId: "l_4_mn",
-              quotedProduct: "Bích rỗng cổ hàn chuẩn DIN Size DN32 PN10, Inox 304",
-              unitPrice: 615000,
-              qty: 2,
-              amount: 1230000,
-            },
-          ],
-        },
-      },
-      {
-        rowId: "r_5",
-        stt: 5,
-        itemName: "Van 1 chiều inox 316L hai đầu clamp DN40 (Phi 45)",
-        qty: 4,
-        unit: "Cái",
-        supplierQuotes: {
-          col_nam_anh: [
-            {
-              lineId: "l_5_na",
-              quotedProduct: "Van 1 chiều vi sinh 2 đầu clamp inox 316L phi 45",
-              unitPrice: 1230000,
-              qty: 4,
-              amount: 4920000,
-            },
-          ],
-          col_minox: [
-            {
-              lineId: "l_5_mn_1",
-              quotedProduct:
-                "Van một chiều vi sinh kết nối Clamp - chuẩn 3A Size 1.5\" (38.1mm), L=94mm, Inox 316L, gioăng EPDM",
-              unitPrice: 2474000,
-              qty: 1,
-              amount: 2474000,
-            },
-            {
-              lineId: "l_5_mn_2",
-              quotedProduct:
-                "Van một chiều vi sinh kết nối Clamp - chuẩn SMS Size 38.1mm, L=94mm, Inox 316L, gioăng EPDM",
-              unitPrice: 2150000,
-              qty: 3,
-              amount: 6450000,
-            },
-          ],
-        },
-      },
-      {
-        rowId: "r_6",
-        stt: 6,
-        itemName: "Tê đều vi sinh inox 316L nối hàn DN40 (Phi 45)",
-        qty: 4,
-        unit: "Cái",
-        supplierQuotes: {
-          col_nam_anh: [
-            {
-              lineId: "l_6_na",
-              quotedProduct: "Tê đều vi sinh inox 316L nối hàn phi 45",
-              unitPrice: 540000,
-              qty: 4,
-              amount: 2160000,
-            },
-          ],
-          col_minox: [
-            {
-              lineId: "l_6_mn",
-              quotedProduct:
-                "Tê đều vi sinh dài chuẩn SMS kết nối hàn Size 38.1mm, dày 1.5mm, Inox 316L",
-              unitPrice: 295000,
-              qty: 4,
-              amount: 1180000,
-            },
-          ],
-        },
-      },
-      {
-        rowId: "r_7",
-        stt: 7,
-        itemName: "Chân ren inox vi sinh 316L kết nối clamp phi 45 - ren ngoài DN40",
-        qty: 4,
-        unit: "Cái",
-        supplierQuotes: {
-          col_nam_anh: [
-            {
-              lineId: "l_7_na",
-              quotedProduct:
-                "Chân ren inox vi sinh 316L 1 đầu clamp 1 đầu ren ngoài phi 45 (DN40)",
-              unitPrice: 430000,
-              qty: 4,
-              amount: 1720000,
-            },
-          ],
-          col_minox: [
-            {
-              lineId: "l_7_mn",
-              quotedProduct: "Đầu nối ren ngoài G 1-1/2 inch x Clamp 50.5mm Inox 316",
-              unitPrice: 660000,
-              qty: 4,
-              amount: 2640000,
-            },
-          ],
-        },
-      },
-      {
-        rowId: "r_8",
-        stt: 8,
-        itemName: "Chân ren inox vi sinh 316L kết nối clamp phi 45 - ren ngoài DN32",
-        qty: 4,
-        unit: "Cái",
-        supplierQuotes: {
-          col_nam_anh: [
-            {
-              lineId: "l_8_na",
-              quotedProduct:
-                "Chân ren inox vi sinh 316L 1 đầu clamp phi 45, 1 đầu ren ngoài phi 32",
-              unitPrice: 430000,
-              qty: 4,
-              amount: 1720000,
-            },
-          ],
-          col_minox: [
-            {
-              lineId: "l_8_mn",
-              quotedProduct: "Đầu nối ren ngoài G 1-1/4 inch x Clamp 50.5mm Inox 316",
-              unitPrice: 660000,
-              qty: 4,
-              amount: 2640000,
-            },
-          ],
-        },
-      },
-      {
-        rowId: "r_9",
-        stt: 9,
-        itemName: "Cút vi sinh 90 độ inox 316L 2 đầu clamp DN40 (Phi 45)",
-        qty: 4,
-        unit: "Cái",
-        supplierQuotes: {
-          col_nam_anh: [
-            {
-              lineId: "l_9_na",
-              quotedProduct: "Cút 90 độ vi sinh inox 316L 2 đầu clamp phi 45",
-              unitPrice: 540000,
-              qty: 4,
-              amount: 2160000,
-            },
-          ],
-          col_minox: [
-            {
-              lineId: "l_9_mn",
-              quotedProduct:
-                "Cút 90° vi sinh hai đầu Clamp chuẩn SMS Size 38.1mm, Inox 316L",
-              unitPrice: 550000,
-              qty: 4,
-              amount: 2200000,
-            },
-          ],
-        },
-      },
-      {
-        rowId: "r_10",
-        stt: 10,
-        itemName: "Cút vi sinh 90 độ inox 316L nối hàn DN40 (Phi 45)",
-        qty: 15,
-        unit: "Cái",
-        supplierQuotes: {
-          col_nam_anh: [
-            {
-              lineId: "l_10_na",
-              quotedProduct: "Cút 90 độ vi sinh inox 316L nối hàn phi 45",
-              unitPrice: 360000,
-              qty: 15,
-              amount: 5400000,
-            },
-          ],
-          col_minox: [
-            {
-              lineId: "l_10_mn",
-              quotedProduct:
-                "Cút 90° dài vi sinh chuẩn SMS kết nối hàn Size 38.1mm, dày 1.5mm, Inox 316L",
-              unitPrice: 185000,
-              qty: 15,
-              amount: 2775000,
-            },
-          ],
-        },
-      },
-      {
-        rowId: "r_11",
-        stt: 11,
-        itemName: "Côn thu ren ngoài inox 304 DN40-DN32",
-        qty: 4,
-        unit: "Cái",
-        supplierQuotes: {
-          col_nam_anh: [
-            {
-              lineId: "l_11_na",
-              quotedProduct: "Kép côn thu ren ngoài inox 304 DN40-DN32",
-              unitPrice: 75000,
-              qty: 4,
-              amount: 300000,
-            },
-          ],
-          col_minox: [
-            {
-              lineId: "l_11_mn",
-              quotedProduct: "Kép thu ren NPT Size DN40 x DN32, Inox 304",
-              unitPrice: 95000,
-              qty: 4,
-              amount: 380000,
-            },
-          ],
-        },
-      },
-      {
-        rowId: "r_12",
-        stt: 12,
-        itemName: "Kép ren ngoài inox 304 DN32",
-        qty: 4,
-        unit: "Cái",
-        supplierQuotes: {
-          col_nam_anh: [
-            {
-              lineId: "l_12_na",
-              quotedProduct: "Kép ren ngoài inox 304 DN32",
-              unitPrice: 40000,
-              qty: 4,
-              amount: 160000,
-            },
-          ],
-          col_minox: [
-            {
-              lineId: "l_12_mn",
-              quotedProduct: "Kép đều hai đầu ren BSPT Size DN32, Inox 304",
-              unitPrice: 95000,
-              qty: 4,
-              amount: 380000,
-            },
-          ],
-        },
-      },
-      {
-        rowId: "r_13",
-        stt: 13,
-        itemName: "Măng sông ren trong inox 304 DN32",
-        qty: 6,
-        unit: "Cái",
-        supplierQuotes: {
-          col_nam_anh: [
-            {
-              lineId: "l_13_na",
-              quotedProduct: "Măng sông ren trong inox 304 DN32",
-              unitPrice: 35000,
-              qty: 6,
-              amount: 210000,
-            },
-          ],
-          col_minox: [
-            {
-              lineId: "l_13_mn",
-              quotedProduct: "Măng sông ren trong BSPT Size DN32, Inox 304",
-              unitPrice: 75000,
-              qty: 6,
-              amount: 450000,
-            },
-          ],
-        },
-      },
-      {
-        rowId: "r_14",
-        stt: 14,
-        itemName: "Kép ren ngoài inox 304 DN40",
-        qty: 4,
-        unit: "Cái",
-        supplierQuotes: {
-          col_nam_anh: [
-            {
-              lineId: "l_14_na",
-              quotedProduct: "Kép ren ngoài inox 304 DN40",
-              unitPrice: 55000,
-              qty: 4,
-              amount: 220000,
-            },
-          ],
-          col_minox: [
-            {
-              lineId: "l_14_mn",
-              quotedProduct: "Kép đều hai đầu ren BSPT Size DN40, Inox 304",
-              unitPrice: 120000,
-              qty: 4,
-              amount: 480000,
-            },
-          ],
-        },
-      },
-      {
-        rowId: "r_15",
-        stt: 15,
-        itemName: "Măng sông ren trong inox 304 DN40",
-        qty: 6,
-        unit: "Cái",
-        supplierQuotes: {
-          col_nam_anh: [
-            {
-              lineId: "l_15_na",
-              quotedProduct: "Măng sông ren trong inox 304 DN40",
-              unitPrice: 50000,
-              qty: 6,
-              amount: 300000,
-            },
-          ],
-          col_minox: [
-            {
-              lineId: "l_15_mn",
-              quotedProduct: "Măng sông ren trong BSPT Size DN40, Inox 304",
-              unitPrice: 100000,
-              qty: 6,
-              amount: 600000,
-            },
-          ],
-        },
-      },
-      {
-        rowId: "r_16",
-        stt: 16,
-        itemName: "Côn thu hàn đồng tâm inox 304 DN40-DN32 SCH10S",
-        qty: 6,
-        unit: "Cái",
-        supplierQuotes: {
-          col_nam_anh: [
-            {
-              lineId: "l_16_na",
-              quotedProduct: "Côn thu hàn đồng tâm inox 304 DN40-DN32 SCH10S",
-              unitPrice: 65000,
-              qty: 6,
-              amount: 390000,
-            },
-          ],
-          col_minox: [
-            {
-              lineId: "l_16_mn",
-              quotedProduct: "Côn thu đồng tâm kết nối hàn SCH10S Size DN40xDN32",
-              unitPrice: 95000,
-              qty: 6,
-              amount: 570000,
-            },
-          ],
-        },
-      },
-      {
-        rowId: "r_17",
-        stt: 17,
-        itemName: "Nắp bịt clamp inox 316L DN40 (Phi 45)",
-        qty: 10,
-        unit: "Cái",
-        supplierQuotes: {
-          col_nam_anh: [
-            {
-              lineId: "l_17_na",
-              quotedProduct: "Nắp bịt clamp vi sinh inox 316L phi 45",
-              unitPrice: 80000,
-              qty: 10,
-              amount: 800000,
-            },
-          ],
-          col_minox: [
-            {
-              lineId: "l_17_mn",
-              quotedProduct: "Mặt bích mù Clamp 50.5mm Inox 316L",
-              unitPrice: 135000,
-              qty: 10,
-              amount: 1350000,
-            },
-          ],
-        },
-      },
-      {
-        rowId: "r_18",
-        stt: 18,
-        itemName: "Cùm clamp inox 304 DN40 (Phi 45)",
-        qty: 10,
-        unit: "Cái",
-        supplierQuotes: {
-          col_nam_anh: [
-            {
-              lineId: "l_18_na",
-              quotedProduct: "Cùm clamp vi sinh inox 304 phi 45",
-              unitPrice: 40000,
-              qty: 10,
-              amount: 400000,
-            },
-          ],
-          col_minox: [
-            {
-              lineId: "l_18_mn",
-              quotedProduct: "Cùm kẹp Clamp 50.5mm Inox 304",
-              unitPrice: 45000,
-              qty: 10,
-              amount: 450000,
-            },
-          ],
-        },
-      },
-      {
-        rowId: "r_19",
-        stt: 19,
-        itemName: "Chân clamp vi sinh inox 316L DN40 (Phi 45)",
-        qty: 10,
-        unit: "Cái",
-        supplierQuotes: {
-          col_nam_anh: [
-            {
-              lineId: "l_19_na",
-              quotedProduct: "Chân clamp vi sinh inox 316L phi 45",
-              unitPrice: 120000,
-              qty: 10,
-              amount: 1200000,
-            },
-          ],
-          col_minox: [
-            {
-              lineId: "l_19_mn",
-              quotedProduct:
-                "Chân hàn Clamp ngắn chuẩn SMS Size 38.1mm, mặt bích 50.5mm, L=12.7mm, Inox 316L",
-              unitPrice: 90000,
-              qty: 10,
-              amount: 900000,
-            },
-          ],
-        },
-      },
-      {
-        rowId: "r_20",
-        stt: 20,
-        itemName: "Gioăng silicon dùng cho clamp DN40 (Phi 45)",
-        qty: 50,
-        unit: "Cái",
-        supplierQuotes: {
-          col_nam_anh: [
-            {
-              lineId: "l_20_na",
-              quotedProduct: "Gioăng silicon vi sinh phi 45",
-              unitPrice: 7000,
-              qty: 50,
-              amount: 350000,
-            },
-          ],
-          col_minox: [
-            {
-              lineId: "l_20_mn",
-              quotedProduct:
-                "Gioăng Clamp vi sinh chuẩn SMS Size 38.1mm, mặt bích 50.5mm, nhựa Silicon",
-              unitPrice: 15000,
-              qty: 50,
-              amount: 750000,
-            },
-          ],
-        },
-      },
-      {
-        rowId: "r_21",
-        stt: 21,
-        itemName: "Gioăng silicon dùng cho clamp DN15 (Phi 21.7)",
-        qty: 50,
-        unit: "Cái",
-        supplierQuotes: {
-          col_nam_anh: [
-            {
-              lineId: "l_21_na",
-              quotedProduct: "Gioăng silicon vi sinh phi 21.7 (DN15)",
-              unitPrice: 6000,
-              qty: 50,
-              amount: 300000,
-            },
-          ],
-          col_minox: [
-            {
-              lineId: "l_21_mn",
-              quotedProduct: "Gioăng Clamp chuẩn DIN Size DN15 (bích 34mm), Silicon",
-              unitPrice: 15000,
-              qty: 50,
-              amount: 750000,
-            },
-          ],
-        },
-      },
-      {
-        rowId: "r_22",
-        stt: 22,
-        itemName: "Nắp bịt clamp inox 316L DN15 (Phi 21.7)",
-        qty: 10,
-        unit: "Cái",
-        supplierQuotes: {
-          col_nam_anh: [
-            {
-              lineId: "l_22_na",
-              quotedProduct: "Nắp bịt clamp vi sinh inox 316L phi 21.7 (DN15)",
-              unitPrice: 55000,
-              qty: 10,
-              amount: 550000,
-            },
-          ],
-          col_minox: [
-            {
-              lineId: "l_22_mn",
-              quotedProduct: "Mặt bích mù Clamp 34mm Inox 316L",
-              unitPrice: 80000,
-              qty: 10,
-              amount: 800000,
-            },
-          ],
-        },
-      },
-    ],
-    recommendedSupplierName: "CÔNG TY CỔ PHẦN VẬT TƯ NAM ANH",
-    deliveryTerms: "",
-    paymentTerms: "Thanh toán 100% trước khi giao hàng.",
-    reasons: [
-      "Hàng hóa đạt yêu cầu về chất lượng, thông số kỹ thuật. Đơn giá rẻ nhất.",
-      "Thời gian giao hàng: 5 ngày từ ngày đặt hàng.",
-    ],
-    approverLeader: "Đinh Anh Hào",
-    approverDeptHead: "Lưu Thị Thanh Xuân",
-    requesterName: "Trần Hải Hà",
-    status: "Đã phê duyệt",
-  },
   {
     id: 260202,
     requestNumber: "02/06/PR2602",

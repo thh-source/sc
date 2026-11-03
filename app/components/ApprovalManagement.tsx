@@ -24,6 +24,7 @@ import {
   ApprovalItemRow,
   ApprovalRequest,
   ApprovalSupplierColumn,
+  ApprovalCustomSigner,
   ApprovalSupplierQuoteLine,
   PR,
   PO,
@@ -42,6 +43,8 @@ import {
   createManualApproval,
   formatApprovalSection1Title,
   parseExcelClipboard,
+  getSavedApprovalSigners,
+  saveDefaultApprovalSigners,
 } from "../utils/approvalSamples";
 import { addNewDepartment, getUnifiedDepartments } from "../utils/departments";
 import { DocFlowLinks } from "./DocFlowLinks";
@@ -195,6 +198,31 @@ export function getQuotedProductTitle(req: ApprovalRequest): string {
   }
   if (req.columnMode === "origin") return "Hãng/ Xuất xứ";
   return "Mặt hàng NCC báo";
+}
+
+/**
+ * Chuyển đổi chuỗi ngày định dạng DD/MM/YYYY hoặc YYYY-MM-DD thành số so sánh (YYYYMMDD)
+ * để đảm bảo sắp xếp chính xác từ mới nhất đến cũ nhất.
+ */
+export function parseApprovalDate(dateStr?: string): number {
+  if (!dateStr || typeof dateStr !== "string") return 0;
+  const parts = dateStr.trim().split(/[\/\-\.]/);
+  if (parts.length === 3) {
+    let day = parseInt(parts[0], 10);
+    let month = parseInt(parts[1], 10);
+    let year = parseInt(parts[2], 10);
+    if (parts[0].length === 4) {
+      year = parseInt(parts[0], 10);
+      month = parseInt(parts[1], 10);
+      day = parseInt(parts[2], 10);
+    } else if (year < 100) {
+      year += 2000;
+    }
+    if (!isNaN(year) && !isNaN(month) && !isNaN(day)) {
+      return year * 10000 + month * 100 + day;
+    }
+  }
+  return 0;
 }
 
 export function computeSupplierTotal(
@@ -766,6 +794,35 @@ export default function ApprovalManagement({
   const [poCreateCustomNumber, setPoCreateCustomNumber] = useState<string>("");
   const [poCreateNumberManual, setPoCreateNumberManual] = useState<boolean>(false);
 
+  // Trạng thái hiển thị bảng xem nhanh danh mục hàng khi di chuột vào số ĐNPD
+  const [hoveredApproval, setHoveredApproval] = useState<{
+    req: ApprovalRequest;
+    top: number;
+    left: number;
+  } | null>(null);
+  const hoverTimeoutRef = useRef<any>(null);
+
+  const handlePrMouseEnter = (e: React.MouseEvent, req: ApprovalRequest) => {
+    if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
+    const rect = e.currentTarget.getBoundingClientRect();
+    const popoverWidth = 560;
+    const popoverMaxHeight = 360;
+
+    const top =
+      rect.bottom + 8 + popoverMaxHeight > window.innerHeight
+        ? Math.max(10, rect.top - popoverMaxHeight - 8)
+        : rect.bottom + 8;
+    const left = Math.max(16, Math.min(rect.left, window.innerWidth - popoverWidth - 24));
+
+    setHoveredApproval({ req, top, left });
+  };
+
+  const handlePrMouseLeave = () => {
+    hoverTimeoutRef.current = setTimeout(() => {
+      setHoveredApproval(null);
+    }, 150);
+  };
+
   const handleOpenPOCreateModal = (req: ApprovalRequest) => {
     const selectedCol =
       req.supplierColumns.find((c) => c.isSelected) ||
@@ -845,7 +902,10 @@ export default function ApprovalManagement({
         const aDone = isApprovalCompleted(a);
         const bDone = isApprovalCompleted(b);
         if (aDone !== bDone) return aDone ? 1 : -1;
-        return (b.createdDate || "").localeCompare(a.createdDate || "") || (b.id - a.id);
+        const dateA = parseApprovalDate(a.createdDate);
+        const dateB = parseApprovalDate(b.createdDate);
+        if (dateB !== dateA) return dateB - dateA;
+        return (b.id || 0) - (a.id || 0);
       });
   }, [approvalRequests, searchQuery, statusFilter]);
 
@@ -863,6 +923,67 @@ export default function ApprovalManagement({
       return () => clearTimeout(timer);
     }
   }, [autoPrint, activeRequest]);
+
+
+  // Xử lý cập nhật tên người ký và tự động lưu làm mặc định cho các lần sau
+  const handleLeaderChange = (val: string) => {
+    updateActive((prev) => ({ ...prev, approverLeader: val }));
+    saveDefaultApprovalSigners({ approverLeader: val });
+  };
+
+  const handleDeptHeadChange = (val: string) => {
+    updateActive((prev) => ({ ...prev, approverDeptHead: val }));
+    saveDefaultApprovalSigners({ approverDeptHead: val });
+  };
+
+  const handleRequesterChange = (val: string) => {
+    updateActive((prev) => ({ ...prev, requesterName: val }));
+    saveDefaultApprovalSigners({ requesterName: val });
+  };
+
+  const handleAddCustomSigner = (defaultTitle: string = "Bộ phận chuyên môn") => {
+    const saved = getSavedApprovalSigners();
+    const matchedSaved = (saved.customSigners || []).find(
+      (cs) => cs.title.trim().toLowerCase() === defaultTitle.trim().toLowerCase()
+    );
+    const newSigner: ApprovalCustomSigner = {
+      id: `cs_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+      title: defaultTitle,
+      name: matchedSaved?.name || "",
+    };
+    updateActive((prev) => {
+      const current = prev.customSigners || [];
+      const updated = [...current, newSigner];
+      saveDefaultApprovalSigners({
+        customSigners: updated.map((c) => ({ title: c.title, name: c.name })),
+      });
+      return { ...prev, customSigners: updated };
+    });
+    showToast(`✓ Đã thêm ô ký: "${defaultTitle}"`);
+  };
+
+  const handleRemoveCustomSigner = (signerId: string) => {
+    updateActive((prev) => {
+      const updated = (prev.customSigners || []).filter((cs) => cs.id !== signerId);
+      saveDefaultApprovalSigners({
+        customSigners: updated.map((c) => ({ title: c.title, name: c.name })),
+      });
+      return { ...prev, customSigners: updated };
+    });
+    showToast("✓ Đã xóa ô ký");
+  };
+
+  const handleCustomSignerChange = (signerId: string, field: "title" | "name", val: string) => {
+    updateActive((prev) => {
+      const updated = (prev.customSigners || []).map((cs) =>
+        cs.id === signerId ? { ...cs, [field]: val } : cs
+      );
+      saveDefaultApprovalSigners({
+        customSigners: updated.map((c) => ({ title: c.title, name: c.name })),
+      });
+      return { ...prev, customSigners: updated };
+    });
+  };
 
   const updateActive = (updater: (prev: ApprovalRequest) => ApprovalRequest) => {
     if (!activeRequest || isReportMode) return;
@@ -1672,7 +1793,7 @@ export default function ApprovalManagement({
                 className="ghost"
                 onClick={() => {
                   onRestoreSamples();
-                  showToast("✓ Đã nạp 2 biểu mẫu chuẩn Phenikaa Pharma!");
+                  showToast("✓ Đã nạp biểu mẫu chuẩn Phenikaa Pharma!");
                 }}
               >
                 <RotateCcw size={16} /> Mẫu chuẩn
@@ -1930,12 +2051,11 @@ export default function ApprovalManagement({
             <table>
               <thead>
                 <tr>
-                  <th style={{ width: 135 }}>Số PR / Mã phiếu</th>
-                  <th style={{ width: 105 }}>Ngày lập</th>
-                  <th style={{ width: 155 }}>Bộ phận lập</th>
+                  <th style={{ width: 145 }}>Số PR / Mã phiếu</th>
+                  <th style={{ width: 110 }}>Ngày lập</th>
                   <th style={{ width: 130, textAlign: "center" }}>Quy mô đánh giá</th>
-                  <th style={{ width: 220 }}>NCC đề xuất lựa chọn</th>
-                  <th style={{ width: 145, textAlign: "right" }}>
+                  <th style={{ width: 240 }}>NCC đề xuất lựa chọn</th>
+                  <th style={{ width: 155, textAlign: "right" }}>
                     Tổng tiền đề xuất
                   </th>
                   <th style={{ width: 140 }}>Trạng thái</th>
@@ -1946,7 +2066,7 @@ export default function ApprovalManagement({
                 {filteredRequests.length === 0 ? (
                   <tr>
                     <td
-                      colSpan={8}
+                      colSpan={7}
                       style={{
                         textAlign: "center",
                         padding: "36px 16px",
@@ -2001,13 +2121,14 @@ export default function ApprovalManagement({
                                 e.stopPropagation();
                                 setActiveApprovalId(req.id);
                               }}
+                              onMouseEnter={(e) => handlePrMouseEnter(e, req)}
+                              onMouseLeave={handlePrMouseLeave}
                             >
                               {req.prNumber || req.requestNumber}
                             </button>
                           </div>
                         </td>
                         <td>{req.createdDate}</td>
-                        <td>{req.department}</td>
                         <td className="center">
                           <span className="scale-pill">
                             {req.supplierColumns.length} NCC · {req.rows.length} mục
@@ -2098,6 +2219,198 @@ export default function ApprovalManagement({
             </table>
           </div>
         </div>
+
+        {/* Hover Popover hiển thị Bảng danh mục hàng khi di chuột vào số ĐNPD */}
+        {hoveredApproval && typeof document !== "undefined" && createPortal(
+          <div
+            style={{
+              position: "fixed",
+              top: hoveredApproval.top,
+              left: hoveredApproval.left,
+              width: "580px",
+              maxHeight: "380px",
+              backgroundColor: "#ffffff",
+              borderRadius: "10px",
+              boxShadow: "0 14px 35px -4px rgba(15, 23, 42, 0.22), 0 6px 14px -3px rgba(15, 23, 42, 0.12)",
+              border: "1px solid #cbd5e1",
+              zIndex: 99999,
+              display: "flex",
+              flexDirection: "column",
+              overflow: "hidden",
+            }}
+            onMouseEnter={() => {
+              if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
+            }}
+            onMouseLeave={handlePrMouseLeave}
+          >
+            {(() => {
+              const hReq = hoveredApproval.req;
+              const hCol = hReq.supplierColumns.find((c) => c.isSelected) || hReq.supplierColumns[0];
+              const hTotal = hCol ? computeSupplierFinalTotal(hReq, hCol.colId) : 0;
+              const supplierName = hReq.recommendedSupplierName || hCol?.supplierName || "Chưa chọn NCC";
+
+              return (
+                <>
+                  <div
+                    style={{
+                      padding: "10px 14px",
+                      backgroundColor: "#f8fafc",
+                      borderBottom: "1px solid #e2e8f0",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      gap: "8px",
+                    }}
+                  >
+                    <div>
+                      <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                        <span
+                          style={{
+                            fontFamily: "monospace",
+                            fontSize: "12px",
+                            fontWeight: 700,
+                            color: "#1d4ed8",
+                            backgroundColor: "#eff6ff",
+                            padding: "2px 6px",
+                            borderRadius: "4px",
+                          }}
+                        >
+                          {hReq.prNumber || hReq.requestNumber}
+                        </span>
+                        <span style={{ fontSize: "12px", fontWeight: 700, color: "#0f172a" }}>
+                          Danh mục hàng hóa ({hReq.rows.length} mục)
+                        </span>
+                      </div>
+                      <div style={{ fontSize: "11px", color: "#64748b", marginTop: "2px" }}>
+                        NCC đề xuất: <b style={{ color: "#2563eb" }}>{supplierName}</b>
+                      </div>
+                    </div>
+
+                    <span
+                      style={{
+                        fontSize: "11px",
+                        fontWeight: 600,
+                        padding: "2px 8px",
+                        borderRadius: "12px",
+                        backgroundColor: "#f1f5f9",
+                        color: "#475569",
+                      }}
+                    >
+                      {hReq.createdDate}
+                    </span>
+                  </div>
+
+                  {/* Table Container */}
+                  <div style={{ maxHeight: "250px", overflowY: "auto", overflowX: "hidden" }}>
+                    <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12px" }}>
+                      <thead>
+                        <tr
+                          style={{
+                            backgroundColor: "#f1f5f9",
+                            color: "#475569",
+                            fontSize: "11px",
+                            fontWeight: 700,
+                            position: "sticky",
+                            top: 0,
+                            zIndex: 2,
+                            borderBottom: "1px solid #cbd5e1",
+                          }}
+                        >
+                          <th style={{ padding: "6px 8px", width: "36px", textAlign: "center" }}>STT</th>
+                          <th style={{ padding: "6px 10px", textAlign: "left" }}>TÊN HÀNG HÓA</th>
+                          <th style={{ padding: "6px 8px", width: "55px", textAlign: "center" }}>ĐVT</th>
+                          <th style={{ padding: "6px 8px", width: "55px", textAlign: "right" }}>SL</th>
+                          <th style={{ padding: "6px 10px", width: "95px", textAlign: "right" }}>ĐƠN GIÁ</th>
+                          <th style={{ padding: "6px 10px", width: "105px", textAlign: "right" }}>THÀNH TIỀN</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {hReq.rows.length === 0 ? (
+                          <tr>
+                            <td colSpan={6} style={{ padding: "16px", textAlign: "center", color: "#94a3b8" }}>
+                              Phiếu chưa có mặt hàng nào.
+                            </td>
+                          </tr>
+                        ) : (
+                          hReq.rows.map((row, idx) => {
+                            const lines = hCol ? row.supplierQuotes[hCol.colId] || [] : [];
+                            const line = lines[0];
+                            const unitPrice = Number(line?.unitPrice) || 0;
+                            const qty = row.qty || 1;
+                            const amount = unitPrice > 0 ? unitPrice * qty : (Number(line?.amount) || 0);
+
+                            return (
+                              <tr
+                                key={row.rowId || idx}
+                                style={{
+                                  borderBottom: "1px solid #f1f5f9",
+                                  backgroundColor: idx % 2 === 0 ? "#ffffff" : "#fbfcfe",
+                                }}
+                              >
+                                <td style={{ padding: "6px 8px", textAlign: "center", color: "#64748b" }}>
+                                  {row.stt || idx + 1}
+                                </td>
+                                <td style={{ padding: "6px 10px", textAlign: "left" }}>
+                                  <div style={{ fontWeight: 600, color: "#0f172a" }}>
+                                    {row.itemName}
+                                  </div>
+                                  {row.spec && (
+                                    <div style={{ fontSize: "10.5px", color: "#64748b" }}>
+                                      {row.spec}
+                                    </div>
+                                  )}
+                                </td>
+                                <td style={{ padding: "6px 8px", textAlign: "center", color: "#475569" }}>
+                                  {row.unit || "—"}
+                                </td>
+                                <td style={{ padding: "6px 8px", textAlign: "right", fontWeight: 600, color: "#0f172a" }}>
+                                  {qty}
+                                </td>
+                                <td style={{ padding: "6px 10px", textAlign: "right", color: "#334155", fontVariantNumeric: "tabular-nums" }}>
+                                  {unitPrice > 0 ? `${formatVND(unitPrice)} ₫` : "—"}
+                                </td>
+                                <td style={{ padding: "6px 10px", textAlign: "right", fontWeight: 700, color: "#0f172a", fontVariantNumeric: "tabular-nums" }}>
+                                  {amount > 0 ? `${formatVND(amount)} ₫` : "—"}
+                                </td>
+                              </tr>
+                            );
+                          })
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Popover Footer */}
+                  <div
+                    style={{
+                      padding: "8px 14px",
+                      backgroundColor: "#f8fafc",
+                      borderTop: "1px solid #e2e8f0",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      fontSize: "12px",
+                    }}
+                  >
+                    <div style={{ color: "#64748b" }}>
+                      Trạng thái: <b style={{ color: "#0f172a" }}>{hReq.status}</b>
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                      <span style={{ color: "#64748b" }}>Tổng tiền:</span>
+                      <b style={{ color: "#2563eb", fontSize: "13px" }}>
+                        {hTotal > 0 ? `${formatVND(hTotal)} ₫` : "—"}
+                      </b>
+                      <span style={{ fontSize: "10.5px", color: "#64748b" }}>
+                        ({hReq.vatMode === "with_vat" ? "Có VAT" : "Chưa VAT"})
+                      </span>
+                    </div>
+                  </div>
+                </>
+              );
+            })()}
+          </div>,
+          document.body
+        )}
 
         {/* Modal Chọn PR khi tạo từ So sánh giá hoặc tạo từ PR */}
         {sourceModalMode && renderPRSourceModal()}
@@ -3908,78 +4221,154 @@ export default function ApprovalManagement({
           )}
         </div>
 
-        {/* 6. KHU VỰC CHỮ KÝ 3 CỘT */}
-        <table className="phenikaa-sign-table">
-          <tbody>
-            <tr>
-              <td className="sign-col">
-                <div className="sign-title">Lãnh đạo phê duyệt</div>
-                <div
-                  className="sign-space"
-                  style={{ height: `${activeRequest.signSpaceHeight || 96}px` }}
-                />
-                <div className="sign-name">
-                  <input
-                    type="text"
-                    className="sheet-inline-input center bold-input no-print"
-                    value={activeRequest.approverLeader}
-                    readOnly={isReportMode}
-                    onChange={(e) =>
-                      updateActive((prev) => ({
-                        ...prev,
-                        approverLeader: e.target.value,
-                      }))
-                    }
-                  />
-                </div>
-              </td>
-              <td className="sign-col">
-                <div className="sign-title">Trưởng bộ phận</div>
-                <div
-                  className="sign-space"
-                  style={{ height: `${activeRequest.signSpaceHeight || 96}px` }}
-                />
-                <div className="sign-name">
-                  <input
-                    type="text"
-                    className="sheet-inline-input center bold-input no-print"
-                    value={activeRequest.approverDeptHead}
-                    readOnly={isReportMode}
-                    onChange={(e) =>
-                      updateActive((prev) => ({
-                        ...prev,
-                        approverDeptHead: e.target.value,
-                      }))
-                    }
-                  />
-                </div>
-              </td>
-              <td className="sign-col">
-                <div className="sign-title">Người đề nghị</div>
-                <div
-                  className="sign-space"
-                  style={{ height: `${activeRequest.signSpaceHeight || 96}px` }}
-                />
-                <div className="sign-name">
-                  <input
-                    type="text"
-                    className="sheet-inline-input center bold-input no-print"
-                    value={activeRequest.requesterName}
-                    readOnly={isReportMode}
-                    onChange={(e) =>
-                      updateActive((prev) => ({
-                        ...prev,
-                        requesterName: e.target.value,
-                      }))
-                    }
-                  />
-                </div>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+        {/* 6. KHU VỰC CHỮ KÝ ĐA CỘT */}
+        {(() => {
+          const totalCols = 3 + (activeRequest.customSigners?.length || 0);
+          const colWidth = `${(100 / totalCols).toFixed(2)}%`;
+          return (
+            <table className="phenikaa-sign-table" style={{ width: "100%", tableLayout: "fixed" }}>
+              <tbody>
+                <tr>
+                  {/* Cột 1: Lãnh đạo phê duyệt */}
+                  <td className="sign-col" style={{ width: colWidth }}>
+                    <div className="sign-title">Lãnh đạo phê duyệt</div>
+                    <div
+                      className="sign-space"
+                      style={{ height: `${activeRequest.signSpaceHeight || 96}px` }}
+                    />
+                    <div className="sign-name">
+                      <input
+                        type="text"
+                        className="sheet-inline-input center bold-input no-print"
+                        value={activeRequest.approverLeader}
+                        readOnly={isReportMode}
+                        title="Tự động lưu tên này cho các ĐNPD sau"
+                        onChange={(e) => handleLeaderChange(e.target.value)}
+                      />
+                    </div>
+                  </td>
 
-        {/* Thanh kéo chỉnh độ giãn cách khu vực ký (Chỉ trên màn hình, không in) */}
+                  {/* Các ô ký bổ sung (Bộ phận chuyên môn, Kế toán,...) */}
+                  {(activeRequest.customSigners || []).map((signer) => (
+                    <td
+                      key={signer.id}
+                      className="sign-col"
+                      style={{
+                        width: colWidth,
+                        position: "relative",
+                      }}
+                    >
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          gap: "4px",
+                          position: "relative",
+                        }}
+                      >
+                        <input
+                          type="text"
+                          className="sheet-inline-input center bold-input"
+                          style={{
+                            fontWeight: 700,
+                            fontSize: "11pt",
+                            color: "#1e293b",
+                            borderBottom: isReportMode ? "none" : "1px dashed #cbd5e1",
+                          }}
+                          value={signer.title}
+                          readOnly={isReportMode}
+                          placeholder="Tên ô ký..."
+                          onChange={(e) =>
+                            handleCustomSignerChange(signer.id, "title", e.target.value)
+                          }
+                        />
+                        {!isReportMode && (
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveCustomSigner(signer.id)}
+                            title="Xóa ô ký này"
+                            className="no-print"
+                            style={{
+                              background: "#fee2e2",
+                              border: "1px solid #fca5a5",
+                              borderRadius: "4px",
+                              color: "#b91c1c",
+                              cursor: "pointer",
+                              padding: "2px 4px",
+                              lineHeight: 1,
+                              fontSize: "10px",
+                              flexShrink: 0,
+                            }}
+                          >
+                            ✕
+                          </button>
+                        )}
+                      </div>
+                      <div
+                        className="sign-space"
+                        style={{ height: `${activeRequest.signSpaceHeight || 96}px` }}
+                      />
+                      <div className="sign-name">
+                        <input
+                          type="text"
+                          className="sheet-inline-input center bold-input no-print"
+                          value={signer.name}
+                          placeholder="Họ và tên..."
+                          readOnly={isReportMode}
+                          title="Tự động lưu tên này cho các ĐNPD sau"
+                          onChange={(e) =>
+                            handleCustomSignerChange(signer.id, "name", e.target.value)
+                          }
+                        />
+                      </div>
+                    </td>
+                  ))}
+
+                  {/* Cột 2: Trưởng bộ phận */}
+                  <td className="sign-col" style={{ width: colWidth }}>
+                    <div className="sign-title">Trưởng bộ phận</div>
+                    <div
+                      className="sign-space"
+                      style={{ height: `${activeRequest.signSpaceHeight || 96}px` }}
+                    />
+                    <div className="sign-name">
+                      <input
+                        type="text"
+                        className="sheet-inline-input center bold-input no-print"
+                        value={activeRequest.approverDeptHead}
+                        readOnly={isReportMode}
+                        title="Tự động lưu tên này cho các ĐNPD sau"
+                        onChange={(e) => handleDeptHeadChange(e.target.value)}
+                      />
+                    </div>
+                  </td>
+
+                  {/* Cột 3: Người đề nghị */}
+                  <td className="sign-col" style={{ width: colWidth }}>
+                    <div className="sign-title">Người đề nghị</div>
+                    <div
+                      className="sign-space"
+                      style={{ height: `${activeRequest.signSpaceHeight || 96}px` }}
+                    />
+                    <div className="sign-name">
+                      <input
+                        type="text"
+                        className="sheet-inline-input center bold-input no-print"
+                        value={activeRequest.requesterName}
+                        readOnly={isReportMode}
+                        title="Tự động lưu tên này cho các ĐNPD sau"
+                        onChange={(e) => handleRequesterChange(e.target.value)}
+                      />
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          );
+        })()}
+
+        {/* Thanh kéo chỉnh độ giãn cách & Thêm ô ký tùy chọn (Chỉ trên màn hình, không in) */}
         {!isReportMode && (
           <div
             className="no-print"
@@ -4063,6 +4452,62 @@ export default function ApprovalManagement({
               </button>
             </div>
 
+            {/* Thêm ô ký tùy chọn */}
+            <div style={{ display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
+              <span style={{ fontSize: "11px", fontWeight: 600, color: "#64748b" }}>Thêm ô ký:</span>
+              <button
+                type="button"
+                onClick={() => handleAddCustomSigner("Bộ phận chuyên môn")}
+                style={{
+                  padding: "2px 8px",
+                  fontSize: "11px",
+                  fontWeight: 600,
+                  borderRadius: "4px",
+                  background: "#eff6ff",
+                  color: "#2563eb",
+                  border: "1px solid #bfdbfe",
+                  cursor: "pointer",
+                }}
+                title="Thêm ô ký cho Bộ phận chuyên môn"
+              >
+                + Bộ phận chuyên môn
+              </button>
+              <button
+                type="button"
+                onClick={() => handleAddCustomSigner("Kế toán")}
+                style={{
+                  padding: "2px 8px",
+                  fontSize: "11px",
+                  fontWeight: 600,
+                  borderRadius: "4px",
+                  background: "#f0fdf4",
+                  color: "#16a34a",
+                  border: "1px solid #bbf7d0",
+                  cursor: "pointer",
+                }}
+                title="Thêm ô ký cho Kế toán"
+              >
+                + Kế toán
+              </button>
+              <button
+                type="button"
+                onClick={() => handleAddCustomSigner("Ô ký khác")}
+                style={{
+                  padding: "2px 8px",
+                  fontSize: "11px",
+                  fontWeight: 500,
+                  borderRadius: "4px",
+                  background: "#ffffff",
+                  color: "#475569",
+                  border: "1px dashed #cbd5e1",
+                  cursor: "pointer",
+                }}
+                title="Thêm ô ký tùy biến khác"
+              >
+                + Ô ký khác...
+              </button>
+            </div>
+
             <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
               <span style={{ fontSize: "11px" }}>Kéo chỉnh:</span>
               <input
@@ -4071,15 +4516,13 @@ export default function ApprovalManagement({
                 max="180"
                 step="4"
                 value={activeRequest.signSpaceHeight || 96}
-                onChange={(e) => {
-                  const val = Number(e.target.value);
+                onChange={(e) =>
                   updateActive((prev) => ({
                     ...prev,
-                    signSpaceHeight: val,
-                  }));
-                }}
-                style={{ width: "120px", cursor: "pointer" }}
-                title="Kéo thanh trượt để thay đổi chiều cao khu vực ký tên"
+                    signSpaceHeight: Number(e.target.value),
+                  }))
+                }
+                style={{ width: "80px", cursor: "pointer" }}
               />
             </div>
           </div>
@@ -4642,43 +5085,65 @@ export default function ApprovalManagement({
                 ))}
               </div>
 
-              {/* 6. Chữ ký 3 cột */}
-              <table className="phenikaa-sign-table">
-                <tbody>
-                  <tr>
-                    <td className="sign-col">
-                      <div className="sign-title">Lãnh đạo phê duyệt</div>
-                      <div
-                        className="sign-space"
-                        style={{ height: `${activeRequest.signSpaceHeight || 96}px` }}
-                      />
-                      <div className="sign-name">
-                        {activeRequest.approverLeader}
-                      </div>
-                    </td>
-                    <td className="sign-col">
-                      <div className="sign-title">Trưởng bộ phận</div>
-                      <div
-                        className="sign-space"
-                        style={{ height: `${activeRequest.signSpaceHeight || 96}px` }}
-                      />
-                      <div className="sign-name">
-                        {activeRequest.approverDeptHead}
-                      </div>
-                    </td>
-                    <td className="sign-col">
-                      <div className="sign-title">Người đề nghị</div>
-                      <div
-                        className="sign-space"
-                        style={{ height: `${activeRequest.signSpaceHeight || 96}px` }}
-                      />
-                      <div className="sign-name">
-                        {activeRequest.requesterName}
-                      </div>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
+              {/* 6. Chữ ký đa cột */}
+              {(() => {
+                const totalCols = 3 + (activeRequest.customSigners?.length || 0);
+                const colWidth = `${(100 / totalCols).toFixed(2)}%`;
+                return (
+                  <table className="phenikaa-sign-table" style={{ width: "100%", tableLayout: "fixed" }}>
+                    <tbody>
+                      <tr>
+                        <td className="sign-col" style={{ width: colWidth }}>
+                          <div className="sign-title">Lãnh đạo phê duyệt</div>
+                          <div
+                            className="sign-space"
+                            style={{ height: `${activeRequest.signSpaceHeight || 96}px` }}
+                          />
+                          <div className="sign-name">
+                            {activeRequest.approverLeader}
+                          </div>
+                        </td>
+                        {(activeRequest.customSigners || []).map((cs) => (
+                          <td
+                            key={cs.id}
+                            className="sign-col"
+                            style={{ width: colWidth }}
+                          >
+                            <div className="sign-title">{cs.title || "Bộ phận chuyên môn"}</div>
+                            <div
+                              className="sign-space"
+                              style={{ height: `${activeRequest.signSpaceHeight || 96}px` }}
+                            />
+                            <div className="sign-name">
+                              {cs.name}
+                            </div>
+                          </td>
+                        ))}
+                        <td className="sign-col" style={{ width: colWidth }}>
+                          <div className="sign-title">Trưởng bộ phận</div>
+                          <div
+                            className="sign-space"
+                            style={{ height: `${activeRequest.signSpaceHeight || 96}px` }}
+                          />
+                          <div className="sign-name">
+                            {activeRequest.approverDeptHead}
+                          </div>
+                        </td>
+                        <td className="sign-col" style={{ width: colWidth }}>
+                          <div className="sign-title">Người đề nghị</div>
+                          <div
+                            className="sign-space"
+                            style={{ height: `${activeRequest.signSpaceHeight || 96}px` }}
+                          />
+                          <div className="sign-name">
+                            {activeRequest.requesterName}
+                          </div>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                );
+              })()}
             </div>
           </div>,
           document.body,

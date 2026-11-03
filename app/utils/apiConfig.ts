@@ -1,6 +1,6 @@
 import { Capacitor } from "@capacitor/core";
 
-export const REMOTE_API_BASE = "https://quan-ly-mua-hang.sc-pnk.workers.dev";
+export const REMOTE_API_BASE = "https://pnk.sc-pnk.workers.dev";
 
 export function isNativeMobile(): boolean {
   if (typeof window === "undefined") return false;

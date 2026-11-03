@@ -925,7 +925,7 @@
 }
 
 .phenikaa-sign-table .sign-col {
-  width: 33.33%;
+  /* dynamic width based on column count */
   text-align: center;
   vertical-align: top;
   border: none !important;

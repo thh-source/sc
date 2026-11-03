@@ -410,9 +410,111 @@ export async function processOfflineSyncQueue(
 
   let syncedCount = 0;
   const errors: any[] = [];
+  const totalItems = queue.length;
 
-  for (let i = 0; i < queue.length; i++) {
-    const item = queue[i];
+  // 1. Phân loại tác vụ: state sync và các tác vụ khác (như todos)
+  const stateItems: OfflineSyncItem[] = [];
+  const otherItems: OfflineSyncItem[] = [];
+
+  for (const item of queue) {
+    if (item.endpoint && item.endpoint.includes("/api/state")) {
+      stateItems.push(item);
+    } else {
+      otherItems.push(item);
+    }
+  }
+
+  // 2. Xử lý nhóm /api/state: Gộp theo workspace để chỉ đẩy bản mới nhất
+  if (stateItems.length > 0) {
+    const stateGroups = new Map<string, OfflineSyncItem[]>();
+    for (const item of stateItems) {
+      try {
+        const urlObj = new URL(item.endpoint, "http://dummy");
+        const ws = urlObj.searchParams.get("workspace") || "default";
+        if (!stateGroups.has(ws)) stateGroups.set(ws, []);
+        stateGroups.get(ws)!.push(item);
+      } catch {
+        if (!stateGroups.has("default")) stateGroups.set("default", []);
+        stateGroups.get("default")!.push(item);
+      }
+    }
+
+    for (const [ws, items] of stateGroups.entries()) {
+      // Sắp xếp tăng dần theo createdAt, bản cuối cùng là mới nhất
+      items.sort((a, b) => a.createdAt - b.createdAt);
+      const latestItem = items[items.length - 1];
+
+      try {
+        // Lấy dữ liệu mới nhất từ backup nếu có
+        let payloadToSend = latestItem.data;
+        const backup = await getOfflineStateBackup(ws);
+        if (backup && backup.data) {
+          payloadToSend = { ...payloadToSend, ...backup.data };
+        }
+
+        const url = resolveApiUrl(latestItem.endpoint);
+
+        // Lấy version hiện tại trên server qua GET trước để tránh xung đột 409
+        let currentServerVersion: number | undefined;
+        try {
+          const checkRes = await fetch(url, { credentials: "include" });
+          if (checkRes.ok) {
+            const checkData = (await checkRes.json()) as { version?: number };
+            if (checkData?.version) currentServerVersion = checkData.version;
+          }
+        } catch {}
+
+        const headers: Record<string, string> = {
+          "Content-Type": "application/json",
+        };
+        if (currentServerVersion !== undefined && currentServerVersion > 0) {
+          headers["x-expected-version"] = String(currentServerVersion);
+        } else if (latestItem.expectedVersion !== undefined && latestItem.expectedVersion > 0) {
+          headers["x-expected-version"] = String(latestItem.expectedVersion);
+        }
+
+        let putRes = await fetch(url, {
+          method: "PUT",
+          headers,
+          credentials: "include",
+          body: JSON.stringify(payloadToSend),
+        });
+
+        if (putRes.status === 409) {
+          // Xung đột phiên bản: lấy version mới nhất từ response và gửi lại
+          const resData = (await putRes.json().catch(() => null)) as { currentVersion?: number } | null;
+          if (resData?.currentVersion) {
+            headers["x-expected-version"] = String(resData.currentVersion);
+            putRes = await fetch(url, {
+              method: "PUT",
+              headers,
+              credentials: "include",
+              body: JSON.stringify(payloadToSend),
+            });
+          }
+        }
+
+        if (!putRes.ok) {
+          throw new Error(`HTTP_${putRes.status}`);
+        }
+
+        // Đồng bộ thành công: Xóa TẤT CẢ các item /api/state của workspace này khỏi queue
+        for (const it of items) {
+          await removeOfflineAction(it.id);
+          syncedCount++;
+          if (onProgress) onProgress(syncedCount, totalItems);
+        }
+      } catch (err) {
+        console.warn(`Lỗi đồng bộ state workspace ${ws}:`, err);
+        for (const it of items) {
+          errors.push({ id: it.id, error: err });
+        }
+      }
+    }
+  }
+
+  // 3. Xử lý các tác vụ khác (như todos,...)
+  for (const item of otherItems) {
     try {
       const headers: Record<string, string> = {
         "Content-Type": "application/json",
@@ -422,37 +524,40 @@ export async function processOfflineSyncQueue(
       }
 
       const url = resolveApiUrl(item.endpoint);
-      const response = await fetch(url, {
+      let response = await fetch(url, {
         method: item.method || "POST",
         headers,
+        credentials: "include",
         body: item.data ? JSON.stringify(item.data) : undefined,
       });
 
       if (response.status === 409) {
-        // Xung đột phiên bản: Lấy version mới và thử ghi đè
         const resData = (await response.json().catch(() => null)) as { currentVersion?: number } | null;
         if (resData?.currentVersion) {
-          const retryHeaders = {
-            ...headers,
-            "x-expected-version": String(resData.currentVersion),
-          };
-          const retryRes = await fetch(url, {
+          headers["x-expected-version"] = String(resData.currentVersion);
+          response = await fetch(url, {
             method: item.method || "POST",
-            headers: retryHeaders,
+            headers,
+            credentials: "include",
             body: item.data ? JSON.stringify(item.data) : undefined,
           });
-          if (!retryRes.ok) throw new Error(`HTTP_${retryRes.status}`);
-        } else {
-          throw new Error("HTTP_409_CONFLICT");
         }
-      } else if (!response.ok) {
+      }
+
+      if (response.status === 404 && item.method === "DELETE") {
+        await removeOfflineAction(item.id);
+        syncedCount++;
+        if (onProgress) onProgress(syncedCount, totalItems);
+        continue;
+      }
+
+      if (!response.ok) {
         throw new Error(`HTTP_${response.status}`);
       }
 
-      // Gửi thành công -> Xóa khỏi queue
       await removeOfflineAction(item.id);
       syncedCount++;
-      if (onProgress) onProgress(syncedCount, queue.length);
+      if (onProgress) onProgress(syncedCount, totalItems);
     } catch (err) {
       console.warn(`Lỗi đồng bộ item ${item.id}:`, err);
       errors.push({ id: item.id, error: err });

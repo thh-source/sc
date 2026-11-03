@@ -8,6 +8,7 @@ interface OfflineSyncBannerProps {
   lastSyncStatus: "idle" | "syncing" | "success" | "error";
   syncMessage: string;
   onTriggerSync?: () => void;
+  onClearQueue?: () => void;
 }
 
 export const OfflineSyncBanner: React.FC<OfflineSyncBannerProps> = ({
@@ -17,6 +18,7 @@ export const OfflineSyncBanner: React.FC<OfflineSyncBannerProps> = ({
   lastSyncStatus,
   syncMessage,
   onTriggerSync,
+  onClearQueue,
 }) => {
   // Chỉ hiển thị banner khi:
   // 1. Ngoại tuyến (!isOnline)
@@ -97,26 +99,50 @@ export const OfflineSyncBanner: React.FC<OfflineSyncBannerProps> = ({
         </div>
       </div>
 
-      {isOnline && !isSyncing && queueCount > 0 && onTriggerSync && (
-        <button
-          onClick={onTriggerSync}
-          style={{
-            flexShrink: 0,
-            padding: "4px 10px",
-            fontSize: "11px",
-            fontWeight: 700,
-            borderRadius: "8px",
-            background: "rgba(255, 255, 255, 0.25)",
-            color: "#ffffff",
-            border: "none",
-            cursor: "pointer",
-            textTransform: "uppercase",
-            letterSpacing: "0.5px",
-          }}
-          title="Thực hiện đồng bộ ngay"
-        >
-          Đồng bộ ngay
-        </button>
+      {isOnline && !isSyncing && queueCount > 0 && (
+        <div style={{ display: "flex", alignItems: "center", gap: "6px", flexShrink: 0 }}>
+          {onTriggerSync && (
+            <button
+              onClick={onTriggerSync}
+              style={{
+                flexShrink: 0,
+                padding: "4px 10px",
+                fontSize: "11px",
+                fontWeight: 700,
+                borderRadius: "8px",
+                background: "rgba(255, 255, 255, 0.25)",
+                color: "#ffffff",
+                border: "none",
+                cursor: "pointer",
+                textTransform: "uppercase",
+                letterSpacing: "0.5px",
+              }}
+              title="Thực hiện đồng bộ ngay"
+            >
+              Đồng bộ ngay
+            </button>
+          )}
+          {lastSyncStatus === "error" && onClearQueue && (
+            <button
+              onClick={onClearQueue}
+              style={{
+                flexShrink: 0,
+                padding: "4px 8px",
+                fontSize: "11px",
+                fontWeight: 600,
+                borderRadius: "8px",
+                background: "rgba(0, 0, 0, 0.2)",
+                color: "#fecdd3",
+                border: "1px solid rgba(255, 255, 255, 0.3)",
+                cursor: "pointer",
+                letterSpacing: "0.3px",
+              }}
+              title="Xóa bỏ các tác vụ lỗi khỏi hàng đợi"
+            >
+              Bỏ qua
+            </button>
+          )}
+        </div>
       )}
     </div>
   );

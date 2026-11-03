@@ -1,0 +1,1273 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bản xem trước Giao diện Chuẩn MISA AMIS - SCMH Phenikaa</title>
+  <!-- Tailwind CSS Play CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google Fonts Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'system-ui', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          },
+          colors: {
+            misa: {
+              primary: '#0073e6',       /* Xanh MISA AMIS chính thống */
+              hover: '#0062c4',
+              light: '#f0f7ff',
+              border: '#dbeafe',
+              dark: '#0f172a',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    /* Custom scrollbars */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #f8fafc; }
+    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+    
+    .misa-sidebar-item.active {
+      background-color: #f0f7ff;
+      color: #0073e6;
+      font-weight: 600;
+      position: relative;
+    }
+    .misa-sidebar-item.active::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 4px;
+      bottom: 4px;
+      width: 3.5px;
+      background-color: #0073e6;
+      border-radius: 0 3px 3px 0;
+    }
+    
+    /* Animation drawer */
+    .drawer-overlay {
+      transition: opacity 0.25s ease;
+    }
+    .drawer-content {
+      transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+  </style>
+</head>
+<body class="bg-[#f4f6f8] text-slate-800 font-sans antialiased h-screen flex flex-col overflow-hidden select-none">
+
+  <!-- ========================================================================= -->
+  <!-- 0. TOP BANNER: MISA AMIS PREVIEW MODE NOTIFICATION                        -->
+  <!-- ========================================================================= -->
+  <div class="bg-gradient-to-r from-blue-700 via-indigo-700 to-blue-800 text-white px-4 py-2 text-xs flex items-center justify-between shadow-sm z-50 flex-shrink-0">
+    <div class="flex items-center gap-2">
+      <span class="inline-flex items-center justify-center bg-white/20 px-2 py-0.5 rounded font-bold uppercase tracking-wider text-[10px]">
+        ⭐ BẢN DEMO MÔ PHỎNG (MOCKUP)
+      </span>
+      <span class="font-medium">Nghiên cứu triết lý giao diện MISA AMIS (Mua hàng & Công việc) cho SCMH Phenikaa Pharma</span>
+    </div>
+    <div class="flex items-center gap-3">
+      <span class="text-blue-200">Chuyển màn hình xem trước:</span>
+      <div class="inline-flex bg-black/20 p-0.5 rounded-lg border border-white/20">
+        <button onclick="switchScreen('dashboard')" id="btn-quick-dashboard" class="px-2.5 py-1 rounded text-xs font-semibold bg-white text-blue-900 shadow-sm transition">1. Bàn làm việc</button>
+        <button onclick="switchScreen('po')" id="btn-quick-po" class="px-2.5 py-1 rounded text-xs font-semibold text-white hover:bg-white/10 transition">2. Đơn PO</button>
+        <button onclick="switchScreen('approval')" id="btn-quick-approval" class="px-2.5 py-1 rounded text-xs font-semibold text-white hover:bg-white/10 transition">3. PR & ĐNPD</button>
+        <button onclick="switchScreen('handover')" id="btn-quick-handover" class="px-2.5 py-1 rounded text-xs font-semibold text-white hover:bg-white/10 transition">4. Bàn giao</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- 1. TOP HEADER (CHUẨN ERP MISA: TRẮNG, GỌN, BREADCRUMB, TÌM KIẾM, AVATAR)    -->
+  <!-- ========================================================================= -->
+  <header class="h-14 bg-white border-b border-slate-200 px-4 flex items-center justify-between flex-shrink-0 z-40">
+    <!-- Left: Logo & Breadcrumbs -->
+    <div class="flex items-center gap-3">
+      <!-- MISA Logo & App Brand -->
+      <div class="flex items-center gap-2 pr-4 border-r border-slate-200">
+        <div class="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center text-white font-black text-sm shadow-sm tracking-tighter">
+          AMIS
+        </div>
+        <div>
+          <div class="font-bold text-xs leading-none text-slate-900 tracking-tight flex items-center gap-1.5">
+            MISA AMIS MUA HÀNG
+            <span class="bg-blue-50 text-blue-700 text-[10px] px-1.5 py-0.2 rounded font-semibold border border-blue-200">v2.6</span>
+          </div>
+          <small class="text-[10px] text-slate-500 font-medium">Phenikaa Pharma ERP Edition</small>
+        </div>
+      </div>
+
+      <!-- Breadcrumbs -->
+      <nav class="flex items-center text-xs text-slate-500 font-medium">
+        <span class="hover:text-slate-800 cursor-pointer">Hệ thống</span>
+        <svg class="w-3.5 h-3.5 mx-1.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+        <span class="hover:text-slate-800 cursor-pointer text-slate-700">Quản trị Mua hàng</span>
+        <svg class="w-3.5 h-3.5 mx-1.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+        <span id="header-breadcrumb-current" class="text-blue-600 font-semibold">Bàn làm việc (To-do List)</span>
+      </nav>
+    </div>
+
+    <!-- Right: Search, Notifications, Branch & User Profile -->
+    <div class="flex items-center gap-3">
+      <!-- Search Input -->
+      <div class="relative w-64">
+        <span class="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none text-slate-400">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+        </span>
+        <input type="text" placeholder="Tìm kiếm nhanh [Ctrl + K]..." class="w-full pl-8 pr-12 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:bg-white text-slate-800 placeholder-slate-400 transition" />
+        <span class="absolute inset-y-0 right-0 pr-2 flex items-center pointer-events-none">
+          <kbd class="text-[10px] bg-slate-200 text-slate-600 px-1.5 py-0.5 rounded font-mono">⌘K</kbd>
+        </span>
+      </div>
+
+      <!-- Chi nhánh Selector -->
+      <div class="flex items-center gap-1.5 text-xs px-2.5 py-1 bg-slate-50 border border-slate-200 rounded-md text-slate-700 font-medium">
+        <svg class="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
+        <span>Nhà máy Phenikaa Pharma</span>
+      </div>
+
+      <!-- Notification Bell with Ping Badge -->
+      <button class="relative p-1.5 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-md transition">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
+        <span class="absolute top-1 right-1 w-2 h-2 bg-rose-500 rounded-full ring-2 ring-white"></span>
+      </button>
+
+      <!-- User Profile -->
+      <div class="flex items-center gap-2 pl-2 border-l border-slate-200 cursor-pointer">
+        <div class="w-8 h-8 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-500 text-white font-bold text-xs flex items-center justify-center shadow-sm ring-1 ring-slate-200">
+          HA
+        </div>
+        <div class="text-left">
+          <div class="text-xs font-bold text-slate-800 leading-none">Trần Hải Hà</div>
+          <small class="text-[10px] text-slate-500">Phòng Cung Ứng</small>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- ========================================================================= -->
+  <!-- 2. MAIN WORKSPACE CONTAINER: SIDEBAR TRẮNG + CONTENT AREA                 -->
+  <!-- ========================================================================= -->
+  <div class="flex-1 flex overflow-hidden">
+
+    <!-- ===================================================================== -->
+    <!-- 2.1 SIDEBAR CHUẨN MISA: NỀN TRẮNG, KHÔNG XANH ĐẬM, ĐƯỜNG KẺ MẢNH        -->
+    <!-- ===================================================================== -->
+    <aside class="w-60 bg-white border-r border-slate-200 flex flex-col justify-between flex-shrink-0 z-30">
+      <div class="overflow-y-auto py-3 px-2 space-y-4">
+
+        <!-- Nhóm: BÀN LÀM VIỆC -->
+        <div>
+          <div class="px-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">
+            BÀN LÀM VIỆC
+          </div>
+          <div class="space-y-0.5">
+            <button onclick="switchScreen('dashboard')" id="menu-dashboard" class="misa-sidebar-item active w-full flex items-center justify-between px-3 py-2 rounded-md text-xs transition">
+              <div class="flex items-center gap-2.5">
+                <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+                <span>Tổng quan & Việc làm</span>
+              </div>
+              <span class="bg-blue-100 text-blue-800 text-[10px] px-1.5 py-0.2 rounded-full font-bold">5 việc</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Nhóm: QUY TRÌNH MUA SẮM CHÍNH -->
+        <div>
+          <div class="px-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">
+            NGHIỆP VỤ MUA HÀNG
+          </div>
+          <div class="space-y-0.5">
+            <button onclick="switchScreen('approval')" id="menu-approval" class="misa-sidebar-item w-full flex items-center justify-between px-3 py-2 rounded-md text-xs text-slate-700 hover:bg-slate-50 transition">
+              <div class="flex items-center gap-2.5">
+                <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                <span>Yêu cầu & ĐNPD</span>
+              </div>
+              <span class="bg-amber-100 text-amber-800 text-[10px] px-1.5 py-0.2 rounded-full font-bold">3 chờ duyệt</span>
+            </button>
+
+            <button onclick="switchScreen('po')" id="menu-po" class="misa-sidebar-item w-full flex items-center justify-between px-3 py-2 rounded-md text-xs text-slate-700 hover:bg-slate-50 transition">
+              <div class="flex items-center gap-2.5">
+                <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
+                <span>Đơn mua hàng (PO)</span>
+              </div>
+              <span class="bg-blue-100 text-blue-800 text-[10px] px-1.5 py-0.2 rounded-full font-bold">8 đang giao</span>
+            </button>
+
+            <button onclick="switchScreen('handover')" id="menu-handover" class="misa-sidebar-item w-full flex items-center justify-between px-3 py-2 rounded-md text-xs text-slate-700 hover:bg-slate-50 transition">
+              <div class="flex items-center gap-2.5">
+                <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
+                <span>Bàn giao & Nghiệm thu</span>
+              </div>
+            </button>
+          </div>
+        </div>
+
+        <!-- Nhóm: TÀI CHÍNH & THANH TOÁN -->
+        <div>
+          <div class="px-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">
+            ĐỐI SOÁT & THANH TOÁN
+          </div>
+          <div class="space-y-0.5">
+            <a href="javascript:void(0)" class="w-full flex items-center gap-2.5 px-3 py-2 rounded-md text-xs text-slate-700 hover:bg-slate-50 transition">
+              <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+              <span>Bảng kê Kế toán</span>
+            </a>
+            <a href="javascript:void(0)" class="w-full flex items-center gap-2.5 px-3 py-2 rounded-md text-xs text-slate-700 hover:bg-slate-50 transition">
+              <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2z"/></svg>
+              <span>Đề nghị thanh toán (ĐNTT)</span>
+            </a>
+          </div>
+        </div>
+
+        <!-- Nhóm: DANH MỤC TRUNG TÂM -->
+        <div>
+          <div class="px-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">
+            DANH MỤC TẬP TRUNG
+          </div>
+          <div class="space-y-0.5">
+            <a href="javascript:void(0)" class="w-full flex items-center gap-2.5 px-3 py-2 rounded-md text-xs text-slate-700 hover:bg-slate-50 transition">
+              <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
+              <span>Nhà cung cấp (96 đối tác)</span>
+            </a>
+            <a href="javascript:void(0)" class="w-full flex items-center gap-2.5 px-3 py-2 rounded-md text-xs text-slate-700 hover:bg-slate-50 transition">
+              <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/></svg>
+              <span>Hàng hóa & Vật tư (730 mã)</span>
+            </a>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Bottom Info -->
+      <div class="p-3 border-t border-slate-200 bg-slate-50/50 flex items-center justify-between text-[11px] text-slate-500">
+        <div class="flex items-center gap-1.5">
+          <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+          <span>Online · D1 Đồng bộ</span>
+        </div>
+        <span class="font-mono text-[10px]">v1.1.2</span>
+      </div>
+    </aside>
+
+    <!-- ===================================================================== -->
+    <!-- 2.2 CONTENT CONTAINER (DÙNG NỀN XÁM NHẸ #f4f6f8 DỊU MẮT)              -->
+    <!-- ===================================================================== -->
+    <main class="flex-1 overflow-y-auto p-4 md:p-6 bg-[#f4f6f8] relative">
+
+      <!-- =================================================================== -->
+      <!-- SCREEN 1: BÀN LÀM VIỆC & DASHBOARD                                  -->
+      <!-- =================================================================== -->
+      <section id="screen-dashboard" class="space-y-4">
+
+        <!-- Welcome Action Bar -->
+        <div class="bg-white rounded-lg border border-slate-200 p-4 shadow-sm flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h1 class="text-base font-bold text-slate-900">Bàn làm việc Mua hàng & Quản trị Công việc</h1>
+            <p class="text-xs text-slate-500 mt-0.5">Theo dõi thời gian thực tiến độ phê duyệt, trạng thái giao nhận và công việc ưu tiên cần xử lý.</p>
+          </div>
+          <!-- Các nút nghiệp vụ MISA AMIS -->
+          <div class="flex items-center gap-2 flex-wrap">
+            <button class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white shadow-sm transition">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+              <span>Tạo PR</span>
+            </button>
+            <button class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm transition">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+              <span>Tạo ĐNPD</span>
+            </button>
+            <button class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold bg-sky-600 hover:bg-sky-700 text-white shadow-sm transition">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
+              <span>Tạo PO</span>
+            </button>
+            <button class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm transition">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
+              <span>Tạo Bàn giao</span>
+            </button>
+            <button class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold bg-amber-600 hover:bg-amber-700 text-white shadow-sm transition">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+              <span>Tạo ĐNTT</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- MISA Bento KPI Strip (4 Thẻ Chỉ số) -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+          <!-- Card 1 -->
+          <div class="bg-white rounded-lg border border-slate-200 p-3.5 shadow-sm relative overflow-hidden">
+            <div class="absolute top-0 left-0 right-0 h-1 bg-blue-500"></div>
+            <div class="flex items-center justify-between text-slate-500 text-xs font-medium">
+              <span>Giá trị PO phát sinh tháng</span>
+              <span class="p-1.5 bg-blue-50 text-blue-600 rounded">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+              </span>
+            </div>
+            <div class="text-xl font-bold text-slate-900 mt-2 font-mono">486.250.000 ₫</div>
+            <div class="flex items-center gap-1 text-[11px] text-emerald-600 font-semibold mt-1">
+              <span>↑ +12.4%</span>
+              <span class="text-slate-400 font-normal">so với tháng trước (14 đơn)</span>
+            </div>
+          </div>
+
+          <!-- Card 2 -->
+          <div class="bg-white rounded-lg border border-slate-200 p-3.5 shadow-sm relative overflow-hidden">
+            <div class="absolute top-0 left-0 right-0 h-1 bg-amber-500"></div>
+            <div class="flex items-center justify-between text-slate-500 text-xs font-medium">
+              <span>ĐNPD chờ phê duyệt</span>
+              <span class="p-1.5 bg-amber-50 text-amber-600 rounded">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+              </span>
+            </div>
+            <div class="text-xl font-bold text-slate-900 mt-2">3 phiếu</div>
+            <div class="text-[11px] text-amber-700 font-medium mt-1">
+              <span>Cần lãnh đạo phê duyệt để phát hành PO</span>
+            </div>
+          </div>
+
+          <!-- Card 3 -->
+          <div class="bg-white rounded-lg border border-slate-200 p-3.5 shadow-sm relative overflow-hidden">
+            <div class="absolute top-0 left-0 right-0 h-1 bg-sky-500"></div>
+            <div class="flex items-center justify-between text-slate-500 text-xs font-medium">
+              <span>Đơn hàng đang giao</span>
+              <span class="p-1.5 bg-sky-50 text-sky-600 rounded">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+              </span>
+            </div>
+            <div class="text-xl font-bold text-slate-900 mt-2">8 đơn hàng</div>
+            <div class="text-[11px] text-sky-700 font-medium mt-1">
+              <span>2 đơn sắp đến hạn giao đợt này</span>
+            </div>
+          </div>
+
+          <!-- Card 4 -->
+          <div class="bg-white rounded-lg border border-slate-200 p-3.5 shadow-sm relative overflow-hidden">
+            <div class="absolute top-0 left-0 right-0 h-1 bg-rose-500"></div>
+            <div class="flex items-center justify-between text-slate-500 text-xs font-medium">
+              <span>Chứng từ cần đôn đốc</span>
+              <span class="p-1.5 bg-rose-50 text-rose-600 rounded">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+              </span>
+            </div>
+            <div class="text-xl font-bold text-rose-600 mt-2">4 hóa đơn VAT</div>
+            <div class="text-[11px] text-slate-500 mt-1">
+              <span>Đã nhận hàng đủ nhưng chưa nhận HĐ</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- MỤC TRỌNG TÂM: TO-DO LIST 2 CỘT CHUẨN MISA AMIS CÔNG VIỆC -->
+        <div class="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
+          <div class="p-3.5 border-b border-slate-200 flex items-center justify-between bg-slate-50/70">
+            <div class="flex items-center gap-2">
+              <span class="p-1 bg-blue-100 text-blue-700 rounded">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
+              </span>
+              <h2 class="text-sm font-bold text-slate-900">Công việc cần xử lý trong ngày (To-do List)</h2>
+              <span class="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full font-semibold border border-blue-200">Còn 5 việc cần làm</span>
+            </div>
+            <div class="flex items-center gap-2 text-xs">
+              <button class="text-blue-600 hover:underline font-semibold">Tất cả (6)</button>
+              <span class="text-slate-300">|</span>
+              <button class="text-slate-500 hover:text-slate-800">Chưa xong (5)</button>
+              <span class="text-slate-300">|</span>
+              <button class="text-slate-500 hover:text-slate-800">Đã xong (1)</button>
+            </div>
+          </div>
+
+          <!-- Quick Add Input -->
+          <div class="p-3 bg-white border-b border-slate-100 flex items-center gap-2">
+            <input type="text" placeholder="Thêm việc cần làm hôm nay... gõ @PO, @PR, @DNPD, @NCC để chọn nhanh" class="flex-1 text-xs border border-slate-200 rounded-md px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500" />
+            <label class="flex items-center gap-1 text-xs text-rose-600 font-semibold cursor-pointer">
+              <input type="checkbox" class="rounded text-rose-600 focus:ring-rose-500">
+              <span>ƯU TIÊN GẤP</span>
+            </label>
+            <button class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-md shadow-sm transition">
+              + Thêm việc
+            </button>
+          </div>
+
+          <!-- 2 Columns Grid for To-do items as requested -->
+          <div class="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-slate-200 p-2">
+            <!-- Cột 1: Việc ưu tiên cao & Nghiệp vụ mua -->
+            <div class="p-2 space-y-2">
+              <div class="text-[11px] font-bold text-rose-600 uppercase tracking-wider flex items-center gap-1 mb-2">
+                <span class="w-2 h-2 rounded-full bg-rose-500"></span>
+                Ưu tiên cao / Việc xử lý ngay
+              </div>
+
+              <!-- Task Item 1 -->
+              <div class="p-2.5 rounded-lg border border-rose-100 bg-rose-50/30 hover:bg-rose-50/60 transition flex items-start gap-2.5">
+                <input type="checkbox" class="mt-0.5 rounded text-blue-600 focus:ring-blue-500">
+                <div class="flex-1 text-xs">
+                  <div class="font-semibold text-slate-900 leading-snug">Liên hệ Techmaster lấy báo giá và hợp đồng thuê datalogger</div>
+                  <div class="flex items-center gap-1.5 mt-1">
+                    <span class="bg-indigo-50 text-indigo-700 px-1.5 py-0.2 rounded font-mono text-[10px] font-semibold border border-indigo-200">@PO-260318</span>
+                    <span class="bg-purple-50 text-purple-700 px-1.5 py-0.2 rounded font-mono text-[10px] font-semibold border border-purple-200">#Techmaster</span>
+                    <span class="text-[10px] text-slate-400">· Hạn hôm nay 17:00</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Task Item 2 -->
+              <div class="p-2.5 rounded-lg border border-amber-100 bg-amber-50/30 hover:bg-amber-50/60 transition flex items-start gap-2.5">
+                <input type="checkbox" class="mt-0.5 rounded text-blue-600 focus:ring-blue-500">
+                <div class="flex-1 text-xs">
+                  <div class="font-semibold text-slate-900 leading-snug">Làm thanh toán Alpha Coach hóa chất QC</div>
+                  <div class="flex items-center gap-1.5 mt-1">
+                    <span class="bg-emerald-50 text-emerald-700 px-1.5 py-0.2 rounded font-mono text-[10px] font-semibold border border-emerald-200">@ĐNTT</span>
+                    <span class="bg-blue-50 text-blue-700 px-1.5 py-0.2 rounded font-mono text-[10px] font-semibold border border-blue-200">#Alpha Coach</span>
+                    <span class="text-[10px] text-amber-700 font-semibold">9.100.000 ₫</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Task Item 3 -->
+              <div class="p-2.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 transition flex items-start gap-2.5">
+                <input type="checkbox" class="mt-0.5 rounded text-blue-600 focus:ring-blue-500">
+                <div class="flex-1 text-xs">
+                  <div class="font-medium text-slate-800 leading-snug">Đặt hàng Hóa chất QC PV và làm ĐNPD bổ sung</div>
+                  <div class="flex items-center gap-1.5 mt-1">
+                    <span class="bg-blue-50 text-blue-700 px-1.5 py-0.2 rounded font-mono text-[10px] font-semibold border border-blue-200">@ĐNPD-018</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Cột 2: Việc thường lệ & Bàn giao -->
+            <div class="p-2 space-y-2">
+              <div class="text-[11px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1 mb-2">
+                <span class="w-2 h-2 rounded-full bg-blue-500"></span>
+                Giao nhận & Thủ tục hành chính
+              </div>
+
+              <!-- Task Item 4 -->
+              <div class="p-2.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 transition flex items-start gap-2.5">
+                <input type="checkbox" class="mt-0.5 rounded text-blue-600 focus:ring-blue-500">
+                <div class="flex-1 text-xs">
+                  <div class="font-medium text-slate-800 leading-snug">Sửa hóa đơn tài phát và lấy biên bản giao hàng</div>
+                  <div class="flex items-center gap-1.5 mt-1">
+                    <span class="bg-slate-100 text-slate-600 px-1.5 py-0.2 rounded font-mono text-[10px]">#Tài Phát</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Task Item 5 -->
+              <div class="p-2.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 transition flex items-start gap-2.5">
+                <input type="checkbox" class="mt-0.5 rounded text-blue-600 focus:ring-blue-500">
+                <div class="flex-1 text-xs">
+                  <div class="font-medium text-slate-800 leading-snug">Xử lý đơn thuê UPS Nguyên Hà và ký nghiệm thu đợt 2</div>
+                  <div class="flex items-center gap-1.5 mt-1">
+                    <span class="bg-sky-50 text-sky-700 px-1.5 py-0.2 rounded font-mono text-[10px] font-semibold border border-sky-200">@PO-260312</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Task Item 6 (Đã hoàn thành) -->
+              <div class="p-2.5 rounded-lg border border-slate-200 bg-slate-50/70 transition flex items-start gap-2.5 opacity-60">
+                <input type="checkbox" checked class="mt-0.5 rounded text-emerald-600 focus:ring-emerald-500">
+                <div class="flex-1 text-xs">
+                  <div class="font-medium text-slate-500 line-through leading-snug">Thứ 2 ký hợp đồng Viasco kiểm nghiệm thuốc</div>
+                  <div class="flex items-center gap-1.5 mt-1 text-[10px] text-emerald-600 font-semibold">
+                    <span>✓ Đã hoàn tất hôm qua</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- =================================================================== -->
+      <!-- SCREEN 2: QUẢN LÝ ĐƠN MUA HÀNG (PO) CHUẨN BẢNG DỮ LIỆU MISA         -->
+      <!-- =================================================================== -->
+      <section id="screen-po" class="space-y-3.5 hidden">
+
+        <!-- Command Filter Toolbar -->
+        <div class="bg-white rounded-lg border border-slate-200 p-3 shadow-sm flex flex-wrap items-center justify-between gap-3">
+          <!-- Filter chips -->
+          <div class="flex items-center gap-1.5 flex-wrap">
+            <button class="px-2.5 py-1 text-xs font-bold bg-slate-900 text-white rounded-md">Tất cả (24)</button>
+            <button class="px-2.5 py-1 text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200 rounded-md hover:bg-amber-100">Chờ duyệt (3)</button>
+            <button class="px-2.5 py-1 text-xs font-medium bg-sky-50 text-sky-700 border border-sky-200 rounded-md hover:bg-sky-100">Đang giao (8)</button>
+            <button class="px-2.5 py-1 text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-md hover:bg-emerald-100">Đã hoàn thành (11)</button>
+            <button class="px-2.5 py-1 text-xs font-medium bg-rose-50 text-rose-700 border border-rose-200 rounded-md hover:bg-rose-100">Thiếu HĐ VAT (4)</button>
+          </div>
+
+          <!-- Actions -->
+          <div class="flex items-center gap-2">
+            <span class="text-xs text-slate-500">Hiển thị <b class="text-slate-800">24 / 24</b> đơn hàng</span>
+            <button class="inline-flex items-center gap-1 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-md shadow-sm transition">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+              <span>+ Tạo đơn PO mới</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- MISA Data Table for Purchase Orders -->
+        <div class="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
+          <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs border-collapse">
+              <thead>
+                <tr class="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold text-[11px] uppercase tracking-wider">
+                  <th class="p-3 w-10 text-center"><input type="checkbox" class="rounded"></th>
+                  <th class="p-3 w-32">SỐ PO</th>
+                  <th class="p-3 w-28">NGÀY ĐẶT</th>
+                  <th class="p-3 min-w-[220px]">NHÀ CUNG CẤP</th>
+                  <th class="p-3 text-right w-36">GIÁ TRỊ ĐƠN HÀNG</th>
+                  <th class="p-3 w-40 text-center">TIẾN ĐỘ GIAO</th>
+                  <th class="p-3 w-32 text-center">HÓA ĐƠN VAT</th>
+                  <th class="p-3 w-32 text-center">TRẠNG THÁI</th>
+                  <th class="p-3 w-28 text-center">THAO TÁC</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-100">
+                <!-- Row 1 -->
+                <tr onclick="openPoDrawer('PO-260318', 'CÔNG TY TNHH NI VINA', '22.401.000 ₫', '12 mặt hàng', 'Đang giao hàng')" class="hover:bg-blue-50/60 cursor-pointer transition">
+                  <td class="p-3 text-center" onclick="event.stopPropagation()"><input type="checkbox" class="rounded"></td>
+                  <td class="p-3 font-mono font-bold text-blue-600">PO-260318</td>
+                  <td class="p-3 text-slate-600">03/11/2026</td>
+                  <td class="p-3">
+                    <div class="font-bold text-slate-900">CÔNG TY TNHH NI VINA</div>
+                    <small class="text-slate-400">MST: 0107823910 · 12 mặt hàng</small>
+                  </td>
+                  <td class="p-3 text-right font-mono font-bold text-slate-900">22.401.000 ₫</td>
+                  <td class="p-3 text-center">
+                    <div class="w-full bg-slate-200 rounded-full h-1.5 mb-1">
+                      <div class="bg-blue-600 h-1.5 rounded-full" style="width: 60%"></div>
+                    </div>
+                    <span class="text-[10px] text-slate-500 font-semibold">Đã giao 60% (7/12)</span>
+                  </td>
+                  <td class="p-3 text-center">
+                    <span class="bg-amber-50 text-amber-700 border border-amber-200 text-[10px] px-2 py-0.5 rounded-full font-semibold">Chưa có HĐ</span>
+                  </td>
+                  <td class="p-3 text-center">
+                    <span class="bg-sky-50 text-sky-700 border border-sky-200 text-[10px] px-2 py-0.5 rounded-full font-semibold">Đang giao</span>
+                  </td>
+                  <td class="p-3 text-center" onclick="event.stopPropagation()">
+                    <button onclick="openPoDrawer('PO-260318', 'CÔNG TY TNHH NI VINA', '22.401.000 ₫', '12 mặt hàng', 'Đang giao hàng')" class="px-2 py-1 bg-white border border-slate-200 hover:bg-slate-50 text-blue-600 rounded text-xs font-semibold shadow-xs">
+                      Chi tiết ▾
+                    </button>
+                  </td>
+                </tr>
+
+                <!-- Row 2 -->
+                <tr onclick="openPoDrawer('PO-260315', 'CÔNG TY CỔ PHẦN MPK VIỆT NAM', '9.396.000 ₫', '1 mặt hàng', 'Đã duyệt')" class="hover:bg-blue-50/60 cursor-pointer transition">
+                  <td class="p-3 text-center" onclick="event.stopPropagation()"><input type="checkbox" class="rounded"></td>
+                  <td class="p-3 font-mono font-bold text-blue-600">PO-260315</td>
+                  <td class="p-3 text-slate-600">03/11/2026</td>
+                  <td class="p-3">
+                    <div class="font-bold text-slate-900">CÔNG TY CỔ PHẦN MPK VIỆT NAM</div>
+                    <small class="text-slate-400">Xe nâng tay thấp · 1 xe</small>
+                  </td>
+                  <td class="p-3 text-right font-mono font-bold text-slate-900">9.396.000 ₫</td>
+                  <td class="p-3 text-center">
+                    <div class="w-full bg-slate-200 rounded-full h-1.5 mb-1">
+                      <div class="bg-slate-300 h-1.5 rounded-full" style="width: 0%"></div>
+                    </div>
+                    <span class="text-[10px] text-slate-400">Chưa phát sinh giao</span>
+                  </td>
+                  <td class="p-3 text-center">
+                    <span class="bg-slate-100 text-slate-600 text-[10px] px-2 py-0.5 rounded-full">Chờ giao</span>
+                  </td>
+                  <td class="p-3 text-center">
+                    <span class="bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] px-2 py-0.5 rounded-full font-semibold">Đã duyệt PO</span>
+                  </td>
+                  <td class="p-3 text-center" onclick="event.stopPropagation()">
+                    <button onclick="openPoDrawer('PO-260315', 'CÔNG TY CỔ PHẦN MPK VIỆT NAM', '9.396.000 ₫', '1 mặt hàng', 'Đã duyệt')" class="px-2 py-1 bg-white border border-slate-200 hover:bg-slate-50 text-blue-600 rounded text-xs font-semibold shadow-xs">
+                      Chi tiết ▾
+                    </button>
+                  </td>
+                </tr>
+
+                <!-- Row 3 -->
+                <tr onclick="openPoDrawer('PO-260309', 'CÔNG TY TNHH VIỆT HỒNG', '23.500.000 ₫', '10 mặt hàng', 'Hoàn thành')" class="hover:bg-blue-50/60 cursor-pointer transition">
+                  <td class="p-3 text-center" onclick="event.stopPropagation()"><input type="checkbox" class="rounded"></td>
+                  <td class="p-3 font-mono font-bold text-blue-600">PO-260309</td>
+                  <td class="p-3 text-slate-600">28/10/2026</td>
+                  <td class="p-3">
+                    <div class="font-bold text-slate-900">CÔNG TY TNHH THƯƠNG MẠI DỊCH VỤ VIỆT HỒNG</div>
+                    <small class="text-slate-400">Hóa chất phân tích HPLC · 10 mục</small>
+                  </td>
+                  <td class="p-3 text-right font-mono font-bold text-slate-900">23.500.000 ₫</td>
+                  <td class="p-3 text-center">
+                    <div class="w-full bg-slate-200 rounded-full h-1.5 mb-1">
+                      <div class="bg-emerald-600 h-1.5 rounded-full" style="width: 100%"></div>
+                    </div>
+                    <span class="text-[10px] text-emerald-600 font-semibold">Đã nhận đủ 100%</span>
+                  </td>
+                  <td class="p-3 text-center">
+                    <span class="bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] px-2 py-0.5 rounded-full font-semibold">HĐ-002910</span>
+                  </td>
+                  <td class="p-3 text-center">
+                    <span class="bg-slate-100 text-slate-700 border border-slate-200 text-[10px] px-2 py-0.5 rounded-full font-semibold">Hoàn tất</span>
+                  </td>
+                  <td class="p-3 text-center" onclick="event.stopPropagation()">
+                    <button onclick="openPoDrawer('PO-260309', 'CÔNG TY TNHH VIỆT HỒNG', '23.500.000 ₫', '10 mặt hàng', 'Hoàn thành')" class="px-2 py-1 bg-white border border-slate-200 hover:bg-slate-50 text-blue-600 rounded text-xs font-semibold shadow-xs">
+                      Chi tiết ▾
+                    </button>
+                  </td>
+                </tr>
+
+                <!-- Row 4 -->
+                <tr onclick="openPoDrawer('PO-260301', 'VIỆN KIỂM NGHIỆM THUỐC TRUNG ƯƠNG', '59.600.000 ₫', '31 mục', 'Đang giao')" class="hover:bg-blue-50/60 cursor-pointer transition">
+                  <td class="p-3 text-center" onclick="event.stopPropagation()"><input type="checkbox" class="rounded"></td>
+                  <td class="p-3 font-mono font-bold text-blue-600">PO-260301</td>
+                  <td class="p-3 text-slate-600">26/10/2026</td>
+                  <td class="p-3">
+                    <div class="font-bold text-slate-900">VIỆN KIỂM NGHIỆM THUỐC TRUNG ƯƠNG</div>
+                    <small class="text-slate-400">Chất chuẩn kiểm nghiệm dược phẩm</small>
+                  </td>
+                  <td class="p-3 text-right font-mono font-bold text-slate-900">59.600.000 ₫</td>
+                  <td class="p-3 text-center">
+                    <div class="w-full bg-slate-200 rounded-full h-1.5 mb-1">
+                      <div class="bg-blue-600 h-1.5 rounded-full" style="width: 85%"></div>
+                    </div>
+                    <span class="text-[10px] text-slate-500 font-semibold">Đã giao 85% (26/31)</span>
+                  </td>
+                  <td class="p-3 text-center">
+                    <span class="bg-rose-50 text-rose-700 border border-rose-200 text-[10px] px-2 py-0.5 rounded-full font-semibold">Thiếu HĐ</span>
+                  </td>
+                  <td class="p-3 text-center">
+                    <span class="bg-sky-50 text-sky-700 border border-sky-200 text-[10px] px-2 py-0.5 rounded-full font-semibold">Đang giao</span>
+                  </td>
+                  <td class="p-3 text-center" onclick="event.stopPropagation()">
+                    <button onclick="openPoDrawer('PO-260301', 'VIỆN KIỂM NGHIỆM THUỐC TRUNG ƯƠNG', '59.600.000 ₫', '31 mục', 'Đang giao')" class="px-2 py-1 bg-white border border-slate-200 hover:bg-slate-50 text-blue-600 rounded text-xs font-semibold shadow-xs">
+                      Chi tiết ▾
+                    </button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Table Footer Pagination -->
+          <div class="p-3 border-t border-slate-200 bg-slate-50/50 flex items-center justify-between text-xs text-slate-500">
+            <div>Hiển thị 1 đến 4 trong tổng số 24 đơn đặt hàng</div>
+            <div class="flex items-center gap-1">
+              <button class="px-2 py-1 bg-white border border-slate-200 rounded text-slate-400 cursor-not-allowed">« Trước</button>
+              <button class="px-2.5 py-1 bg-blue-600 text-white rounded font-bold">1</button>
+              <button class="px-2.5 py-1 bg-white border border-slate-200 rounded hover:bg-slate-50">2</button>
+              <button class="px-2.5 py-1 bg-white border border-slate-200 rounded hover:bg-slate-50">3</button>
+              <button class="px-2 py-1 bg-white border border-slate-200 rounded hover:bg-slate-50">Sau »</button>
+            </div>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- =================================================================== -->
+      <!-- SCREEN 3: YÊU CẦU MUA SẮM (PR) & ĐỀ NGHỊ PHÊ DUYỆT (ĐNPD)           -->
+      <!-- =================================================================== -->
+      <section id="screen-approval" class="space-y-3.5 hidden">
+
+        <!-- Command Sub-tabs -->
+        <div class="bg-white rounded-lg border border-slate-200 p-2.5 shadow-sm flex items-center justify-between flex-wrap gap-2">
+          <div class="flex items-center bg-slate-100 p-1 rounded-md">
+            <button onclick="toggleApprovalSubtab('list')" id="tab-btn-dnpd-list" class="px-3 py-1 text-xs font-bold bg-white text-blue-700 rounded shadow-xs transition">
+              Danh sách ĐNPD (15 phiếu)
+            </button>
+            <button onclick="toggleApprovalSubtab('compare')" id="tab-btn-dnpd-compare" class="px-3 py-1 text-xs font-medium text-slate-600 hover:text-slate-900 transition">
+              Bảng so sánh báo giá (3 NCC)
+            </button>
+          </div>
+
+          <div class="flex items-center gap-2">
+            <span class="text-xs text-slate-500 italic">💡 Rê chuột vào mã ĐNPD để xem trước danh mục hàng</span>
+            <button class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-md shadow-sm transition">
+              + Tạo ĐNPD mới
+            </button>
+          </div>
+        </div>
+
+        <!-- VIEW A: DANH SÁCH ĐNPD (Đã bỏ cột Bộ phận lập, đã sắp xếp mới nhất lên đầu) -->
+        <div id="view-dnpd-list" class="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
+          <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs border-collapse">
+              <thead>
+                <tr class="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold text-[11px] uppercase tracking-wider">
+                  <th class="p-3 w-36">SỐ PR / MÃ PHIẾU</th>
+                  <th class="p-3 w-28">NGÀY LẬP</th>
+                  <th class="p-3 w-32 text-center">QUY MÔ ĐÁNH GIÁ</th>
+                  <th class="p-3 min-w-[220px]">NCC ĐỀ XUẤT LỰA CHỌN</th>
+                  <th class="p-3 text-right w-40">TỔNG TIỀN ĐỀ XUẤT</th>
+                  <th class="p-3 w-32 text-center">TRẠNG THÁI</th>
+                  <th class="p-3 w-36 text-center">THAO TÁC</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-100">
+                <!-- Row 1: ĐNPD-018 (03/11/2026 - Mới nhất xếp đầu) -->
+                <tr class="hover:bg-blue-50/50 transition relative group">
+                  <td class="p-3">
+                    <span onmouseenter="showApprovalHover(event, 'ĐNPD-018', '03/11/2026', 'CÔNG TY TNHH PHALCOLAB', '1 mặt hàng', '4.345.000 ₫')" onmouseleave="hideApprovalHover()" class="font-mono font-bold text-blue-600 hover:underline cursor-pointer bg-blue-50 px-2 py-1 rounded border border-blue-200">
+                      ĐNPD-018
+                    </span>
+                  </td>
+                  <td class="p-3 text-slate-700 font-medium">03/11/2026</td>
+                  <td class="p-3 text-center">
+                    <span class="bg-slate-100 text-slate-700 px-2 py-0.5 rounded text-[10px] font-semibold">3 NCC · 1 mục</span>
+                  </td>
+                  <td class="p-3 font-bold text-blue-600">CÔNG TY TNHH PHALCOLAB</td>
+                  <td class="p-3 text-right font-mono font-bold text-slate-900">4.345.000 ₫ <small class="block text-[10px] font-normal text-slate-400">Chưa VAT</small></td>
+                  <td class="p-3 text-center">
+                    <span class="bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] px-2 py-0.5 rounded-full font-semibold">Đã phê duyệt</span>
+                  </td>
+                  <td class="p-3 text-center space-x-1">
+                    <button class="px-2 py-1 bg-blue-600 text-white rounded text-xs font-semibold">Mở phiếu →</button>
+                    <button class="px-2 py-1 bg-emerald-600 text-white rounded text-xs font-semibold">+ Tạo PO</button>
+                  </td>
+                </tr>
+
+                <!-- Row 2: ĐNPD-015 (03/11/2026) -->
+                <tr class="hover:bg-blue-50/50 transition relative group">
+                  <td class="p-3">
+                    <span onmouseenter="showApprovalHover(event, 'ĐNPD-015', '03/11/2026', 'CÔNG TY CỔ PHẦN MPK VIỆT NAM', '1 mục', '9.396.000 ₫')" onmouseleave="hideApprovalHover()" class="font-mono font-bold text-blue-600 hover:underline cursor-pointer bg-blue-50 px-2 py-1 rounded border border-blue-200">
+                      ĐNPD-015
+                    </span>
+                  </td>
+                  <td class="p-3 text-slate-700 font-medium">03/11/2026</td>
+                  <td class="p-3 text-center">
+                    <span class="bg-slate-100 text-slate-700 px-2 py-0.5 rounded text-[10px] font-semibold">3 NCC · 1 mục</span>
+                  </td>
+                  <td class="p-3 font-bold text-blue-600">CÔNG TY CỔ PHẦN MPK VIỆT NAM</td>
+                  <td class="p-3 text-right font-mono font-bold text-slate-900">9.396.000 ₫ <small class="block text-[10px] font-normal text-slate-400">Chưa VAT</small></td>
+                  <td class="p-3 text-center">
+                    <span class="bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] px-2 py-0.5 rounded-full font-semibold">Đã phê duyệt</span>
+                  </td>
+                  <td class="p-3 text-center space-x-1">
+                    <button class="px-2 py-1 bg-blue-600 text-white rounded text-xs font-semibold">Mở phiếu →</button>
+                    <button class="px-2 py-1 bg-emerald-600 text-white rounded text-xs font-semibold">+ Tạo PO</button>
+                  </td>
+                </tr>
+
+                <!-- Row 3: ĐNPD-011 (01/11/2026) -->
+                <tr class="hover:bg-blue-50/50 transition relative group">
+                  <td class="p-3">
+                    <span onmouseenter="showApprovalHover(event, 'ĐNPD-011', '01/11/2026', 'Trần Hải Hà (Cung ứng)', '5 mục', '—')" onmouseleave="hideApprovalHover()" class="font-mono font-bold text-blue-600 hover:underline cursor-pointer bg-blue-50 px-2 py-1 rounded border border-blue-200">
+                      ĐNPD-011
+                    </span>
+                  </td>
+                  <td class="p-3 text-slate-700 font-medium">01/11/2026</td>
+                  <td class="p-3 text-center">
+                    <span class="bg-slate-100 text-slate-700 px-2 py-0.5 rounded text-[10px] font-semibold">3 NCC · 5 mục</span>
+                  </td>
+                  <td class="p-3 font-bold text-blue-600">Trần Hải Hà</td>
+                  <td class="p-3 text-right font-mono font-bold text-slate-400">—</td>
+                  <td class="p-3 text-center">
+                    <span class="bg-amber-50 text-amber-700 border border-amber-200 text-[10px] px-2 py-0.5 rounded-full font-semibold">Bản nháp</span>
+                  </td>
+                  <td class="p-3 text-center space-x-1">
+                    <button class="px-2 py-1 bg-blue-600 text-white rounded text-xs font-semibold">Mở phiếu →</button>
+                  </td>
+                </tr>
+
+                <!-- Row 4: ĐNPD-009 (28/10/2026) -->
+                <tr class="hover:bg-blue-50/50 transition relative group">
+                  <td class="p-3">
+                    <span onmouseenter="showApprovalHover(event, 'ĐNPD-009', '28/10/2026', 'CÔNG TY TNHH NI VINA', '12 mục', '22.401.000 ₫')" onmouseleave="hideApprovalHover()" class="font-mono font-bold text-blue-600 hover:underline cursor-pointer bg-blue-50 px-2 py-1 rounded border border-blue-200">
+                      ĐNPD-009
+                    </span>
+                  </td>
+                  <td class="p-3 text-slate-700 font-medium">28/10/2026</td>
+                  <td class="p-3 text-center">
+                    <span class="bg-slate-100 text-slate-700 px-2 py-0.5 rounded text-[10px] font-semibold">3 NCC · 12 mục</span>
+                  </td>
+                  <td class="p-3 font-bold text-blue-600">CÔNG TY TNHH NI VINA</td>
+                  <td class="p-3 text-right font-mono font-bold text-slate-900">22.401.000 ₫</td>
+                  <td class="p-3 text-center">
+                    <span class="bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] px-2 py-0.5 rounded-full font-semibold">Đã phê duyệt</span>
+                  </td>
+                  <td class="p-3 text-center space-x-1">
+                    <button class="px-2 py-1 bg-blue-600 text-white rounded text-xs font-semibold">Mở phiếu →</button>
+                    <button class="px-2 py-1 bg-emerald-600 text-white rounded text-xs font-semibold">+ Tạo PO</button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- VIEW B: BẢNG SO SÁNH BÁO GIÁ MA TRẬN 3 NHÀ CUNG CẤP -->
+        <div id="view-dnpd-compare" class="bg-white rounded-lg border border-slate-200 shadow-sm p-4 hidden">
+          <div class="flex items-center justify-between pb-3 border-b border-slate-200 mb-3">
+            <div>
+              <h3 class="font-bold text-sm text-slate-900">Bảng So Sánh Báo Giá Đề Xuất Phê Duyệt</h3>
+              <p class="text-xs text-slate-500">Mã PR: <b>PR-260318</b> · Yêu cầu mua xe nâng tay thấp phòng Kho nguyên liệu</p>
+            </div>
+            <span class="px-2.5 py-1 bg-emerald-100 text-emerald-800 text-xs font-bold rounded-full">
+              Khuyến nghị chọn: CÔNG TY CỔ PHẦN MPK VIỆT NAM
+            </span>
+          </div>
+
+          <div class="overflow-x-auto">
+            <table class="w-full text-xs border border-slate-200">
+              <thead>
+                <tr class="bg-slate-50 text-slate-700 font-bold">
+                  <th class="p-2.5 border border-slate-200 text-center w-12">STT</th>
+                  <th class="p-2.5 border border-slate-200 text-left">Tên hàng / Quy cách</th>
+                  <th class="p-2.5 border border-slate-200 text-center w-16">ĐVT</th>
+                  <th class="p-2.5 border border-slate-200 text-right w-16">SL</th>
+                  <!-- NCC 1 (Được chọn) -->
+                  <th class="p-2.5 border-2 border-emerald-500 bg-emerald-50/80 text-emerald-900 text-center w-48">
+                    <div class="font-bold">✓ MPK VIỆT NAM (CHỌN)</div>
+                    <small class="font-normal text-[10px]">Đơn giá tốt nhất</small>
+                  </th>
+                  <!-- NCC 2 -->
+                  <th class="p-2.5 border border-slate-200 bg-slate-50 text-center w-48">
+                    <div>KẾT NỐI TIÊU DÙNG</div>
+                    <small class="font-normal text-[10px]">Thời gian giao 3 ngày</small>
+                  </th>
+                  <!-- NCC 3 -->
+                  <th class="p-2.5 border border-slate-200 bg-slate-50 text-center w-48">
+                    <div>VIỆT HỒNG CO., LTD</div>
+                    <small class="font-normal text-[10px]">Chưa gồm vận chuyển</small>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="p-2.5 border border-slate-200 text-center">1</td>
+                  <td class="p-2.5 border border-slate-200">
+                    <div class="font-bold text-slate-800">Xe nâng tay thấp 2.5 tấn</div>
+                    <small class="text-slate-500">Càng rộng 685mm, nâng cao 200mm, bánh PU siêu bền</small>
+                  </td>
+                  <td class="p-2.5 border border-slate-200 text-center">Cái</td>
+                  <td class="p-2.5 border border-slate-200 text-right font-bold">1</td>
+                  <!-- Giá NCC 1 -->
+                  <td class="p-2.5 border-2 border-emerald-500 bg-emerald-50/50 text-right font-mono font-bold text-emerald-800">
+                    4.345.000 ₫
+                    <span class="block text-[10px] text-emerald-600 font-semibold">Tối ưu nhất</span>
+                  </td>
+                  <!-- Giá NCC 2 -->
+                  <td class="p-2.5 border border-slate-200 text-right font-mono text-slate-700">
+                    4.850.000 ₫
+                  </td>
+                  <!-- Giá NCC 3 -->
+                  <td class="p-2.5 border border-slate-200 text-right font-mono text-slate-700">
+                    5.200.000 ₫
+                  </td>
+                </tr>
+                <tr class="bg-slate-50 font-bold">
+                  <td colspan="4" class="p-2.5 border border-slate-200 text-right text-slate-700">
+                    TỔNG CỘNG TIỀN HÀNG (CHƯA VAT):
+                  </td>
+                  <td class="p-2.5 border-2 border-emerald-500 bg-emerald-100 text-right font-mono text-sm text-emerald-900">
+                    4.345.000 ₫
+                  </td>
+                  <td class="p-2.5 border border-slate-200 text-right font-mono text-slate-800">
+                    4.850.000 ₫
+                  </td>
+                  <td class="p-2.5 border border-slate-200 text-right font-mono text-slate-800">
+                    5.200.000 ₫
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- =================================================================== -->
+      <!-- SCREEN 4: BÀN GIAO & NGHIỆM THU (THEO THỨ TỰ PO GỐC)                 -->
+      <!-- =================================================================== -->
+      <section id="screen-handover" class="space-y-3.5 hidden">
+
+        <!-- Header Controls -->
+        <div class="bg-white rounded-lg border border-slate-200 p-3 shadow-sm flex flex-wrap items-center justify-between gap-3">
+          <div class="flex items-center gap-3">
+            <span class="text-xs text-slate-600 font-semibold">Chọn Đơn hàng PO đối soát:</span>
+            <select class="text-xs border border-slate-200 rounded-md px-3 py-1.5 font-bold text-blue-700 bg-blue-50/50 focus:outline-none focus:ring-1 focus:ring-blue-500">
+              <option>PO-260318 · CÔNG TY TNHH NI VINA (12 mục - Đã giao 7/12)</option>
+              <option>PO-260301 · VIỆN KIỂM NGHIỆM THUỐC TRUNG ƯƠNG (31 mục - Đã giao 26/31)</option>
+              <option>PO-260315 · CÔNG TY CỔ PHẦN MPK VIỆT NAM (1 xe nâng tay)</option>
+            </select>
+          </div>
+
+          <div class="flex items-center gap-2">
+            <button class="px-3 py-1.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-semibold rounded-md shadow-xs transition">
+              In Biên bản bàn giao
+            </button>
+            <button class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-md shadow-sm transition">
+              ✓ Lưu & Xác nhận nghiệm thu
+            </button>
+          </div>
+        </div>
+
+        <!-- MISA Goods Receiving / Inspection Table -->
+        <div class="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
+          <div class="p-3 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+            <div>
+              <span class="text-xs font-bold text-slate-800">Biên bản kiểm đếm giao nhận hàng hóa đợt 2</span>
+              <span class="text-xs text-slate-500 ml-2">Ngày giao: <b>03/11/2026</b> · Người nhận: <b>Trần Hải Hà</b></span>
+            </div>
+            <span class="text-xs bg-sky-100 text-sky-800 font-bold px-2.5 py-0.5 rounded-full">
+              Tiến độ tích lũy: 60%
+            </span>
+          </div>
+
+          <div class="overflow-x-auto">
+            <table class="w-full text-xs text-left border-collapse">
+              <thead>
+                <tr class="bg-slate-100 text-slate-700 font-bold text-[11px] uppercase tracking-wider border-b border-slate-200">
+                  <th class="p-2.5 w-12 text-center">STT</th>
+                  <th class="p-2.5 w-28">MÃ VẬT TƯ</th>
+                  <th class="p-2.5 min-w-[200px]">TÊN HÀNG HÓA THEO PO</th>
+                  <th class="p-2.5 w-16 text-center">ĐVT</th>
+                  <th class="p-2.5 text-right w-24">SL THEO PO</th>
+                  <th class="p-2.5 text-right w-24 bg-blue-50 text-blue-900">ĐÃ GIAO ĐỢT TRƯỚC</th>
+                  <th class="p-2.5 text-right w-28 bg-emerald-50 text-emerald-900">GIAO ĐỢT NÀY</th>
+                  <th class="p-2.5 text-right w-24 bg-rose-50 text-rose-900">CÒN THIẾU</th>
+                  <th class="p-2.5 w-32 text-center">TÌNH TRẠNG</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-100">
+                <!-- Item 1 -->
+                <tr class="hover:bg-slate-50 transition">
+                  <td class="p-2.5 text-center text-slate-500">1</td>
+                  <td class="p-2.5 font-mono font-bold text-blue-600">100100002</td>
+                  <td class="p-2.5 font-semibold text-slate-900">Acetylcystein chuẩn phân tích HPLC</td>
+                  <td class="p-2.5 text-center">Lọ</td>
+                  <td class="p-2.5 text-right font-bold text-slate-800">10</td>
+                  <td class="p-2.5 text-right font-bold text-blue-700 bg-blue-50/30">10</td>
+                  <td class="p-2.5 text-right bg-emerald-50/30">
+                    <input type="number" value="0" class="w-16 text-right px-1.5 py-1 text-xs border border-slate-200 rounded font-bold text-slate-500 bg-slate-50">
+                  </td>
+                  <td class="p-2.5 text-right font-bold text-emerald-600 bg-rose-50/20">0 (Đủ)</td>
+                  <td class="p-2.5 text-center">
+                    <span class="bg-emerald-100 text-emerald-800 text-[10px] px-2 py-0.5 rounded-full font-bold">Đạt 100%</span>
+                  </td>
+                </tr>
+
+                <!-- Item 2 -->
+                <tr class="hover:bg-slate-50 transition">
+                  <td class="p-2.5 text-center text-slate-500">2</td>
+                  <td class="p-2.5 font-mono font-bold text-blue-600">100100051</td>
+                  <td class="p-2.5 font-semibold text-slate-900">Methanol HPLC (CH3OH) Chai 4 lít</td>
+                  <td class="p-2.5 text-center">Chai</td>
+                  <td class="p-2.5 text-right font-bold text-slate-800">20</td>
+                  <td class="p-2.5 text-right font-bold text-blue-700 bg-blue-50/30">10</td>
+                  <td class="p-2.5 text-right bg-emerald-50/30">
+                    <input type="number" value="10" class="w-16 text-right px-1.5 py-1 text-xs border border-emerald-300 rounded font-bold text-emerald-800 bg-white ring-1 ring-emerald-400">
+                  </td>
+                  <td class="p-2.5 text-right font-bold text-emerald-600 bg-rose-50/20">0 (Đủ)</td>
+                  <td class="p-2.5 text-center">
+                    <span class="bg-emerald-100 text-emerald-800 text-[10px] px-2 py-0.5 rounded-full font-bold">Giao đủ hôm nay</span>
+                  </td>
+                </tr>
+
+                <!-- Item 3 -->
+                <tr class="hover:bg-slate-50 transition">
+                  <td class="p-2.5 text-center text-slate-500">3</td>
+                  <td class="p-2.5 font-mono font-bold text-blue-600">100100052</td>
+                  <td class="p-2.5 font-semibold text-slate-900">Acetonitrile HPLC Chai 4 lít Merck</td>
+                  <td class="p-2.5 text-center">Chai</td>
+                  <td class="p-2.5 text-right font-bold text-slate-800">15</td>
+                  <td class="p-2.5 text-right font-bold text-blue-700 bg-blue-50/30">0</td>
+                  <td class="p-2.5 text-right bg-emerald-50/30">
+                    <input type="number" value="10" class="w-16 text-right px-1.5 py-1 text-xs border border-emerald-300 rounded font-bold text-emerald-800 bg-white ring-1 ring-emerald-400">
+                  </td>
+                  <td class="p-2.5 text-right font-bold text-rose-600 bg-rose-50/40">5 chai</td>
+                  <td class="p-2.5 text-center">
+                    <span class="bg-amber-100 text-amber-800 text-[10px] px-2 py-0.5 rounded-full font-bold">Giao 1 phần</span>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </section>
+
+    </main>
+
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- 3. MISA SLIDE-OVER DRAWER (CHI TIẾT ĐƠN PO MÀ KHÔNG CẦN CHUYỂN TRANG)       -->
+  <!-- ========================================================================= -->
+  <div id="po-drawer-backdrop" onclick="closePoDrawer()" class="fixed inset-0 bg-slate-900/40 backdrop-blur-xs z-50 opacity-0 pointer-events-none drawer-overlay"></div>
+  <div id="po-drawer-panel" class="fixed inset-y-0 right-0 w-full max-w-2xl bg-white shadow-2xl z-50 transform translate-x-full drawer-content flex flex-col">
+    <!-- Drawer Header -->
+    <div class="px-6 py-4 border-b border-slate-200 flex items-center justify-between bg-slate-50/80">
+      <div>
+        <div class="flex items-center gap-2">
+          <span id="drawer-po-number" class="text-base font-mono font-bold text-blue-600">PO-260318</span>
+          <span id="drawer-po-status" class="bg-sky-100 text-sky-800 text-xs px-2 py-0.5 rounded-full font-bold">Đang giao hàng</span>
+        </div>
+        <p id="drawer-po-supplier" class="text-xs font-bold text-slate-800 mt-1">CÔNG TY TNHH NI VINA</p>
+      </div>
+      <div class="flex items-center gap-2">
+        <button class="px-2.5 py-1 text-xs bg-white border border-slate-200 hover:bg-slate-50 rounded text-slate-700 font-semibold shadow-xs">
+          🖨 In PO
+        </button>
+        <button onclick="closePoDrawer()" class="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-md transition text-lg leading-none">
+          ✕
+        </button>
+      </div>
+    </div>
+
+    <!-- Drawer Navigation Tabs -->
+    <div class="flex border-b border-slate-200 px-6 text-xs font-semibold text-slate-600 gap-6 bg-white">
+      <button class="py-2.5 border-b-2 border-blue-600 text-blue-600">Thông tin chung</button>
+      <button class="py-2.5 text-slate-500 hover:text-slate-800">Danh mục hàng hóa (12)</button>
+      <button class="py-2.5 text-slate-500 hover:text-slate-800">Lịch sử giao nhận</button>
+      <button class="py-2.5 text-slate-500 hover:text-slate-800">Hóa đơn & Thanh toán</button>
+    </div>
+
+    <!-- Drawer Body -->
+    <div class="flex-1 overflow-y-auto p-6 space-y-5 text-xs">
+      <!-- 3 Metrics KPI in Drawer -->
+      <div class="grid grid-cols-3 gap-3">
+        <div class="p-3 bg-slate-50 border border-slate-200 rounded-lg">
+          <span class="text-slate-500 text-[11px]">Tổng giá trị đơn hàng</span>
+          <b id="drawer-po-total" class="block text-sm font-bold text-slate-900 mt-1 font-mono">22.401.000 ₫</b>
+        </div>
+        <div class="p-3 bg-slate-50 border border-slate-200 rounded-lg">
+          <span class="text-slate-500 text-[11px]">Tiến độ nhận hàng</span>
+          <b class="block text-sm font-bold text-blue-600 mt-1">60% (7/12 mục)</b>
+        </div>
+        <div class="p-3 bg-slate-50 border border-slate-200 rounded-lg">
+          <span class="text-slate-500 text-[11px]">Hạn giao cam kết</span>
+          <b class="block text-sm font-bold text-slate-900 mt-1">08/11/2026</b>
+        </div>
+      </div>
+
+      <!-- Detail Form Grid -->
+      <div class="space-y-3">
+        <h4 class="font-bold text-slate-900 uppercase text-[11px] tracking-wider border-b border-slate-100 pb-1">
+          Hợp đồng & Điều khoản thanh toán
+        </h4>
+        <div class="grid grid-cols-2 gap-3 text-slate-700">
+          <div>
+            <span class="text-slate-400 text-[11px] block">Người phụ trách mua:</span>
+            <b class="text-slate-800">Trần Hải Hà (Cung ứng)</b>
+          </div>
+          <div>
+            <span class="text-slate-400 text-[11px] block">Số PR gốc:</span>
+            <b class="text-blue-600 font-mono">08/03/PR2603</b>
+          </div>
+          <div>
+            <span class="text-slate-400 text-[11px] block">Địa điểm nhận hàng:</span>
+            <b>Kho Nhà máy Phenikaa Pharma, Hòa Lạc, Hà Nội</b>
+          </div>
+          <div>
+            <span class="text-slate-400 text-[11px] block">Điều khoản thanh toán:</span>
+            <b>Chuyển khoản 100% trong vòng 30 ngày sau khi nhận đủ HĐ VAT</b>
+          </div>
+        </div>
+      </div>
+
+      <!-- Sample Items list -->
+      <div>
+        <h4 class="font-bold text-slate-900 uppercase text-[11px] tracking-wider border-b border-slate-100 pb-2 mb-2">
+          Chi tiết vật tư đặt hàng
+        </h4>
+        <table class="w-full text-left text-xs border border-slate-200 rounded">
+          <thead class="bg-slate-50 text-slate-600 font-bold text-[11px]">
+            <tr>
+              <th class="p-2">Tên vật tư</th>
+              <th class="p-2 text-center">ĐVT</th>
+              <th class="p-2 text-right">Số lượng</th>
+              <th class="p-2 text-right">Đơn giá</th>
+              <th class="p-2 text-right">Thành tiền</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-100">
+            <tr>
+              <td class="p-2 font-semibold">Acetylcystein chuẩn kiểm nghiệm</td>
+              <td class="p-2 text-center">Lọ</td>
+              <td class="p-2 text-right font-bold">10</td>
+              <td class="p-2 text-right font-mono">400.000 ₫</td>
+              <td class="p-2 text-right font-mono font-bold">4.000.000 ₫</td>
+            </tr>
+            <tr>
+              <td class="p-2 font-semibold">Methanol HPLC (CH3OH) Chai 4 lít</td>
+              <td class="p-2 text-center">Chai</td>
+              <td class="p-2 text-right font-bold">20</td>
+              <td class="p-2 text-right font-mono">700.000 ₫</td>
+              <td class="p-2 text-right font-mono font-bold">14.000.000 ₫</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Drawer Footer Actions -->
+    <div class="p-4 border-t border-slate-200 bg-slate-50 flex items-center justify-between">
+      <button onclick="closePoDrawer()" class="px-4 py-2 border border-slate-300 text-slate-700 font-semibold rounded-md hover:bg-slate-100">
+        Đóng
+      </button>
+      <div class="flex items-center gap-2">
+        <button class="px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white font-semibold rounded-md shadow-xs">
+          Tạo Biên bản bàn giao
+        </button>
+        <button class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-md shadow-xs">
+          Chỉnh sửa đơn PO
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- 4. HOVER CARD POPOVER: XEM NHANH DANH MỤC HÀNG ĐNPD                       -->
+  <!-- ========================================================================= -->
+  <div id="approval-hover-card" class="fixed pointer-events-none opacity-0 transition-opacity duration-150 z-50 w-96 bg-white border border-slate-300 rounded-lg shadow-xl p-3 text-xs space-y-2">
+    <div class="flex items-center justify-between border-b border-slate-100 pb-1.5">
+      <div class="flex items-center gap-1.5">
+        <span id="hover-card-code" class="font-mono font-bold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded">ĐNPD-018</span>
+        <span class="font-bold text-slate-800">Danh mục hàng</span>
+      </div>
+      <span id="hover-card-date" class="text-[10px] text-slate-400">03/11/2026</span>
+    </div>
+    <div>
+      <div class="text-[11px] text-slate-500">Nhà cung cấp đề xuất:</div>
+      <b id="hover-card-supplier" class="text-blue-700 block">CÔNG TY TNHH PHALCOLAB</b>
+    </div>
+    <div class="border border-slate-100 rounded overflow-hidden">
+      <table class="w-full text-left text-[11px]">
+        <thead class="bg-slate-50 text-slate-500 font-semibold">
+          <tr>
+            <th class="p-1.5">Vật tư</th>
+            <th class="p-1.5 text-center">SL</th>
+            <th class="p-1.5 text-right">Đơn giá</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100">
+          <tr>
+            <td class="p-1.5 font-medium text-slate-800">Xe nâng tay thấp 2.5T</td>
+            <td class="p-1.5 text-center font-bold">1 cái</td>
+            <td class="p-1.5 text-right font-mono text-emerald-700 font-bold">4.345.000 ₫</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="flex items-center justify-between pt-1 border-t border-slate-100 text-[11px]">
+      <span class="text-slate-500">Tổng tiền đề xuất:</span>
+      <b id="hover-card-total" class="text-blue-600 font-bold font-mono">4.345.000 ₫</b>
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- 5. INTERACTIVE JAVASCRIPT FOR PREVIEW MOCKUP SWITCHING                     -->
+  <!-- ========================================================================= -->
+  <script>
+    const screens = ['dashboard', 'po', 'approval', 'handover'];
+    const breadcrumbTitles = {
+      dashboard: 'Bàn làm việc (To-do List)',
+      po: 'Quản lý Đơn mua hàng (PO)',
+      approval: 'Yêu cầu mua sắm & Đề nghị phê duyệt (ĐNPD)',
+      handover: 'Bàn giao & Nghiệm thu hàng hóa'
+    };
+
+    function switchScreen(screenId) {
+      // Hide all screens
+      screens.forEach(id => {
+        const sec = document.getElementById(`screen-${id}`);
+        if (sec) sec.classList.add('hidden');
+        
+        const menuBtn = document.getElementById(`menu-${id}`);
+        if (menuBtn) menuBtn.classList.remove('active');
+
+        const quickBtn = document.getElementById(`btn-quick-${id}`);
+        if (quickBtn) {
+          quickBtn.classList.remove('bg-white', 'text-blue-900');
+          quickBtn.classList.add('text-white', 'hover:bg-white/10');
+        }
+      });
+
+      // Show selected screen
+      const targetSec = document.getElementById(`screen-${screenId}`);
+      if (targetSec) targetSec.classList.remove('hidden');
+
+      const targetMenu = document.getElementById(`menu-${screenId}`);
+      if (targetMenu) targetMenu.classList.add('active');
+
+      const targetQuick = document.getElementById(`btn-quick-${screenId}`);
+      if (targetQuick) {
+        targetQuick.classList.remove('text-white', 'hover:bg-white/10');
+        targetQuick.classList.add('bg-white', 'text-blue-900');
+      }
+
+      // Update breadcrumb
+      document.getElementById('header-breadcrumb-current').innerText = breadcrumbTitles[screenId] || 'Màn hình làm việc';
+    }
+
+    // Toggle subtabs in Approval screen
+    function toggleApprovalSubtab(type) {
+      const listDiv = document.getElementById('view-dnpd-list');
+      const compareDiv = document.getElementById('view-dnpd-compare');
+      const btnList = document.getElementById('tab-btn-dnpd-list');
+      const btnCompare = document.getElementById('tab-btn-dnpd-compare');
+
+      if (type === 'list') {
+        listDiv.classList.remove('hidden');
+        compareDiv.classList.add('hidden');
+        btnList.className = 'px-3 py-1 text-xs font-bold bg-white text-blue-700 rounded shadow-xs transition';
+        btnCompare.className = 'px-3 py-1 text-xs font-medium text-slate-600 hover:text-slate-900 transition';
+      } else {
+        listDiv.classList.add('hidden');
+        compareDiv.classList.remove('hidden');
+        btnCompare.className = 'px-3 py-1 text-xs font-bold bg-white text-blue-700 rounded shadow-xs transition';
+        btnList.className = 'px-3 py-1 text-xs font-medium text-slate-600 hover:text-slate-900 transition';
+      }
+    }
+
+    // PO Slide-over Drawer
+    function openPoDrawer(poNum, supplier, total, items, status) {
+      document.getElementById('drawer-po-number').innerText = poNum;
+      document.getElementById('drawer-po-supplier').innerText = supplier;
+      document.getElementById('drawer-po-total').innerText = total;
+      document.getElementById('drawer-po-status').innerText = status;
+
+      const overlay = document.getElementById('po-drawer-backdrop');
+      const panel = document.getElementById('po-drawer-panel');
+
+      overlay.classList.remove('pointer-events-none', 'opacity-0');
+      overlay.classList.add('opacity-100');
+      panel.classList.remove('translate-x-full');
+      panel.classList.add('translate-x-0');
+    }
+
+    function closePoDrawer() {
+      const overlay = document.getElementById('po-drawer-backdrop');
+      const panel = document.getElementById('po-drawer-panel');
+
+      overlay.classList.add('opacity-0', 'pointer-events-none');
+      overlay.classList.remove('opacity-100');
+      panel.classList.add('translate-x-full');
+      panel.classList.remove('translate-x-0');
+    }
+
+    // Approval Hover Card Popover
+    function showApprovalHover(event, code, date, supplier, items, total) {
+      const card = document.getElementById('approval-hover-card');
+      document.getElementById('hover-card-code').innerText = code;
+      document.getElementById('hover-card-date').innerText = date;
+      document.getElementById('hover-card-supplier').innerText = supplier;
+      document.getElementById('hover-card-total').innerText = total;
+
+      const rect = event.target.getBoundingClientRect();
+      card.style.top = `${rect.bottom + 6}px`;
+      card.style.left = `${Math.min(rect.left, window.innerWidth - 400)}px`;
+      card.classList.remove('opacity-0', 'pointer-events-none');
+      card.classList.add('opacity-100');
+    }
+
+    function hideApprovalHover() {
+      const card = document.getElementById('approval-hover-card');
+      card.classList.add('opacity-0', 'pointer-events-none');
+      card.classList.remove('opacity-100');
+    }
+  </script>
+</body>
+</html>

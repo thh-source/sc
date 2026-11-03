@@ -626,6 +626,12 @@ export type ApprovalItemRow = {
   supplierQuotes: Record<string, ApprovalSupplierQuoteLine[]>;
 };
 
+export interface ApprovalCustomSigner {
+  id: string;
+  title: string;
+  name: string;
+}
+
 export type ApprovalRequest = {
   id: number;
   requestNumber: string;
@@ -656,6 +662,7 @@ export type ApprovalRequest = {
   approverLeader: string;
   approverDeptHead: string;
   requesterName: string;
+  customSigners?: ApprovalCustomSigner[];
   status: "Nháp" | "Chờ phê duyệt" | "Đã phê duyệt" | "Đã tạo PO";
   isCompleted?: boolean;
   linkedPoId?: number;

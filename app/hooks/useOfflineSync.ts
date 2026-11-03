@@ -4,6 +4,7 @@ import {
   subscribeToNetworkStatus,
   getOfflineQueue,
   processOfflineSyncQueue,
+  clearOfflineQueue,
   OfflineSyncItem,
 } from "../utils/offlineSync";
 
@@ -14,6 +15,7 @@ export interface UseOfflineSyncReturn {
   lastSyncStatus: "idle" | "syncing" | "success" | "error";
   syncMessage: string;
   triggerSync: () => Promise<void>;
+  clearQueue: () => Promise<void>;
 }
 
 export function useOfflineSync(): UseOfflineSyncReturn {
@@ -138,6 +140,17 @@ export function useOfflineSync(): UseOfflineSyncReturn {
     };
   }, [refreshQueueCount, triggerSync]);
 
+  const clearQueue = useCallback(async () => {
+    try {
+      await clearOfflineQueue();
+      await refreshQueueCount();
+      setLastSyncStatus("idle");
+      setSyncMessage("");
+    } catch (err: any) {
+      console.warn("Lỗi xóa hàng đợi offline:", err);
+    }
+  }, [refreshQueueCount]);
+
   return {
     isOnline,
     isSyncing,
@@ -145,5 +158,6 @@ export function useOfflineSync(): UseOfflineSyncReturn {
     lastSyncStatus,
     syncMessage,
     triggerSync,
+    clearQueue,
   };
 }

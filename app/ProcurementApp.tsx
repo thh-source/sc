@@ -148,6 +148,31 @@ function ProcurementAppInner({
     [collapsed, setCollapsed] = useState(false),
     [prs, setPrs] = useState(prs0),
     [selectedPR, setSelectedPR] = useState(emptyPR);
+  const [uiTheme, setUiTheme] = useState<"classic" | "misa">(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("scm_ui_theme");
+      if (saved === "misa" || saved === "classic") return saved;
+    }
+    return "classic";
+  });
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("scm_ui_theme") as "classic" | "misa";
+      if (saved === "misa" || saved === "classic") {
+        if (saved !== uiTheme) setUiTheme(saved);
+        document.documentElement.classList.toggle("theme-misa", saved === "misa");
+        document.body.classList.toggle("theme-misa", saved === "misa");
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      document.documentElement.classList.toggle("theme-misa", uiTheme === "misa");
+      document.body.classList.toggle("theme-misa", uiTheme === "misa");
+    }
+  }, [uiTheme]);
   const [reportMode] = useState(Boolean(reportToken));
   const [items, setItems] = useState(items0),
     [suppliers, setSuppliers] = useState(suppliers0),
@@ -258,6 +283,7 @@ function ProcurementAppInner({
     lastSyncStatus,
     syncMessage,
     triggerSync,
+    clearQueue,
   } = useOfflineSync();
 
   // Hook quản lý Cập nhật từ xa tự động (OTA Update) cho Capacitor Android
@@ -436,6 +462,8 @@ function ProcurementAppInner({
         }
 
         try {
+          const bodyString = JSON.stringify(payloadToSend);
+          const safeKeepalive = Boolean(keepalive && bodyString.length < 60000);
           const response = await fetch(
             `/api/state?workspace=${encodeURIComponent(job.workspaceId)}`,
             {
@@ -446,8 +474,8 @@ function ProcurementAppInner({
                   ? { "x-expected-version": String(serverVersionRef.current) }
                   : {}),
               },
-              body: JSON.stringify(payloadToSend),
-              keepalive,
+              body: bodyString,
+              keepalive: safeKeepalive,
             },
           );
           if (response.status === 409) {
@@ -651,7 +679,7 @@ function ProcurementAppInner({
           })
           .catch((err) => console.error("Không thể tải payment seed:", err));
       }
-      if (data.approvalRequests && data.approvalRequests.length > 0) {
+      if (Array.isArray(data.approvalRequests)) {
         setApprovalRequests(data.approvalRequests);
       } else {
         setApprovalRequests(SAMPLE_PHENIKAA_APPROVALS);
@@ -2519,7 +2547,7 @@ function ProcurementAppInner({
 
   return (
     <div
-      className={`app ${collapsed ? "collapsed" : ""} ${reportMode ? "report-mode" : ""}`}
+      className={`app ${collapsed ? "collapsed" : ""} ${reportMode ? "report-mode" : ""} ${uiTheme === "misa" ? "theme-misa" : ""}`}
     >
       {isAppLoading && (
         <div
@@ -4270,6 +4298,8 @@ function ProcurementAppInner({
         onOpenPrintTemplates={() => navigateTo({ view: "print-templates" })}
         onOpenAdminSettings={() => navigateTo({ view: "settings" })}
         onStatus={setStorageStatus}
+        uiTheme={uiTheme}
+        onThemeChange={setUiTheme}
       />
 
       {/* Knowledge Base Contextual Slide-Over Drawer */}
@@ -4468,6 +4498,7 @@ function ProcurementAppInner({
         lastSyncStatus={lastSyncStatus}
         syncMessage={syncMessage}
         onTriggerSync={triggerSync}
+        onClearQueue={clearQueue}
       />
 
       {/* Floating OTA Update Notification Banner */}

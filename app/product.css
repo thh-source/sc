@@ -60,4 +60,14 @@
 .supplier-history-table td b,.supplier-history-table td small{display:block}
 .supplier-history-table td small{margin-top:3px;color:var(--muted);font-size:9px}
 .supplier-history-table .money{text-align:right;font-variant-numeric:tabular-nums}
+.product-table-panel{scrollbar-width:thin;scrollbar-color:#94a3b8 #f1f5f9}
+.product-table-panel::-webkit-scrollbar{width:8px;height:8px}
+.product-table-panel::-webkit-scrollbar-track{background:#f1f5f9;border-radius:4px}
+.product-table-panel::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:4px}
+.product-table-panel::-webkit-scrollbar-thumb:hover{background:#94a3b8}
+.supplier-list-panel{scrollbar-width:thin;scrollbar-color:#94a3b8 #f1f5f9}
+.supplier-list-panel::-webkit-scrollbar{width:8px;height:8px}
+.supplier-list-panel::-webkit-scrollbar-track{background:#f1f5f9;border-radius:4px}
+.supplier-list-panel::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:4px}
+.supplier-list-panel::-webkit-scrollbar-thumb:hover{background:#94a3b8}
 @media(max-width:700px){.supplier-toolbar,.supplier-detail-heading{align-items:stretch;flex-direction:column}.supplier-toolbar label{min-width:0;width:100%}.supplier-toolbar span{white-space:normal}.supplier-detail-panel{padding:13px}.supplier-history-kpis.compact{grid-template-columns:1fr}.product-table table{min-width:1120px}}

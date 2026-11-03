@@ -22,6 +22,7 @@ import {
   Sparkles,
   RotateCw,
   QrCode,
+  Palette,
 } from "lucide-react";
 import { useTranslation, SupportedLang } from "../i18n";
 import { CURRENT_APP_VERSION, getAppPlatform } from "../version";
@@ -46,6 +47,8 @@ export interface SettingsModalProps {
   onOpenPrintTemplates?: () => void;
   onOpenAdminSettings?: () => void;
   onStatus?: (msg: string) => void;
+  uiTheme?: "classic" | "misa";
+  onThemeChange?: (theme: "classic" | "misa") => void;
 }
 
 export function SettingsModal({
@@ -55,8 +58,37 @@ export function SettingsModal({
   onOpenPrintTemplates,
   onOpenAdminSettings,
   onStatus,
+  uiTheme: controlledTheme,
+  onThemeChange,
 }: SettingsModalProps) {
   const { lang, setLang, supportedLangs, t } = useTranslation();
+
+  // Dual Theme (Azure Wave Classic vs MISA AMIS Enterprise)
+  const [localTheme, setLocalTheme] = useState<"classic" | "misa">(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("scm_ui_theme");
+      if (saved === "misa" || saved === "classic") return saved;
+    }
+    return controlledTheme || "classic";
+  });
+
+  const activeTheme = controlledTheme || localTheme;
+
+  const handleSelectTheme = (theme: "classic" | "misa") => {
+    setLocalTheme(theme);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("scm_ui_theme", theme);
+      document.body.classList.toggle("theme-misa", theme === "misa");
+    }
+    if (onThemeChange) {
+      onThemeChange(theme);
+    }
+    onStatus?.(
+      theme === "misa"
+        ? "Đã kích hoạt Giao diện MISA AMIS Enterprise (Nền sáng, thanh cuộn rõ, dịu mắt)"
+        : "Đã kích hoạt Giao diện Azure Wave (Cổ điển)"
+    );
+  };
 
   const [shareLoading, setShareLoading] = useState(false);
   const [shareLink, setShareLink] = useState<string | null>(null);
@@ -271,6 +303,242 @@ export function SettingsModal({
           >
             <X size={20} />
           </button>
+        </div>
+
+        {/* Section: Phong cách Giao diện (UI Theme) - Song song 2 giao diện */}
+        <div
+          style={{
+            backgroundColor: "#f8fafc",
+            borderRadius: "10px",
+            border: "1px solid #e2e8f0",
+            padding: "16px",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "6px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <Palette size={16} style={{ color: "#0073e6" }} />
+              <h3 style={{ fontSize: "14px", fontWeight: 650, margin: 0, color: "#1e293b" }}>
+                Phong cách giao diện làm việc (UI Theme)
+              </h3>
+            </div>
+            <span
+              style={{
+                fontSize: "11px",
+                fontWeight: 650,
+                color: "#0073e6",
+                backgroundColor: "#e0f2fe",
+                padding: "2px 8px",
+                borderRadius: "10px",
+                border: "1px solid #bae6fd",
+              }}
+            >
+              Song song 2 giao diện
+            </span>
+          </div>
+          <p style={{ fontSize: "12px", color: "#64748b", margin: "0 0 12px" }}>
+            Hệ thống hỗ trợ chuyển đổi linh hoạt giữa giao diện truyền thống và giao diện doanh nghiệp chuẩn MISA:
+          </p>
+
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+            {/* Theme 1: Azure Wave (Cổ điển) */}
+            <button
+              type="button"
+              onClick={() => handleSelectTheme("classic")}
+              style={{
+                textAlign: "left",
+                border: activeTheme === "classic" ? "2px solid #2563eb" : "1px solid #cbd5e1",
+                backgroundColor: activeTheme === "classic" ? "#eff6ff" : "#ffffff",
+                borderRadius: "9px",
+                padding: "12px",
+                cursor: "pointer",
+                transition: "all 0.15s ease",
+                display: "flex",
+                flexDirection: "column",
+                gap: "8px",
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%" }}>
+                <span
+                  style={{
+                    fontSize: "13px",
+                    fontWeight: 700,
+                    color: activeTheme === "classic" ? "#1e40af" : "#1e293b",
+                  }}
+                >
+                  🌊 Azure Wave (Cổ điển)
+                </span>
+                {activeTheme === "classic" ? (
+                  <span
+                    style={{
+                      fontSize: "11px",
+                      fontWeight: 700,
+                      color: "#2563eb",
+                      backgroundColor: "#dbeafe",
+                      padding: "1px 6px",
+                      borderRadius: "10px",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "3px",
+                    }}
+                  >
+                    <Check size={12} /> Đang dùng
+                  </span>
+                ) : (
+                  <span style={{ fontSize: "11px", color: "#94a3b8" }}>Chọn dùng</span>
+                )}
+              </div>
+
+              {/* Mini visual preview */}
+              <div
+                style={{
+                  height: "56px",
+                  borderRadius: "5px",
+                  overflow: "hidden",
+                  border: "1px solid #cbd5e1",
+                  display: "flex",
+                  backgroundColor: "#f8fafc",
+                  width: "100%",
+                }}
+              >
+                <div
+                  style={{
+                    width: "32px",
+                    background: "linear-gradient(135deg, #3B82F6, #1D4ED8)",
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    padding: "5px 0",
+                    gap: "3px",
+                  }}
+                >
+                  <div style={{ width: "10px", height: "10px", borderRadius: "2px", backgroundColor: "#ffffff" }} />
+                  <div style={{ width: "18px", height: "2.5px", borderRadius: "2px", backgroundColor: "rgba(255,255,255,0.4)" }} />
+                  <div style={{ width: "18px", height: "2.5px", borderRadius: "2px", backgroundColor: "rgba(255,255,255,0.85)" }} />
+                  <div style={{ width: "18px", height: "2.5px", borderRadius: "2px", backgroundColor: "rgba(255,255,255,0.4)" }} />
+                </div>
+                <div style={{ flex: 1, padding: "5px 7px", display: "flex", flexDirection: "column", gap: "3px" }}>
+                  <div style={{ width: "45%", height: "4px", borderRadius: "2px", backgroundColor: "#94a3b8" }} />
+                  <div style={{ display: "flex", gap: "3px" }}>
+                    <div style={{ flex: 1, height: "14px", borderRadius: "2px", backgroundColor: "#ffffff", border: "1px solid #e2e8f0" }} />
+                    <div style={{ flex: 1, height: "14px", borderRadius: "2px", backgroundColor: "#ffffff", border: "1px solid #e2e8f0" }} />
+                  </div>
+                  <div style={{ height: "16px", borderRadius: "2px", backgroundColor: "#ffffff", border: "1px solid #e2e8f0" }} />
+                </div>
+              </div>
+
+              <span style={{ fontSize: "11px", color: "#64748b", lineHeight: 1.35 }}>
+                Sidebar xanh lam chuyển động sóng nước đặc trưng ban đầu của Phenikaa.
+              </span>
+            </button>
+
+            {/* Theme 2: MISA AMIS Enterprise */}
+            <button
+              type="button"
+              onClick={() => handleSelectTheme("misa")}
+              style={{
+                textAlign: "left",
+                border: activeTheme === "misa" ? "2px solid #0073e6" : "1px solid #cbd5e1",
+                backgroundColor: activeTheme === "misa" ? "#f0f7ff" : "#ffffff",
+                borderRadius: "9px",
+                padding: "12px",
+                cursor: "pointer",
+                transition: "all 0.15s ease",
+                display: "flex",
+                flexDirection: "column",
+                gap: "8px",
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "5px" }}>
+                  <span
+                    style={{
+                      fontSize: "13px",
+                      fontWeight: 700,
+                      color: activeTheme === "misa" ? "#0073e6" : "#1e293b",
+                    }}
+                  >
+                    🏢 MISA AMIS Enterprise
+                  </span>
+                </div>
+                {activeTheme === "misa" ? (
+                  <span
+                    style={{
+                      fontSize: "11px",
+                      fontWeight: 700,
+                      color: "#0073e6",
+                      backgroundColor: "#dbeafe",
+                      padding: "1px 6px",
+                      borderRadius: "10px",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "3px",
+                    }}
+                  >
+                    <Check size={12} /> Đang dùng
+                  </span>
+                ) : (
+                  <span
+                    style={{
+                      fontSize: "10px",
+                      fontWeight: 700,
+                      backgroundColor: "#e0f2fe",
+                      color: "#0284c7",
+                      padding: "1px 5px",
+                      borderRadius: "4px",
+                    }}
+                  >
+                    KHUYÊN DÙNG
+                  </span>
+                )}
+              </div>
+
+              {/* Mini visual preview */}
+              <div
+                style={{
+                  height: "56px",
+                  borderRadius: "5px",
+                  overflow: "hidden",
+                  border: "1px solid #cbd5e1",
+                  display: "flex",
+                  backgroundColor: "#f4f6f8",
+                  width: "100%",
+                }}
+              >
+                <div
+                  style={{
+                    width: "32px",
+                    backgroundColor: "#ffffff",
+                    borderRight: "1px solid #e2e8f0",
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    padding: "5px 0",
+                    gap: "3px",
+                  }}
+                >
+                  <div style={{ width: "10px", height: "10px", borderRadius: "2px", backgroundColor: "#0073e6" }} />
+                  <div style={{ width: "18px", height: "2.5px", borderRadius: "2px", backgroundColor: "#e2e8f0" }} />
+                  <div style={{ width: "100%", display: "flex", alignItems: "center" }}>
+                    <div style={{ width: "2.5px", height: "6px", backgroundColor: "#0073e6" }} />
+                    <div style={{ width: "14px", height: "2.5px", borderRadius: "2px", backgroundColor: "#0073e6", marginLeft: "3px" }} />
+                  </div>
+                  <div style={{ width: "18px", height: "2.5px", borderRadius: "2px", backgroundColor: "#e2e8f0" }} />
+                </div>
+                <div style={{ flex: 1, padding: "5px 7px", display: "flex", flexDirection: "column", gap: "3px" }}>
+                  <div style={{ width: "45%", height: "4px", borderRadius: "2px", backgroundColor: "#94a3b8" }} />
+                  <div style={{ display: "flex", gap: "3px" }}>
+                    <div style={{ flex: 1, height: "14px", borderRadius: "2px", backgroundColor: "#ffffff", border: "1px solid #e2e8f0" }} />
+                    <div style={{ flex: 1, height: "14px", borderRadius: "2px", backgroundColor: "#ffffff", border: "1px solid #e2e8f0" }} />
+                  </div>
+                  <div style={{ height: "16px", borderRadius: "2px", backgroundColor: "#ffffff", border: "1px solid #e2e8f0" }} />
+                </div>
+              </div>
+
+              <span style={{ fontSize: "11px", color: "#64748b", lineHeight: 1.35 }}>
+                Sidebar trắng thuần, viền xám mảnh, vạch xanh active 3.5px, canvas xám sáng dịu mắt.
+              </span>
+            </button>
+          </div>
         </div>
 
         {/* Section 1: Ngôn ngữ giao diện */}

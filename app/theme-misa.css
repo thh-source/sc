@@ -1,0 +1,410 @@
+/* ==========================================================================
+   PHENIKAA SCMH - MISA AMIS ENTERPRISE THEME
+   Chế độ Giao diện MISA AMIS (Nền sáng, Sidebar trắng, vạch xanh active 3.5px)
+   Chạy song song cùng giao diện Azure Wave (Cổ điển)
+   ========================================================================== */
+
+/* 1. Canvas & Typography */
+html.theme-misa,
+body.theme-misa,
+.app.theme-misa {
+  background-color: #f4f6f8 !important;
+  color: #1e293b !important;
+}
+
+/* 2. MISA Sidebar Shell: Pure White, Clean 1px Border, No Wave Animation */
+html.theme-misa aside,
+body.theme-misa aside,
+.app.theme-misa aside,
+.app.theme-misa > aside {
+  background: #ffffff !important;
+  background-image: none !important;
+  background-size: auto !important;
+  animation: none !important;
+  border-right: 1px solid #e2e8f0 !important;
+  box-shadow: 1px 0 4px rgba(0, 0, 0, 0.04) !important;
+  color: #334155 !important;
+}
+
+/* 3. Brand Header in Sidebar (Preserves Phenikaa Logo) */
+html.theme-misa aside .brand,
+body.theme-misa aside .brand,
+.app.theme-misa aside .brand,
+.app.theme-misa > aside .brand {
+  background: #ffffff !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  border-bottom: 1px solid #e2e8f0 !important;
+}
+
+html.theme-misa aside .brand > span,
+body.theme-misa aside .brand > span,
+.app.theme-misa aside .brand > span,
+.app.theme-misa > aside .brand > span {
+  background: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06) !important;
+}
+
+html.theme-misa aside .brand > b strong,
+body.theme-misa aside .brand > b strong,
+.app.theme-misa aside .brand > b strong,
+.app.theme-misa > aside .brand > b strong {
+  color: #0f172a !important;
+  font-weight: 750 !important;
+  letter-spacing: -0.01em !important;
+}
+
+html.theme-misa aside .brand > b small,
+body.theme-misa aside .brand > b small,
+.app.theme-misa aside .brand > b small,
+.app.theme-misa > aside .brand > b small {
+  color: #0073e6 !important;
+  font-weight: 650 !important;
+  letter-spacing: 0.04em !important;
+}
+
+/* 4. Sidebar Spotlight Search Button (Ctrl + K) */
+html.theme-misa .sidebar-search-btn,
+body.theme-misa .sidebar-search-btn,
+.app.theme-misa .sidebar-search-btn {
+  background: #f8fafc !important;
+  border: 1px solid #e2e8f0 !important;
+  color: #64748b !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+html.theme-misa .sidebar-search-btn:hover,
+body.theme-misa .sidebar-search-btn:hover,
+.app.theme-misa .sidebar-search-btn:hover {
+  background: #f1f5f9 !important;
+  border-color: #cbd5e1 !important;
+  color: #0f172a !important;
+  transform: none !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05) !important;
+}
+
+html.theme-misa .sidebar-search-btn .search-text,
+body.theme-misa .sidebar-search-btn .search-text,
+.app.theme-misa .sidebar-search-btn .search-text {
+  color: #475569 !important;
+}
+
+html.theme-misa .sidebar-search-btn .search-kbd,
+body.theme-misa .sidebar-search-btn .search-kbd,
+.app.theme-misa .sidebar-search-btn .search-kbd {
+  background: #e2e8f0 !important;
+  border: 1px solid #cbd5e1 !important;
+  color: #475569 !important;
+}
+
+/* 5. Sidebar Navigation Item Buttons */
+html.theme-misa aside nav,
+body.theme-misa aside nav,
+.app.theme-misa aside nav,
+.app.theme-misa > aside nav {
+  background: transparent !important;
+}
+
+html.theme-misa aside nav button,
+body.theme-misa aside nav button,
+.app.theme-misa aside nav button,
+.app.theme-misa > aside nav button {
+  color: #475569 !important;
+  background: transparent !important;
+  border: 1px solid transparent !important;
+  border-radius: 6px !important;
+  font-weight: 500 !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  transition: all 0.15s ease !important;
+  position: relative !important;
+}
+
+html.theme-misa aside nav button span,
+body.theme-misa aside nav button span,
+.app.theme-misa aside nav button span,
+.app.theme-misa > aside nav button span {
+  color: #64748b !important;
+  transition: color 0.15s ease !important;
+}
+
+html.theme-misa aside nav button b,
+body.theme-misa aside nav button b,
+.app.theme-misa aside nav button b,
+.app.theme-misa > aside nav button b {
+  color: #475569 !important;
+  font-weight: 500 !important;
+  transition: color 0.15s ease !important;
+}
+
+html.theme-misa aside nav button:hover,
+body.theme-misa aside nav button:hover,
+.app.theme-misa aside nav button:hover,
+.app.theme-misa > aside nav button:hover {
+  background: #f8fafc !important;
+  color: #0f172a !important;
+  transform: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+html.theme-misa aside nav button:hover span,
+body.theme-misa aside nav button:hover span,
+.app.theme-misa aside nav button:hover span,
+.app.theme-misa > aside nav button:hover span,
+html.theme-misa aside nav button:hover b,
+body.theme-misa aside nav button:hover b,
+.app.theme-misa aside nav button:hover b,
+.app.theme-misa > aside nav button:hover b {
+  color: #0f172a !important;
+}
+
+/* 6. MISA Active Item: Soft Light Blue Background + 3.5px MISA Royal Blue Indicator */
+html.theme-misa aside nav button.active,
+body.theme-misa aside nav button.active,
+.app.theme-misa aside nav button.active,
+.app.theme-misa > aside nav button.active,
+html.theme-misa aside nav .active,
+body.theme-misa aside nav .active,
+.app.theme-misa aside nav .active,
+.app.theme-misa > aside nav .active {
+  background: #f0f7ff !important;
+  color: #0073e6 !important;
+  border: 1px solid transparent !important;
+  border-left: 3.5px solid #0073e6 !important;
+  border-top-left-radius: 0 !important;
+  border-bottom-left-radius: 0 !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  font-weight: 650 !important;
+}
+
+html.theme-misa aside nav button.active span,
+body.theme-misa aside nav button.active span,
+.app.theme-misa aside nav button.active span,
+.app.theme-misa > aside nav button.active span,
+html.theme-misa aside nav .active span,
+body.theme-misa aside nav .active span,
+.app.theme-misa aside nav .active span,
+.app.theme-misa > aside nav .active span {
+  color: #0073e6 !important;
+}
+
+html.theme-misa aside nav button.active b,
+body.theme-misa aside nav button.active b,
+.app.theme-misa aside nav button.active b,
+.app.theme-misa > aside nav button.active b,
+html.theme-misa aside nav .active b,
+body.theme-misa aside nav .active b,
+.app.theme-misa aside nav .active b,
+.app.theme-misa > aside nav .active b {
+  color: #0073e6 !important;
+  font-weight: 650 !important;
+}
+
+/* 7. Sidebar Bottom Actions & Secondary Buttons */
+html.theme-misa .sidebar-bottom-actions,
+body.theme-misa .sidebar-bottom-actions,
+.app.theme-misa .sidebar-bottom-actions {
+  background: #ffffff !important;
+  border-top: 1px solid #e2e8f0 !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+html.theme-misa .sidebar-secondary-btn,
+body.theme-misa .sidebar-secondary-btn,
+.app.theme-misa .sidebar-secondary-btn {
+  background: #f8fafc !important;
+  border: 1px solid #e2e8f0 !important;
+  color: #475569 !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+html.theme-misa .sidebar-secondary-btn:hover,
+body.theme-misa .sidebar-secondary-btn:hover,
+.app.theme-misa .sidebar-secondary-btn:hover {
+  background: #f1f5f9 !important;
+  border-color: #cbd5e1 !important;
+  color: #0f172a !important;
+  transform: none !important;
+}
+
+html.theme-misa .sidebar-secondary-btn span,
+body.theme-misa .sidebar-secondary-btn span,
+.app.theme-misa .sidebar-secondary-btn span {
+  color: #475569 !important;
+}
+
+html.theme-misa .sidebar-user-card,
+body.theme-misa .sidebar-user-card,
+.app.theme-misa .sidebar-user-card {
+  background: #f8fafc !important;
+  border: 1px solid #e2e8f0 !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+html.theme-misa .sidebar-user-card .user-avatar,
+body.theme-misa .sidebar-user-card .user-avatar,
+.app.theme-misa .sidebar-user-card .user-avatar {
+  background: #e0f2fe !important;
+  color: #0284c7 !important;
+  box-shadow: none !important;
+}
+
+html.theme-misa .sidebar-user-card .user-name,
+body.theme-misa .sidebar-user-card .user-name,
+.app.theme-misa .sidebar-user-card .user-name {
+  color: #0f172a !important;
+}
+
+html.theme-misa .sidebar-user-card .user-role,
+body.theme-misa .sidebar-user-card .user-role,
+.app.theme-misa .sidebar-user-card .user-role {
+  color: #64748b !important;
+}
+
+html.theme-misa .collapse,
+body.theme-misa .collapse,
+.app.theme-misa .collapse {
+  border-top: 1px solid #e2e8f0 !important;
+  color: #64748b !important;
+}
+
+html.theme-misa .collapse:hover,
+body.theme-misa .collapse:hover,
+.app.theme-misa .collapse:hover {
+  background: #f8fafc !important;
+  color: #0f172a !important;
+}
+
+/* 8. Main Content Container */
+html.theme-misa main,
+body.theme-misa main,
+.app.theme-misa main {
+  background-color: #f4f6f8 !important;
+}
+
+/* 9. MISA Buttons */
+html.theme-misa button.primary,
+body.theme-misa button.primary,
+.app.theme-misa button.primary,
+html.theme-misa .btn-primary,
+body.theme-misa .btn-primary,
+.app.theme-misa .btn-primary,
+html.theme-misa .primary,
+body.theme-misa .primary,
+.app.theme-misa .primary,
+html.theme-misa .po-toolbar > button.primary,
+body.theme-misa .po-toolbar > button.primary,
+.app.theme-misa .po-toolbar > button.primary,
+html.theme-misa .pr-toolbar > button.primary,
+body.theme-misa .pr-toolbar > button.primary,
+.app.theme-misa .pr-toolbar > button.primary,
+html.theme-misa .product-toolbar > button.primary,
+body.theme-misa .product-toolbar > button.primary,
+.app.theme-misa .product-toolbar > button.primary,
+html.theme-misa .supplier-toolbar > button.primary,
+body.theme-misa .supplier-toolbar > button.primary,
+.app.theme-misa .supplier-toolbar > button.primary {
+  background: #0073e6 !important;
+  border-color: #0060c2 !important;
+  color: #ffffff !important;
+  box-shadow: 0 1px 2px rgba(0, 115, 230, 0.2) !important;
+}
+
+html.theme-misa button.primary:hover:not(:disabled),
+body.theme-misa button.primary:hover:not(:disabled),
+.app.theme-misa button.primary:hover:not(:disabled),
+html.theme-misa .btn-primary:hover:not(:disabled),
+body.theme-misa .btn-primary:hover:not(:disabled),
+.app.theme-misa .btn-primary:hover:not(:disabled),
+html.theme-misa .primary:hover:not(:disabled),
+body.theme-misa .primary:hover:not(:disabled),
+.app.theme-misa .primary:hover:not(:disabled) {
+  background: #0060c2 !important;
+  border-color: #004ea1 !important;
+  box-shadow: 0 2px 5px rgba(0, 115, 230, 0.3) !important;
+  transform: translateY(-0.5px) !important;
+}
+
+/* 10. MISA Surface Cards & Panels */
+html.theme-misa .pr-panel,
+body.theme-misa .pr-panel,
+.app.theme-misa .pr-panel,
+html.theme-misa .catalog-kpi-card,
+body.theme-misa .catalog-kpi-card,
+.app.theme-misa .catalog-kpi-card,
+html.theme-misa .pr-stats article,
+body.theme-misa .pr-stats article,
+.app.theme-misa .pr-stats article,
+html.theme-misa .cards article,
+body.theme-misa .cards article,
+.app.theme-misa .cards article {
+  border: 1px solid #e2e8f0 !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04) !important;
+}
+
+/* 11. MISA Data Tables */
+html.theme-misa .pr-table th,
+body.theme-misa .pr-table th,
+.app.theme-misa .pr-table th,
+html.theme-misa .catalog-table th,
+body.theme-misa .catalog-table th,
+.app.theme-misa .catalog-table th,
+html.theme-misa .payment-table th,
+body.theme-misa .payment-table th,
+.app.theme-misa .payment-table th,
+html.theme-misa .compare-table th,
+body.theme-misa .compare-table th,
+.app.theme-misa .compare-table th {
+  background-color: #f8fafc !important;
+  color: #334155 !important;
+  border-bottom: 2px solid #cbd5e1 !important;
+}
+
+html.theme-misa .pr-table td,
+body.theme-misa .pr-table td,
+.app.theme-misa .pr-table td,
+html.theme-misa .catalog-table td,
+body.theme-misa .catalog-table td,
+.app.theme-misa .catalog-table td,
+html.theme-misa .payment-table td,
+body.theme-misa .payment-table td,
+.app.theme-misa .payment-table td,
+html.theme-misa .compare-table td,
+body.theme-misa .compare-table td,
+.app.theme-misa .compare-table td {
+  border-bottom: 1px solid #f1f5f9 !important;
+}
+
+html.theme-misa tr:hover td,
+body.theme-misa tr:hover td,
+.app.theme-misa tr:hover td {
+  background-color: #f8fafc !important;
+}
+
+/* 12. Mobile Header */
+html.theme-misa .mobile-header,
+body.theme-misa .mobile-header,
+.app.theme-misa .mobile-header {
+  background: #ffffff !important;
+  border-bottom: 1px solid #e2e8f0 !important;
+  color: #0f172a !important;
+}
+
+html.theme-misa .mobile-header .mobile-search-btn,
+body.theme-misa .mobile-header .mobile-search-btn,
+.app.theme-misa .mobile-header .mobile-search-btn {
+  background: #f8fafc !important;
+  border: 1px solid #e2e8f0 !important;
+  color: #475569 !important;
+}
