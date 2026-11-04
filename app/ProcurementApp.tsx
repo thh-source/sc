@@ -3243,6 +3243,7 @@ function ProcurementAppInner({
         {view === "po-detail" && (
           <ErrorBoundary key="po-detail" fallbackTitle="Lỗi hiển thị chi tiết Đơn mua hàng (PO)" onReset={() => navigateTo({ view: "po-list" })}>
             <PODetail
+              key={currentPO?.id || "po"}
               po={currentPO?.id ? currentPO : ((pos && pos.length > 0) ? pos[0] : emptyPO)}
               pos={pos}
               trash={trash}

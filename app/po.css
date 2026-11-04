@@ -474,6 +474,22 @@
   box-shadow: 0 2px 8px rgba(15, 23, 42, 0.05);
 }
 
+.po-tab-btn {
+  font-family: inherit;
+  outline: none;
+  cursor: pointer;
+}
+.po-tab-btn:hover:not(.active) {
+  background: #f1f5f9 !important;
+  color: #1e293b !important;
+  border-color: #94a3b8 !important;
+}
+.po-tab-btn.active {
+  background: #0284c7 !important;
+  color: #ffffff !important;
+  border-color: #0369a1 !important;
+}
+
 .po-detail .po-section {
   overflow: visible !important;
   flex-shrink: 0 !important;

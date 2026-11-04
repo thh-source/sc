@@ -20,6 +20,10 @@ import {
   AlertCircle,
   Package,
   ExternalLink,
+  Building2,
+  FolderCheck,
+  Clock,
+  Layers,
 } from "lucide-react";
 import {
   Supplier,
@@ -52,6 +56,8 @@ import { isPaymentCompleted } from "../utils/paymentSync";
 import { resolveDocFlow } from "../utils/docFlow";
 import { isPOCompleted, calcPODeliveryStats, calcPOItemDeliveryStats } from "../utils/paymentSync";
 import { PODeliveryModal, POItemsMobileCards, DeliveryConfirmPayload } from "./PODeliveryMobileSheet";
+
+export type POTabId = "supplier" | "documents" | "payments" | "timeline" | "items" | "all";
 
 export function PODetail({
   po,
@@ -136,9 +142,67 @@ export function PODetail({
   const [showImportApprovalModal, setShowImportApprovalModal] = useState(false);
   const [itemsViewMode, setItemsViewMode] = useState<"auto" | "table" | "card">("auto");
 
+  // Quản lý tab hiển thị riêng biệt từng mục (không dàn trải)
+  const [activeTab, setActiveTab] = useState<POTabId>(() => {
+    if (typeof window !== "undefined") {
+      const hash = window.location.hash.toLowerCase();
+      if (hash.includes("tab=supplier") || hash.endsWith("#supplier")) return "supplier";
+      if (hash.includes("tab=document") || hash.endsWith("#documents")) return "documents";
+      if (hash.includes("tab=payment") || hash.endsWith("#payments")) return "payments";
+      if (hash.includes("tab=timeline") || hash.endsWith("#timeline")) return "timeline";
+      if (hash.includes("tab=item") || hash.endsWith("#po-items") || hash.endsWith("#items")) return "items";
+      if (hash.includes("tab=all") || hash.endsWith("#all")) return "all";
+
+      const saved = sessionStorage.getItem("po_detail_active_tab");
+      if (saved && ["supplier", "documents", "payments", "timeline", "items", "all"].includes(saved)) {
+        return saved as POTabId;
+      }
+    }
+    return "supplier";
+  });
+
+  const handleSelectTab = (tab: POTabId) => {
+    setActiveTab(tab);
+    if (typeof window !== "undefined") {
+      try {
+        sessionStorage.setItem("po_detail_active_tab", tab);
+        const hash = window.location.hash;
+        if (hash.startsWith("#view=po-detail")) {
+          const params = new URLSearchParams(hash.replace(/^#/, ""));
+          params.set("tab", tab);
+          window.history.replaceState(null, "", `#${params.toString()}`);
+        }
+      } catch {
+        // ignore
+      }
+      const tabsEl = document.querySelector(".po-tabs");
+      if (tabsEl) {
+        const rect = tabsEl.getBoundingClientRect();
+        if (rect.top < 60) {
+          tabsEl.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
+      }
+    }
+  };
+
+  useEffect(() => {
+    const handleHash = () => {
+      if (typeof window === "undefined") return;
+      const hash = window.location.hash.toLowerCase();
+      if (hash.includes("tab=supplier") || hash.endsWith("#supplier")) setActiveTab("supplier");
+      else if (hash.includes("tab=document") || hash.endsWith("#documents")) setActiveTab("documents");
+      else if (hash.includes("tab=payment") || hash.endsWith("#payments")) setActiveTab("payments");
+      else if (hash.includes("tab=timeline") || hash.endsWith("#timeline")) setActiveTab("timeline");
+      else if (hash.includes("tab=item") || hash.endsWith("#po-items") || hash.endsWith("#items")) setActiveTab("items");
+      else if (hash.includes("tab=all") || hash.endsWith("#all")) setActiveTab("all");
+    };
+    window.addEventListener("hashchange", handleHash);
+    return () => window.removeEventListener("hashchange", handleHash);
+  }, []);
+
   // Quản lý thu gọn / xổ ra theo yêu cầu tối ưu mobile
-  const [isSupplierExpanded, setIsSupplierExpanded] = useState(false);
-  const [isPaymentsExpanded, setIsPaymentsExpanded] = useState(false);
+  const [isSupplierExpanded, setIsSupplierExpanded] = useState(true);
+  const [isPaymentsExpanded, setIsPaymentsExpanded] = useState(true);
   const [showNoteInput, setShowNoteInput] = useState(false);
 
   const supplier = suppliers.find((s) => Number(s.id) === Number(po.supplierId));
@@ -733,6 +797,50 @@ export function PODetail({
         kind: "payment",
       })),
   ].sort((a, b) => (a.date || "").localeCompare(b.date || ""));
+
+  const poTabs: {
+    id: POTabId;
+    label: string;
+    icon: React.ReactNode;
+    badge?: string | number | null;
+  }[] = [
+    {
+      id: "supplier",
+      label: "Thông tin NCC",
+      icon: <Building2 size={15} />,
+      badge: supplier?.shortName || (supplier ? "Đã chọn" : null),
+    },
+    {
+      id: "documents",
+      label: "Hồ sơ & Hợp đồng",
+      icon: <FolderCheck size={15} />,
+      badge: (po.docs || []).length > 0 ? (po.docs || []).length : undefined,
+    },
+    {
+      id: "payments",
+      label: "Thanh toán",
+      icon: <CreditCard size={15} />,
+      badge: (po.payments || []).length > 0 ? `${(po.payments || []).length} đợt` : undefined,
+    },
+    {
+      id: "timeline",
+      label: "Timeline",
+      icon: <Clock size={15} />,
+      badge: events.length > 0 ? events.length : undefined,
+    },
+    {
+      id: "items",
+      label: "Danh sách hàng hóa & Giao hàng",
+      icon: <Package size={15} />,
+      badge: `${items.length} mục`,
+    },
+    {
+      id: "all",
+      label: "Xem toàn bộ",
+      icon: <Layers size={15} />,
+    },
+  ];
+
   return (
     <section className="content po-detail">
       <div className="heading">
@@ -1055,13 +1163,77 @@ export function PODetail({
           </div>
         )
       )}
-      <div className="po-tabs" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "8px" }}>
-        <div style={{ display: "flex", gap: "4px", overflowX: "auto" }}>
-          <a href="#supplier">Thông tin NCC</a>
-          <a href="#documents">Hồ sơ & Hợp đồng</a>
-          <a href="#payments">Thanh toán</a>
-          <a href="#timeline">Timeline</a>
-          <a href="#po-items">Danh sách hàng hóa & Giao hàng</a>
+      <div
+        className="po-tabs"
+        role="tablist"
+        aria-label="Các mục thông tin PO"
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          flexWrap: "wrap",
+          gap: "8px",
+          background: "#ffffff",
+          border: "1px solid #e2e8f0",
+          borderRadius: "10px",
+          padding: "6px 10px",
+          marginBottom: "16px",
+          boxShadow: "0 1px 3px rgba(15, 23, 42, 0.05)",
+          position: "sticky",
+          top: "60px",
+          zIndex: 10,
+        }}
+      >
+        <div style={{ display: "flex", gap: "6px", overflowX: "auto", padding: "2px 0", alignItems: "center" }}>
+          {poTabs.map((tab) => {
+            const isActive = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                role="tab"
+                aria-selected={isActive}
+                onClick={() => handleSelectTab(tab.id)}
+                className={`po-tab-btn ${isActive ? "active" : ""}`}
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "7px",
+                  padding: "7px 13px",
+                  borderRadius: "7px",
+                  fontSize: "12.5px",
+                  fontWeight: isActive ? 700 : 600,
+                  color: isActive ? "#ffffff" : "#475569",
+                  background: isActive ? "#0284c7" : "#ffffff",
+                  border: isActive ? "1.5px solid #0369a1" : "1.5px solid #cbd5e1",
+                  boxShadow: isActive ? "0 2px 4px rgba(2, 132, 199, 0.25)" : "none",
+                  cursor: "pointer",
+                  transition: "all 0.15s ease",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                <span style={{ display: "inline-flex", color: isActive ? "#ffffff" : "#64748b" }}>
+                  {tab.icon}
+                </span>
+                <span>{tab.label}</span>
+                {tab.badge !== undefined && tab.badge !== null && (
+                  <span
+                    style={{
+                      fontSize: "11px",
+                      padding: "1px 7px",
+                      borderRadius: "10px",
+                      background: isActive ? "rgba(255, 255, 255, 0.25)" : "#f1f5f9",
+                      color: isActive ? "#ffffff" : "#64748b",
+                      fontWeight: 700,
+                      lineHeight: "16px",
+                    }}
+                  >
+                    {tab.badge}
+                  </span>
+                )}
+              </button>
+            );
+          })}
         </div>
         {!readOnly && (
           <div style={{ display: "flex", alignItems: "center", gap: "8px", paddingRight: "4px" }}>
@@ -1073,7 +1245,20 @@ export function PODetail({
             <button
               type="button"
               className="po-save-btn"
-              style={{ height: "32px", padding: "0 12px", fontSize: "12px", display: "inline-flex", alignItems: "center", gap: "5px" }}
+              style={{
+                height: "32px",
+                padding: "0 12px",
+                fontSize: "12px",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "5px",
+                background: "#168446",
+                color: "#ffffff",
+                border: "none",
+                borderRadius: "6px",
+                fontWeight: 600,
+                cursor: "pointer",
+              }}
               disabled={saving}
               onClick={() => void handleManualSave(false)}
             >
@@ -1082,7 +1267,10 @@ export function PODetail({
           </div>
         )}
       </div>
-      <section id="supplier" className="po-section">
+
+      {/* 1. THÔNG TIN NHÀ CUNG CẤP */}
+      {(activeTab === "supplier" || activeTab === "all") && (
+        <section id="supplier" className="po-section">
         <div
           className="section-heading"
           style={{ cursor: "pointer", userSelect: "none" }}
@@ -1306,8 +1494,13 @@ export function PODetail({
           </div>
         )}
       </section>
-      <div className="po-two-columns">
-        <section id="documents" className="po-section">
+      )}
+
+      {/* 2 & 3. HỒ SƠ & HỢP ĐỒNG + CÁC ĐỢT THANH TOÁN */}
+      {(activeTab === "documents" || activeTab === "payments" || activeTab === "all") && (
+        <div className={activeTab === "all" ? "po-two-columns" : "po-single-column"}>
+          {(activeTab === "documents" || activeTab === "all") && (
+            <section id="documents" className="po-section">
           <div className="section-heading">
             <div>
               <span>▧</span>
@@ -1819,7 +2012,10 @@ export function PODetail({
             />
           )}
         </section>
-        <section id="payments" className="po-section po-payment-section">
+          )}
+
+          {(activeTab === "payments" || activeTab === "all") && (
+            <section id="payments" className="po-section po-payment-section">
           <div
             className="section-heading"
             style={{ cursor: "pointer", userSelect: "none" }}
@@ -2432,8 +2628,13 @@ export function PODetail({
             </>
           )}
         </section>
-      </div>
-      <section id="timeline" className="po-section">
+          )}
+        </div>
+      )}
+
+      {/* 4. TIMELINE GIAO HÀNG & THANH TOÁN */}
+      {(activeTab === "timeline" || activeTab === "all") && (
+        <section id="timeline" className="po-section">
         <div className="section-heading">
           <div>
             <span>◷</span>
@@ -2453,9 +2654,12 @@ export function PODetail({
           />
         </div>
       </section>
+      )}
 
-      {/* DANH SÁCH HÀNG HÓA TRONG PO (NẰM DƯỚI CÙNG GIAO DIỆN PO) */}
-      <section id="po-items" className="po-section">
+      {/* 5. DANH SÁCH HÀNG HÓA & GIAO HÀNG */}
+      {(activeTab === "items" || activeTab === "all") && (
+        <>
+          <section id="po-items" className="po-section">
         <div className="section-heading">
           <div>
             <span>📦</span>
@@ -3043,6 +3247,8 @@ export function PODetail({
           onUpdatePO={onUpdate}
           readOnly={readOnly}
         />
+      )}
+        </>
       )}
 
       {/* POPUP GIAO HÀNG CHO PO (MOBILE-FIRST FIELD RECEIVING) */}
