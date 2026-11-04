@@ -39,6 +39,7 @@ import { compressUploadFile } from "./utils/compressUploadFile";
 import { KnowledgeBase, KnowledgeBaseDrawer } from "./components/KnowledgeBase";
 import { DocFlowLinks } from "./components/DocFlowLinks";
 import { resolveDocFlow } from "./utils/docFlow";
+import { broadcastTabMessage, subscribeTabSync } from "./utils/tabSync";
 import {
   isPRCompleted,
   isPOCompleted,
@@ -473,14 +474,32 @@ function ProcurementAppInner({
           );
 
           if (response.status === 409) {
-            // Xung đột phiên bản do autosave race: tự động đồng bộ lại version mới nhất và lưu đè an toàn
+            // Xung đột phiên bản do có tab khác vừa lưu vào D1
             const resData = (await response.json().catch(() => null)) as {
               error?: string;
               currentVersion?: number;
               message?: string;
+              currentData?: StoredState;
             } | null;
             const newVer = resData?.currentVersion || (serverVersionRef.current + 1);
             serverVersionRef.current = newVer;
+
+            // SMART MERGE: Nếu server trả về state mới nhất của D1, ta hợp nhất các thay đổi
+            const serverLatest = resData?.currentData;
+            let mergedPayload = payloadToSend;
+            if (serverLatest) {
+              // Cập nhật các trường mà tab này không chỉnh sửa từ serverLatest vào React state
+              if (!("pos" in payloadToSend) && serverLatest.pos) setPos(serverLatest.pos);
+              if (!("prs" in payloadToSend) && serverLatest.prs) setPrs(serverLatest.prs);
+              if (!("approvalRequests" in payloadToSend) && serverLatest.approvalRequests) setApprovalRequests(serverLatest.approvalRequests);
+              if (!("paymentRequests" in payloadToSend) && serverLatest.paymentRequests) setPaymentRequests(serverLatest.paymentRequests);
+              if (!("paymentHandovers" in payloadToSend) && serverLatest.paymentHandovers) setPaymentHandovers(serverLatest.paymentHandovers);
+              if (!("suppliers" in payloadToSend) && serverLatest.suppliers) setSuppliers(serverLatest.suppliers);
+              if (!("trash" in payloadToSend) && serverLatest.trash) setTrash(serverLatest.trash);
+
+              mergedPayload = { ...serverLatest, ...payloadToSend };
+            }
+
             try {
               const retryRes = await fetch(
                 `/api/state?workspace=${encodeURIComponent(job.workspaceId)}`,
@@ -491,7 +510,7 @@ function ProcurementAppInner({
                     "x-expected-version": String(newVer),
                     "x-force-save": "true",
                   },
-                  body: bodyString,
+                  body: JSON.stringify(mergedPayload),
                 }
               );
               if (retryRes.ok) {
@@ -499,8 +518,14 @@ function ProcurementAppInner({
                 if (retryData?.version) serverVersionRef.current = retryData.version;
                 savedRevisionRef.current = job.revision;
                 previousPayloadRef.current = job.payload;
-                setStorageStatus(`Đã lưu lúc ${new Date().toLocaleTimeString("vi-VN")}`);
+                setStorageStatus(`Đã hợp nhất & lưu lúc ${new Date().toLocaleTimeString("vi-VN")}`);
                 void pruneStateOfflineQueue(job.workspaceId);
+                broadcastTabMessage({
+                  type: "STATE_SAVED",
+                  workspaceId: job.workspaceId,
+                  version: serverVersionRef.current,
+                  diff: mergedPayload,
+                });
                 continue;
               }
             } catch {}
@@ -518,6 +543,13 @@ function ProcurementAppInner({
           );
           // Tự động xóa sạch toàn bộ tác vụ /api/state cũ trong IndexedDB vì D1 đã lưu bản mới nhất
           void pruneStateOfflineQueue(job.workspaceId);
+          // Phát tín hiệu đồng bộ đa tab tức thì
+          broadcastTabMessage({
+            type: "STATE_SAVED",
+            workspaceId: job.workspaceId,
+            version: serverVersionRef.current,
+            diff: payloadToSend,
+          });
         } catch {
           const isActuallyOnline = typeof navigator !== "undefined" ? navigator.onLine : true;
           if (isActuallyOnline) {
@@ -837,19 +869,86 @@ function ProcurementAppInner({
   }, [products, purchaseHistory, purchaseHistoryImportIds, reportMode, storageReady, suppliers]);
   useEffect(() => {
     if (!storageReady || reportMode) return;
-    const flush = () => void persistState(document.visibilityState === "hidden"),
-      visibility = () => {
-        if (document.visibilityState === "hidden") flush();
-      };
+    const flush = () => void persistState(document.visibilityState === "hidden");
+    const handleVisibility = async () => {
+      if (document.visibilityState === "hidden") {
+        flush();
+      } else if (document.visibilityState === "visible") {
+        // Tab quay trở lại làm việc sau khi ở chế độ nền: kiểm tra phiên bản mới từ server
+        try {
+          const res = await fetch(`/api/state?workspace=${encodeURIComponent(workspaceId)}`, {
+            headers: { "Cache-Control": "no-cache" },
+          });
+          if (res.ok) {
+            const json = await res.json();
+            if (json.version && json.version > serverVersionRef.current && json.data) {
+              serverVersionRef.current = json.version;
+              const d = json.data;
+              if (d.pos) setPos(d.pos);
+              if (d.prs) setPrs(d.prs);
+              if (d.approvalRequests) setApprovalRequests(d.approvalRequests);
+              if (d.paymentRequests) setPaymentRequests(d.paymentRequests);
+              if (d.paymentHandovers) setPaymentHandovers(d.paymentHandovers);
+              if (d.suppliers) setSuppliers(d.suppliers);
+              if (d.trash) setTrash(d.trash);
+              if (previousPayloadRef.current) {
+                previousPayloadRef.current = d;
+              }
+              setStorageStatus("⚡ Dữ liệu vừa được cập nhật");
+              setTimeout(() => {
+                setStorageStatus((s) => (s.includes("⚡") ? `Đã lưu lúc ${new Date().toLocaleTimeString("vi-VN")}` : s));
+              }, 2000);
+            }
+          }
+        } catch {}
+      }
+    };
     document.addEventListener("focusout", flush);
-    document.addEventListener("visibilitychange", visibility);
+    document.addEventListener("visibilitychange", handleVisibility);
     window.addEventListener("pagehide", flush);
     return () => {
       document.removeEventListener("focusout", flush);
-      document.removeEventListener("visibilitychange", visibility);
+      document.removeEventListener("visibilitychange", handleVisibility);
       window.removeEventListener("pagehide", flush);
     };
-  }, [persistState, reportMode, storageReady]);
+  }, [persistState, reportMode, storageReady, workspaceId]);
+
+  // Lắng nghe cập nhật đa tab tức thì qua BroadcastChannel
+  useEffect(() => {
+    if (!storageReady || reportMode) return;
+    const unsubscribe = subscribeTabSync((msg) => {
+      if (msg.workspaceId !== workspaceId) return;
+      if (msg.type === "STATE_SAVED") {
+        if (msg.version && msg.version > serverVersionRef.current) {
+          serverVersionRef.current = msg.version;
+        }
+        if (msg.diff) {
+          const diff = msg.diff;
+          if (diff.pos) setPos(diff.pos);
+          if (diff.prs) setPrs(diff.prs);
+          if (diff.approvalRequests) setApprovalRequests(diff.approvalRequests);
+          if (diff.paymentRequests) setPaymentRequests(diff.paymentRequests);
+          if (diff.paymentHandovers) setPaymentHandovers(diff.paymentHandovers);
+          if (diff.suppliers) setSuppliers(diff.suppliers);
+          if (diff.products) setProducts(diff.products);
+          if (diff.trash) setTrash(diff.trash);
+          if (diff.hiddenContractIds) setHiddenContractIds(diff.hiddenContractIds);
+          if (diff.paymentGroups) setPaymentGroups(diff.paymentGroups);
+          if (previousPayloadRef.current) {
+            previousPayloadRef.current = {
+              ...previousPayloadRef.current,
+              ...diff,
+            };
+          }
+          setStorageStatus("⚡ Đã đồng bộ từ tab khác");
+          setTimeout(() => {
+            setStorageStatus((s) => (s.includes("⚡") ? `Đã lưu lúc ${new Date().toLocaleTimeString("vi-VN")}` : s));
+          }, 2000);
+        }
+      }
+    });
+    return () => unsubscribe();
+  }, [storageReady, reportMode, workspaceId]);
   const openShareReport = async () => {
     setStorageStatus("Đang tạo link báo cáo...");
     try {
@@ -1884,8 +1983,16 @@ function ProcurementAppInner({
             : h
         )
       );
+      broadcastTabMessage({
+        type: "PO_NUMBER_RENAMED",
+        workspaceId,
+        oldNumber: prevNumber,
+        newNumber: updatedPO.number,
+        poId: updatedPO.id,
+      });
     }
     setStorageStatus(`Đã đổi số PO thành ${updatedPO.number}`);
+    setTimeout(() => void persistState(false), 50);
   };
 
   const updatePO = (po: PO) => {

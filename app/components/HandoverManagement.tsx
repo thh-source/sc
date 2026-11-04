@@ -542,11 +542,11 @@ export function HandoverManagement({
     if (readOnly) return;
     const target = paymentHandovers.find((h) => h.id === id);
     if (!target) return;
-    if (!confirm(`Bạn có chắc muốn xóa mặt hàng "${target.itemName || target.sourceNumber || id}"?`)) return;
+    const itemName = (target as any).item_name || (target as any).itemName || `Vật tư #${id}`;
+    const sourceNum = (target as any).source_number || (target as any).sourceNumber || target.department || "Bàn giao";
+    if (!confirm(`Bạn có chắc muốn xóa mặt hàng "${itemName}"?`)) return;
     if (onMoveToTrash) {
-      const label = target.itemName
-        ? `${target.itemName} (${target.sourceNumber || target.department || "Bàn giao"})`
-        : `Bàn giao #${target.id}`;
+      const label = `${itemName} (${sourceNum})`;
       onMoveToTrash("HANDOVER", label, target, `✓ Đã chuyển ${label} vào thùng rác`);
     }
     const next = paymentHandovers.filter((h) => h.id !== id);

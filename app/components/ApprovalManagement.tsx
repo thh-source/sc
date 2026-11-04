@@ -19,6 +19,7 @@ import {
   CheckCircle2,
   Circle,
   Eye,
+  PackageCheck,
 } from "lucide-react";
 import {
   ApprovalItemRow,
@@ -815,6 +816,7 @@ export default function ApprovalManagement({
   const [poCreateVatRate, setPoCreateVatRate] = useState<number>(10);
   const [poCreateCustomNumber, setPoCreateCustomNumber] = useState<string>("");
   const [poCreateNumberManual, setPoCreateNumberManual] = useState<boolean>(false);
+  const [isSubmittingPO, setIsSubmittingPO] = useState<boolean>(false);
 
   // Trạng thái hiển thị bảng xem nhanh danh mục hàng khi di chuột vào số ĐNPD
   const [hoveredApproval, setHoveredApproval] = useState<{
@@ -892,6 +894,7 @@ export default function ApprovalManagement({
         ? (req.vatCalculationType === "already_included" ? 0 : (req.vatRate !== undefined ? req.vatRate : 10))
         : 10;
     setPoCreateVatRate(defaultVat);
+    setIsSubmittingPO(false);
     setPoCreateModalReq(req);
   };
 
@@ -2030,7 +2033,25 @@ export default function ApprovalManagement({
                         <span>Mở phiếu</span>
                       </button>
 
-                      {canCreatePO && (
+                      {req.linkedPoNumber ? (
+                        <button
+                          type="button"
+                          className="m-action-btn m-btn-success"
+                          style={{ background: "#ecfdf5", color: "#059669", border: "1px solid #a7f3d0" }}
+                          onClick={() => {
+                            const matched = pos.find((p) => p.number === req.linkedPoNumber || p.id === req.linkedPoId);
+                            if (matched) {
+                              onNavigate?.({ view: "po-detail", id: matched.id });
+                            } else {
+                              handleOpenPOCreateModal(req);
+                            }
+                          }}
+                          title={`Phiếu này đã tạo đơn PO: ${req.linkedPoNumber}. Bấm để mở xem đơn hàng.`}
+                        >
+                          <PackageCheck size={17} />
+                          <span>PO: {req.linkedPoNumber}</span>
+                        </button>
+                      ) : canCreatePO ? (
                         <button
                           type="button"
                           className="m-action-btn m-btn-success"
@@ -2040,7 +2061,7 @@ export default function ApprovalManagement({
                           <PackagePlus size={17} />
                           <span>Tạo PO</span>
                         </button>
-                      )}
+                      ) : null}
 
                       {!isReportMode && (
                         <button
@@ -2585,28 +2606,47 @@ export default function ApprovalManagement({
                   </button>
                 )}
 
-              <button
-                type="button"
-                className="btn btn-create-po-from-approval"
-                disabled={
-                  activeRequest.status !== "Đã phê duyệt" &&
-                  activeRequest.status !== "Đã tạo PO"
-                }
-                title={
-                  activeRequest.status !== "Đã phê duyệt" &&
-                  activeRequest.status !== "Đã tạo PO"
-                    ? "Vui lòng bấm 'Duyệt phiếu' sang trạng thái Đã phê duyệt trước khi tạo PO"
-                    : "Đẩy thông tin Nhà cung cấp được lựa chọn sang Đơn Mua Hàng (PO)"
-                }
-                onClick={() => {
-                handleOpenPOCreateModal(activeRequest);
-              }}
-              >
-                <PackagePlus size={16} /> Tạo PO (
-                {activeRequest.supplierColumns.find((c) => c.isSelected)
-                  ?.shortName || "NCC chọn"}
-                )
-              </button>
+              {activeRequest.linkedPoNumber ? (
+                <button
+                  type="button"
+                  className="btn"
+                  style={{ background: "#ecfdf5", color: "#047857", borderColor: "#a7f3d0", fontWeight: 700 }}
+                  onClick={() => {
+                    const matched = pos.find((p) => p.number === activeRequest.linkedPoNumber || p.id === activeRequest.linkedPoId);
+                    if (matched) {
+                      onNavigate?.({ view: "po-detail", id: matched.id });
+                    } else {
+                      handleOpenPOCreateModal(activeRequest);
+                    }
+                  }}
+                  title={`Đã tạo đơn ${activeRequest.linkedPoNumber}. Bấm để chuyển tới đơn PO.`}
+                >
+                  <PackageCheck size={16} /> Đã có PO: {activeRequest.linkedPoNumber}
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className="btn btn-create-po-from-approval"
+                  disabled={
+                    activeRequest.status !== "Đã phê duyệt" &&
+                    activeRequest.status !== "Đã tạo PO"
+                  }
+                  title={
+                    activeRequest.status !== "Đã phê duyệt" &&
+                    activeRequest.status !== "Đã tạo PO"
+                      ? "Vui lòng bấm 'Duyệt phiếu' sang trạng thái Đã phê duyệt trước khi tạo PO"
+                      : "Đẩy thông tin Nhà cung cấp được lựa chọn sang Đơn Mua Hàng (PO)"
+                  }
+                  onClick={() => {
+                    handleOpenPOCreateModal(activeRequest);
+                  }}
+                >
+                  <PackagePlus size={16} /> Tạo PO (
+                  {activeRequest.supplierColumns.find((c) => c.isSelected)
+                    ?.shortName || "NCC chọn"}
+                  )
+                </button>
+              )}
 
               <button
                 type="button"
@@ -5586,19 +5626,21 @@ export default function ApprovalManagement({
                   display: "inline-flex",
                   alignItems: "center",
                   gap: 6,
-                  background: isButtonDisabled ? "#94a3b8" : "#16a34a",
+                  background: isButtonDisabled || isSubmittingPO ? "#94a3b8" : "#16a34a",
                   color: "#ffffff",
-                  cursor: isButtonDisabled ? "not-allowed" : "pointer",
-                  boxShadow: isButtonDisabled ? "none" : "0 2px 8px rgba(22, 163, 74, 0.35)",
+                  cursor: isButtonDisabled || isSubmittingPO ? "not-allowed" : "pointer",
+                  boxShadow: isButtonDisabled || isSubmittingPO ? "none" : "0 2px 8px rgba(22, 163, 74, 0.35)",
                 }}
-                disabled={isButtonDisabled}
+                disabled={isButtonDisabled || isSubmittingPO}
                 onClick={() => {
-                  if (isButtonDisabled) return;
+                  if (isButtonDisabled || isSubmittingPO) return;
+                  setIsSubmittingPO(true);
                   onCreatePOFromApproval(poCreateModalReq, poCreateVatRate, effectivePoNumber);
                   setPoCreateModalReq(null);
+                  setTimeout(() => setIsSubmittingPO(false), 800);
                 }}
               >
-                <PackagePlus size={16} /> Xác nhận tạo PO
+                <PackagePlus size={16} /> {isSubmittingPO ? "Đang tạo..." : "Xác nhận tạo PO"}
               </button>
             </div>
           </div>

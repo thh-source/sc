@@ -73,6 +73,21 @@ export async function GET(request: Request) {
     }
   }
 
+  // Check if trash is missing in payload but present in relational table
+  if (!Array.isArray(data.trash) || data.trash.length === 0) {
+    try {
+      const dbTrash = await drizzleDb.select().from(trashItems).where(eq(trashItems.workspaceId, workspaceId));
+      if (dbTrash.length > 0) {
+        data.trash = dbTrash.map((t) => ({
+          ...t,
+          data: t.data ? JSON.parse(t.data) : null,
+        }));
+      }
+    } catch (e) {
+      console.warn("Lỗi load fallback trashItems:", e);
+    }
+  }
+
   // RECOVERY MIGRATION: If app_state is missing `prs`, `pos`, or any PO's supplier is missing from `data.suppliers`, load from relational/legacy tables
   const existingSuppIds = new Set((data.suppliers || []).map((s: any) => Number(s.id)));
   const hasMissingPoSupplier = (data.pos || []).some((p: any) => p?.supplierId && !existingSuppIds.has(Number(p.supplierId)));
@@ -247,21 +262,7 @@ export async function PUT(request: Request) {
   try {
     const existing = await drizzleDb.select().from(appState).where(eq(appState.id, mainId)).get();
 
-    // Check version conflict - bỏ qua nếu forceSave hoặc sai lệch nhỏ do autosave race (<= 3 phiên bản)
-    if (!forceSaveHeader && existing && expectedVersion !== undefined && !isNaN(expectedVersion) && expectedVersion > 0) {
-      if (existing.version - expectedVersion > 3) {
-        return Response.json(
-          {
-            error: "CONFLICT",
-            currentVersion: existing.version,
-            message: "Dữ liệu đã được cập nhật từ một phiên làm việc khác. Vui lòng tải lại trang để tránh ghi đè dữ liệu mới.",
-          },
-          { status: 409 }
-        );
-      }
-    }
-
-    // Check if legacy main row still contains purchaseHistory that needs migration
+    // Parse existing payload first
     let legacyHist: any = null;
     let existingData: any = null;
     if (existing && existing.payload) {
@@ -273,6 +274,21 @@ export async function PUT(request: Request) {
           if (existingData.purchaseHistoryImportIds !== undefined) legacyHist.purchaseHistoryImportIds = existingData.purchaseHistoryImportIds;
         }
       } catch {}
+    }
+
+    // Check version conflict - phát hiện xung đột nếu phiên bản trên D1 đã được tab khác cập nhật
+    if (!forceSaveHeader && existing && expectedVersion !== undefined && !isNaN(expectedVersion) && expectedVersion > 0) {
+      if (existing.version > expectedVersion) {
+        return Response.json(
+          {
+            error: "CONFLICT",
+            currentVersion: existing.version,
+            message: "Dữ liệu đã được cập nhật từ một tab hoặc phiên làm việc khác.",
+            currentData: existingData,
+          },
+          { status: 409 }
+        );
+      }
     }
 
     // Partition purchaseHistory out of the main row to prevent SQLite row-size overflow

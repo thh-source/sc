@@ -111,15 +111,19 @@ export function TrashPage({
       if (Array.isArray(d)) {
         return `${d.length} mặt hàng bàn giao`;
       }
-      return [d.itemName, d.department, d.sourceNumber].filter(Boolean).join(" · ");
+      const name = d.item_name || d.itemName || "";
+      const dept = d.department || "";
+      const src = d.source_number || d.sourceNumber || "";
+      return [name, dept, src ? `Số: ${src}` : ""].filter(Boolean).join(" · ");
     }
     if (entry.type === "PAYMENT") {
       if (Array.isArray(d)) {
         return `${d.length} hồ sơ thanh toán`;
       }
-      const payee = d.payee_name || "";
-      const amount = d.amount_after_tax || d.amount_pre_tax;
-      return [payee, amount ? `${fmt(amount)} đ` : ""].filter(Boolean).join(" · ");
+      const payee = d.payee_name || d.payeeName || "";
+      const amount = d.amount_after_tax || d.amount_pre_tax || d.amount;
+      const group = d.group_code || d.groupCode || "";
+      return [payee, group ? `PO: ${group}` : "", amount ? `${fmt(amount)} đ` : ""].filter(Boolean).join(" · ");
     }
     if (entry.type === "CONTRACT") {
       return d.contractNumber || d.supplier || "";
