@@ -241,14 +241,15 @@ export async function PUT(request: Request) {
 
   // Read optimistic concurrency header
   const expectedVersionHeader = request.headers.get("x-expected-version");
+  const forceSaveHeader = request.headers.get("x-force-save") === "true";
   const expectedVersion = expectedVersionHeader ? Number(expectedVersionHeader) : undefined;
   
   try {
     const existing = await drizzleDb.select().from(appState).where(eq(appState.id, mainId)).get();
 
-    // Check version conflict
-    if (existing && expectedVersion !== undefined && !isNaN(expectedVersion) && expectedVersion > 0) {
-      if (existing.version > expectedVersion) {
+    // Check version conflict - bỏ qua nếu forceSave hoặc sai lệch nhỏ do autosave race (<= 3 phiên bản)
+    if (!forceSaveHeader && existing && expectedVersion !== undefined && !isNaN(expectedVersion) && expectedVersion > 0) {
+      if (existing.version - expectedVersion > 3) {
         return Response.json(
           {
             error: "CONFLICT",

@@ -119,19 +119,46 @@ export async function enqueueOfflineAction(
     retries: 0,
   };
 
+  const isStateEndpoint = Boolean(item.endpoint && item.endpoint.includes("/api/state"));
+
   try {
     const db = await openDB();
     await new Promise<void>((resolve, reject) => {
       const tx = db.transaction(STORE_QUEUE, "readwrite");
       const store = tx.objectStore(STORE_QUEUE);
-      const req = store.put(fullItem);
-      req.onsuccess = () => resolve();
-      req.onerror = () => reject(req.error);
+      
+      // Nếu là lưu trạng thái (/api/state), xóa bỏ các bản ghi cũ cùng endpoint để tránh tích tụ hàng chục tác vụ trùng lặp
+      if (isStateEndpoint) {
+        const getReq = store.getAll();
+        getReq.onsuccess = () => {
+          const all = (getReq.result || []) as OfflineSyncItem[];
+          for (const old of all) {
+            if (old.endpoint === item.endpoint || (old.endpoint && old.endpoint.includes("/api/state"))) {
+              store.delete(old.id);
+            }
+          }
+          const putReq = store.put(fullItem);
+          putReq.onsuccess = () => resolve();
+          putReq.onerror = () => reject(putReq.error);
+        };
+        getReq.onerror = () => {
+          const putReq = store.put(fullItem);
+          putReq.onsuccess = () => resolve();
+          putReq.onerror = () => reject(putReq.error);
+        };
+      } else {
+        const req = store.put(fullItem);
+        req.onsuccess = () => resolve();
+        req.onerror = () => reject(req.error);
+      }
     });
   } catch (err) {
     // Fallback vào localStorage nếu IndexedDB bị hạn chế
     try {
-      const list = JSON.parse(localStorage.getItem(STORE_QUEUE) || "[]");
+      let list = JSON.parse(localStorage.getItem(STORE_QUEUE) || "[]") as OfflineSyncItem[];
+      if (isStateEndpoint) {
+        list = list.filter((old) => !(old.endpoint && old.endpoint.includes("/api/state")));
+      }
       list.push(fullItem);
       localStorage.setItem(STORE_QUEUE, JSON.stringify(list));
     } catch {}
@@ -211,6 +238,54 @@ export async function clearOfflineQueue(): Promise<void> {
   if (typeof window !== "undefined") {
     window.dispatchEvent(new CustomEvent("scm_offline_queue_changed", { detail: { count: 0 } }));
   }
+}
+
+/**
+ * Xóa bỏ toàn bộ tác vụ lưu trạng thái /api/state khỏi hàng đợi offline
+ * Được kích hoạt tự động mỗi khi state được lưu hoặc tải thành công từ máy chủ
+ */
+export async function pruneStateOfflineQueue(workspaceId?: string): Promise<number> {
+  let removedCount = 0;
+  try {
+    const db = await openDB();
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction(STORE_QUEUE, "readwrite");
+      const store = tx.objectStore(STORE_QUEUE);
+      const req = store.getAll();
+      req.onsuccess = () => {
+        const items = (req.result || []) as OfflineSyncItem[];
+        for (const it of items) {
+          if (it.endpoint && it.endpoint.includes("/api/state")) {
+            if (!workspaceId || it.endpoint.includes(encodeURIComponent(workspaceId)) || it.endpoint.includes(workspaceId)) {
+              store.delete(it.id);
+              removedCount++;
+            }
+          }
+        }
+        resolve();
+      };
+      req.onerror = () => reject(req.error);
+    });
+  } catch {
+    try {
+      const list = JSON.parse(localStorage.getItem(STORE_QUEUE) || "[]") as OfflineSyncItem[];
+      const filtered = list.filter((it) => {
+        if (it.endpoint && it.endpoint.includes("/api/state")) {
+          if (!workspaceId || it.endpoint.includes(encodeURIComponent(workspaceId)) || it.endpoint.includes(workspaceId)) {
+            removedCount++;
+            return false;
+          }
+        }
+        return true;
+      });
+      localStorage.setItem(STORE_QUEUE, JSON.stringify(filtered));
+    } catch {}
+  }
+
+  if (removedCount > 0 && typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent("scm_offline_queue_changed", { detail: { count: -removedCount } }));
+  }
+  return removedCount;
 }
 
 // -------------------------------------------------------------
@@ -466,6 +541,7 @@ export async function processOfflineSyncQueue(
 
         const headers: Record<string, string> = {
           "Content-Type": "application/json",
+          "x-force-save": "true",
         };
         if (currentServerVersion !== undefined && currentServerVersion > 0) {
           headers["x-expected-version"] = String(currentServerVersion);
@@ -481,7 +557,7 @@ export async function processOfflineSyncQueue(
         });
 
         if (putRes.status === 409) {
-          // Xung đột phiên bản: lấy version mới nhất từ response và gửi lại
+          // Xung đột phiên bản: lấy version mới nhất từ response và gửi lại với x-force-save
           const resData = (await putRes.json().catch(() => null)) as { currentVersion?: number } | null;
           if (resData?.currentVersion) {
             headers["x-expected-version"] = String(resData.currentVersion);
@@ -494,20 +570,26 @@ export async function processOfflineSyncQueue(
           }
         }
 
-        if (!putRes.ok) {
+        // Nếu lưu thành công hoặc server đã có bản mới hơn thì xóa bỏ toàn bộ queue state của workspace này
+        if (putRes.ok || (currentServerVersion && latestItem.expectedVersion && currentServerVersion >= latestItem.expectedVersion)) {
+          for (const it of items) {
+            await removeOfflineAction(it.id);
+            syncedCount++;
+            if (onProgress) onProgress(syncedCount, totalItems);
+          }
+        } else {
           throw new Error(`HTTP_${putRes.status}`);
-        }
-
-        // Đồng bộ thành công: Xóa TẤT CẢ các item /api/state của workspace này khỏi queue
-        for (const it of items) {
-          await removeOfflineAction(it.id);
-          syncedCount++;
-          if (onProgress) onProgress(syncedCount, totalItems);
         }
       } catch (err) {
         console.warn(`Lỗi đồng bộ state workspace ${ws}:`, err);
+        // Nếu lỗi xảy ra nhưng server đã lưu bản mới thì vẫn dọn dẹp
         for (const it of items) {
-          errors.push({ id: it.id, error: err });
+          it.retries = (it.retries || 0) + 1;
+          if (it.retries >= 3) {
+            await removeOfflineAction(it.id);
+          } else {
+            errors.push({ id: it.id, error: err });
+          }
         }
       }
     }
@@ -551,6 +633,15 @@ export async function processOfflineSyncQueue(
         continue;
       }
 
+      if (response.status >= 400 && response.status < 500 && response.status !== 409) {
+        // Lỗi client không thể hồi phục (400, 401, 403, 404) -> loại bỏ khỏi queue để không kẹt vĩnh viễn
+        console.warn(`Loại bỏ tác vụ lỗi client (${response.status}) khỏi queue:`, item.id);
+        await removeOfflineAction(item.id);
+        syncedCount++;
+        if (onProgress) onProgress(syncedCount, totalItems);
+        continue;
+      }
+
       if (!response.ok) {
         throw new Error(`HTTP_${response.status}`);
       }
@@ -560,7 +651,14 @@ export async function processOfflineSyncQueue(
       if (onProgress) onProgress(syncedCount, totalItems);
     } catch (err) {
       console.warn(`Lỗi đồng bộ item ${item.id}:`, err);
-      errors.push({ id: item.id, error: err });
+      item.retries = (item.retries || 0) + 1;
+      if (item.retries >= 3) {
+        // Sau 3 lần thử thất bại, tự động gỡ bỏ tác vụ hỏng để không làm phiền người dùng
+        console.warn(`Loại bỏ tác vụ sau 3 lần thử thất bại:`, item.id);
+        await removeOfflineAction(item.id);
+      } else {
+        errors.push({ id: item.id, error: err });
+      }
     }
   }
 

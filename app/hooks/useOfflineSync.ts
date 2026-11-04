@@ -5,6 +5,7 @@ import {
   getOfflineQueue,
   processOfflineSyncQueue,
   clearOfflineQueue,
+  pruneStateOfflineQueue,
   OfflineSyncItem,
 } from "../utils/offlineSync";
 
@@ -89,14 +90,23 @@ export function useOfflineSync(): UseOfflineSyncReturn {
     let mounted = true;
 
     // Check trạng thái ban đầu
-    checkIsOnline().then((online) => {
+    checkIsOnline().then(async (online) => {
       if (!mounted) return;
       setIsOnline(online);
       prevOnlineRef.current = online;
       if (!online) {
         setLastSyncStatus("idle");
-        setSyncMessage("⚠️ Đang mất kết nối mạng - Đã bật chế độ tự lưu Offline an toàn");
+        setSyncMessage("⚠️ Đang mất kết nối mạng - Dữ liệu đang được lưu tạm trên máy");
+      } else {
+        // Đang có mạng: Kiểm tra và dọn dẹp các tác vụ state đã cũ hoặc kích hoạt đồng bộ ngầm
+        try {
+          const q = await getOfflineQueue();
+          if (q.length > 0) {
+            void triggerSync();
+          }
+        } catch {}
       }
+      void refreshQueueCount();
     });
 
     refreshQueueCount();

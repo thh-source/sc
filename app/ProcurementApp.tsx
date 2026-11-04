@@ -79,6 +79,7 @@ import {
   clearFormDraft,
   checkIsOnline,
   initOfflineDB,
+  pruneStateOfflineQueue,
 } from "./utils/offlineSync";
 import {
   ArrowLeft,
@@ -460,7 +461,7 @@ function ProcurementAppInner({
 
         try {
           const bodyString = JSON.stringify(payloadToSend);
-          const safeKeepalive = Boolean(keepalive && bodyString.length < 60000);
+          const safeKeepalive = Boolean(keepalive && bodyString.length < 30000);
           const response = await fetch(
             `/api/state?workspace=${encodeURIComponent(job.workspaceId)}`,
             {
@@ -475,24 +476,41 @@ function ProcurementAppInner({
               keepalive: safeKeepalive,
             },
           );
+
           if (response.status === 409) {
+            // Xung đột phiên bản do autosave race: tự động đồng bộ lại version mới nhất và lưu đè an toàn
             const resData = (await response.json().catch(() => null)) as {
               error?: string;
               currentVersion?: number;
               message?: string;
             } | null;
-            if (resData?.currentVersion) {
-              serverVersionRef.current = resData.currentVersion;
-            }
-            setConflictModal({
-              serverVersion: resData?.currentVersion || (serverVersionRef.current + 1),
-              time: new Date().toLocaleTimeString("vi-VN"),
-            });
-            setStorageStatus(
-              "⚠️ Xung đột dữ liệu với phiên làm việc khác!",
-            );
-            return;
+            const newVer = resData?.currentVersion || (serverVersionRef.current + 1);
+            serverVersionRef.current = newVer;
+            try {
+              const retryRes = await fetch(
+                `/api/state?workspace=${encodeURIComponent(job.workspaceId)}`,
+                {
+                  method: "PUT",
+                  headers: {
+                    "Content-Type": "application/json",
+                    "x-expected-version": String(newVer),
+                    "x-force-save": "true",
+                  },
+                  body: bodyString,
+                }
+              );
+              if (retryRes.ok) {
+                const retryData = (await retryRes.json().catch(() => null)) as { version?: number } | null;
+                if (retryData?.version) serverVersionRef.current = retryData.version;
+                savedRevisionRef.current = job.revision;
+                previousPayloadRef.current = job.payload;
+                setStorageStatus(`Đã lưu lúc ${new Date().toLocaleTimeString("vi-VN")}`);
+                void pruneStateOfflineQueue(job.workspaceId);
+                continue;
+              }
+            } catch {}
           }
+
           if (!response.ok) throw new Error("SAVE_FAILED");
           const resData = (await response.json().catch(() => null)) as { version?: number } | null;
           if (resData?.version) {
@@ -503,18 +521,30 @@ function ProcurementAppInner({
           setStorageStatus(
             `Đã lưu lúc ${new Date().toLocaleTimeString("vi-VN")}`,
           );
+          // Tự động xóa sạch toàn bộ tác vụ /api/state cũ trong IndexedDB vì D1 đã lưu bản mới nhất
+          void pruneStateOfflineQueue(job.workspaceId);
         } catch {
-          // Lỗi mạng khi fetch: đưa vào hàng đợi offline
-          await enqueueOfflineAction({
-            endpoint: `/api/state?workspace=${encodeURIComponent(job.workspaceId)}`,
-            method: "PUT",
-            data: payloadToSend,
-            expectedVersion: serverVersionRef.current > 0 ? serverVersionRef.current : undefined,
-            description: `Tự động lưu trạng thái (Offline queue fallback)`,
-          });
-          savedRevisionRef.current = job.revision;
-          previousPayloadRef.current = job.payload;
-          setStorageStatus("Đã lưu tạm offline (mất kết nối mạng)");
+          const isActuallyOnline = typeof navigator !== "undefined" ? navigator.onLine : true;
+          if (isActuallyOnline) {
+            // Thiết bị máy tính vẫn có mạng: chỉ là độ trễ mạng tạm thời, tự động thử lại ngầm không làm phiền người dùng
+            setStorageStatus("Đang lưu lại...");
+            savePendingRef.current = true;
+            setTimeout(() => {
+              void persistState(false);
+            }, 1500);
+          } else {
+            // Thiết bị thực sự mất mạng (offline)
+            await enqueueOfflineAction({
+              endpoint: `/api/state?workspace=${encodeURIComponent(job.workspaceId)}`,
+              method: "PUT",
+              data: payloadToSend,
+              expectedVersion: serverVersionRef.current > 0 ? serverVersionRef.current : undefined,
+              description: `Tự động lưu trạng thái ngoại tuyến`,
+            });
+            savedRevisionRef.current = job.revision;
+            previousPayloadRef.current = job.payload;
+            setStorageStatus("Đã lưu tạm offline (ngoại tuyến)");
+          }
         }
       }
     } catch {
@@ -718,6 +748,7 @@ function ProcurementAppInner({
         }
         setStorageReady(true);
         setStorageStatus(data ? "Đã đồng bộ online" : "Sẵn sàng lưu online");
+        void pruneStateOfflineQueue(workspaceId);
       })
       .catch(async () => {
         if (!active) return;
@@ -2781,9 +2812,7 @@ function ProcurementAppInner({
             >
               <i style={{ color: !isOnline ? "#d97706" : undefined }}>●</i>
               {!isOnline
-                ? `Chế độ Offline${queueCount > 0 ? ` (${queueCount} chờ lưu)` : ""}`
-                : isSyncing
-                ? "Đang đồng bộ..."
+                ? `Ngoại tuyến${queueCount > 0 ? ` (${queueCount} chờ lưu)` : ""}`
                 : storageStatus}
             </div>
           </>
