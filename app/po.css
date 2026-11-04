@@ -423,13 +423,20 @@
   box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
 }
 
-/* Fix flex-column shrinking inside .content.po-detail and .content.po-list-page so tabs and lists never collapse */
+/* Fix flex-column shrinking inside .content.po-detail and .content.po-list-page so tabs and lists never collapse, single scroll on main */
 .content.po-detail,
 .content.po-list-page {
   display: block !important;
-  overflow-y: auto !important;
+  overflow-y: visible !important;
   -webkit-overflow-scrolling: touch !important;
   padding-bottom: 60px !important;
+}
+
+.po-list-panel .pr-table {
+  overflow-x: auto !important;
+  overflow-y: visible !important;
+  max-height: none !important;
+  min-height: 0 !important;
 }
 
 .content.po-detail > *,

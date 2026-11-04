@@ -433,7 +433,7 @@ export function PRList({
         </div>
 
         {/* DESKTOP PR TABLE (STITCH v2 REDESIGNED) */}
-        <div className="pr-table" style={{ width: "100%", overflowX: "auto" }}>
+        <div className="pr-table" style={{ width: "100%", overflowX: "auto", overflowY: "visible", maxHeight: "none" }}>
           <table style={{ width: "100%", minWidth: "1240px", tableLayout: "auto" }}>
             <colgroup>
               <col style={{ width: "130px" }} />

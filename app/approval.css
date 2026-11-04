@@ -5,10 +5,18 @@
 .approval-mgmt-wrapper,
 .approval-list-page {
   display: block !important;
-  overflow-y: auto !important;
+  overflow-y: visible !important;
   overflow-x: hidden;
-  height: 100%;
+  height: auto;
+  min-height: 100%;
   padding-bottom: 90px !important;
+}
+
+.approval-list-page .pr-table {
+  overflow-x: auto !important;
+  overflow-y: visible !important;
+  max-height: none !important;
+  min-height: 0 !important;
 }
 
 .approval-mgmt-wrapper > * + * {

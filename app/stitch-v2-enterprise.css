@@ -1125,6 +1125,8 @@
   .pr-table {
     width: 100% !important;
     overflow-x: auto !important;
+    overflow-y: visible !important;
+    max-height: none !important;
   }
 
   .pr-table > table {

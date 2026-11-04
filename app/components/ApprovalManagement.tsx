@@ -2067,7 +2067,7 @@ export default function ApprovalManagement({
             )}
           </div>
 
-          <div className="pr-table">
+          <div className="pr-table" style={{ width: "100%", overflowX: "auto", overflowY: "visible", maxHeight: "none" }}>
             <table>
               <thead>
                 <tr>

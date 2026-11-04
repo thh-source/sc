@@ -862,7 +862,7 @@ export function POList({
           })}
         </div>
 
-        <div className="pr-table" style={{ width: "100%", overflowX: "auto" }}>
+        <div className="pr-table" style={{ width: "100%", overflowX: "auto", overflowY: "visible", maxHeight: "none" }}>
           <table style={{ width: "100%", minWidth: "1080px", tableLayout: "auto" }}>
             <thead>
               <tr>
