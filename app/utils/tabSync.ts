@@ -2,12 +2,25 @@
  * Kênh giao tiếp đa tab thời gian thực (Inter-Tab Realtime Synchronization)
  * Sử dụng BroadcastChannel API chuẩn với localStorage fallback
  * Giúp ngăn chặn ghi đè dữ liệu (Data Clobbering) và giữ state nhất quán giữa các tab
+ * Hoàn toàn an toàn với Server-Side Rendering (SSR) và Cloudflare Workers runtime
  */
 
-export const CURRENT_TAB_ID =
-  typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
-    ? `tab_${crypto.randomUUID()}`
-    : `tab_${Math.random().toString(36).slice(2, 11)}_${Date.now()}`;
+let cachedTabId: string | null = null;
+
+export function getTabId(): string {
+  if (typeof window === "undefined") return "server";
+  if (!cachedTabId) {
+    try {
+      cachedTabId =
+        typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+          ? `tab_${crypto.randomUUID()}`
+          : `tab_${Math.random().toString(36).slice(2, 11)}_${Date.now()}`;
+    } catch {
+      cachedTabId = `tab_${Date.now()}_${Math.random()}`;
+    }
+  }
+  return cachedTabId;
+}
 
 export type TabSyncMessage =
   | {
@@ -48,53 +61,62 @@ type SyncListener = (msg: TabSyncMessage) => void;
 const listeners = new Set<SyncListener>();
 
 let broadcastChannel: BroadcastChannel | null = null;
+let channelInitialized = false;
 
-// Khởi tạo BroadcastChannel nếu trình duyệt hỗ trợ
-if (typeof window !== "undefined" && "BroadcastChannel" in window) {
-  try {
-    broadcastChannel = new BroadcastChannel(CHANNEL_NAME);
-    broadcastChannel.onmessage = (event: MessageEvent<TabSyncMessage>) => {
-      const data = event.data;
-      if (!data || data.senderTabId === CURRENT_TAB_ID) return;
-      listeners.forEach((listener) => {
-        try {
-          listener(data);
-        } catch (err) {
-          console.warn("[TabSync] Listener error:", err);
-        }
-      });
-    };
-  } catch (e) {
-    console.warn("[TabSync] Could not create BroadcastChannel, falling back to storage events:", e);
-    broadcastChannel = null;
-  }
-}
+function ensureChannel(): void {
+  if (typeof window === "undefined" || channelInitialized) return;
+  channelInitialized = true;
 
-// Lắng nghe sự kiện storage (fallback cho trình duyệt cũ hoặc khi BroadcastChannel không khả dụng)
-if (typeof window !== "undefined") {
-  window.addEventListener("storage", (event: StorageEvent) => {
-    if (event.key !== STORAGE_KEY || !event.newValue) return;
+  // 1. Khởi tạo BroadcastChannel nếu trình duyệt hỗ trợ
+  if ("BroadcastChannel" in window) {
     try {
-      const data = JSON.parse(event.newValue) as TabSyncMessage;
-      if (!data || data.senderTabId === CURRENT_TAB_ID) return;
-      listeners.forEach((listener) => {
-        try {
-          listener(data);
-        } catch (err) {
-          console.warn("[TabSync] Storage listener error:", err);
-        }
-      });
-    } catch {}
-  });
+      broadcastChannel = new BroadcastChannel(CHANNEL_NAME);
+      broadcastChannel.onmessage = (event: MessageEvent<TabSyncMessage>) => {
+        const data = event.data;
+        if (!data || data.senderTabId === getTabId()) return;
+        listeners.forEach((listener) => {
+          try {
+            listener(data);
+          } catch (err) {
+            console.warn("[TabSync] Listener error:", err);
+          }
+        });
+      };
+    } catch (e) {
+      console.warn("[TabSync] Could not create BroadcastChannel, falling back to storage events:", e);
+      broadcastChannel = null;
+    }
+  }
+
+  // 2. Lắng nghe sự kiện storage (fallback song song cho các tab)
+  try {
+    window.addEventListener("storage", (event: StorageEvent) => {
+      if (event.key !== STORAGE_KEY || !event.newValue) return;
+      try {
+        const data = JSON.parse(event.newValue) as TabSyncMessage;
+        if (!data || data.senderTabId === getTabId()) return;
+        listeners.forEach((listener) => {
+          try {
+            listener(data);
+          } catch (err) {
+            console.warn("[TabSync] Storage listener error:", err);
+          }
+        });
+      } catch {}
+    });
+  } catch {}
 }
 
 /**
  * Gửi thông điệp đồng bộ tới tất cả các tab khác cùng mở workspace này
  */
 export function broadcastTabMessage(message: Omit<TabSyncMessage, "senderTabId" | "timestamp">): void {
+  if (typeof window === "undefined") return;
+  ensureChannel();
+
   const fullMessage: TabSyncMessage = {
     ...message,
-    senderTabId: CURRENT_TAB_ID,
+    senderTabId: getTabId(),
     timestamp: Date.now(),
   } as TabSyncMessage;
 
@@ -108,9 +130,8 @@ export function broadcastTabMessage(message: Omit<TabSyncMessage, "senderTabId" 
   }
 
   // 2. Gửi qua localStorage làm kênh phụ song song
-  if (typeof window !== "undefined" && window.localStorage) {
+  if (window.localStorage) {
     try {
-      // Đính kèm random nonce để luôn kích hoạt sự kiện storage ngay cả khi payload giống nhau
       const storagePayload = JSON.stringify({
         ...fullMessage,
         _nonce: Math.random(),
@@ -124,6 +145,8 @@ export function broadcastTabMessage(message: Omit<TabSyncMessage, "senderTabId" 
  * Đăng ký nhận thông điệp đồng bộ từ các tab khác
  */
 export function subscribeTabSync(listener: SyncListener): () => void {
+  if (typeof window === "undefined") return () => {};
+  ensureChannel();
   listeners.add(listener);
   return () => {
     listeners.delete(listener);
