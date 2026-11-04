@@ -15,27 +15,52 @@ export interface ConflictModalProps {
 export function ConflictModal({ conflict, onReload, onOverwrite }: ConflictModalProps) {
   return (
     <div
-      className="modal"
+      className="backdrop modal-overlay no-print"
       style={{
-        zIndex: 9999,
+        position: "fixed",
+        inset: 0,
+        width: "100vw",
+        height: "100vh",
+        zIndex: 99999,
         background: "rgba(15, 23, 42, 0.75)",
+        backdropFilter: "blur(4px)",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
+        padding: "20px",
+        boxSizing: "border-box",
       }}
     >
       <div
         className="modal-card"
         style={{
           maxWidth: "540px",
-          width: "90%",
+          width: "100%",
           padding: "24px",
           borderRadius: "12px",
-          boxShadow: "0 25px 50px -12px rgba(0,0,0,0.35)",
+          boxShadow: "0 25px 50px -12px rgba(0,0,0,0.5)",
           border: "1px solid #fed7aa",
           background: "#ffffff",
+          position: "relative",
         }}
       >
+        <button
+          onClick={onReload}
+          style={{
+            position: "absolute",
+            top: "14px",
+            right: "14px",
+            background: "none",
+            border: "none",
+            fontSize: "18px",
+            cursor: "pointer",
+            color: "#64748b",
+            padding: "4px",
+          }}
+          title="Đóng"
+        >
+          ✕
+        </button>
         <div style={{ display: "flex", alignItems: "center", gap: "14px", marginBottom: "16px" }}>
           <span style={{ fontSize: "2.2rem", lineHeight: 1 }}>⚠️</span>
           <div>

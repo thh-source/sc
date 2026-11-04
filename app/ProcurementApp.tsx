@@ -13,7 +13,6 @@ import {
 import type React from "react";
 import DocumentManager from "./components/DocumentManager";
 import SmartTableTools from "./components/SmartTableTools";
-import { ConflictModal } from "./components/ConflictModal";
 import { SupplierPickerModal } from "./components/SupplierPickerModal";
 import "./vat-quote.css";
 
@@ -233,10 +232,6 @@ function ProcurementAppInner({
   const [storageReady, setStorageReady] = useState(false),
     [storageStatus, setStorageStatus] = useState("Đang kết nối dữ liệu..."),
     [isAppLoading, setIsAppLoading] = useState(true),
-    [conflictModal, setConflictModal] = useState<{
-      serverVersion: number;
-      time: string;
-    } | null>(null),
     [loadTrigger, setLoadTrigger] = useState(0);
 
   // Khởi tạo ứng dụng với timeout an toàn và tắt màn hình splash
@@ -3828,22 +3823,6 @@ function ProcurementAppInner({
             addQuoteSupplier(newSupplier.id);
           }}
           onClose={() => setSupplierPicker(false)}
-        />
-      )}
-      {conflictModal && (
-        <ConflictModal
-          conflict={conflictModal}
-          onReload={() => {
-            setConflictModal(null);
-            setStorageStatus("Đang tải lại dữ liệu mới nhất...");
-            setLoadTrigger((t) => t + 1);
-          }}
-          onOverwrite={() => {
-            serverVersionRef.current = conflictModal.serverVersion;
-            setConflictModal(null);
-            setStorageStatus("Đang ghi đè dữ liệu lên máy chủ...");
-            void persistState();
-          }}
         />
       )}
       {!reportMode && (
