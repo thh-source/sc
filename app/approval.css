@@ -508,13 +508,26 @@
 }
 
 .col-stt,
-.col-qty,
 .col-unit,
 .col-sub-qty,
 .cell-stt,
 .cell-qty,
 .cell-unit,
 .cell-sub-qty {
+  white-space: nowrap !important;
+  word-break: normal !important;
+  overflow-wrap: normal !important;
+  text-align: center !important;
+  padding-left: 2px !important;
+  padding-right: 2px !important;
+}
+
+.col-qty {
+  white-space: normal !important;
+  word-break: normal !important;
+  overflow-wrap: normal !important;
+  text-align: center !important;
+  line-height: 1.15 !important;
   padding-left: 2px !important;
   padding-right: 2px !important;
 }
@@ -763,6 +776,14 @@
   color: #000000;
   padding: 6px 8px !important;
   box-sizing: border-box;
+}
+
+.cell-qty .cell-input,
+.cell-unit .cell-input,
+.cell-stt .cell-input,
+.cell-sub-qty .cell-input {
+  padding-left: 2px !important;
+  padding-right: 2px !important;
 }
 
 .cell-input:hover {
@@ -1061,14 +1082,51 @@
     border: 1px solid #000000 !important;
     background: transparent !important;
     color: #000000 !important;
-    padding: 3px 4px !important;
+    padding: 2px 3px !important;
     height: auto !important;
     min-width: 0 !important;
     position: static !important;
+    box-sizing: border-box !important;
+  }
+
+  #approvalPrintPortal .cell-item-name,
+  #approvalPrintPortal .cell-sub-spec {
     white-space: pre-wrap !important;
     word-break: break-word !important;
     overflow-wrap: break-word !important;
-    box-sizing: border-box !important;
+  }
+
+  #approvalPrintPortal .col-stt,
+  #approvalPrintPortal .cell-stt,
+  #approvalPrintPortal .col-unit,
+  #approvalPrintPortal .cell-unit,
+  #approvalPrintPortal .cell-qty,
+  #approvalPrintPortal .col-sub-qty,
+  #approvalPrintPortal .cell-sub-qty,
+  #approvalPrintPortal .cell-sub-price,
+  #approvalPrintPortal .cell-sub-amount,
+  #approvalPrintPortal td.cell-right {
+    white-space: nowrap !important;
+    word-break: normal !important;
+    overflow-wrap: normal !important;
+  }
+
+  #approvalPrintPortal .col-stt,
+  #approvalPrintPortal .cell-stt,
+  #approvalPrintPortal .col-unit,
+  #approvalPrintPortal .cell-unit,
+  #approvalPrintPortal .cell-qty,
+  #approvalPrintPortal .col-sub-qty,
+  #approvalPrintPortal .cell-sub-qty {
+    text-align: center !important;
+  }
+
+  #approvalPrintPortal .col-qty {
+    white-space: normal !important;
+    word-break: normal !important;
+    overflow-wrap: normal !important;
+    text-align: center !important;
+    line-height: 1.15 !important;
   }
 
   #approvalPrintPortal .phenikaa-print-grid tr {

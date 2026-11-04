@@ -1659,10 +1659,28 @@ export default function ApprovalManagement({
    */
   const colWidths = useMemo(() => {
     const numSups = Math.max(1, activeRequest?.supplierColumns.length || 1);
-    const sttPct = 2.4;
-    const itemPct = numSups >= 3 ? 13.0 : 16.0;
-    const qtyPct = 2.8;
-    const unitPct = 2.8;
+    let sttPct = 4.0;
+    let itemPct = 25.0;
+    let qtyPct = 7.0;
+    let unitPct = 6.0;
+
+    if (numSups === 1) {
+      sttPct = 5.0;
+      itemPct = 35.0;
+      qtyPct = 8.0;
+      unitPct = 7.0;
+    } else if (numSups === 3) {
+      sttPct = 3.5;
+      itemPct = 19.5;
+      qtyPct = 6.5;
+      unitPct = 5.5;
+    } else if (numSups >= 4) {
+      sttPct = 3.2;
+      itemPct = 16.0;
+      qtyPct = 6.0;
+      unitPct = 5.0;
+    }
+
     const remainingPct = 100 - (sttPct + itemPct + qtyPct + unitPct);
     const perSupPct = remainingPct / numSups;
 
@@ -1681,8 +1699,8 @@ export default function ApprovalManagement({
       pricePct = perSupPct * 0.27;
       amtPct = perSupPct * 0.29;
     } else if (!hasQuotedProduct && hasSupplierQty) {
-      pricePct = perSupPct * 0.42;
-      supQtyPct = perSupPct * 0.14;
+      pricePct = perSupPct * 0.40;
+      supQtyPct = perSupPct * 0.16;
       amtPct = perSupPct * 0.44;
     } else {
       pricePct = perSupPct * 0.48;
@@ -4716,9 +4734,6 @@ export default function ApprovalManagement({
                   min-width: 0 !important;
                   height: auto !important;
                   position: static !important;
-                  white-space: pre-wrap !important;
-                  word-break: break-word !important;
-                  overflow-wrap: break-word !important;
                   box-sizing: border-box !important;
                   vertical-align: middle !important;
                   color: #000000 !important;
@@ -4729,6 +4744,42 @@ export default function ApprovalManagement({
                   border: 1px solid #000000 !important;
                   padding: 2px 3px !important;
                   font-size: 9.5pt !important;
+                  line-height: 1.15 !important;
+                }
+                #approvalPrintPortal .cell-item-name,
+                #approvalPrintPortal .cell-sub-spec {
+                  white-space: pre-wrap !important;
+                  word-break: break-word !important;
+                  overflow-wrap: break-word !important;
+                }
+                #approvalPrintPortal .col-stt,
+                #approvalPrintPortal .cell-stt,
+                #approvalPrintPortal .col-unit,
+                #approvalPrintPortal .cell-unit,
+                #approvalPrintPortal .cell-qty,
+                #approvalPrintPortal .col-sub-qty,
+                #approvalPrintPortal .cell-sub-qty,
+                #approvalPrintPortal .cell-sub-price,
+                #approvalPrintPortal .cell-sub-amount,
+                #approvalPrintPortal td.cell-right {
+                  white-space: nowrap !important;
+                  word-break: normal !important;
+                  overflow-wrap: normal !important;
+                }
+                #approvalPrintPortal .col-stt,
+                #approvalPrintPortal .cell-stt,
+                #approvalPrintPortal .col-unit,
+                #approvalPrintPortal .cell-unit,
+                #approvalPrintPortal .cell-qty,
+                #approvalPrintPortal .col-sub-qty,
+                #approvalPrintPortal .cell-sub-qty {
+                  text-align: center !important;
+                }
+                #approvalPrintPortal .col-qty {
+                  white-space: normal !important;
+                  word-break: normal !important;
+                  overflow-wrap: normal !important;
+                  text-align: center !important;
                   line-height: 1.15 !important;
                 }
                 #approvalPrintPortal .phenikaa-sign-table td {
@@ -4796,18 +4847,34 @@ export default function ApprovalManagement({
                   {renderTableColGroup()}
                   <thead>
                     <tr>
-                      <th rowSpan={2} style={{ width: colWidths.stt }}>
+                      <th
+                        rowSpan={2}
+                        className="col-stt"
+                        style={{ width: colWidths.stt }}
+                      >
                         STT
                       </th>
-                      <th rowSpan={2} style={{ width: colWidths.item }}>
+                      <th
+                        rowSpan={2}
+                        className="col-item-name"
+                        style={{ width: colWidths.item }}
+                      >
                         Hàng hóa
                       </th>
-                      <th rowSpan={2} style={{ width: colWidths.qty }}>
+                      <th
+                        rowSpan={2}
+                        className="col-qty"
+                        style={{ width: colWidths.qty }}
+                      >
                         Số
                         <br />
                         lượng
                       </th>
-                      <th rowSpan={2} style={{ width: colWidths.unit }}>
+                      <th
+                        rowSpan={2}
+                        className="col-unit"
+                        style={{ width: colWidths.unit }}
+                      >
                         ĐVT
                       </th>
                       {activeRequest.supplierColumns.map((sc) => (
@@ -4815,6 +4882,7 @@ export default function ApprovalManagement({
                           key={`p_head_${sc.colId}`}
                           colSpan={subColCountPerSupplier}
                           style={{ width: colWidths.perSup }}
+                          className={`col-supplier-group ${sc.isSelected ? "selected-supplier-th" : ""}`}
                         >
                           {sc.isSelected
                             ? `NCC lựa chọn: ${sc.shortName || sc.supplierName}`
@@ -4826,23 +4894,23 @@ export default function ApprovalManagement({
                       {activeRequest.supplierColumns.map((sc) => (
                         <React.Fragment key={`p_sub_${sc.colId}`}>
                           {hasQuotedProduct && (
-                            <th style={{ width: colWidths.spec }}>
+                            <th className="col-sub-spec" style={{ width: colWidths.spec }}>
                               {quotedProductTitle}
                             </th>
                           )}
-                          <th style={{ width: colWidths.price }}>
+                          <th className="col-sub-price" style={{ width: colWidths.price }}>
                             Đơn giá
                             <br />
                             (VNĐ)
                           </th>
                           {hasSupplierQty && (
-                            <th style={{ width: colWidths.supQty }}>
+                            <th className="col-sub-qty" style={{ width: colWidths.supQty }}>
                               Số
                               <br />
                               lượng
                             </th>
                           )}
-                          <th style={{ width: colWidths.amt }}>
+                          <th className="col-sub-amount" style={{ width: colWidths.amt }}>
                             Thành
                             <br />
                             tiền
@@ -4868,25 +4936,25 @@ export default function ApprovalManagement({
                             <>
                               <td
                                 rowSpan={maxSubLines}
-                                className="cell-center"
+                                className="cell-center cell-stt"
                               >
                                 {row.stt}
                               </td>
                               <td
                                 rowSpan={maxSubLines}
-                                className="cell-left"
+                                className="cell-left cell-item-name"
                               >
                                 {row.itemName}
                               </td>
                               <td
                                 rowSpan={maxSubLines}
-                                className="cell-center"
+                                className="cell-center cell-qty"
                               >
                                 {row.qty}
                               </td>
                               <td
                                 rowSpan={maxSubLines}
-                                className="cell-center"
+                                className="cell-center cell-unit"
                               >
                                 {row.unit}
                               </td>
@@ -4923,14 +4991,14 @@ export default function ApprovalManagement({
                                   {hasQuotedProduct && (
                                     <td
                                       rowSpan={maxSubLines}
-                                      className="cell-left"
+                                      className="cell-left cell-sub-spec"
                                     >
                                       {prodText}
                                     </td>
                                   )}
                                   <td
                                     rowSpan={maxSubLines}
-                                    className="cell-right"
+                                    className="cell-right cell-sub-price"
                                   >
                                     {line.unitPrice
                                       ? formatVND(line.unitPrice)
@@ -4939,14 +5007,14 @@ export default function ApprovalManagement({
                                   {hasSupplierQty && (
                                     <td
                                       rowSpan={maxSubLines}
-                                      className="cell-center"
+                                      className="cell-center cell-sub-qty"
                                     >
                                       {line.qty}
                                     </td>
                                   )}
                                   <td
                                     rowSpan={maxSubLines}
-                                    className="cell-right"
+                                    className="cell-right cell-sub-amount"
                                   >
                                     {amt ? formatVND(amt) : "-"}
                                   </td>
@@ -4980,17 +5048,17 @@ export default function ApprovalManagement({
                                 key={`p_cell_${row.rowId}_${sc.colId}_${subIdx}`}
                               >
                                 {hasQuotedProduct && (
-                                  <td className="cell-left">{prodText}</td>
+                                  <td className="cell-left cell-sub-spec">{prodText}</td>
                                 )}
-                                <td className="cell-right">
+                                <td className="cell-right cell-sub-price">
                                   {line.unitPrice
                                     ? formatVND(line.unitPrice)
                                     : "-"}
                                 </td>
                                 {hasSupplierQty && (
-                                  <td className="cell-center">{line.qty}</td>
+                                  <td className="cell-center cell-sub-qty">{line.qty}</td>
                                 )}
-                                <td className="cell-right">
+                                <td className="cell-right cell-sub-amount">
                                   {amt ? formatVND(amt) : "-"}
                                 </td>
                               </React.Fragment>
