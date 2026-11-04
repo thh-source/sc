@@ -25,7 +25,9 @@ export const randomHex = (size = 32) => {
   return hex(bytes);
 };
 
+let authSchemaEnsured = false;
 export async function ensureAuthSchema() {
+  if (authSchemaEnsured) return;
   const { DB } = await runtime();
   await DB.batch([
     DB.prepare(
@@ -47,6 +49,7 @@ export async function ensureAuthSchema() {
       "CREATE INDEX IF NOT EXISTS audit_logs_created_idx ON audit_logs(created_at)",
     ),
   ]);
+  authSchemaEnsured = true;
 }
 
 export async function hashPassword(password: string, saltHex: string) {

@@ -376,6 +376,7 @@ function ProcurementAppInner({
     serverVersionRef = useRef<number>(0),
     saveRunningRef = useRef(false),
     savePendingRef = useRef(false),
+    saveErrorRetryCountRef = useRef(0),
     saveRevisionRef = useRef(0),
     savedRevisionRef = useRef(-1),
     latestSaveRef = useRef<{
@@ -532,6 +533,7 @@ function ProcurementAppInner({
           }
 
           if (!response.ok) throw new Error("SAVE_FAILED");
+          saveErrorRetryCountRef.current = 0;
           const resData = (await response.json().catch(() => null)) as { version?: number } | null;
           if (resData?.version) {
             serverVersionRef.current = resData.version;
@@ -551,16 +553,20 @@ function ProcurementAppInner({
             diff: payloadToSend,
           });
         } catch {
+          saveErrorRetryCountRef.current += 1;
+          const retryCount = saveErrorRetryCountRef.current;
           const isActuallyOnline = typeof navigator !== "undefined" ? navigator.onLine : true;
-          if (isActuallyOnline) {
-            // Thiết bị máy tính vẫn có mạng: chỉ là độ trễ mạng tạm thời, tự động thử lại ngầm không làm phiền người dùng
-            setStorageStatus("Đang lưu lại...");
+          if (isActuallyOnline && retryCount < 3) {
+            // Thiết bị có mạng: Thử lại ngầm với độ trễ tăng dần để không gây quá tải Worker
+            const delay = Math.min(2000 * retryCount, 6000);
+            setStorageStatus("Đang thử lưu lại...");
             savePendingRef.current = true;
             setTimeout(() => {
               void persistState(false);
-            }, 1500);
+            }, delay);
           } else {
-            // Thiết bị thực sự mất mạng (offline)
+            // Đã thử lại hoặc mất mạng: lưu an toàn vào IndexedDB offline, tránh spam request làm chết worker
+            saveErrorRetryCountRef.current = 0;
             await enqueueOfflineAction({
               endpoint: `/api/state?workspace=${encodeURIComponent(job.workspaceId)}`,
               method: "PUT",
@@ -570,7 +576,7 @@ function ProcurementAppInner({
             });
             savedRevisionRef.current = job.revision;
             previousPayloadRef.current = job.payload;
-            setStorageStatus("Đã lưu tạm offline (ngoại tuyến)");
+            setStorageStatus("Đã lưu an toàn trên máy (chờ đồng bộ)");
           }
         }
       }
