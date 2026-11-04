@@ -35,6 +35,7 @@ import {
   isPONumberExists,
 } from "../types";
 import { fmt as formatVND, generateShortName } from "../utils/format";
+import { dateVN } from "../utils/date";
 import { PHENIKAA_PHARMA_LOGO_BASE64, localToday } from "../payment-utils";
 import {
   cleanExcelNumber,
@@ -204,6 +205,22 @@ export function getQuotedProductTitle(req: ApprovalRequest): string {
  * Chuyển đổi chuỗi ngày định dạng DD/MM/YYYY hoặc YYYY-MM-DD thành số so sánh (YYYYMMDD)
  * để đảm bảo sắp xếp chính xác từ mới nhất đến cũ nhất.
  */
+export function getApprovalDisplayDate(createdDate?: string, id?: number): string {
+  if (createdDate && createdDate.trim()) return createdDate.trim();
+  if (id && id > 1500000000000 && id < 3000000000000) {
+    try {
+      const d = new Date(id);
+      const day = String(d.getDate()).padStart(2, "0");
+      const month = String(d.getMonth() + 1).padStart(2, "0");
+      const year = d.getFullYear();
+      return `${day}/${month}/${year}`;
+    } catch {
+      return "—";
+    }
+  }
+  return "—";
+}
+
 export function parseApprovalDate(dateStr?: string, id?: number): number {
   if (dateStr && typeof dateStr === "string") {
     const parts = dateStr.trim().split(/[\/\-\.]/);
@@ -2131,7 +2148,7 @@ export default function ApprovalManagement({
                             </button>
                           </div>
                         </td>
-                        <td>{req.createdDate || (req.id > 1500000000000 ? dateVN(new Date(req.id).toISOString()) : "—")}</td>
+                        <td>{getApprovalDisplayDate(req.createdDate, req.id)}</td>
                         <td className="center">
                           <span className="scale-pill">
                             {req.supplierColumns.length} NCC · {req.rows.length} mục
