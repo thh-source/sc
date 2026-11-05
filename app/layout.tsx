@@ -1,6 +1,12 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono, Manrope, JetBrains_Mono } from "next/font/google";
+import { Roboto, JetBrains_Mono, Geist, Geist_Mono, Manrope } from "next/font/google";
 import "./globals.css";
+
+const roboto = Roboto({
+  variable: "--font-roboto",
+  subsets: ["latin", "vietnamese"],
+  weight: ["300", "400", "500", "700"],
+});
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -58,12 +64,12 @@ export default function RootLayout({
         />
         <script
           dangerouslySetInnerHTML={{
-            __html: `try{if(localStorage.getItem('scm_ui_theme')==='misa'){document.documentElement.classList.add('theme-misa');}}catch(e){}`,
+            __html: `try{if(localStorage.getItem('scm_ui_theme')!=='classic'){document.documentElement.classList.add('theme-misa');}}catch(e){}`,
           }}
         />
       </head>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} ${manrope.variable} ${jetbrainsMono.variable} antialiased`}
+        className={`${roboto.variable} ${geistSans.variable} ${geistMono.variable} ${manrope.variable} ${jetbrainsMono.variable} antialiased`}
       >
         {children}
       </body>
