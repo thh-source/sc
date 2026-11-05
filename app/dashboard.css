@@ -90,22 +90,14 @@
   transform: translateY(0);
 }
 
-.workflow-action-btn.action-pr,
-.workflow-action-btn.action-approval,
-.workflow-action-btn.action-po,
-.workflow-action-btn.action-payment,
-.workflow-action-btn.action-handover {
+.workflow-action-btn:not(.action-search) {
   background: linear-gradient(135deg, #3875f6 0%, #2252f6 100%) !important;
   color: #ffffff !important;
   border: 1px solid #1d4ed8 !important;
   box-shadow: 0 3px 10px rgba(34, 82, 246, 0.28) !important;
 }
 
-.workflow-action-btn.action-pr:hover,
-.workflow-action-btn.action-approval:hover,
-.workflow-action-btn.action-po:hover,
-.workflow-action-btn.action-payment:hover,
-.workflow-action-btn.action-handover:hover {
+.workflow-action-btn:not(.action-search):hover {
   background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%) !important;
   border-color: #1e40af !important;
   box-shadow: 0 5px 14px rgba(34, 82, 246, 0.38) !important;

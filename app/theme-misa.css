@@ -294,42 +294,22 @@ body.theme-misa main,
 }
 
 /* 9. MISA Buttons */
-html.theme-misa button.primary,
-body.theme-misa button.primary,
-.app.theme-misa button.primary,
-html.theme-misa .btn-primary,
-body.theme-misa .btn-primary,
-.app.theme-misa .btn-primary,
-html.theme-misa .primary,
-body.theme-misa .primary,
-.app.theme-misa .primary,
-html.theme-misa .po-toolbar > button.primary,
-body.theme-misa .po-toolbar > button.primary,
-.app.theme-misa .po-toolbar > button.primary,
-html.theme-misa .pr-toolbar > button.primary,
-body.theme-misa .pr-toolbar > button.primary,
-.app.theme-misa .pr-toolbar > button.primary,
-html.theme-misa .product-toolbar > button.primary,
-body.theme-misa .product-toolbar > button.primary,
-.app.theme-misa .product-toolbar > button.primary,
-html.theme-misa .supplier-toolbar > button.primary,
-body.theme-misa .supplier-toolbar > button.primary,
-.app.theme-misa .supplier-toolbar > button.primary {
+.theme-misa button.primary,
+.theme-misa .btn-primary,
+.theme-misa .primary,
+.theme-misa .po-toolbar > button.primary,
+.theme-misa .pr-toolbar > button.primary,
+.theme-misa .product-toolbar > button.primary,
+.theme-misa .supplier-toolbar > button.primary {
   background: linear-gradient(135deg, #3875f6 0%, #2252f6 100%) !important;
   border-color: #1d4ed8 !important;
   color: #ffffff !important;
   box-shadow: 0 1px 3px rgba(34, 82, 246, 0.25) !important;
 }
 
-html.theme-misa button.primary:hover:not(:disabled),
-body.theme-misa button.primary:hover:not(:disabled),
-.app.theme-misa button.primary:hover:not(:disabled),
-html.theme-misa .btn-primary:hover:not(:disabled),
-body.theme-misa .btn-primary:hover:not(:disabled),
-.app.theme-misa .btn-primary:hover:not(:disabled),
-html.theme-misa .primary:hover:not(:disabled),
-body.theme-misa .primary:hover:not(:disabled),
-.app.theme-misa .primary:hover:not(:disabled) {
+.theme-misa button.primary:hover:not(:disabled),
+.theme-misa .btn-primary:hover:not(:disabled),
+.theme-misa .primary:hover:not(:disabled) {
   background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%) !important;
   border-color: #1e40af !important;
   box-shadow: 0 2px 6px rgba(34, 82, 246, 0.35) !important;

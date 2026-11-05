@@ -652,7 +652,7 @@ export function AdvancedItemsTable({
               historical = purchaseHistory.filter(
                 (row) =>
                   (i.code && row.itemCode === i.code) ||
-                  (row.itemName && i.name && row.itemName.toLowerCase() === i.name.toLowerCase()),
+                  (row.itemName && i.name && row.itemName.toLowerCase().trim() === i.name.toLowerCase().trim()),
               ),
               historicalStats = priceStats(historical);
             return (

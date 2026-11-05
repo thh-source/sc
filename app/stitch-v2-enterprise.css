@@ -252,11 +252,6 @@
   .btn-approve-status,
   .btn-create-po-from-approval,
   .workflow-action-btn:not(.action-search),
-  .workflow-action-btn.action-pr,
-  .workflow-action-btn.action-approval,
-  .workflow-action-btn.action-po,
-  .workflow-action-btn.action-payment,
-  .workflow-action-btn.action-handover,
   .todo-hero-add-btn,
   .filter-actions button:last-child,
   .po-toolbar > button.primary,
@@ -296,11 +291,6 @@
   .btn-approve-status:hover:not(:disabled),
   .btn-create-po-from-approval:hover:not(:disabled),
   .workflow-action-btn:not(.action-search):hover:not(:disabled),
-  .workflow-action-btn.action-pr:hover:not(:disabled),
-  .workflow-action-btn.action-approval:hover:not(:disabled),
-  .workflow-action-btn.action-po:hover:not(:disabled),
-  .workflow-action-btn.action-payment:hover:not(:disabled),
-  .workflow-action-btn.action-handover:hover:not(:disabled),
   .todo-hero-add-btn:hover:not(:disabled) {
     background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%) !important;
     border-color: #1e40af !important;
@@ -1743,10 +1733,6 @@ label,
  * - Chữ trong bảng thống nhất màu đen (#0f172a), nút chức năng thống nhất màu xanh logo Phenikaa.
  */
 table thead th,
-table.draft-table thead th,
-table.payment-grid thead th,
-table.po-table thead th,
-table.smart-table thead th,
 .delivery-table th,
 .compare-matrix-table th,
 .pr-table th {
@@ -1763,17 +1749,13 @@ table.smart-table thead th,
 
 table thead th *,
 .pr-table th *,
-.draft-table thead th *,
-.payment-grid thead th *,
-.po-table thead th * {
+.draft-table th *,
+.payment-grid th *,
+.po-table th * {
   font-weight: 700 !important;
 }
 
 table tbody td,
-table.draft-table tbody td,
-table.payment-grid tbody td,
-table.po-table tbody td,
-table.smart-table tbody td,
 .delivery-table td,
 .compare-matrix-table td,
 .pr-table td {
@@ -1789,12 +1771,7 @@ table.smart-table tbody td,
 }
 
 /* Áp dụng triệt để: Mọi phần tử con trong ô dữ liệu đều viết thường, không nghiêng, không đậm, màu đen */
-table tbody td *:not(.stitch-action-pill):not(.stitch-action-pill *):not(.btn):not(.btn *):not(.payment-btn):not(.payment-btn *):not(button.primary):not(button.primary *),
-.pr-table tbody td *:not(.stitch-action-pill):not(.stitch-action-pill *):not(.btn):not(.btn *):not(.payment-btn):not(.payment-btn *):not(button.primary):not(button.primary *),
-.draft-table tbody td *:not(.stitch-action-pill):not(.stitch-action-pill *):not(.btn):not(.btn *):not(.payment-btn):not(.payment-btn *):not(button.primary):not(button.primary *),
-.compare-matrix-table tbody td *:not(.stitch-action-pill):not(.stitch-action-pill *):not(.btn):not(.btn *):not(.payment-btn):not(.payment-btn *):not(button.primary):not(button.primary *),
-.payment-grid tbody td *:not(.stitch-action-pill):not(.stitch-action-pill *):not(.btn):not(.btn *):not(.payment-btn):not(.payment-btn *):not(button.primary):not(button.primary *),
-.po-table tbody td *:not(.stitch-action-pill):not(.stitch-action-pill *):not(.btn):not(.btn *):not(.payment-btn):not(.payment-btn *):not(button.primary):not(button.primary *) {
+table tbody td *:not(.stitch-action-pill):not(.stitch-action-pill *):not(.btn):not(.btn *):not(.payment-btn):not(.payment-btn *):not(button.primary):not(button.primary *) {
   font-weight: 400 !important;
   font-style: normal !important;
   font-size: 13px !important;
@@ -1859,18 +1836,7 @@ table.draft-table tfoot td,
    (Bảo tồn 100% mẫu in A4: .paper, .handover-paper, #paymentPrintPortal)
    ========================================================================= */
 
-table:not(.paper *):not(.handover-paper *):not(#paymentPrintPortal *) thead th,
-.pr-table thead th,
-.catalog-table thead th,
-.payment-grid thead th,
-.payment-table thead th,
-.compare-matrix-table thead th,
-.delivery-table thead th,
-.po-table thead th,
-.smart-table thead th,
-.draft-table thead th,
-.table-common thead th,
-.phenikaa-approval-grid thead th {
+table:not(.paper *):not(.handover-paper *):not(#paymentPrintPortal *) thead th {
   background: #f2f5f8 !important;
   background-color: #f2f5f8 !important;
   color: #1e293b !important;
@@ -1885,18 +1851,7 @@ table:not(.paper *):not(.handover-paper *):not(#paymentPrintPortal *) thead th,
   white-space: nowrap !important;
 }
 
-table:not(.paper *):not(.handover-paper *):not(#paymentPrintPortal *) tbody td,
-.pr-table tbody td,
-.catalog-table tbody td,
-.payment-grid tbody td,
-.payment-table tbody td,
-.compare-matrix-table tbody td,
-.delivery-table tbody td,
-.po-table tbody td,
-.smart-table tbody td,
-.draft-table tbody td,
-.table-common tbody td,
-.phenikaa-approval-grid tbody td {
+table:not(.paper *):not(.handover-paper *):not(#paymentPrintPortal *) tbody td {
   font-size: 13px !important;
   font-weight: 400 !important;
   font-style: normal !important;
@@ -1909,40 +1864,23 @@ table:not(.paper *):not(.handover-paper *):not(#paymentPrintPortal *) tbody td,
 }
 
 /* Zebra striping (MISA AMIS standard alternating rows) */
-table:not(.paper *):not(.handover-paper *):not(#paymentPrintPortal *) tbody tr:nth-child(even) td,
-.pr-table tbody tr:nth-child(even) td,
-.payment-grid tbody tr:nth-child(even) td,
-.po-table tbody tr:nth-child(even) td,
-.draft-table tbody tr:nth-child(even) td,
-.phenikaa-approval-grid tbody tr:nth-child(even) td {
+table:not(.paper *):not(.handover-paper *):not(#paymentPrintPortal *) tbody tr:nth-child(even) td {
   background-color: #fafbfd;
 }
 
-table:not(.paper *):not(.handover-paper *):not(#paymentPrintPortal *) tbody tr:nth-child(odd) td,
-.pr-table tbody tr:nth-child(odd) td,
-.payment-grid tbody tr:nth-child(odd) td,
-.po-table tbody tr:nth-child(odd) td,
-.draft-table tbody tr:nth-child(odd) td,
-.phenikaa-approval-grid tbody tr:nth-child(odd) td {
+table:not(.paper *):not(.handover-paper *):not(#paymentPrintPortal *) tbody tr:nth-child(odd) td {
   background-color: #ffffff;
 }
 
 /* Hover row */
-table:not(.paper *):not(.handover-paper *):not(#paymentPrintPortal *) tbody tr:hover td,
-.pr-table tbody tr:hover td,
-.payment-grid tbody tr:hover td,
-.po-table tbody tr:hover td,
-.draft-table tbody tr:hover td,
-.phenikaa-approval-grid tbody tr:hover td {
+table:not(.paper *):not(.handover-paper *):not(#paymentPrintPortal *) tbody tr:hover td {
   background-color: #f1f5f9 !important;
 }
 
 /* Selected row */
 table:not(.paper *):not(.handover-paper *):not(#paymentPrintPortal *) tbody tr.row-selected td,
 table:not(.paper *):not(.handover-paper *):not(#paymentPrintPortal *) tbody tr.selected td,
-table:not(.paper *):not(.handover-paper *):not(#paymentPrintPortal *) tbody tr:has(input[type="checkbox"]:checked) td,
-.payment-grid tbody tr:has(input[type="checkbox"]:checked) td,
-.phenikaa-approval-grid tbody tr.selected td {
+table:not(.paper *):not(.handover-paper *):not(#paymentPrintPortal *) tbody tr:has(input[type="checkbox"]:checked) td {
   background-color: #eff6ff !important;
 }
 

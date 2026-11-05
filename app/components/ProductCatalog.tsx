@@ -48,7 +48,7 @@ export function ProductCatalog({
   // Compute purchase history for a given product
   const getProductHistory = (product: Item) => {
     const fromHistory = purchaseHistory
-      .filter((row) => row.itemCode === product.code)
+      .filter((row) => (product.code && row.itemCode === product.code) || (product.name && row.itemName && row.itemName.toLowerCase().trim() === product.name.toLowerCase().trim()))
       .map((row) => ({
         date: row.documentDate || row.accountingDate,
         po: row.documentNo || row.invoiceNo || "Nhập kho",
@@ -60,7 +60,7 @@ export function ProductCatalog({
 
     const fromPOs = pos.flatMap((po) =>
       po.items
-        .filter((i) => i.code === product.code)
+        .filter((i) => (product.code && i.code === product.code) || (product.name && i.name && i.name.toLowerCase().trim() === product.name.toLowerCase().trim()))
         .map((i) => ({
           date: po.createdDate,
           po: po.number,

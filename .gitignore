@@ -18,3 +18,5 @@ android/.gradle
 android/build
 android/app/build
 android/local.properties
+public/mobile-*
+public/dnpd-workspace-preview.html
