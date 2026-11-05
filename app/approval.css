@@ -336,9 +336,11 @@
 }
 
 .approval-grid-scroll-wrap {
-  width: 100%;
-  max-width: 100%;
+  width: 100% !important;
+  min-width: 100% !important;
+  max-width: 100% !important;
   overflow-x: auto;
+  display: block !important;
 }
 
 /* Ẩn phần tử chỉ dành cho bản in khi đang ở màn hình */
@@ -470,7 +472,7 @@
 /* Bảng phê duyệt động (.phenikaa-approval-grid) */
 .phenikaa-approval-grid {
   width: 100% !important;
-  min-width: 0 !important;
+  min-width: 100% !important;
   max-width: 100% !important;
   border-collapse: collapse !important;
   table-layout: fixed !important;
@@ -507,15 +509,14 @@
   background: #eff6ff;
 }
 
+/* STT và Số lượng: Tuyệt đối không ngắt dòng chữ số (1000 luôn giữ 1 dòng) */
 .col-stt,
-.col-unit,
 .col-sub-qty,
 .cell-stt,
 .cell-qty,
-.cell-unit,
 .cell-sub-qty {
   white-space: nowrap !important;
-  word-break: normal !important;
+  word-break: keep-all !important;
   overflow-wrap: normal !important;
   text-align: center !important;
   padding-left: 2px !important;
@@ -530,6 +531,26 @@
   line-height: 1.15 !important;
   padding-left: 2px !important;
   padding-right: 2px !important;
+}
+
+.col-unit {
+  white-space: nowrap !important;
+  word-break: normal !important;
+  overflow-wrap: normal !important;
+  text-align: center !important;
+  padding-left: 2px !important;
+  padding-right: 2px !important;
+}
+
+/* Đơn vị tính: Cho phép ngắt dòng theo từ (Chai 500g, Thùng 24 lon...), không bao giờ tràn/lấn sang ô bên cạnh */
+.cell-unit {
+  white-space: normal !important;
+  word-break: normal !important;
+  overflow-wrap: break-word !important;
+  text-align: center !important;
+  line-height: 1.18 !important;
+  padding: 1px 2px !important;
+  overflow: hidden !important;
 }
 
 .subcol-th-wrap {
@@ -1099,10 +1120,7 @@
   #approvalPrintPortal .col-stt,
   #approvalPrintPortal .cell-stt,
   #approvalPrintPortal .col-unit,
-  #approvalPrintPortal .cell-unit,
-  #approvalPrintPortal .cell-qty,
   #approvalPrintPortal .col-sub-qty,
-  #approvalPrintPortal .cell-sub-qty,
   #approvalPrintPortal .cell-sub-price,
   #approvalPrintPortal .cell-sub-amount,
   #approvalPrintPortal td.cell-right {
@@ -1111,13 +1129,19 @@
     overflow-wrap: normal !important;
   }
 
+  /* Số lượng khi in: Tuyệt đối không ngắt dòng từng chữ số (ví dụ 1000 luôn giữ 1 dòng) */
+  #approvalPrintPortal .cell-qty,
+  #approvalPrintPortal .cell-sub-qty {
+    white-space: nowrap !important;
+    word-break: keep-all !important;
+    overflow-wrap: normal !important;
+    text-align: center !important;
+  }
+
   #approvalPrintPortal .col-stt,
   #approvalPrintPortal .cell-stt,
   #approvalPrintPortal .col-unit,
-  #approvalPrintPortal .cell-unit,
-  #approvalPrintPortal .cell-qty,
-  #approvalPrintPortal .col-sub-qty,
-  #approvalPrintPortal .cell-sub-qty {
+  #approvalPrintPortal .col-sub-qty {
     text-align: center !important;
   }
 
@@ -1127,6 +1151,17 @@
     overflow-wrap: normal !important;
     text-align: center !important;
     line-height: 1.15 !important;
+  }
+
+  /* ĐVT khi in: Cho phép ngắt dòng theo từ (Chai 500g, Thùng 24 lon...), không tràn sang ô bên cạnh */
+  #approvalPrintPortal .cell-unit {
+    white-space: normal !important;
+    word-break: normal !important;
+    overflow-wrap: break-word !important;
+    text-align: center !important;
+    line-height: 1.18 !important;
+    padding: 1px 2px !important;
+    overflow: hidden !important;
   }
 
   #approvalPrintPortal .phenikaa-print-grid tr {

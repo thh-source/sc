@@ -298,14 +298,14 @@ export function computeSupplierFinalTotal(
 /**
  * Tự động tính số dòng hiển thị (rows) cho textarea dựa trên độ dài chuỗi và ký tự xuống dòng
  */
-function calcTextareaRows(text: string | undefined, charsPerLine = 22): number {
-  if (!text) return 2;
+function calcTextareaRows(text: string | undefined, charsPerLine = 32): number {
+  if (!text) return 1;
   const lines = String(text).split("\n");
   let totalLines = 0;
   for (const line of lines) {
     totalLines += Math.max(1, Math.ceil(line.length / charsPerLine));
   }
-  return Math.max(2, Math.min(8, totalLines));
+  return Math.max(1, Math.min(8, totalLines));
 }
 
 /**
@@ -1659,26 +1659,31 @@ export default function ApprovalManagement({
    */
   const colWidths = useMemo(() => {
     const numSups = Math.max(1, activeRequest?.supplierColumns.length || 1);
-    let sttPct = 4.0;
-    let itemPct = 25.0;
-    let qtyPct = 7.0;
-    let unitPct = 6.0;
+    let sttPct = 3.5;
+    let itemPct = 30.0;
+    let qtyPct = 7.5;
+    let unitPct = 8.5;
 
     if (numSups === 1) {
-      sttPct = 5.0;
-      itemPct = 35.0;
+      sttPct = 4.0;
       qtyPct = 8.0;
-      unitPct = 7.0;
-    } else if (numSups === 3) {
+      unitPct = 9.0;
+      itemPct = hasQuotedProduct ? 38.0 : 47.0;
+    } else if (numSups === 2) {
       sttPct = 3.5;
-      itemPct = 19.5;
-      qtyPct = 6.5;
-      unitPct = 5.5;
-    } else if (numSups >= 4) {
+      qtyPct = 7.5;
+      unitPct = 8.5;
+      itemPct = hasQuotedProduct ? 30.0 : 38.0;
+    } else if (numSups === 3) {
       sttPct = 3.2;
-      itemPct = 16.0;
-      qtyPct = 6.0;
-      unitPct = 5.0;
+      qtyPct = 7.0;
+      unitPct = 8.0;
+      itemPct = hasQuotedProduct ? 24.0 : 28.0;
+    } else {
+      sttPct = 3.0;
+      qtyPct = 6.5;
+      unitPct = 7.5;
+      itemPct = hasQuotedProduct ? 18.0 : 22.0;
     }
 
     const remainingPct = 100 - (sttPct + itemPct + qtyPct + unitPct);
@@ -1690,21 +1695,21 @@ export default function ApprovalManagement({
     let amtPct = 0;
 
     if (hasQuotedProduct && hasSupplierQty) {
-      specPct = perSupPct * 0.38;
-      pricePct = perSupPct * 0.24;
-      supQtyPct = perSupPct * 0.11;
-      amtPct = perSupPct * 0.27;
+      specPct = perSupPct * 0.40;
+      pricePct = perSupPct * 0.23;
+      supQtyPct = perSupPct * 0.12;
+      amtPct = perSupPct * 0.25;
     } else if (hasQuotedProduct && !hasSupplierQty) {
-      specPct = perSupPct * 0.44;
-      pricePct = perSupPct * 0.27;
-      amtPct = perSupPct * 0.29;
+      specPct = perSupPct * 0.48;
+      pricePct = perSupPct * 0.26;
+      amtPct = perSupPct * 0.26;
     } else if (!hasQuotedProduct && hasSupplierQty) {
       pricePct = perSupPct * 0.40;
       supQtyPct = perSupPct * 0.16;
       amtPct = perSupPct * 0.44;
     } else {
-      pricePct = perSupPct * 0.48;
-      amtPct = perSupPct * 0.52;
+      pricePct = perSupPct * 0.49;
+      amtPct = perSupPct * 0.51;
     }
 
     return {
@@ -3320,21 +3325,18 @@ export default function ApprovalManagement({
                   <th
                     rowSpan={2}
                     className="col-stt"
-                    style={{ width: colWidths.stt }}
                   >
                     STT
                   </th>
                   <th
                     rowSpan={2}
                     className="col-item-name"
-                    style={{ width: colWidths.item }}
                   >
                     Hàng hóa
                   </th>
                   <th
                     rowSpan={2}
                     className="col-qty"
-                    style={{ width: colWidths.qty }}
                   >
                     Số
                     <br />
@@ -3343,7 +3345,6 @@ export default function ApprovalManagement({
                   <th
                     rowSpan={2}
                     className="col-unit"
-                    style={{ width: colWidths.unit }}
                   >
                     ĐVT
                   </th>
@@ -3351,7 +3352,6 @@ export default function ApprovalManagement({
                     <th
                       key={sc.colId}
                       colSpan={subColCountPerSupplier}
-                      style={{ width: colWidths.perSup }}
                       className={`col-supplier-group ${
                         sc.isSelected ? "selected-supplier-th" : ""
                       }`}
@@ -3445,10 +3445,7 @@ export default function ApprovalManagement({
                   {activeRequest.supplierColumns.map((sc) => (
                     <React.Fragment key={`sub_${sc.colId}`}>
                       {hasQuotedProduct && (
-                        <th
-                          className="col-sub-spec"
-                          style={{ width: colWidths.spec }}
-                        >
+                        <th className="col-sub-spec">
                           <div className="subcol-th-wrap">
                             <span>{quotedProductTitle}</span>
                             {!isReportMode && (
@@ -3464,19 +3461,13 @@ export default function ApprovalManagement({
                           </div>
                         </th>
                       )}
-                      <th
-                        className="col-sub-price"
-                        style={{ width: colWidths.price }}
-                      >
+                      <th className="col-sub-price">
                         Đơn giá
                         <br />
                         (VNĐ)
                       </th>
                       {hasSupplierQty && (
-                        <th
-                          className="col-sub-qty"
-                          style={{ width: colWidths.supQty }}
-                        >
+                        <th className="col-sub-qty">
                           <div className="subcol-th-wrap">
                             <span>
                               Số
@@ -3496,10 +3487,7 @@ export default function ApprovalManagement({
                           </div>
                         </th>
                       )}
-                      <th
-                        className="col-sub-amount"
-                        style={{ width: colWidths.amt }}
-                      >
+                      <th className="col-sub-amount">
                         Thành
                         <br />
                         tiền
@@ -4755,10 +4743,7 @@ export default function ApprovalManagement({
                 #approvalPrintPortal .col-stt,
                 #approvalPrintPortal .cell-stt,
                 #approvalPrintPortal .col-unit,
-                #approvalPrintPortal .cell-unit,
-                #approvalPrintPortal .cell-qty,
                 #approvalPrintPortal .col-sub-qty,
-                #approvalPrintPortal .cell-sub-qty,
                 #approvalPrintPortal .cell-sub-price,
                 #approvalPrintPortal .cell-sub-amount,
                 #approvalPrintPortal td.cell-right {
@@ -4766,13 +4751,18 @@ export default function ApprovalManagement({
                   word-break: normal !important;
                   overflow-wrap: normal !important;
                 }
+                /* Số lượng khi in: Tuyệt đối không ngắt dòng từng chữ số (ví dụ 1000 luôn giữ 1 dòng) */
+                #approvalPrintPortal .cell-qty,
+                #approvalPrintPortal .cell-sub-qty {
+                  white-space: nowrap !important;
+                  word-break: keep-all !important;
+                  overflow-wrap: normal !important;
+                  text-align: center !important;
+                }
                 #approvalPrintPortal .col-stt,
                 #approvalPrintPortal .cell-stt,
                 #approvalPrintPortal .col-unit,
-                #approvalPrintPortal .cell-unit,
-                #approvalPrintPortal .cell-qty,
-                #approvalPrintPortal .col-sub-qty,
-                #approvalPrintPortal .cell-sub-qty {
+                #approvalPrintPortal .col-sub-qty {
                   text-align: center !important;
                 }
                 #approvalPrintPortal .col-qty {
@@ -4781,6 +4771,16 @@ export default function ApprovalManagement({
                   overflow-wrap: normal !important;
                   text-align: center !important;
                   line-height: 1.15 !important;
+                }
+                /* ĐVT khi in: Cho phép ngắt dòng theo từ (Chai 500g, Thùng 24 lon...), không tràn sang ô bên cạnh */
+                #approvalPrintPortal .cell-unit {
+                  white-space: normal !important;
+                  word-break: normal !important;
+                  overflow-wrap: break-word !important;
+                  text-align: center !important;
+                  line-height: 1.18 !important;
+                  padding: 1px 2px !important;
+                  overflow: hidden !important;
                 }
                 #approvalPrintPortal .phenikaa-sign-table td {
                   border: none !important;
@@ -4850,21 +4850,18 @@ export default function ApprovalManagement({
                       <th
                         rowSpan={2}
                         className="col-stt"
-                        style={{ width: colWidths.stt }}
                       >
                         STT
                       </th>
                       <th
                         rowSpan={2}
                         className="col-item-name"
-                        style={{ width: colWidths.item }}
                       >
                         Hàng hóa
                       </th>
                       <th
                         rowSpan={2}
                         className="col-qty"
-                        style={{ width: colWidths.qty }}
                       >
                         Số
                         <br />
@@ -4873,7 +4870,6 @@ export default function ApprovalManagement({
                       <th
                         rowSpan={2}
                         className="col-unit"
-                        style={{ width: colWidths.unit }}
                       >
                         ĐVT
                       </th>
@@ -4881,7 +4877,6 @@ export default function ApprovalManagement({
                         <th
                           key={`p_head_${sc.colId}`}
                           colSpan={subColCountPerSupplier}
-                          style={{ width: colWidths.perSup }}
                           className={`col-supplier-group ${sc.isSelected ? "selected-supplier-th" : ""}`}
                         >
                           {sc.isSelected
@@ -4894,23 +4889,23 @@ export default function ApprovalManagement({
                       {activeRequest.supplierColumns.map((sc) => (
                         <React.Fragment key={`p_sub_${sc.colId}`}>
                           {hasQuotedProduct && (
-                            <th className="col-sub-spec" style={{ width: colWidths.spec }}>
+                            <th className="col-sub-spec">
                               {quotedProductTitle}
                             </th>
                           )}
-                          <th className="col-sub-price" style={{ width: colWidths.price }}>
+                          <th className="col-sub-price">
                             Đơn giá
                             <br />
                             (VNĐ)
                           </th>
                           {hasSupplierQty && (
-                            <th className="col-sub-qty" style={{ width: colWidths.supQty }}>
+                            <th className="col-sub-qty">
                               Số
                               <br />
                               lượng
                             </th>
                           )}
-                          <th className="col-sub-amount" style={{ width: colWidths.amt }}>
+                          <th className="col-sub-amount">
                             Thành
                             <br />
                             tiền
