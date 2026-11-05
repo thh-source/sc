@@ -175,7 +175,7 @@ export function ProductCatalog({
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Tìm theo mã hàng, tên vật tư, quy cách, ĐVT..."
+            placeholder="Tìm theo tên vật tư, quy cách, ĐVT, phân loại..."
             style={{
               border: "none",
               outline: "none",
@@ -414,25 +414,6 @@ export function ProductCatalog({
                   backgroundColor: "#f8fafc",
                   borderBottom: "2px solid #cbd5e1",
                   padding: "10px 14px",
-                  width: "110px",
-                  textAlign: "center",
-                  fontSize: "11px",
-                  fontWeight: 700,
-                  color: "#475569",
-                  textTransform: "uppercase",
-                  letterSpacing: "0.03em",
-                }}
-              >
-                MÃ HÀNG
-              </th>
-              <th
-                style={{
-                  position: "sticky",
-                  top: 0,
-                  zIndex: 10,
-                  backgroundColor: "#f8fafc",
-                  borderBottom: "2px solid #cbd5e1",
-                  padding: "10px 14px",
                   minWidth: "220px",
                   fontSize: "11px",
                   fontWeight: 700,
@@ -580,7 +561,7 @@ export function ProductCatalog({
               {shown.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={9}
+                    colSpan={8}
                     style={{
                       padding: "48px 16px",
                       textAlign: "center",
@@ -631,25 +612,6 @@ export function ProductCatalog({
                           if (!isExp) e.currentTarget.style.backgroundColor = "#ffffff";
                         }}
                       >
-                        {/* Item Code */}
-                        <td style={{ padding: "12px 14px", textAlign: "center", verticalAlign: "middle" }}>
-                          <span
-                            style={{
-                              fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
-                              fontSize: "12px",
-                              fontWeight: 700,
-                              color: "#1e40af",
-                              backgroundColor: "#eff6ff",
-                              border: "1px solid #dbeafe",
-                              padding: "3px 7px",
-                              borderRadius: "6px",
-                              whiteSpace: "nowrap",
-                            }}
-                          >
-                            {p.code || "—"}
-                          </span>
-                        </td>
-
                         {/* Item Name & Spec */}
                         <td style={{ padding: "12px 14px", verticalAlign: "middle" }}>
                           <div style={{ fontWeight: 600, color: "#0f172a", fontSize: "13px", lineHeight: "1.3" }}>
@@ -924,19 +886,6 @@ export function ProductCatalog({
                                     >
                                       Lịch sử giao dịch & Biến động giá: {p.name}
                                     </h4>
-                                    <span
-                                      style={{
-                                        fontFamily: "monospace",
-                                        fontSize: "11px",
-                                        fontWeight: 700,
-                                        padding: "1px 6px",
-                                        backgroundColor: "#f1f5f9",
-                                        color: "#475569",
-                                        borderRadius: "4px",
-                                      }}
-                                    >
-                                      #{p.code}
-                                    </span>
                                   </div>
                                   <p
                                     style={{
@@ -1270,20 +1219,7 @@ export function ProductCatalog({
                 }}
               >
                 <div>
-                  <span
-                    style={{
-                      fontFamily: "monospace",
-                      fontSize: "11px",
-                      fontWeight: 700,
-                      color: "#1e40af",
-                      backgroundColor: "#eff6ff",
-                      padding: "2px 6px",
-                      borderRadius: "4px",
-                    }}
-                  >
-                    #{p.code}
-                  </span>
-                  <div style={{ fontWeight: 700, fontSize: "14px", color: "#0f172a", marginTop: "4px" }}>
+                  <div style={{ fontWeight: 700, fontSize: "14px", color: "#0f172a" }}>
                     {p.name}
                   </div>
                 </div>

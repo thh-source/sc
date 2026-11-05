@@ -596,7 +596,7 @@ export function TreeProductPickerModal({
               placeholder={
                 activeTab === "pr"
                   ? "Tìm kiếm tên hàng, quy cách, mã PR (vd: PR-2026-0001), hoặc tên phòng ban..."
-                  : "Tìm kiếm theo tên sản phẩm, mã hàng, quy cách, phân loại..."
+                  : "Tìm kiếm theo tên sản phẩm, quy cách, phân loại..."
               }
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
@@ -1042,9 +1042,6 @@ export function TreeProductPickerModal({
                                 <span style={{ fontSize: "15px" }}>📦</span>
                                 <div style={{ minWidth: 0 }}>
                                   <div style={{ display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
-                                    <span style={{ fontFamily: "monospace", fontSize: "11px", color: "#0284c7", fontWeight: 700 }}>
-                                      [{p.code}]
-                                    </span>
                                     <span style={{ fontWeight: 600, fontSize: "13px", color: "#0f172a" }}>
                                       {p.name}
                                     </span>

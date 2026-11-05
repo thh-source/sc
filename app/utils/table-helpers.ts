@@ -4,7 +4,6 @@ import { makeId } from "./format";
 
 export const BASE_COLUMNS: { key: ColumnKey; label: string }[] = [
   { key: "stt", label: "STT" },
-  { key: "code", label: "Mã hàng" },
   { key: "category", label: "Phân loại" },
   { key: "name", label: "Tên vật tư hàng hóa" },
   { key: "desc", label: "Mô tả kỹ thuật" },

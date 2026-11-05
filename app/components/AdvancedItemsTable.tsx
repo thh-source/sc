@@ -72,10 +72,116 @@ export function AdvancedItemsTable({
   const { t } = useTranslation();
   const [dragged, setDragged] = useState<ColumnKey | null>(null);
 
+  // Loại bỏ cột mã hàng hoàn toàn khỏi bảng so sánh báo giá
+  const activeOrder = useMemo(() => order.filter((col) => col !== "code"), [order]);
+
+  // Quản lý và lưu trữ kích thước cột dùng chung toàn hệ thống
+  const DEFAULT_COMPARE_COL_WIDTHS: Record<string, number> = {
+    poCheck: 46,
+    stt: 48,
+    category: 110,
+    name: 260,
+    desc: 140,
+    spec: 130,
+    unit: 65,
+    qty: 85,
+    estimate: 120,
+    amount: 130,
+    vendorPrice: 125,
+    vendorCustom: 110,
+    bestPrice: 120,
+    winner: 140,
+  };
+  const STORAGE_KEY = "scm_compare_matrix_col_widths";
+
+  const [colWidths, setColWidths] = useState<Record<string, number>>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          return { ...DEFAULT_COMPARE_COL_WIDTHS, ...parsed };
+        }
+      } catch {}
+    }
+    return DEFAULT_COMPARE_COL_WIDTHS;
+  });
+
+  const colWidthsRef = React.useRef(colWidths);
+  colWidthsRef.current = colWidths;
+
+  const [resizingColKey, setResizingColKey] = useState<string | null>(null);
+  const resizeRef = React.useRef<{
+    colKey: string;
+    startX: number;
+    startWidth: number;
+  } | null>(null);
+
+  const getColWidth = (key: string): number => {
+    if (colWidths[key]) return colWidths[key];
+    if (key.startsWith("price_")) return colWidths.vendorPrice || 125;
+    if (key.startsWith("custom_")) return colWidths.vendorCustom || 110;
+    return DEFAULT_COMPARE_COL_WIDTHS[key] || 120;
+  };
+
+  const startColumnDrag = (colKey: string, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const currentVal = getColWidth(colKey);
+    resizeRef.current = {
+      colKey,
+      startX: e.clientX,
+      startWidth: currentVal,
+    };
+    setResizingColKey(colKey);
+  };
+
+  React.useEffect(() => {
+    if (!resizingColKey) return;
+    const onMouseMove = (e: MouseEvent) => {
+      if (!resizeRef.current) return;
+      const { colKey, startX, startWidth } = resizeRef.current;
+      const deltaPx = e.clientX - startX;
+      const minW = colKey === "poCheck" || colKey === "stt" ? 36 : colKey === "unit" ? 45 : 60;
+      const newWidth = Math.max(minW, Math.round(startWidth + deltaPx));
+      setColWidths((prev) => {
+        const updated = { ...prev, [colKey]: newWidth };
+        if (colKey.startsWith("price_")) {
+          updated.vendorPrice = newWidth;
+        }
+        colWidthsRef.current = updated;
+        return updated;
+      });
+    };
+    const onMouseUp = () => {
+      setResizingColKey(null);
+      resizeRef.current = null;
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(colWidthsRef.current));
+      } catch {}
+    };
+    window.addEventListener("mousemove", onMouseMove);
+    window.addEventListener("mouseup", onMouseUp);
+    return () => {
+      window.removeEventListener("mousemove", onMouseMove);
+      window.removeEventListener("mouseup", onMouseUp);
+    };
+  }, [resizingColKey]);
+
+  const resetColWidths = () => {
+    setColWidths(DEFAULT_COMPARE_COL_WIDTHS);
+    colWidthsRef.current = DEFAULT_COMPARE_COL_WIDTHS;
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.removeItem(STORAGE_KEY);
+      } catch {}
+    }
+  };
+
   const flatEditableCols = useMemo<CompareColDescriptor[]>(() => {
     const cols: CompareColDescriptor[] = [];
-    order.forEach((col) => {
-      if (col !== "stt" && col !== "amount") {
+    activeOrder.forEach((col) => {
+      if (col !== "stt" && col !== "amount" && col !== "code") {
         cols.push({ id: `item:${col}`, kind: "item", key: col });
       }
     });
@@ -91,7 +197,7 @@ export function AdvancedItemsTable({
       });
     });
     return cols;
-  }, [order, suppliers, customColumns]);
+  }, [activeOrder, suppliers, customColumns]);
 
   const handleExcelPaste = (
     e: React.ClipboardEvent<HTMLInputElement | HTMLTextAreaElement>,
@@ -202,7 +308,7 @@ export function AdvancedItemsTable({
   const filterValues = useMemo(
     () =>
       Object.fromEntries(
-        order.map((column) => [
+        activeOrder.map((column) => [
           column,
           [...new Set(items.map((item, row) => String(valueOf(item, column, row))))].filter(Boolean),
         ]),
@@ -273,181 +379,281 @@ export function AdvancedItemsTable({
       </datalist>
 
       <div className="tablewrap advanced-table vat-quote-table compare-table-container">
-      <table className="compare-matrix-table">
-        <thead>
-          <tr>
-            <th rowSpan={2} className="po-check-head" title="Chọn mặt hàng cho giỏ PO">
-              <div className="po-check-head-inner">
-                <ShoppingCart size={13} />
-                <span>{t("nav.po_list")}</span>
-              </div>
-            </th>
-            {order.map((col) => {
-              const meta = BASE_COLUMNS.find((c) => c.key === col)!;
-              const values = filterValues[col];
-              return (
-                <th
-                  rowSpan={2}
-                  key={col}
-                  draggable
-                  onDragStart={() => setDragged(col)}
-                  onDragOver={(e) => e.preventDefault()}
-                  onDrop={() => {
-                    if (dragged) setOrder((o) => reorder(o, dragged, col));
-                    setDragged(null);
-                  }}
-                  className={`draggable-head col-${col} ${dragged === col ? "dragging" : ""}`}
-                >
-                  <div className="head-label">
-                    <button type="button" onClick={() => toggleSort(col)}>
-                      <span>{getColLabel(col, meta.label)}</span>
-                      {sort?.key === col && (
-                        <span className="sort-indicator">
-                          {sort.direction === "asc" ? "↑" : "↓"}
-                        </span>
-                      )}
-                    </button>
-                    <button
-                      type="button"
-                      className={
-                        filters[col]?.length
-                          ? "filter-trigger active"
-                          : "filter-trigger"
-                      }
-                      onClick={() =>
-                        setFilterOpen(filterOpen === col ? null : col)
-                      }
-                      title="Lọc"
-                    >
-                      <ChevronDown size={12} />
-                    </button>
-                  </div>
-                  {filterOpen === col && (
-                    <div
-                      className="filter-popover"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <strong>{t("table.filter_col", { col: getColLabel(col, meta.label) })}</strong>
-                      <div className="filter-options">
-                        {values.map((v) => (
-                          <label key={v}>
-                            <input
-                              type="checkbox"
-                              checked={filters[col]?.includes(v) || false}
-                              onChange={() => toggleFilter(col, v)}
-                            />
-                            <span>{v}</span>
-                          </label>
-                        ))}
-                      </div>
-                      <div className="filter-actions">
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setFilters((f) => ({ ...f, [col]: [] }))
-                          }
-                        >
-                          {t("table.clear_filter")}
-                        </button>
-                        <button type="button" onClick={() => setFilterOpen(null)}>
-                          {t("table.done")}
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </th>
-              );
-            })}
-            {suppliers.map((s, idx) => (
-              <th
-                colSpan={1 + (customColumns?.length || 0)}
-                className={`suphead suphead-vendor vendor-col-${idx % 5}`}
-                key={s.id}
-              >
-                <div className="suphead-card">
-                  <div className="suphead-info">
-                    <span className="suphead-badge">{s.shortName || `NCC ${idx + 1}`}</span>
-                    <span className="suphead-name" title={s.name}>{s.name}</span>
-                  </div>
-                  <button
-                    type="button"
-                    className="suphead-remove-btn"
-                    onClick={() => onRemoveSupplier(s.id)}
-                    title={`Gỡ ${s.name} khỏi bảng`}
-                  >
-                    <X size={13} />
-                  </button>
-                </div>
-              </th>
+        {/* Thanh công cụ quản lý độ rộng cột so sánh báo giá */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 14px", background: "#f8fafc", borderBottom: "1px solid #e2e8f0", fontSize: "12px", color: "#64748b" }}>
+          <div style={{ display: "inline-flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+            <span style={{ color: "#2563eb", fontWeight: 700 }}>↔ Kéo mép tiêu đề cột</span>
+            <span>để co giãn độ rộng cột. Độ rộng sau khi chỉnh được tự động lưu và áp dụng cho tất cả PR trên toàn hệ thống.</span>
+          </div>
+          <button
+            type="button"
+            onClick={resetColWidths}
+            style={{
+              padding: "3px 10px",
+              fontSize: "11px",
+              fontWeight: 600,
+              borderRadius: "4px",
+              border: "1px solid #cbd5e1",
+              background: "#ffffff",
+              color: "#334155",
+              cursor: "pointer",
+            }}
+            title="Khôi phục kích thước cột mặc định cho toàn hệ thống"
+          >
+            Đặt lại mặc định
+          </button>
+        </div>
+
+        <table className="compare-matrix-table" style={{ width: "max-content", minWidth: "100%", tableLayout: "fixed" }}>
+          <colgroup>
+            <col style={{ width: `${getColWidth("poCheck")}px` }} />
+            {activeOrder.map((col) => (
+              <col key={col} style={{ width: `${getColWidth(col)}px` }} />
             ))}
-            <th colSpan={2} className="choice choice-head">
-              <div className="choice-head-inner">
-                <Sparkles size={14} className="choice-sparkle-icon" />
-                <span>{t("table.auto_choice")}</span>
-              </div>
-            </th>
-          </tr>
-          <tr>
             {suppliers.flatMap((s) => [
-              <th key={s.id + "p"} className="sub-th-price">{t("table.vendor_price")}</th>,
-              ...(customColumns || []).map((col, idx) => (
-                 <th key={s.id + "cc" + idx} className="sub-th-custom">
-                   <div className="custom-th-inner">
-                     <div style={{display: 'flex', gap: '4px', alignItems: 'center'}}>
-                       {s.id === suppliers[0]?.id && setCustomColumns && idx > 0 && (
-                         <button
-                           type="button"
-                           onClick={() => {
-                             const next = [...(customColumns||[])];
-                             [next[idx-1], next[idx]] = [next[idx], next[idx-1]];
-                             setCustomColumns(next);
-                           }}
-                           className="col-nav-btn"
-                           title="Di chuyển sang trái"
-                         >
-                           <ChevronLeft size={12} />
-                         </button>
-                       )}
-                       <span className="custom-th-name" title={col}>{col}</span>
-                       {s.id === suppliers[0]?.id && setCustomColumns && idx < (customColumns||[]).length - 1 && (
-                         <button
-                           type="button"
-                           onClick={() => {
-                             const next = [...(customColumns||[])];
-                             [next[idx], next[idx+1]] = [next[idx+1], next[idx]];
-                             setCustomColumns(next);
-                           }}
-                           className="col-nav-btn"
-                           title="Di chuyển sang phải"
-                         >
-                           <ChevronRight size={12} />
-                         </button>
-                       )}
-                     </div>
-                     {s.id === suppliers[0]?.id && setCustomColumns && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (confirm(`Xóa cột "${col}"?`)) setCustomColumns((customColumns||[]).filter(c => c !== col));
-                          }}
-                          className="col-del-btn"
-                          title="Xóa cột này"
-                        >
-                          <X size={12} />
-                        </button>
-                     )}
-                   </div>
-                 </th>
+              <col key={s.id + "_p"} style={{ width: `${getColWidth(`price_${s.id}`)}px` }} />,
+              ...(customColumns || []).map((_, idx) => (
+                <col key={s.id + "_c_" + idx} style={{ width: `${getColWidth(`custom_${idx}`)}px` }} />
               )),
             ])}
-            <th className="sub-th-best">{t("compare.best_price")}</th>
-            <th className="sub-th-winner">{t("table.supplier")}</th>
-          </tr>
-        </thead>
+            <col style={{ width: `${getColWidth("bestPrice")}px` }} />
+            <col style={{ width: `${getColWidth("winner")}px` }} />
+          </colgroup>
+          <thead>
+            <tr>
+              <th
+                rowSpan={2}
+                className="po-check-head"
+                title="Chọn mặt hàng cho giỏ PO"
+                style={{ width: `${getColWidth("poCheck")}px`, position: "relative" }}
+              >
+                <div className="po-check-head-inner">
+                  <ShoppingCart size={13} />
+                  <span>{t("nav.po_list")}</span>
+                </div>
+                <div
+                  className={`col-resizer-handle ${resizingColKey === "poCheck" ? "active" : ""}`}
+                  onMouseDown={(e) => startColumnDrag("poCheck", e)}
+                  title="Kéo mép để co giãn cột Chọn PO"
+                />
+              </th>
+              {activeOrder.map((col) => {
+                const meta = BASE_COLUMNS.find((c) => c.key === col) || { key: col, label: col };
+                const values = filterValues[col];
+                const w = getColWidth(col);
+                return (
+                  <th
+                    rowSpan={2}
+                    key={col}
+                    draggable
+                    onDragStart={() => setDragged(col)}
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={() => {
+                      if (dragged) setOrder((o) => reorder(o, dragged, col));
+                      setDragged(null);
+                    }}
+                    style={{ width: `${w}px`, position: "relative" }}
+                    className={`draggable-head col-${col} ${dragged === col ? "dragging" : ""}`}
+                  >
+                    <div className="head-label">
+                      <button type="button" onClick={() => toggleSort(col)}>
+                        <span>{getColLabel(col, meta.label)}</span>
+                        {sort?.key === col && (
+                          <span className="sort-indicator">
+                            {sort.direction === "asc" ? "↑" : "↓"}
+                          </span>
+                        )}
+                      </button>
+                      <button
+                        type="button"
+                        className={
+                          filters[col]?.length
+                            ? "filter-trigger active"
+                            : "filter-trigger"
+                        }
+                        onClick={() =>
+                          setFilterOpen(filterOpen === col ? null : col)
+                        }
+                        title="Lọc"
+                      >
+                        <ChevronDown size={12} />
+                      </button>
+                    </div>
+                    <div
+                      className={`col-resizer-handle ${resizingColKey === col ? "active" : ""}`}
+                      onMouseDown={(e) => startColumnDrag(col, e)}
+                      title={`Kéo mép để co giãn cột ${getColLabel(col, meta.label)}`}
+                    />
+                    {filterOpen === col && (
+                      <div
+                        className="filter-popover"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <strong>{t("table.filter_col", { col: getColLabel(col, meta.label) })}</strong>
+                        <div className="filter-options">
+                          {values.map((v) => (
+                            <label key={v}>
+                              <input
+                                type="checkbox"
+                                checked={filters[col]?.includes(v) || false}
+                                onChange={() => toggleFilter(col, v)}
+                              />
+                              <span>{v}</span>
+                            </label>
+                          ))}
+                        </div>
+                        <div className="filter-actions">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setFilters((f) => ({ ...f, [col]: [] }))
+                            }
+                          >
+                            {t("table.clear_filter")}
+                          </button>
+                          <button type="button" onClick={() => setFilterOpen(null)}>
+                            {t("table.done")}
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </th>
+                );
+              })}
+              {suppliers.map((s, idx) => (
+                <th
+                  colSpan={1 + (customColumns?.length || 0)}
+                  className={`suphead suphead-vendor vendor-col-${idx % 5}`}
+                  key={s.id}
+                >
+                  <div className="suphead-card">
+                    <div className="suphead-info">
+                      <span className="suphead-badge">{s.shortName || `NCC ${idx + 1}`}</span>
+                      <span className="suphead-name" title={s.name}>{s.name}</span>
+                    </div>
+                    <button
+                      type="button"
+                      className="suphead-remove-btn"
+                      onClick={() => onRemoveSupplier(s.id)}
+                      title={`Gỡ ${s.name} khỏi bảng`}
+                    >
+                      <X size={13} />
+                    </button>
+                  </div>
+                </th>
+              ))}
+              <th colSpan={2} className="choice choice-head">
+                <div className="choice-head-inner">
+                  <Sparkles size={14} className="choice-sparkle-icon" />
+                  <span>{t("table.auto_choice")}</span>
+                </div>
+              </th>
+            </tr>
+            <tr>
+              {suppliers.flatMap((s) => [
+                <th
+                  key={s.id + "p"}
+                  className="sub-th-price"
+                  style={{ width: `${getColWidth(`price_${s.id}`)}px`, position: "relative" }}
+                >
+                  <span>{t("table.vendor_price")}</span>
+                  <div
+                    className={`col-resizer-handle ${resizingColKey === `price_${s.id}` ? "active" : ""}`}
+                    onMouseDown={(e) => startColumnDrag(`price_${s.id}`, e)}
+                    title="Kéo mép để co giãn cột Đơn giá NCC"
+                  />
+                </th>,
+                ...(customColumns || []).map((col, idx) => (
+                   <th
+                     key={s.id + "cc" + idx}
+                     className="sub-th-custom"
+                     style={{ width: `${getColWidth(`custom_${idx}`)}px`, position: "relative" }}
+                   >
+                     <div className="custom-th-inner">
+                       <div style={{display: 'flex', gap: '4px', alignItems: 'center'}}>
+                         {s.id === suppliers[0]?.id && setCustomColumns && idx > 0 && (
+                           <button
+                             type="button"
+                             onClick={() => {
+                               const next = [...(customColumns||[])];
+                               [next[idx-1], next[idx]] = [next[idx], next[idx-1]];
+                               setCustomColumns(next);
+                             }}
+                             className="col-nav-btn"
+                             title="Di chuyển sang trái"
+                           >
+                             <ChevronLeft size={12} />
+                           </button>
+                         )}
+                         <span className="custom-th-name" title={col}>{col}</span>
+                         {s.id === suppliers[0]?.id && setCustomColumns && idx < (customColumns||[]).length - 1 && (
+                           <button
+                             type="button"
+                             onClick={() => {
+                               const next = [...(customColumns||[])];
+                               [next[idx], next[idx+1]] = [next[idx+1], next[idx]];
+                               setCustomColumns(next);
+                             }}
+                             className="col-nav-btn"
+                             title="Di chuyển sang phải"
+                           >
+                             <ChevronRight size={12} />
+                           </button>
+                         )}
+                       </div>
+                       {s.id === suppliers[0]?.id && setCustomColumns && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (confirm(`Xóa cột "${col}"?`)) setCustomColumns((customColumns||[]).filter(c => c !== col));
+                            }}
+                            className="col-del-btn"
+                            title="Xóa cột này"
+                          >
+                            <X size={12} />
+                          </button>
+                       )}
+                     </div>
+                     <div
+                       className={`col-resizer-handle ${resizingColKey === `custom_${idx}` ? "active" : ""}`}
+                       onMouseDown={(e) => startColumnDrag(`custom_${idx}`, e)}
+                       title={`Kéo mép để co giãn cột ${col}`}
+                     />
+                   </th>
+                )),
+              ])}
+              <th
+                className="sub-th-best"
+                style={{ width: `${getColWidth("bestPrice")}px`, position: "relative" }}
+              >
+                <span>{t("compare.best_price")}</span>
+                <div
+                  className={`col-resizer-handle ${resizingColKey === "bestPrice" ? "active" : ""}`}
+                  onMouseDown={(e) => startColumnDrag("bestPrice", e)}
+                  title="Kéo mép để co giãn cột Giá tốt nhất"
+                />
+              </th>
+              <th
+                className="sub-th-winner"
+                style={{ width: `${getColWidth("winner")}px`, position: "relative" }}
+              >
+                <span>{t("table.supplier")}</span>
+                <div
+                  className={`col-resizer-handle ${resizingColKey === "winner" ? "active" : ""}`}
+                  onMouseDown={(e) => startColumnDrag("winner", e)}
+                  title="Kéo mép để co giãn cột NCC tốt nhất"
+                />
+              </th>
+            </tr>
+          </thead>
         <tbody>
           {visibleItems.map((i, r) => {
             const win = best(i.id),
-              historical = purchaseHistory.filter((row) => row.itemCode === i.code),
+              historical = purchaseHistory.filter(
+                (row) =>
+                  (i.code && row.itemCode === i.code) ||
+                  (row.itemName && i.name && row.itemName.toLowerCase() === i.name.toLowerCase()),
+              ),
               historicalStats = priceStats(historical);
             return (
               <tr
@@ -464,7 +670,7 @@ export function AdvancedItemsTable({
                     title={win ? "Chọn mặt hàng này cho PO" : "Cần có báo giá để tạo PO"}
                   />
                 </td>
-                {order.map((key) => cell(i, key, r))}
+                {activeOrder.map((key) => cell(i, key, r))}
                 {suppliers.flatMap((s) => {
                   const q = quoteDefaults(quotes[i.id]?.[s.id]),
                     low = win?.supplier.id === s.id;
@@ -536,7 +742,7 @@ export function AdvancedItemsTable({
         <tfoot className="compare-tfoot">
           <tr>
             <td></td>
-            <td colSpan={order.length}>
+            <td colSpan={activeOrder.length}>
               <div className="compare-foot-summary">
                 <span>Tổng số: <b>{visibleItems.length}</b> mặt hàng</span>
                 <span className="foot-sep">·</span>

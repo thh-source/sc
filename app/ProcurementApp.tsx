@@ -3735,7 +3735,6 @@ function ProcurementAppInner({
                 <thead>
                   <tr>
                     <th>{t("compare.po_cart_col_src_pr")}</th>
-                    <th>{t("table.item_code")}</th>
                     <th>{t("table.item_name")}</th>
                     <th>{t("compare.po_cart_col_req_qty")}</th>
                     <th>{t("compare.po_cart_col_ordered")}</th>
@@ -3758,7 +3757,6 @@ function ProcurementAppInner({
                     return (
                       <tr key={line.id}>
                         <td><b>{line.allocation.prNumber}</b></td>
-                        <td>{line.item.code}</td>
                         <td>{line.item.name}</td>
                         <td className="num">{line.item.qty}</td>
                         <td className="num">{already}</td>

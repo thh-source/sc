@@ -1737,10 +1737,17 @@ export default function ApprovalManagement({
   }, [activeRequest?.supplierColumns.length, hasQuotedProduct, hasSupplierQty]);
 
   /**
-   * 2. Kích thước cột thực tế: Kết hợp giữa mặc định chuẩn và tùy chỉnh co kéo của người dùng
+   * 2. Kích thước cột thực tế: Kết hợp giữa mặc định chuẩn và tùy chỉnh co kéo của người dùng (Lưu tự động toàn hệ thống)
    */
   const colWidths = useMemo(() => {
-    const custom = activeRequest?.customColWidths;
+    let savedGlobal: any = null;
+    if (typeof window !== "undefined") {
+      try {
+        const s = localStorage.getItem("scm_approval_col_widths");
+        if (s) savedGlobal = JSON.parse(s);
+      } catch {}
+    }
+    const custom = activeRequest?.customColWidths || savedGlobal;
     const base = defaultColWidths;
 
     const stt = custom?.stt ?? base.stt;
@@ -1807,18 +1814,26 @@ export default function ApprovalManagement({
       nextWidths.item = Math.max(15.0, Number((current.item - delta).toFixed(2)));
     }
 
+    const nextCustom = {
+      stt: nextWidths.stt,
+      item: nextWidths.item,
+      qty: nextWidths.qty,
+      unit: nextWidths.unit,
+      spec: nextWidths.spec,
+      price: nextWidths.price,
+      supQty: nextWidths.supQty,
+      amt: nextWidths.amt,
+    };
+
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.setItem("scm_approval_col_widths", JSON.stringify(nextCustom));
+      } catch {}
+    }
+
     updateActive((prev) => ({
       ...prev,
-      customColWidths: {
-        stt: nextWidths.stt,
-        item: nextWidths.item,
-        qty: nextWidths.qty,
-        unit: nextWidths.unit,
-        spec: nextWidths.spec,
-        price: nextWidths.price,
-        supQty: nextWidths.supQty,
-        amt: nextWidths.amt,
-      },
+      customColWidths: nextCustom,
     }));
   };
 
@@ -1830,6 +1845,11 @@ export default function ApprovalManagement({
     const numSups = Math.max(1, activeRequest.supplierColumns.length || 1);
 
     if (preset === "balanced") {
+      if (typeof window !== "undefined") {
+        try {
+          localStorage.removeItem("scm_approval_col_widths");
+        } catch {}
+      }
       updateActive((prev) => ({ ...prev, customColWidths: undefined }));
       return;
     }
@@ -1865,18 +1885,26 @@ export default function ApprovalManagement({
       }
     }
 
+    const nextCustom = {
+      stt: widths.stt,
+      item: widths.item,
+      qty: widths.qty,
+      unit: widths.unit,
+      spec: widths.spec,
+      price: widths.price,
+      supQty: widths.supQty,
+      amt: widths.amt,
+    };
+
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.setItem("scm_approval_col_widths", JSON.stringify(nextCustom));
+      } catch {}
+    }
+
     updateActive((prev) => ({
       ...prev,
-      customColWidths: {
-        stt: widths.stt,
-        item: widths.item,
-        qty: widths.qty,
-        unit: widths.unit,
-        spec: widths.spec,
-        price: widths.price,
-        supQty: widths.supQty,
-        amt: widths.amt,
-      },
+      customColWidths: nextCustom,
     }));
   };
 

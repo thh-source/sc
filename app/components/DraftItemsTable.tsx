@@ -49,7 +49,8 @@ export function DraftItemsTable({
   >;
 }) {
   const [dragged, setDragged] = useState<ColumnKey | null>(null);
-  const editableCols = order.filter((k): k is Exclude<ColumnKey, "stt" | "amount"> => k !== "stt" && k !== "amount");
+  const activeOrder = order.filter((col) => col !== "code");
+  const editableCols = activeOrder.filter((k): k is Exclude<ColumnKey, "stt" | "amount" | "code"> => k !== "stt" && k !== "amount" && k !== "code");
 
   const handleExcelPaste = (
     e: React.ClipboardEvent<HTMLInputElement | HTMLTextAreaElement>,
@@ -181,8 +182,8 @@ export function DraftItemsTable({
       <table>
         <thead>
           <tr>
-            {order.map((col) => {
-              const meta = BASE_COLUMNS.find((c) => c.key === col)!;
+            {activeOrder.map((col) => {
+              const meta = BASE_COLUMNS.find((c) => c.key === col) || { key: col, label: col };
               const values = [
                 ...new Set(items.map((i, r) => String(valueOf(i, col, r)))),
               ].filter(Boolean);
@@ -263,7 +264,7 @@ export function DraftItemsTable({
         <tbody>
           {visibleItems.map((i, r) => (
             <tr key={i.id}>
-              {order.map((key) => cell(i, key, r))}
+              {activeOrder.map((key) => cell(i, key, r))}
               <td className="col-action center">
                 <button
                   type="button"
@@ -284,7 +285,7 @@ export function DraftItemsTable({
         </tbody>
         <tfoot>
           <tr>
-            <td colSpan={order.length + 1}>
+            <td colSpan={activeOrder.length + 1}>
               <div className="table-footer-summary">
                 <span>Tổng số: <b>{visibleItems.length}</b> mặt hàng</span>
                 <span className="summary-separator">·</span>
@@ -334,15 +335,6 @@ export function DraftItemsTable({
               </div>
 
               <div className="mobile-item-grid">
-                <label className="mobile-item-field">
-                  <span>Mã hàng</span>
-                  <input
-                    type="text"
-                    placeholder="Mã..."
-                    value={i.code || ""}
-                    onChange={(e) => itemChange(i.id, "code", e.target.value, true)}
-                  />
-                </label>
                 <label className="mobile-item-field">
                   <span>Đơn vị tính</span>
                   <input

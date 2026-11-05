@@ -2365,7 +2365,6 @@ export function HandoverManagement({
                         />
                       </th>
                       <th style={{ padding: "6px 8px", width: "40px", textAlign: "center", borderBottom: "1px solid #cbd5e1" }}>STT</th>
-                      <th style={{ padding: "6px 8px", width: "80px", textAlign: "left", borderBottom: "1px solid #cbd5e1" }}>Mã hàng</th>
                       <th style={{ padding: "6px 8px", textAlign: "left", borderBottom: "1px solid #cbd5e1" }}>Tên sản phẩm, vật tư</th>
                       <th style={{ padding: "6px 8px", width: "140px", textAlign: "left", borderBottom: "1px solid #cbd5e1" }}>Quy cách</th>
                       <th style={{ padding: "6px 8px", width: "60px", textAlign: "center", borderBottom: "1px solid #cbd5e1" }}>ĐVT</th>
@@ -2395,7 +2394,6 @@ export function HandoverManagement({
                             />
                           </td>
                           <td style={{ textAlign: "center", color: "#64748b", padding: "6px 8px" }}>{idx + 1}</td>
-                          <td style={{ padding: "6px 8px", color: "#0284c7", fontWeight: 600 }}>{it.code || "---"}</td>
                           <td style={{ padding: "6px 8px", fontWeight: 600, color: "#0f172a" }}>{it.name}</td>
                           <td style={{ padding: "6px 8px", color: "#64748b" }}>{it.spec || "---"}</td>
                           <td style={{ padding: "6px 8px", textAlign: "center" }}>{it.unit || "Cái"}</td>

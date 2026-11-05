@@ -1281,7 +1281,6 @@ export function SupplierManagement({
                                     <tr style={{ backgroundColor: "#f8fafc", borderBottom: "1px solid #e2e8f0" }}>
                                       <th style={{ padding: "8px 10px", textAlign: "left", color: "#475569" }}>Ngày</th>
                                       <th style={{ padding: "8px 10px", textAlign: "left", color: "#475569" }}>Chứng từ / PO</th>
-                                      <th style={{ padding: "8px 10px", textAlign: "left", color: "#475569" }}>Mã hàng</th>
                                       <th style={{ padding: "8px 10px", textAlign: "left", color: "#475569" }}>Tên hàng hóa</th>
                                       <th style={{ padding: "8px 10px", textAlign: "right", color: "#475569" }}>Số lượng</th>
                                       <th style={{ padding: "8px 10px", textAlign: "right", color: "#475569" }}>Đơn giá</th>
@@ -1291,7 +1290,7 @@ export function SupplierManagement({
                                   <tbody>
                                     {!selectedRows.length ? (
                                       <tr>
-                                        <td colSpan={7} style={{ textAlign: "center", padding: "20px", color: "#94a3b8" }}>
+                                        <td colSpan={6} style={{ textAlign: "center", padding: "20px", color: "#94a3b8" }}>
                                           Chưa có lịch sử mua hàng với nhà cung cấp này
                                         </td>
                                       </tr>
@@ -1308,9 +1307,6 @@ export function SupplierManagement({
                                                 {row.warehouseName}
                                               </small>
                                             )}
-                                          </td>
-                                          <td style={{ padding: "8px 10px", fontFamily: "monospace", color: "#64748b" }}>
-                                            {row.itemCode}
                                           </td>
                                           <td style={{ padding: "8px 10px" }}>
                                             <b>{row.itemName}</b>
