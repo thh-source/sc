@@ -655,6 +655,7 @@ export type ApprovalRequest = {
   vatCalculationType?: 'add_vat' | 'already_included';
   printOrientation: "portrait" | "landscape";
   signSpaceHeight?: number;
+  customColWidths?: Record<string, number>;
   supplierColumns: ApprovalSupplierColumn[];
   rows: ApprovalItemRow[];
   recommendedSupplierName: string;

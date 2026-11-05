@@ -20,6 +20,8 @@ import {
   Circle,
   Eye,
   PackageCheck,
+  Sliders,
+  MoveHorizontal,
 } from "lucide-react";
 import {
   ApprovalItemRow,
@@ -817,6 +819,14 @@ export default function ApprovalManagement({
   const [poCreateCustomNumber, setPoCreateCustomNumber] = useState<string>("");
   const [poCreateNumberManual, setPoCreateNumberManual] = useState<boolean>(false);
   const [isSubmittingPO, setIsSubmittingPO] = useState<boolean>(false);
+  const [showColWidthAdjuster, setShowColWidthAdjuster] = useState(false);
+  const [resizingColKey, setResizingColKey] = useState<string | null>(null);
+  const resizeRef = useRef<{
+    colKey: string;
+    startX: number;
+    startWidth: number;
+    tableWidth: number;
+  } | null>(null);
 
   // Trạng thái hiển thị bảng xem nhanh danh mục hàng khi di chuột vào số ĐNPD
   const [hoveredApproval, setHoveredApproval] = useState<{
@@ -1653,37 +1663,37 @@ export default function ApprovalManagement({
     (activeRequest.supplierColumns.length >= 3 || subColCountPerSupplier >= 3);
 
   /**
-   * Tính toán tỉ lệ phần trăm độ rộng (<colgroup> & <th>) cho từng cột:
-   * - Các cột co gọn được (STT, Số lượng, ĐVT, Đơn giá, Thành tiền) được ép gọn tối đa với tiêu đề 2 dòng.
-   * - Đảm bảo tổng độ rộng 100% trang A4 cả trên màn hình làm việc lẫn khi in.
+   * 1. Kích thước cột mặc định chuẩn (Được cân đối khoa học theo kích thước trang in A4)
+   * - Đơn giá và Thành tiền được ưu tiên rộng rãi (~9.5% mỗi cột, ~19mm) để số tiền 7-9 chữ số không bao giờ chạm viền.
+   * - Hàng hóa và Mặt hàng NCC báo có diện tích thoáng đãng, không bị co ép.
    */
-  const colWidths = useMemo(() => {
+  const defaultColWidths = useMemo(() => {
     const numSups = Math.max(1, activeRequest?.supplierColumns.length || 1);
     let sttPct = 3.5;
-    let itemPct = 30.0;
-    let qtyPct = 7.5;
-    let unitPct = 8.5;
+    let itemPct = 22.0;
+    let qtyPct = 6.5;
+    let unitPct = 7.0;
 
     if (numSups === 1) {
       sttPct = 4.0;
-      qtyPct = 8.0;
-      unitPct = 9.0;
-      itemPct = hasQuotedProduct ? 38.0 : 47.0;
-    } else if (numSups === 2) {
-      sttPct = 3.5;
-      qtyPct = 7.5;
-      unitPct = 8.5;
-      itemPct = hasQuotedProduct ? 30.0 : 38.0;
-    } else if (numSups === 3) {
-      sttPct = 3.2;
       qtyPct = 7.0;
       unitPct = 8.0;
-      itemPct = hasQuotedProduct ? 24.0 : 28.0;
-    } else {
-      sttPct = 3.0;
+      itemPct = hasQuotedProduct ? 30.0 : 38.0;
+    } else if (numSups === 2) {
+      sttPct = 3.5;
       qtyPct = 6.5;
-      unitPct = 7.5;
+      unitPct = 7.0;
+      itemPct = hasQuotedProduct ? 22.0 : 28.0;
+    } else if (numSups === 3) {
+      sttPct = 3.0;
+      qtyPct = 5.5;
+      unitPct = 6.0;
       itemPct = hasQuotedProduct ? 18.0 : 22.0;
+    } else {
+      sttPct = 2.8;
+      qtyPct = 5.0;
+      unitPct = 5.5;
+      itemPct = hasQuotedProduct ? 15.0 : 18.0;
     }
 
     const remainingPct = 100 - (sttPct + itemPct + qtyPct + unitPct);
@@ -1695,35 +1705,223 @@ export default function ApprovalManagement({
     let amtPct = 0;
 
     if (hasQuotedProduct && hasSupplierQty) {
-      specPct = perSupPct * 0.40;
-      pricePct = perSupPct * 0.23;
-      supQtyPct = perSupPct * 0.12;
+      specPct = perSupPct * 0.35;
+      pricePct = perSupPct * 0.25;
+      supQtyPct = perSupPct * 0.15;
       amtPct = perSupPct * 0.25;
     } else if (hasQuotedProduct && !hasSupplierQty) {
-      specPct = perSupPct * 0.48;
-      pricePct = perSupPct * 0.26;
-      amtPct = perSupPct * 0.26;
+      // Chuẩn 2 NCC: specPct = 11.5%, pricePct = 9.5%, amtPct = 9.5%
+      specPct = perSupPct * 0.377;
+      pricePct = (perSupPct - specPct) / 2;
+      amtPct = pricePct;
     } else if (!hasQuotedProduct && hasSupplierQty) {
       pricePct = perSupPct * 0.40;
-      supQtyPct = perSupPct * 0.16;
-      amtPct = perSupPct * 0.44;
+      supQtyPct = perSupPct * 0.18;
+      amtPct = perSupPct * 0.42;
     } else {
       pricePct = perSupPct * 0.49;
       amtPct = perSupPct * 0.51;
     }
 
     return {
-      stt: `${sttPct}%`,
-      item: `${itemPct}%`,
-      qty: `${qtyPct}%`,
-      unit: `${unitPct}%`,
-      perSup: `${perSupPct.toFixed(2)}%`,
-      spec: `${specPct.toFixed(2)}%`,
-      price: `${pricePct.toFixed(2)}%`,
-      supQty: `${supQtyPct.toFixed(2)}%`,
-      amt: `${amtPct.toFixed(2)}%`,
+      stt: Number(sttPct.toFixed(2)),
+      item: Number(itemPct.toFixed(2)),
+      qty: Number(qtyPct.toFixed(2)),
+      unit: Number(unitPct.toFixed(2)),
+      perSup: Number(perSupPct.toFixed(2)),
+      spec: Number(specPct.toFixed(2)),
+      price: Number(pricePct.toFixed(2)),
+      supQty: Number(supQtyPct.toFixed(2)),
+      amt: Number(amtPct.toFixed(2)),
     };
   }, [activeRequest?.supplierColumns.length, hasQuotedProduct, hasSupplierQty]);
+
+  /**
+   * 2. Kích thước cột thực tế: Kết hợp giữa mặc định chuẩn và tùy chỉnh co kéo của người dùng
+   */
+  const colWidths = useMemo(() => {
+    const custom = activeRequest?.customColWidths;
+    const base = defaultColWidths;
+
+    const stt = custom?.stt ?? base.stt;
+    const item = custom?.item ?? base.item;
+    const qty = custom?.qty ?? base.qty;
+    const unit = custom?.unit ?? base.unit;
+    const spec = custom?.spec ?? base.spec;
+    const price = custom?.price ?? base.price;
+    const supQty = custom?.supQty ?? base.supQty;
+    const amt = custom?.amt ?? base.amt;
+
+    const subColSum = (hasQuotedProduct ? spec : 0) + price + (hasSupplierQty ? supQty : 0) + amt;
+    const perSup = Number(subColSum.toFixed(2));
+
+    return {
+      stt: `${stt}%`,
+      item: `${item}%`,
+      qty: `${qty}%`,
+      unit: `${unit}%`,
+      perSup: `${perSup}%`,
+      spec: `${spec}%`,
+      price: `${price}%`,
+      supQty: `${supQty}%`,
+      amt: `${amt}%`,
+      numValues: { stt, item, qty, unit, spec, price, supQty, amt, perSup },
+      hasCustom: !!custom && Object.keys(custom).length > 0,
+    };
+  }, [activeRequest?.customColWidths, defaultColWidths, hasQuotedProduct, hasSupplierQty]);
+
+  /**
+   * Xử lý co kéo độ rộng cột đơn lẻ qua slider hoặc kéo chuột
+   */
+  const handleUpdateSingleColWidth = (
+    key: "stt" | "item" | "qty" | "unit" | "spec" | "price" | "amt",
+    targetVal: number,
+  ) => {
+    if (!activeRequest) return;
+    const current = colWidths.numValues;
+    const numSups = Math.max(1, activeRequest.supplierColumns.length || 1);
+
+    const minVal = key === "stt" ? 2.5 : key === "price" || key === "amt" ? 5.5 : 4.0;
+    const maxVal = key === "item" ? 45.0 : 35.0;
+    const clamped = Math.max(minVal, Math.min(maxVal, targetVal));
+
+    const delta = clamped - current[key];
+    if (Math.abs(delta) < 0.05) return;
+
+    let nextWidths = { ...current };
+    nextWidths[key] = clamped;
+
+    if (key === "item") {
+      const deltaPerSupCol = delta / numSups / 2;
+      nextWidths.price = Math.max(6.0, Number((current.price - deltaPerSupCol).toFixed(2)));
+      nextWidths.amt = Math.max(6.0, Number((current.amt - deltaPerSupCol).toFixed(2)));
+    } else if (key === "price" || key === "amt") {
+      nextWidths.price = clamped;
+      nextWidths.amt = clamped;
+      const totalDelta = delta * 2 * numSups;
+      nextWidths.item = Math.max(15.0, Number((current.item - totalDelta).toFixed(2)));
+    } else if (key === "spec") {
+      const totalDelta = delta * numSups;
+      nextWidths.item = Math.max(15.0, Number((current.item - totalDelta).toFixed(2)));
+    } else if (key === "qty" || key === "unit" || key === "stt") {
+      nextWidths.item = Math.max(15.0, Number((current.item - delta).toFixed(2)));
+    }
+
+    updateActive((prev) => ({
+      ...prev,
+      customColWidths: {
+        stt: nextWidths.stt,
+        item: nextWidths.item,
+        qty: nextWidths.qty,
+        unit: nextWidths.unit,
+        spec: nextWidths.spec,
+        price: nextWidths.price,
+        supQty: nextWidths.supQty,
+        amt: nextWidths.amt,
+      },
+    }));
+  };
+
+  /**
+   * Áp dụng cấu hình kích thước cột mẫu (Preset)
+   */
+  const applyColWidthPreset = (preset: "balanced" | "long_item" | "large_amount") => {
+    if (!activeRequest) return;
+    const numSups = Math.max(1, activeRequest.supplierColumns.length || 1);
+
+    if (preset === "balanced") {
+      updateActive((prev) => ({ ...prev, customColWidths: undefined }));
+      return;
+    }
+
+    let widths = { ...defaultColWidths };
+    if (preset === "long_item") {
+      if (numSups === 2) {
+        widths = {
+          stt: 3.5,
+          item: 30.0,
+          qty: 6.0,
+          unit: 6.5,
+          perSup: 27.0,
+          spec: hasQuotedProduct ? 10.0 : 0,
+          price: hasQuotedProduct ? 8.5 : 13.5,
+          supQty: 0,
+          amt: hasQuotedProduct ? 8.5 : 13.5,
+        };
+      }
+    } else if (preset === "large_amount") {
+      if (numSups === 2) {
+        widths = {
+          stt: 3.2,
+          item: 18.8,
+          qty: 6.0,
+          unit: 6.0,
+          perSup: 33.0,
+          spec: hasQuotedProduct ? 11.0 : 0,
+          price: hasQuotedProduct ? 11.0 : 16.5,
+          supQty: 0,
+          amt: hasQuotedProduct ? 11.0 : 16.5,
+        };
+      }
+    }
+
+    updateActive((prev) => ({
+      ...prev,
+      customColWidths: {
+        stt: widths.stt,
+        item: widths.item,
+        qty: widths.qty,
+        unit: widths.unit,
+        spec: widths.spec,
+        price: widths.price,
+        supQty: widths.supQty,
+        amt: widths.amt,
+      },
+    }));
+  };
+
+  /**
+   * Xử lý kéo thả mép cột trực tiếp bằng chuột trên bảng
+   */
+  const startColumnDrag = (
+    colKey: "stt" | "item" | "qty" | "unit" | "spec" | "price" | "amt",
+    e: React.MouseEvent,
+  ) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const tableEl = (e.currentTarget as HTMLElement).closest("table");
+    const tableWidth = tableEl ? tableEl.getBoundingClientRect().width : 1000;
+    const currentVal = colWidths.numValues[colKey];
+    resizeRef.current = {
+      colKey,
+      startX: e.clientX,
+      startWidth: currentVal,
+      tableWidth,
+    };
+    setResizingColKey(colKey);
+  };
+
+  useEffect(() => {
+    if (!resizingColKey) return;
+    const onMouseMove = (e: MouseEvent) => {
+      if (!resizeRef.current) return;
+      const { colKey, startX, startWidth, tableWidth } = resizeRef.current;
+      const deltaPx = e.clientX - startX;
+      const deltaPct = (deltaPx / tableWidth) * 100;
+      const targetVal = Number((startWidth + deltaPct).toFixed(1));
+      handleUpdateSingleColWidth(colKey as any, targetVal);
+    };
+    const onMouseUp = () => {
+      setResizingColKey(null);
+      resizeRef.current = null;
+    };
+    window.addEventListener("mousemove", onMouseMove);
+    window.addEventListener("mouseup", onMouseUp);
+    return () => {
+      window.removeEventListener("mousemove", onMouseMove);
+      window.removeEventListener("mouseup", onMouseUp);
+    };
+  }, [resizingColKey, colWidths.numValues]);
 
   const renderTableColGroup = () => {
     if (!activeRequest) return null;
@@ -2930,6 +3128,40 @@ export default function ApprovalManagement({
             >
               🖼️ A4 Ngang
             </button>
+            <button
+              type="button"
+              className={`seg-pill col-width-tool-btn ${
+                showColWidthAdjuster ? "active" : ""
+              }`}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "5px",
+                fontWeight: 700,
+                color: showColWidthAdjuster ? "#1d4ed8" : "#334155",
+                background: showColWidthAdjuster ? "#eff6ff" : "#ffffff",
+                borderColor: showColWidthAdjuster ? "#3b82f6" : "#cbd5e1",
+              }}
+              onClick={() => setShowColWidthAdjuster((prev) => !prev)}
+              title="Mở thanh công cụ co kéo, tùy chỉnh độ rộng các cột bản in"
+            >
+              <Sliders size={14} />
+              <span>📐 Co kéo cột in</span>
+              {colWidths.hasCustom && (
+                <span
+                  style={{
+                    background: "#2563eb",
+                    color: "#ffffff",
+                    fontSize: "10px",
+                    borderRadius: "99px",
+                    padding: "1px 6px",
+                    marginLeft: "2px",
+                  }}
+                >
+                  Đã chỉnh
+                </span>
+              )}
+            </button>
           </div>
           {shouldRecommendLandscape &&
             activeRequest.printOrientation === "portrait" && (
@@ -2948,6 +3180,162 @@ export default function ApprovalManagement({
             )}
         </div>
       </div>
+
+      {/* THANH CÔNG CỤ CO KÉO ĐỘ RỘNG CỘT BẢN IN TRỰC QUAN */}
+      {showColWidthAdjuster && (
+        <div className="col-width-adjuster-panel no-print">
+          <div className="adjuster-header">
+            <div className="adjuster-title">
+              <Sliders size={16} />
+              <strong>Tùy chỉnh khoảng cách & độ rộng các cột bản in (Áp dụng tức thì cho cả màn hình & bản in)</strong>
+            </div>
+            <div className="adjuster-actions">
+              <button
+                type="button"
+                className="preset-btn"
+                onClick={() => applyColWidthPreset("balanced")}
+                title="Cân đối chuẩn A4: Số tiền rộng rãi, Tên hàng gọn gàng"
+              >
+                ⚖️ Cân đối chuẩn
+              </button>
+              <button
+                type="button"
+                className="preset-btn"
+                onClick={() => applyColWidthPreset("long_item")}
+                title="Dành cho mặt hàng có tên gọi hoặc quy cách rất dài"
+              >
+                📝 Ưu tiên Tên hàng
+              </button>
+              <button
+                type="button"
+                className="preset-btn"
+                onClick={() => applyColWidthPreset("large_amount")}
+                title="Dành cho đơn hàng tiền tỷ hoặc số tiền nhiều chữ số"
+              >
+                💰 Ưu tiên Số tiền
+              </button>
+              {colWidths.hasCustom && (
+                <button
+                  type="button"
+                  className="reset-btn"
+                  onClick={() =>
+                    updateActive((prev) => ({
+                      ...prev,
+                      customColWidths: undefined,
+                    }))
+                  }
+                  title="Xóa tùy biến, khôi phục tỉ lệ cột chuẩn"
+                >
+                  ↺ Đặt lại mặc định
+                </button>
+              )}
+              <button
+                type="button"
+                className="close-adjuster-btn"
+                onClick={() => setShowColWidthAdjuster(false)}
+                title="Đóng bảng co kéo"
+              >
+                ✕ Đóng
+              </button>
+            </div>
+          </div>
+
+          <div className="adjuster-sliders-grid">
+            {/* Cột Hàng hóa */}
+            <div className="slider-item">
+              <div className="slider-label">
+                <span>Cột Hàng hóa:</span>
+                <strong>
+                  {colWidths.numValues.item}% (~
+                  {(colWidths.numValues.item * 1.98).toFixed(0)}mm)
+                </strong>
+              </div>
+              <input
+                type="range"
+                min={15}
+                max={40}
+                step={0.5}
+                value={colWidths.numValues.item}
+                onChange={(e) =>
+                  handleUpdateSingleColWidth("item", parseFloat(e.target.value))
+                }
+              />
+            </div>
+
+            {/* Cột Mặt hàng NCC báo */}
+            {hasQuotedProduct && (
+              <div className="slider-item">
+                <div className="slider-label">
+                  <span>Mặt hàng NCC báo:</span>
+                  <strong>
+                    {colWidths.numValues.spec}% (~
+                    {(colWidths.numValues.spec * 1.98).toFixed(0)}mm)
+                  </strong>
+                </div>
+                <input
+                  type="range"
+                  min={7}
+                  max={22}
+                  step={0.5}
+                  value={colWidths.numValues.spec}
+                  onChange={(e) =>
+                    handleUpdateSingleColWidth("spec", parseFloat(e.target.value))
+                  }
+                />
+              </div>
+            )}
+
+            {/* Cột Đơn giá & Thành tiền */}
+            <div className="slider-item">
+              <div className="slider-label">
+                <span>Đơn giá & Thành tiền (mỗi cột):</span>
+                <strong>
+                  {colWidths.numValues.price}% (~
+                  {(colWidths.numValues.price * 1.98).toFixed(0)}mm)
+                </strong>
+              </div>
+              <input
+                type="range"
+                min={6}
+                max={18}
+                step={0.5}
+                value={colWidths.numValues.price}
+                onChange={(e) =>
+                  handleUpdateSingleColWidth("price", parseFloat(e.target.value))
+                }
+              />
+            </div>
+
+            {/* Cột Số lượng & ĐVT */}
+            <div className="slider-item">
+              <div className="slider-label">
+                <span>
+                  Số lượng ({colWidths.numValues.qty}%) & ĐVT (
+                  {colWidths.numValues.unit}%):
+                </span>
+                <strong>
+                  ~{(colWidths.numValues.qty * 1.98).toFixed(0)}mm / ~
+                  {(colWidths.numValues.unit * 1.98).toFixed(0)}mm
+                </strong>
+              </div>
+              <input
+                type="range"
+                min={4}
+                max={12}
+                step={0.5}
+                value={colWidths.numValues.qty}
+                onChange={(e) =>
+                  handleUpdateSingleColWidth("qty", parseFloat(e.target.value))
+                }
+              />
+            </div>
+          </div>
+
+          <div className="adjuster-footer-hint">
+            💡 <strong>Mẹo:</strong> Bạn có thể kéo các thanh trượt ở trên hoặc rê chuột vào mép phân cách giữa các cột trong bảng bên dưới rồi kéo thả trực tiếp (chuẩn như Excel). Bản in sẽ áp dụng chính xác kích thước bạn vừa co kéo.
+          </div>
+        </div>
+      )}
 
       {/* ===================================================================
           BIỂU MẪU LÀM VIỆC TRÊN MÀN HÌNH (WYSIWYG WORKSPACE)
@@ -3326,27 +3714,57 @@ export default function ApprovalManagement({
                     rowSpan={2}
                     className="col-stt"
                   >
-                    STT
+                    <span>STT</span>
+                    {!isReportMode && (
+                      <div
+                        className={`col-resizer-handle no-print ${resizingColKey === "stt" ? "active" : ""}`}
+                        onMouseDown={(e) => startColumnDrag("stt", e)}
+                        title="Kéo sang trái/phải để co giãn độ rộng cột STT"
+                      />
+                    )}
                   </th>
                   <th
                     rowSpan={2}
                     className="col-item-name"
                   >
-                    Hàng hóa
+                    <span>Hàng hóa</span>
+                    {!isReportMode && (
+                      <div
+                        className={`col-resizer-handle no-print ${resizingColKey === "item" ? "active" : ""}`}
+                        onMouseDown={(e) => startColumnDrag("item", e)}
+                        title="Kéo sang trái/phải để co giãn độ rộng cột Hàng hóa"
+                      />
+                    )}
                   </th>
                   <th
                     rowSpan={2}
                     className="col-qty"
                   >
-                    Số
-                    <br />
-                    lượng
+                    <span>
+                      Số
+                      <br />
+                      lượng
+                    </span>
+                    {!isReportMode && (
+                      <div
+                        className={`col-resizer-handle no-print ${resizingColKey === "qty" ? "active" : ""}`}
+                        onMouseDown={(e) => startColumnDrag("qty", e)}
+                        title="Kéo sang trái/phải để co giãn độ rộng cột Số lượng"
+                      />
+                    )}
                   </th>
                   <th
                     rowSpan={2}
                     className="col-unit"
                   >
-                    ĐVT
+                    <span>ĐVT</span>
+                    {!isReportMode && (
+                      <div
+                        className={`col-resizer-handle no-print ${resizingColKey === "unit" ? "active" : ""}`}
+                        onMouseDown={(e) => startColumnDrag("unit", e)}
+                        title="Kéo sang trái/phải để co giãn độ rộng cột ĐVT"
+                      />
+                    )}
                   </th>
                   {activeRequest.supplierColumns.map((sc) => (
                     <th
@@ -3380,7 +3798,7 @@ export default function ApprovalManagement({
                                 className="sup-remove-btn"
                                 title="Xóa cột Nhà cung cấp này"
                                 onClick={() =>
-                                  handleRemoveSupplierColumn(sc.colId)
+                                   handleRemoveSupplierColumn(sc.colId)
                                 }
                               >
                                 ×
@@ -3459,12 +3877,28 @@ export default function ApprovalManagement({
                               </button>
                             )}
                           </div>
+                          {!isReportMode && (
+                            <div
+                              className={`col-resizer-handle no-print ${resizingColKey === "spec" ? "active" : ""}`}
+                              onMouseDown={(e) => startColumnDrag("spec", e)}
+                              title="Kéo sang trái/phải để co giãn độ rộng cột Mặt hàng NCC báo"
+                            />
+                          )}
                         </th>
                       )}
                       <th className="col-sub-price">
-                        Đơn giá
-                        <br />
-                        (VNĐ)
+                        <span>
+                          Đơn giá
+                          <br />
+                          (VNĐ)
+                        </span>
+                        {!isReportMode && (
+                          <div
+                            className={`col-resizer-handle no-print ${resizingColKey === "price" ? "active" : ""}`}
+                            onMouseDown={(e) => startColumnDrag("price", e)}
+                            title="Kéo sang trái/phải để co giãn độ rộng cột Đơn giá"
+                          />
+                        )}
                       </th>
                       {hasSupplierQty && (
                         <th className="col-sub-qty">
@@ -3485,12 +3919,28 @@ export default function ApprovalManagement({
                               </button>
                             )}
                           </div>
+                          {!isReportMode && (
+                            <div
+                              className={`col-resizer-handle no-print ${resizingColKey === "supQty" ? "active" : ""}`}
+                              onMouseDown={(e) => startColumnDrag("supQty", e)}
+                              title="Kéo sang trái/phải để co giãn độ rộng cột Số lượng của NCC"
+                            />
+                          )}
                         </th>
                       )}
                       <th className="col-sub-amount">
-                        Thành
-                        <br />
-                        tiền
+                        <span>
+                          Thành
+                          <br />
+                          tiền
+                        </span>
+                        {!isReportMode && (
+                          <div
+                            className={`col-resizer-handle no-print ${resizingColKey === "amt" ? "active" : ""}`}
+                            onMouseDown={(e) => startColumnDrag("amt", e)}
+                            title="Kéo sang trái/phải để co giãn độ rộng cột Thành tiền"
+                          />
+                        )}
                       </th>
                     </React.Fragment>
                   ))}
@@ -4740,13 +5190,27 @@ export default function ApprovalManagement({
                   word-break: break-word !important;
                   overflow-wrap: break-word !important;
                 }
+                #approvalPrintPortal .cell-right,
+                #approvalPrintPortal td.cell-right {
+                  text-align: right !important;
+                  white-space: nowrap !important;
+                  word-break: normal !important;
+                  overflow-wrap: normal !important;
+                }
+                #approvalPrintPortal .cell-left,
+                #approvalPrintPortal td.cell-left {
+                  text-align: left !important;
+                }
+                #approvalPrintPortal .cell-center,
+                #approvalPrintPortal td.cell-center {
+                  text-align: center !important;
+                }
                 #approvalPrintPortal .col-stt,
                 #approvalPrintPortal .cell-stt,
                 #approvalPrintPortal .col-unit,
                 #approvalPrintPortal .col-sub-qty,
                 #approvalPrintPortal .cell-sub-price,
-                #approvalPrintPortal .cell-sub-amount,
-                #approvalPrintPortal td.cell-right {
+                #approvalPrintPortal .cell-sub-amount {
                   white-space: nowrap !important;
                   word-break: normal !important;
                   overflow-wrap: normal !important;
