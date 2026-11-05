@@ -1640,6 +1640,18 @@ table.payment-table td .smart-cell-textarea:focus {
   transition: all 0.15s ease;
 }
 
+.m-badge-select.mb-badge-done {
+  background: #dcfce7;
+  color: #15803d;
+  border-color: #86efac;
+}
+
+.m-badge-select.mb-badge-wait {
+  background: #fef3c7;
+  color: #b45309;
+  border-color: #fde68a;
+}
+
 .m-badge-select:hover {
   filter: brightness(0.96);
 }

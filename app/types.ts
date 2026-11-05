@@ -309,7 +309,7 @@ export type Payment = {
   paymentRequestId?: number;
   percent: number;
   amount: number;
-  status: "Chưa thanh toán" | "Đang xử lý" | "Đã thanh toán";
+  status: "Chưa thanh toán" | "Đã thanh toán" | "Đang xử lý";
   date: string;
 };
 

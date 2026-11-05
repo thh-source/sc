@@ -10,6 +10,7 @@ import {
 import { PO, Payment, PaymentRequestEntry } from "../types";
 import { fmt } from "../utils";
 import { normName } from "../payment-utils";
+import { isPaymentCompleted } from "../utils/paymentSync";
 
 interface POPaymentLinkModalProps {
   isOpen: boolean;
@@ -450,16 +451,16 @@ export function POPaymentLinkModal({
                             fontSize: "11px",
                             fontWeight: 600,
                             background:
-                              r.status === "Đã thanh toán" || r.status === "Hoàn thành"
+                              isPaymentCompleted(r)
                                 ? "#dcfce7"
                                 : "#fef3c7",
                             color:
-                              r.status === "Đã thanh toán" || r.status === "Hoàn thành"
+                              isPaymentCompleted(r)
                                 ? "#166534"
                                 : "#92400e",
                           }}
                         >
-                          {r.status || "Chờ duyệt"}
+                          {isPaymentCompleted(r) ? "Đã thanh toán" : "Chưa thanh toán"}
                         </span>
                         {isCurrentlyLinked && (
                           <span

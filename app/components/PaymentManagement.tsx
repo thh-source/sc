@@ -458,8 +458,11 @@ export function PaymentManagement({
 
       // Nếu bộ lọc hiện tại đang ẩn dòng cần xem, tự động giải phóng bộ lọc để dòng hiển thị
       if (match) {
-        if (statusFilter && match.status !== statusFilter) {
-          setStatusFilter("");
+        if (statusFilter) {
+          const isPaid = isPaymentCompleted(match);
+          if ((statusFilter === "Đã thanh toán" && !isPaid) || (statusFilter === "Chưa thanh toán" && isPaid)) {
+            setStatusFilter("");
+          }
         }
         if (groupFilter && String(match.group_id || "") !== String(groupFilter)) {
           setGroupFilter("");
@@ -556,8 +559,12 @@ export function PaymentManagement({
     const tokens = rawQ ? normName(rawQ).split(/\s+/).filter(Boolean) : [];
 
     const list = paymentRequests.filter((r) => {
-      // 1. Bộ lọc trạng thái
-      if (statusFilter && r.status !== statusFilter) return false;
+      // 1. Bộ lọc trạng thái (chỉ 2 trạng thái: Đã thanh toán hoặc Chưa thanh toán)
+      if (statusFilter) {
+        const isPaid = isPaymentCompleted(r);
+        if (statusFilter === "Đã thanh toán" && !isPaid) return false;
+        if (statusFilter === "Chưa thanh toán" && isPaid) return false;
+      }
 
       // 2. Bộ lọc nhóm
       if (groupFilter && String(r.group_id || "") !== String(groupFilter)) return false;
@@ -819,6 +826,13 @@ export function PaymentManagement({
           );
           if (g) updated.group_id = g.id;
         }
+        if ("status" in patch) {
+          const isPaid = patch.status === "Đã thanh toán" || PAID_STATUSES.includes(patch.status as string);
+          updated.isCompleted = isPaid;
+          updated.status = isPaid ? "Đã thanh toán" : "Chưa thanh toán";
+          if (isPaid && !updated.paidAt) updated.paidAt = new Date().toISOString();
+          if (!isPaid) updated.paidAt = undefined;
+        }
         return updated;
       }
       return r;
@@ -826,11 +840,23 @@ export function PaymentManagement({
     onUpdateState({ paymentRequests: next });
   };
 
-  // Toggle paid status on mobile (The only active feature permitted on mobile)
+  // Toggle paid status on mobile and cards
   const handleTogglePaid = (reqId: number, nextPaid: boolean) => {
     if (readOnly) return;
-    const targetStatus = nextPaid ? "Done" : "Đã giao KT, chờ đi tiền";
-    handleEditRequest(reqId, "status", targetStatus);
+    const req = paymentRequests.find((r) => r.id === reqId);
+    if (req && onToggleCompletePayment) {
+      const isDone = isPaymentCompleted(req);
+      if (isDone !== nextPaid) {
+        onToggleCompletePayment(req);
+        return;
+      }
+    }
+    const targetStatus = nextPaid ? "Đã thanh toán" : "Chưa thanh toán";
+    handleEditRequest(reqId, {
+      status: targetStatus,
+      isCompleted: nextPaid,
+      paidAt: nextPaid ? new Date().toISOString() : undefined,
+    });
   };
 
   const handleAddRequestRow = () => {
@@ -851,7 +877,8 @@ export function PaymentManagement({
       documents: [],
       request_date: localToday(),
       payment_type: "TT trước 100%",
-      status: "Đã giao KT, chờ đi tiền",
+      status: "Chưa thanh toán",
+      isCompleted: false,
       address: "",
       account_no: "",
       bank: "",
@@ -1054,7 +1081,8 @@ export function PaymentManagement({
         documents: [],
         request_date: localToday(),
         payment_type: "TT sau 100%",
-        status: "Đã giao KT, chờ đi tiền",
+        status: "Chưa thanh toán",
+        isCompleted: false,
         doc_supplement: "",
         address,
         account_no,
@@ -1139,7 +1167,8 @@ export function PaymentManagement({
       documents: [],
       request_date: localToday(),
       payment_type: phaseText || "TT trước 100%",
-      status: "Đã giao KT, chờ đi tiền",
+      status: "Chưa thanh toán",
+      isCompleted: false,
       address: s?.address || "",
       account_no: s?.bankAccount || "",
       bank: s?.bank || "",
@@ -1566,12 +1595,13 @@ export function PaymentManagement({
             ))}
           </select>
         );
-      case "status":
+      case "status": {
+        const curStatus = isPaymentCompleted(r) ? "Đã thanh toán" : "Chưa thanh toán";
         return (
           <select
-            className="cell-editor"
-            value={r.status || "Đã giao KT, chờ đi tiền"}
-            onChange={(e) => handleEditRequest(r.id, "status", e.target.value)}
+            className={`cell-editor ${isPaymentCompleted(r) ? "text-emerald-700 font-semibold" : "text-amber-700 font-semibold"}`}
+            value={curStatus}
+            onChange={(e) => handleTogglePaid(r.id, e.target.value === "Đã thanh toán")}
           >
             {PAYMENT_STATUSES.map((st) => (
               <option key={st} value={st}>
@@ -1580,6 +1610,7 @@ export function PaymentManagement({
             ))}
           </select>
         );
+      }
       case "doc_supplement":
         return (
           <AutoGrowTextarea
@@ -1795,11 +1826,16 @@ export function PaymentManagement({
                   className="btn btn-secondary btn-md"
                   onClick={() => {
                     if (checkedIds.size === 0) return;
-                    const next = paymentRequests.map((r) =>
-                      checkedIds.has(r.id)
-                        ? { ...r, status: isPaymentCompleted(r) ? "Đã giao KT, chờ đi tiền" : "Đã thanh toán (Hoàn tất)" }
-                        : r
-                    );
+                    const next = paymentRequests.map((r) => {
+                      if (!checkedIds.has(r.id)) return r;
+                      const nextDone = !isPaymentCompleted(r);
+                      return {
+                        ...r,
+                        isCompleted: nextDone,
+                        status: nextDone ? "Đã thanh toán" : "Chưa thanh toán",
+                        paidAt: nextDone ? (r.paidAt || new Date().toISOString()) : undefined,
+                      };
+                    });
                     onUpdateState({ paymentRequests: next });
                   }}
                   disabled={checkedIds.size === 0}
@@ -2055,10 +2091,8 @@ export function PaymentManagement({
         <div className="mobile-cards-container">
           {filteredRequests.map((r) => {
             const isDone = isPaymentCompleted(r);
-            let stClass = "mb-badge-default";
-            if (isDone) stClass = "mb-badge-done";
-            else if (r.status && r.status.includes("Đã thanh toán")) stClass = "mb-badge-paid";
-            else if (r.status && r.status.includes("chờ")) stClass = "mb-badge-wait";
+            const stClass = isDone ? "mb-badge-done" : "mb-badge-wait";
+            const currentStatus = isDone ? "Đã thanh toán" : "Chưa thanh toán";
 
             const payee = r.payee_name || "Chưa có NCC";
             const grp = paymentGroups.find((g) => String(g.id) === String(r.group_id));
@@ -2118,12 +2152,12 @@ export function PaymentManagement({
                     )}
                   </div>
                   {isPhoneScreen ? (
-                    <span className={`m-badge ${stClass}`}>{r.status}</span>
+                    <span className={`m-badge ${stClass}`}>{currentStatus}</span>
                   ) : (
                     <select
                       className={`m-badge-select ${stClass}`}
-                      value={r.status || "Đã giao KT, chờ đi tiền"}
-                      onChange={(e) => handleEditRequest(r.id, "status", e.target.value)}
+                      value={currentStatus}
+                      onChange={(e) => handleTogglePaid(r.id, e.target.value === "Đã thanh toán")}
                       title="Chuyển nhanh trạng thái"
                     >
                       {PAYMENT_STATUSES.map((st) => (
@@ -3055,10 +3089,10 @@ export function PaymentManagement({
                       </select>
                     </div>
                     <div className="card-edit-field">
-                      <label>Trạng thái giải ngân:</label>
+                      <label>Trạng thái thanh toán:</label>
                       <select
-                        value={editReq.status || "Đã giao KT, chờ đi tiền"}
-                        onChange={(e) => handleEditRequest(editReq.id, "status", e.target.value)}
+                        value={isPaymentCompleted(editReq) ? "Đã thanh toán" : "Chưa thanh toán"}
+                        onChange={(e) => handleTogglePaid(editReq.id, e.target.value === "Đã thanh toán")}
                         className="card-edit-input"
                       >
                         {PAYMENT_STATUSES.map((st) => (

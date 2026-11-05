@@ -1,20 +1,19 @@
 import { PaymentPrintTemplate, PaymentRequestEntry } from "./types";
 
 export const PAID_STATUSES = [
-  "Done",
   "Đã thanh toán",
+  "Done",
   "Đã thanh toán (chờ chứng từ)",
   "Đã thanh toán (chờ giao hàng)",
+  "Đã thanh toán (Hoàn tất)",
   "Hoàn thành",
   "Đã chi",
   "Đã xong",
 ];
 
 export const PAYMENT_STATUSES = [
-  "Done",
-  "Đã thanh toán (chờ chứng từ)",
-  "Đã thanh toán (chờ giao hàng)",
-  "Đã giao KT, chờ đi tiền",
+  "Chưa thanh toán",
+  "Đã thanh toán",
 ];
 
 export const PAYMENT_TYPES = [

@@ -130,7 +130,7 @@ export function syncPaymentCompletionToPO(
   const updatedReq: PaymentRequestEntry = {
     ...req,
     isCompleted: willComplete,
-    status: willComplete ? "Đã thanh toán" : "Đang xử lý",
+    status: willComplete ? "Đã thanh toán" : "Chưa thanh toán",
     paidAt: willComplete ? (req.paidAt || new Date().toISOString()) : undefined,
   };
 

@@ -935,7 +935,7 @@ export function HandoverManagement({
       documents: ["ĐNTT", "Biên bản bàn giao", "Hóa đơn điện tử GTGT"],
       request_date: localToday(),
       payment_type: "Chuyển khoản",
-      status: "Đã giao KT, chờ đi tiền",
+      status: "Chưa thanh toán",
       address: matchedSupplier?.address || "",
       account_no: matchedSupplier?.bankAccount || "",
       bank: matchedSupplier?.bank || "",

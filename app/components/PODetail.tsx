@@ -753,7 +753,7 @@ export function PODetail({
 
     const patch: Partial<Payment> = {
       paymentRequestId: req.id,
-      status: isPaymentCompleted(req) ? "Đã thanh toán" : "Đang xử lý",
+      status: isPaymentCompleted(req) ? "Đã thanh toán" : "Chưa thanh toán",
     };
 
     // Đồng bộ số hóa đơn từ ĐNTT sang PO nếu PO chưa có mà ĐNTT đã có
@@ -2273,15 +2273,14 @@ export function PODetail({
                           Trạng thái
                         </label>
                         <select
-                          value={p.status}
+                          value={p.status === "Đã thanh toán" ? "Đã thanh toán" : "Chưa thanh toán"}
                           onChange={(e) => handleUpdatePaymentStage(p.id, { status: e.target.value as Payment["status"] })}
                           style={{
                             fontWeight: 600,
-                            color: p.status === "Đã thanh toán" ? "#16a34a" : p.status === "Đang xử lý" ? "#d97706" : "#475569"
+                            color: p.status === "Đã thanh toán" ? "#16a34a" : "#475569"
                           }}
                         >
                           <option>Chưa thanh toán</option>
-                          <option>Đang xử lý</option>
                           <option>Đã thanh toán</option>
                         </select>
                       </div>

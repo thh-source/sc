@@ -1291,12 +1291,10 @@ export function ContractManagement({
                                 className={`payment-badge ${
                                   PAID_STATUSES.includes(r.status)
                                     ? "status-done"
-                                    : r.status === "Đã giao KT, chờ đi tiền"
-                                    ? "status-transfer"
-                                    : "status-processing"
+                                    : "status-transfer"
                                 }`}
                               >
-                                {r.status}
+                                {PAID_STATUSES.includes(r.status) ? "Đã thanh toán" : "Chưa thanh toán"}
                               </span>
                             </td>
                             <td style={{ color: "#475569" }}>{r.created_by_name || "—"}</td>
