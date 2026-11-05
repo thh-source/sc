@@ -2397,17 +2397,17 @@ export default function ApprovalManagement({
                           </span>
                         </td>
                         <td>
-                          <strong style={{ color: "#2B6DF8", fontSize: 13 }}>
+                          <span style={{ color: "#0f172a", fontSize: "13px", fontWeight: 400 }}>
                             {req.recommendedSupplierName ||
                               selectedCol?.supplierName ||
                               "Chưa chọn"}
-                          </strong>
+                          </span>
                         </td>
                         <td className="money">
                           {selectedTotal > 0 ? (
                             <div>
                               <div>{`${formatVND(selectedTotal)} ₫`}</div>
-                              <small style={{ fontSize: "10.5px", color: req.vatMode === "with_vat" ? "#166534" : "#64748b", fontWeight: 600 }}>
+                              <small style={{ fontSize: "11px", color: "#0f172a", fontWeight: 400 }}>
                                 {req.vatMode === "with_vat" ? (req.vatCalculationType === "already_included" ? "Đã gồm VAT" : `Có VAT (${req.vatRate ?? 10}%)`) : "Chưa VAT"}
                               </small>
                             </div>
@@ -2443,7 +2443,7 @@ export default function ApprovalManagement({
                                 req.status === "Đã tạo PO") && (
                                 <button
                                   type="button"
-                                  className="stitch-action-pill pill-emerald"
+                                  className="stitch-action-pill pill-navy"
                                   onClick={() => {
                                     handleOpenPOCreateModal(req);
                                   }}
@@ -2530,9 +2530,9 @@ export default function ApprovalManagement({
                           style={{
                             fontFamily: "monospace",
                             fontSize: "12px",
-                            fontWeight: 700,
-                            color: "#1d4ed8",
-                            backgroundColor: "#eff6ff",
+                            fontWeight: 600,
+                            color: "#0f172a",
+                            backgroundColor: "#f1f5f9",
                             padding: "2px 6px",
                             borderRadius: "4px",
                           }}
@@ -2544,7 +2544,7 @@ export default function ApprovalManagement({
                         </span>
                       </div>
                       <div style={{ fontSize: "11px", color: "#64748b", marginTop: "2px" }}>
-                        NCC đề xuất: <b style={{ color: "#2563eb" }}>{supplierName}</b>
+                        NCC đề xuất: <span style={{ color: "#0f172a", fontWeight: 600 }}>{supplierName}</span>
                       </div>
                     </div>
 
@@ -2613,7 +2613,7 @@ export default function ApprovalManagement({
                                   {row.stt || idx + 1}
                                 </td>
                                 <td style={{ padding: "6px 10px", textAlign: "left" }}>
-                                  <div style={{ fontWeight: 600, color: "#0f172a" }}>
+                                  <div style={{ fontWeight: 400, color: "#0f172a" }}>
                                     {row.itemName}
                                   </div>
                                   {row.spec && (
@@ -2625,13 +2625,13 @@ export default function ApprovalManagement({
                                 <td style={{ padding: "6px 8px", textAlign: "center", color: "#475569" }}>
                                   {row.unit || "—"}
                                 </td>
-                                <td style={{ padding: "6px 8px", textAlign: "right", fontWeight: 600, color: "#0f172a" }}>
+                                <td style={{ padding: "6px 8px", textAlign: "right", fontWeight: 400, color: "#0f172a" }}>
                                   {qty}
                                 </td>
                                 <td style={{ padding: "6px 10px", textAlign: "right", color: "#334155", fontVariantNumeric: "tabular-nums" }}>
                                   {unitPrice > 0 ? `${formatVND(unitPrice)} ₫` : "—"}
                                 </td>
-                                <td style={{ padding: "6px 10px", textAlign: "right", fontWeight: 700, color: "#0f172a", fontVariantNumeric: "tabular-nums" }}>
+                                <td style={{ padding: "6px 10px", textAlign: "right", fontWeight: 400, color: "#0f172a", fontVariantNumeric: "tabular-nums" }}>
                                   {amount > 0 ? `${formatVND(amount)} ₫` : "—"}
                                 </td>
                               </tr>
@@ -2659,7 +2659,7 @@ export default function ApprovalManagement({
                     </div>
                     <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
                       <span style={{ color: "#64748b" }}>Tổng tiền:</span>
-                      <b style={{ color: "#2563eb", fontSize: "13px" }}>
+                      <b style={{ color: "#0f172a", fontSize: "13px" }}>
                         {hTotal > 0 ? `${formatVND(hTotal)} ₫` : "—"}
                       </b>
                       <span style={{ fontSize: "10.5px", color: "#64748b" }}>
@@ -4446,7 +4446,7 @@ export default function ApprovalManagement({
                             colSpan={subColCountPerSupplier - 1}
                             className="cell-empty-total"
                           />
-                          <td className="cell-right bold-cell total-amount-cell" style={{ color: "#15803d", fontWeight: 800 }}>
+                          <td className="cell-right bold-cell total-amount-cell" style={{ color: "#0f172a", fontWeight: 700 }}>
                             {totalVal ? formatVND(totalVal) : "-"}
                           </td>
                         </React.Fragment>
@@ -4456,7 +4456,7 @@ export default function ApprovalManagement({
                 ) : (
                   <>
                     <tr className="total-footer-row subtotal-row" style={{ backgroundColor: "#f8fafc" }}>
-                      <td colSpan={4} className="cell-center bold-cell" style={{ color: "#475569" }}>
+                      <td colSpan={4} className="cell-center bold-cell" style={{ color: "#0f172a" }}>
                         Tổng tiền chưa có VAT
                       </td>
                       {activeRequest.supplierColumns.map((sc) => {
@@ -4467,15 +4467,15 @@ export default function ApprovalManagement({
                               colSpan={subColCountPerSupplier - 1}
                               className="cell-empty-total"
                             />
-                            <td className="cell-right bold-cell" style={{ color: "#334155" }}>
+                            <td className="cell-right bold-cell" style={{ color: "#0f172a" }}>
                               {subVal ? formatVND(subVal) : "-"}
                             </td>
                           </React.Fragment>
                         );
                       })}
                     </tr>
-                    <tr className="total-footer-row vat-row" style={{ backgroundColor: "#f0f9ff" }}>
-                      <td colSpan={4} className="cell-center bold-cell" style={{ color: "#0369a1" }}>
+                    <tr className="total-footer-row vat-row" style={{ backgroundColor: "#f8fafc" }}>
+                      <td colSpan={4} className="cell-center bold-cell" style={{ color: "#0f172a" }}>
                         Tiền thuế GTGT (VAT {activeRequest.vatRate ?? 10}%)
                       </td>
                       {activeRequest.supplierColumns.map((sc) => {
@@ -4486,15 +4486,15 @@ export default function ApprovalManagement({
                               colSpan={subColCountPerSupplier - 1}
                               className="cell-empty-total"
                             />
-                            <td className="cell-right bold-cell" style={{ color: "#0284c7" }}>
+                            <td className="cell-right bold-cell" style={{ color: "#0f172a" }}>
                               {vatVal ? `+${formatVND(vatVal)}` : "-"}
                             </td>
                           </React.Fragment>
                         );
                       })}
                     </tr>
-                    <tr className="total-footer-row grand-total-row" style={{ backgroundColor: "#ecfdf5" }}>
-                      <td colSpan={4} className="cell-center bold-cell" style={{ color: "#166534", fontSize: "13.5px" }}>
+                    <tr className="total-footer-row grand-total-row" style={{ backgroundColor: "#f8fafc" }}>
+                      <td colSpan={4} className="cell-center bold-cell" style={{ color: "#0f172a", fontSize: "13px" }}>
                         TỔNG TIỀN CÓ VAT
                       </td>
                       {activeRequest.supplierColumns.map((sc) => {
@@ -4505,7 +4505,7 @@ export default function ApprovalManagement({
                               colSpan={subColCountPerSupplier - 1}
                               className="cell-empty-total"
                             />
-                            <td className="cell-right bold-cell total-amount-cell" style={{ color: "#15803d", fontWeight: 800, fontSize: "13.5px" }}>
+                            <td className="cell-right bold-cell total-amount-cell" style={{ color: "#0f172a", fontWeight: 700, fontSize: "13px" }}>
                               {finalVal ? formatVND(finalVal) : "-"}
                             </td>
                           </React.Fragment>
@@ -6153,10 +6153,10 @@ export default function ApprovalManagement({
                   display: "inline-flex",
                   alignItems: "center",
                   gap: 6,
-                  background: isButtonDisabled || isSubmittingPO ? "#94a3b8" : "#16a34a",
+                  background: isButtonDisabled || isSubmittingPO ? "#94a3b8" : "linear-gradient(135deg, #0284c7 0%, #004890 100%)",
                   color: "#ffffff",
                   cursor: isButtonDisabled || isSubmittingPO ? "not-allowed" : "pointer",
-                  boxShadow: isButtonDisabled || isSubmittingPO ? "none" : "0 2px 8px rgba(22, 163, 74, 0.35)",
+                  boxShadow: isButtonDisabled || isSubmittingPO ? "none" : "0 2px 8px rgba(2, 132, 199, 0.35)",
                 }}
                 disabled={isButtonDisabled || isSubmittingPO}
                 onClick={() => {

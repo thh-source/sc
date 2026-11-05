@@ -1041,26 +1041,26 @@ export function POList({
                     </td>
                     <td>
                       <div style={{ display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
-                        <b style={{ color: "#0f172a", fontSize: "13.5px" }}>{s?.name || "Chưa có NCC"}</b>
+                        <span style={{ color: "#0f172a", fontSize: "13px", fontWeight: 400 }}>{s?.name || "Chưa có NCC"}</span>
                         {s?.code && <small className="supplier-code">{s.code}</small>}
                         {po.prNumber && (
-                          <span style={{ fontSize: "11px", fontWeight: 700, color: "#0369a1", background: "#f0f9ff", border: "1px solid #bae6fd", padding: "1px 7px", borderRadius: "6px" }}>
+                          <span style={{ fontSize: "11px", fontWeight: 400, color: "#0369a1", background: "#f0f9ff", border: "1px solid #bae6fd", padding: "1px 7px", borderRadius: "6px" }}>
                             PR: {po.prNumber}
                           </span>
                         )}
                       </div>
                       {items.length > 0 && (
                         <div style={{ marginTop: "4px", fontSize: "11.5px", color: "#64748b", display: "flex", alignItems: "center", gap: "5px", flexWrap: "wrap" }}>
-                          <span style={{ background: "#f1f5f9", color: "#334155", padding: "1px 7px", borderRadius: "6px", fontWeight: 600 }}>
+                          <span style={{ background: "#f1f5f9", color: "#334155", padding: "1px 7px", borderRadius: "6px", fontWeight: 400 }}>
                             📦 {items.slice(0, 2).map((it) => it.name || (it as any).itemName || "Mặt hàng").join(", ")}
                             {items.length > 2 ? ` (+${items.length - 2} mục)` : ""}
                           </span>
                         </div>
                       )}
                     </td>
-                    <td style={{ whiteSpace: "nowrap", fontWeight: 600, color: "#334155" }}>{dateVN(po.createdDate)}</td>
-                    <td style={{ whiteSpace: "nowrap", color: "#475569" }}>{dateVN(po.expectedDate)}</td>
-                    <td className="money" style={{ whiteSpace: "nowrap", textAlign: "right", fontSize: "13.5px", fontWeight: 800, color: "#2B6DF8" }}>{fmt(total)} ₫</td>
+                    <td style={{ whiteSpace: "nowrap", fontWeight: 400, color: "#0f172a", fontSize: "13px" }}>{dateVN(po.createdDate)}</td>
+                    <td style={{ whiteSpace: "nowrap", color: "#0f172a", fontSize: "13px", fontWeight: 400 }}>{dateVN(po.expectedDate)}</td>
+                    <td className="money" style={{ whiteSpace: "nowrap", textAlign: "right", fontSize: "13px", fontWeight: 400, color: "#0f172a" }}>{fmt(total)} ₫</td>
                     <td style={{ textAlign: "center", minWidth: "175px" }}>
                       {/* Dòng 1: Tiến độ giao hàng */}
                       <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "3px", marginBottom: "5px" }}>
@@ -1118,7 +1118,7 @@ export function POList({
                         {onCreateHandover && (
                           <button
                             type="button"
-                            className="stitch-action-pill pill-emerald"
+                            className="stitch-action-pill pill-navy"
                             onClick={() => onCreateHandover(po)}
                             title="Tạo biên bản bàn giao cho PO này"
                           >
@@ -1129,7 +1129,7 @@ export function POList({
                         {onCreatePaymentRequest && (
                           <button
                             type="button"
-                            className="stitch-action-pill pill-sky"
+                            className="stitch-action-pill pill-navy"
                             onClick={() => onCreatePaymentRequest(po)}
                             title="Lập Đề nghị thanh toán (ĐNTT) và mở ngay bản in Mẫu 01-TT"
                           >

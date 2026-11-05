@@ -491,7 +491,7 @@ export function PRList({
                       </div>
                     </td>
                     <td className="cell-left">
-                      <div style={{ fontWeight: 700, fontSize: "12.5px", color: "#0f172a" }}>{dateVN(pr.date)}</div>
+                      <div style={{ fontWeight: 400, fontSize: "13px", color: "#0f172a" }}>{dateVN(pr.date)}</div>
                       <span
                         style={{
                           display: "inline-block",
@@ -499,7 +499,7 @@ export function PRList({
                           padding: "1px 7px",
                           borderRadius: "5px",
                           fontSize: "11px",
-                          fontWeight: 700,
+                          fontWeight: 400,
                           background: "#f1f5f9",
                           color: "#334155",
                           border: "1px solid #cbd5e1",
@@ -509,7 +509,7 @@ export function PRList({
                       </span>
                     </td>
                     <td className="purpose-cell cell-left">
-                      <div style={{ fontWeight: 700, color: "#0f172a", fontSize: "13px" }}>{pr.purpose || "Mua sắm vật tư"}</div>
+                      <div style={{ fontWeight: 400, color: "#0f172a", fontSize: "13px" }}>{pr.purpose || "Mua sắm vật tư"}</div>
                       {firstTwoNames && (
                         <div
                           style={{
@@ -537,7 +537,7 @@ export function PRList({
                           padding: "2px 9px",
                           borderRadius: "999px",
                           fontSize: "11.5px",
-                          fontWeight: 700,
+                          fontWeight: 400,
                           background: "#eff6ff",
                           color: "#1e40af",
                           border: "1px solid #bfdbfe",
@@ -546,7 +546,7 @@ export function PRList({
                         {itemCount} mục
                       </span>
                     </td>
-                    <td className="money cell-right" style={{ fontWeight: 700, color: "#0f172a" }}>
+                    <td className="money cell-right" style={{ fontWeight: 400, color: "#0f172a", fontSize: "13px" }}>
                       {fmt((pr.items || []).reduce((s, i) => s + i.qty * i.estimate, 0))} ₫
                     </td>
                     <td className="cell-center">
@@ -561,7 +561,7 @@ export function PRList({
                         <div style={{ display: "inline-flex", gap: "5px", alignItems: "center", justifyContent: "center" }}>
                           <button
                             type="button"
-                            className="stitch-action-pill pill-sky"
+                            className="stitch-action-pill pill-navy"
                             onClick={() => setPreviewScanPR(pr)}
                             title="Xem bản scan PR gốc"
                             style={{ padding: "4px 8px", fontSize: "11.5px" }}
@@ -636,7 +636,7 @@ export function PRList({
                         {onCreateHandover && (
                           <button
                             type="button"
-                            className="stitch-action-pill pill-emerald"
+                            className="stitch-action-pill pill-navy"
                             onClick={() => onCreateHandover(pr)}
                             title="Tạo biên bản bàn giao từ PR này"
                           >

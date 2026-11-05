@@ -219,83 +219,58 @@
   /* ------------------------------------------------------------------------
      2. TACTILE & CRAFTED BUTTON ARCHITECTURE (NÚT BẤM NỔI BẬT CHUẨN STITCH v2)
      ------------------------------------------------------------------------ */
-  /* Primary Navy Gradient Tactile Buttons */
+  /* Primary & Action Tactile Buttons - Unified to Phenikaa Logo Blue */
   button.primary,
   .btn-primary,
   .payment-btn.btn-primary,
   .m-btn-edit-card,
+  .po-create-btn,
+  .btn-accent,
+  .approval-source-btn,
+  .approval-source-btn.source-compare,
+  .approval-source-btn.source-pr,
+  .payment-btn.btn-success,
+  .btn-teal,
+  .m-btn-toggle-done.is-done,
   .filter-actions button:last-child,
   .po-toolbar > button.primary,
   .pr-toolbar > button.primary,
   .product-toolbar > button.primary,
   .supplier-toolbar > button.primary {
-    background: linear-gradient(135deg, #2B6DF8 0%, #1e40af 100%) !important;
+    background: linear-gradient(135deg, #0284c7 0%, #004890 100%) !important;
     color: #ffffff !important;
-    border: 1px solid #1e3a8a !important;
+    border: 1px solid #004890 !important;
     border-radius: 8px !important;
     font-weight: 600 !important;
-    box-shadow: 0 4px 12px rgba(43, 109, 248, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.22) !important;
+    box-shadow: 0 4px 12px rgba(2, 132, 199, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.25) !important;
     transition: all 0.16s cubic-bezier(0.16, 1, 0.3, 1) !important;
   }
 
   button.primary:hover:not(:disabled),
   .btn-primary:hover:not(:disabled),
   .payment-btn.btn-primary:hover:not(:disabled),
-  .m-btn-edit-card:hover:not(:disabled) {
-    background: linear-gradient(135deg, #16438d 0%, #2563eb 100%) !important;
-    border-color: #1d4ed8 !important;
+  .m-btn-edit-card:hover:not(:disabled),
+  .po-create-btn:hover:not(:disabled),
+  .btn-accent:hover:not(:disabled),
+  .approval-source-btn:hover:not(:disabled),
+  .approval-source-btn.source-compare:hover:not(:disabled),
+  .approval-source-btn.source-pr:hover:not(:disabled),
+  .payment-btn.btn-success:hover:not(:disabled),
+  .btn-teal:hover:not(:disabled),
+  .m-btn-toggle-done.is-done:hover:not(:disabled) {
+    background: linear-gradient(135deg, #0369a1 0%, #003366 100%) !important;
+    border-color: #003366 !important;
     transform: translateY(-1px) !important;
-    box-shadow: 0 6px 16px rgba(43, 109, 248, 0.32), inset 0 1px 0 rgba(255, 255, 255, 0.28) !important;
+    box-shadow: 0 6px 16px rgba(2, 132, 199, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.28) !important;
   }
 
   button.primary:active:not(:disabled),
   .btn-primary:active:not(:disabled),
-  .payment-btn.btn-primary:active:not(:disabled) {
+  .payment-btn.btn-primary:active:not(:disabled),
+  .po-create-btn:active:not(:disabled),
+  .btn-accent:active:not(:disabled),
+  .approval-source-btn:active:not(:disabled) {
     transform: translateY(0) scale(0.99) !important;
-  }
-
-  /* High-Priority Orange Gradient CTA Buttons */
-  .po-create-btn,
-  .btn-accent,
-  .approval-source-btn.source-compare {
-    background: linear-gradient(135deg, #e65100 0%, #f97316 100%) !important;
-    color: #ffffff !important;
-    border: 1px solid #c2410c !important;
-    border-radius: 8px !important;
-    font-weight: 700 !important;
-    box-shadow: 0 4px 14px rgba(230, 81, 0, 0.26), inset 0 1px 0 rgba(255, 255, 255, 0.25) !important;
-    transition: all 0.16s cubic-bezier(0.16, 1, 0.3, 1) !important;
-  }
-
-  .po-create-btn:hover:not(:disabled),
-  .btn-accent:hover:not(:disabled),
-  .approval-source-btn.source-compare:hover:not(:disabled) {
-    background: linear-gradient(135deg, #c2410c 0%, #ea580c 100%) !important;
-    transform: translateY(-1px) !important;
-    box-shadow: 0 6px 18px rgba(230, 81, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.3) !important;
-  }
-
-  /* Emerald Tactile Action Buttons */
-  .payment-btn.btn-success,
-  .btn-teal,
-  .m-btn-toggle-done.is-done,
-  .approval-source-btn.source-pr {
-    background: linear-gradient(135deg, #059669 0%, #10b981 100%) !important;
-    color: #ffffff !important;
-    border: 1px solid #047857 !important;
-    border-radius: 8px !important;
-    font-weight: 700 !important;
-    box-shadow: 0 4px 12px rgba(5, 150, 105, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.22) !important;
-    transition: all 0.16s cubic-bezier(0.16, 1, 0.3, 1) !important;
-  }
-
-  .payment-btn.btn-success:hover:not(:disabled),
-  .btn-teal:hover:not(:disabled),
-  .m-btn-toggle-done.is-done:hover:not(:disabled),
-  .approval-source-btn.source-pr:hover:not(:disabled) {
-    background: linear-gradient(135deg, #047857 0%, #059669 100%) !important;
-    transform: translateY(-1px) !important;
-    box-shadow: 0 6px 16px rgba(5, 150, 105, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.25) !important;
   }
 
   /* Secondary / Tonal Tactile Buttons */
@@ -936,68 +911,47 @@
     white-space: nowrap;
   }
 
-  /* Stitch Labeled Action Pills in Data Tables */
-  .stitch-action-pill {
+  /* Stitch Action Pills in Data Tables - Unified to Phenikaa Logo Blue */
+  .stitch-action-pill,
+  .stitch-action-pill.pill-navy,
+  .stitch-action-pill.pill-emerald,
+  .stitch-action-pill.pill-sky,
+  .stitch-action-pill.pill-orange {
     display: inline-flex !important;
     align-items: center !important;
     gap: 5px !important;
     padding: 6px 11px !important;
     border-radius: 8px !important;
     font-size: 12px !important;
-    font-weight: 700 !important;
+    font-weight: 600 !important;
     cursor: pointer !important;
     transition: all 0.15s ease !important;
     white-space: nowrap !important;
     line-height: 1.2 !important;
-  }
-
-  .stitch-action-pill.pill-navy {
-    background: linear-gradient(135deg, #2B6DF8 0%, #1e40af 100%) !important;
+    background: linear-gradient(135deg, #0284c7 0%, #004890 100%) !important;
     color: #ffffff !important;
-    border: 1px solid #1e3a8a !important;
-    box-shadow: 0 2px 6px rgba(43, 109, 248, 0.2) !important;
+    border: 1px solid #004890 !important;
+    box-shadow: 0 2px 6px rgba(2, 132, 199, 0.22) !important;
   }
 
-  .stitch-action-pill.pill-navy:hover {
-    background: linear-gradient(135deg, #1E57D8 0%, #1d4ed8 100%) !important;
-    transform: translateY(-1px) !important;
-    box-shadow: 0 4px 10px rgba(43, 109, 248, 0.28) !important;
-  }
-
-  .stitch-action-pill.pill-emerald {
-    background: #ecfdf5 !important;
-    color: #047857 !important;
-    border: 1px solid #a7f3d0 !important;
-  }
-
-  .stitch-action-pill.pill-emerald:hover {
-    background: #d1fae5 !important;
-    border-color: #6ee7b7 !important;
-    transform: translateY(-1px) !important;
-  }
-
-  .stitch-action-pill.pill-sky {
-    background: #f0f9ff !important;
-    color: #0369a1 !important;
-    border: 1px solid #bae6fd !important;
-  }
-
-  .stitch-action-pill.pill-sky:hover {
-    background: #e0f2fe !important;
-    border-color: #7dd3fc !important;
-    transform: translateY(-1px) !important;
-  }
-
-  .stitch-action-pill.pill-orange {
-    background: #fff7ed !important;
-    color: #c2410c !important;
-    border: 1px solid #fed7aa !important;
-  }
-
+  .stitch-action-pill:hover,
+  .stitch-action-pill.pill-navy:hover,
+  .stitch-action-pill.pill-emerald:hover,
+  .stitch-action-pill.pill-sky:hover,
   .stitch-action-pill.pill-orange:hover {
-    background: #ffedd5 !important;
-    border-color: #fdba74 !important;
+    background: linear-gradient(135deg, #0369a1 0%, #003366 100%) !important;
+    border-color: #003366 !important;
     transform: translateY(-1px) !important;
+    box-shadow: 0 4px 10px rgba(2, 132, 199, 0.32) !important;
+    color: #ffffff !important;
+  }
+
+  .stitch-action-pill *,
+  .stitch-action-pill.pill-navy *,
+  .stitch-action-pill.pill-emerald *,
+  .stitch-action-pill.pill-sky *,
+  .stitch-action-pill.pill-orange * {
+    color: #ffffff !important;
   }
 
   /* ========================================================================
@@ -1736,7 +1690,12 @@ label,
   display: block !important;
 }
 
-/* 6. TABLES (BẢNG DỮ LIỆU DESKTOP TRÊN TẤT CẢ CÁC PHÂN HỆ PR, PO, ĐNPD, BÀN GIAO, THANH TOÁN...) */
+/* 6. TABLES (BẢNG DỮ LIỆU DESKTOP TRÊN TẤT CẢ CÁC PHÂN HỆ: PR, PO, ĐNPD, BÀN GIAO, THANH TOÁN...)
+ * TIÊU CHUẨN THỐNG NHẤT:
+ * - Chỉ có Tiêu đề cột (thead th) và Tiêu đề mục chính (h1-h4, section-heading) là in đậm.
+ * - Tất cả dữ liệu hàng bảng (tbody td và con cháu) viết thường, không in nghiêng, không in đậm, thống nhất cỡ 13px.
+ * - Chữ trong bảng thống nhất màu đen (#0f172a), nút chức năng thống nhất màu xanh logo Phenikaa.
+ */
 table thead th,
 table.draft-table thead th,
 table.payment-grid thead th,
@@ -1745,16 +1704,23 @@ table.smart-table thead th,
 .delivery-table th,
 .compare-matrix-table th,
 .pr-table th {
-  font-size: 11px !important;
-  font-weight: 750 !important;
-  text-transform: uppercase !important;
-  letter-spacing: 0.03em !important;
-  color: #475569 !important;
-  height: 30px !important;
-  padding: 4px 6px !important;
+  font-size: 13px !important;
+  font-weight: 700 !important;
+  font-style: normal !important;
+  color: #0f172a !important;
+  height: 32px !important;
+  padding: 6px 8px !important;
   white-space: nowrap !important;
   vertical-align: middle !important;
-  line-height: 1.2 !important;
+  line-height: 1.3 !important;
+}
+
+table thead th *,
+.pr-table th *,
+.draft-table thead th *,
+.payment-grid thead th *,
+.po-table thead th * {
+  font-weight: 700 !important;
 }
 
 table tbody td,
@@ -1765,48 +1731,73 @@ table.smart-table tbody td,
 .delivery-table td,
 .compare-matrix-table td,
 .pr-table td {
-  font-size: 11.5px !important;
-  font-weight: 500 !important;
-  line-height: 1.25 !important;
-  color: #1e293b !important;
-  padding: 4px 6px !important;
+  font-size: 13px !important;
+  font-weight: 400 !important;
+  font-style: normal !important;
+  line-height: 1.35 !important;
+  color: #0f172a !important;
+  padding: 6px 8px !important;
   height: auto !important;
   min-height: 28px !important;
   vertical-align: middle !important;
 }
 
-/* Ô tên mặt hàng, tên NCC, nội dung chính */
+/* Áp dụng triệt để: Mọi phần tử con trong ô dữ liệu đều viết thường, không nghiêng, không đậm, màu đen */
+table tbody td *:not(.stitch-action-pill):not(.stitch-action-pill *):not(.btn):not(.btn *):not(.payment-btn):not(.payment-btn *):not(button.primary):not(button.primary *),
+.pr-table tbody td *:not(.stitch-action-pill):not(.stitch-action-pill *):not(.btn):not(.btn *):not(.payment-btn):not(.payment-btn *):not(button.primary):not(button.primary *),
+.draft-table tbody td *:not(.stitch-action-pill):not(.stitch-action-pill *):not(.btn):not(.btn *):not(.payment-btn):not(.payment-btn *):not(button.primary):not(button.primary *),
+.compare-matrix-table tbody td *:not(.stitch-action-pill):not(.stitch-action-pill *):not(.btn):not(.btn *):not(.payment-btn):not(.payment-btn *):not(button.primary):not(button.primary *),
+.payment-grid tbody td *:not(.stitch-action-pill):not(.stitch-action-pill *):not(.btn):not(.btn *):not(.payment-btn):not(.payment-btn *):not(button.primary):not(button.primary *),
+.po-table tbody td *:not(.stitch-action-pill):not(.stitch-action-pill *):not(.btn):not(.btn *):not(.payment-btn):not(.payment-btn *):not(button.primary):not(button.primary *) {
+  font-weight: 400 !important;
+  font-style: normal !important;
+  font-size: 13px !important;
+  color: #0f172a !important;
+}
+
+/* Ô tên mặt hàng, tên NCC, nội dung chính trong bảng */
 table tbody td .item-name,
 table tbody td .supplier-name,
 table tbody td .primary-text,
 table.payment-grid tbody td.col-payee,
-table.po-table tbody td.col-supplier {
-  font-size: 11.5px !important;
-  font-weight: 650 !important;
-  line-height: 1.25 !important;
+table.po-table tbody td.col-supplier,
+.pr-link,
+button.pr-link {
+  font-size: 13px !important;
+  font-weight: 400 !important;
+  font-style: normal !important;
+  line-height: 1.35 !important;
   color: #0f172a !important;
 }
 
-/* Ô số tiền, số lượng, ngày tháng, mã chứng từ */
+.pr-link:hover,
+button.pr-link:hover {
+  text-decoration: underline !important;
+  color: #0f172a !important;
+}
+
+/* Ô số tiền, số lượng, ngày tháng, mã chứng từ trong bảng */
 table tbody td .amount,
 table tbody td .money,
 table tbody td .code,
 table tbody td .date,
 table.payment-grid tbody td.col-amount,
 table.draft-table tbody td.col-money {
-  font-family: var(--font-jetbrains-mono), monospace !important;
-  font-size: 11.5px !important;
-  font-weight: 650 !important;
-  line-height: 1.2 !important;
+  font-size: 13px !important;
+  font-weight: 400 !important;
+  font-style: normal !important;
+  line-height: 1.3 !important;
+  color: #0f172a !important;
 }
 
 /* Dòng tổng kết / Footer bảng */
 table tfoot td,
 table.draft-table tfoot td,
 .table-footer {
-  font-size: 11.5px !important;
+  font-size: 13px !important;
   font-weight: 700 !important;
-  padding: 4px 6px !important;
+  color: #0f172a !important;
+  padding: 6px 8px !important;
 }
 
 /* 7. CARDS (THẺ BÀN GIAO, THẺ THANH TOÁN, THẺ PO, THẺ PR) */
