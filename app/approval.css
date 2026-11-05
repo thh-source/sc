@@ -63,29 +63,29 @@
   font-size: 13px !important;
   padding: 8px 14px !important;
   cursor: pointer;
-  background: linear-gradient(135deg, #0284c7 0%, #004890 100%) !important;
+  background: linear-gradient(135deg, #3875f6 0%, #2252f6 100%) !important;
   color: #ffffff !important;
-  border: 1px solid #004890 !important;
-  box-shadow: 0 2px 6px rgba(2, 132, 199, 0.25) !important;
+  border: 1px solid #1d4ed8 !important;
+  box-shadow: 0 3px 10px rgba(34, 82, 246, 0.28) !important;
 }
 
 .approval-source-btn:hover {
-  background: linear-gradient(135deg, #0369a1 0%, #003366 100%) !important;
-  border-color: #003366 !important;
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%) !important;
+  border-color: #1e40af !important;
 }
 
 .approval-source-btn.source-compare,
 .approval-source-btn.source-pr {
-  background: linear-gradient(135deg, #0284c7 0%, #004890 100%) !important;
+  background: linear-gradient(135deg, #3875f6 0%, #2252f6 100%) !important;
   color: #ffffff !important;
-  border: 1px solid #004890 !important;
-  box-shadow: 0 2px 6px rgba(2, 132, 199, 0.25) !important;
+  border: 1px solid #1d4ed8 !important;
+  box-shadow: 0 3px 10px rgba(34, 82, 246, 0.28) !important;
 }
 
 .approval-source-btn.source-compare:hover,
 .approval-source-btn.source-pr:hover {
-  background: linear-gradient(135deg, #0369a1 0%, #003366 100%) !important;
-  border-color: #003366 !important;
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%) !important;
+  border-color: #1e40af !important;
 }
 
 .scale-pill {
@@ -419,29 +419,29 @@
 }
 
 .btn-approve-status {
-  background: linear-gradient(135deg, #0284c7 0%, #004890 100%) !important;
+  background: linear-gradient(135deg, #3875f6 0%, #2252f6 100%) !important;
   color: #ffffff !important;
-  border: 1px solid #004890 !important;
+  border: 1px solid #1d4ed8 !important;
   font-weight: 600 !important;
   border-radius: 6px !important;
 }
 
 .btn-approve-status:hover {
-  background: linear-gradient(135deg, #0369a1 0%, #003366 100%) !important;
-  border-color: #003366 !important;
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%) !important;
+  border-color: #1e40af !important;
 }
 
 .btn-create-po-from-approval {
-  background: linear-gradient(135deg, #0284c7 0%, #004890 100%) !important;
+  background: linear-gradient(135deg, #3875f6 0%, #2252f6 100%) !important;
   color: #ffffff !important;
-  border: 1px solid #004890 !important;
+  border: 1px solid #1d4ed8 !important;
   font-weight: 600 !important;
   border-radius: 6px !important;
 }
 
 .btn-create-po-from-approval:hover:not(:disabled) {
-  background: linear-gradient(135deg, #0369a1 0%, #003366 100%) !important;
-  border-color: #003366 !important;
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%) !important;
+  border-color: #1e40af !important;
 }
 
 .btn-create-po-from-approval:disabled {

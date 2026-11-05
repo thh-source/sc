@@ -90,34 +90,25 @@
   transform: translateY(0);
 }
 
-.workflow-action-btn.action-pr {
-  background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%);
-  color: #ffffff;
-  border-color: #1d4ed8;
-}
-
-.workflow-action-btn.action-approval {
-  background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
-  color: #ffffff;
-  border-color: #4338ca;
-}
-
-.workflow-action-btn.action-po {
-  background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
-  color: #ffffff;
-  border-color: #075985;
-}
-
-.workflow-action-btn.action-payment {
-  background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
-  color: #ffffff;
-  border-color: #c2410c;
-}
-
+.workflow-action-btn.action-pr,
+.workflow-action-btn.action-approval,
+.workflow-action-btn.action-po,
+.workflow-action-btn.action-payment,
 .workflow-action-btn.action-handover {
-  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-  color: #ffffff;
-  border-color: #047857;
+  background: linear-gradient(135deg, #3875f6 0%, #2252f6 100%) !important;
+  color: #ffffff !important;
+  border: 1px solid #1d4ed8 !important;
+  box-shadow: 0 3px 10px rgba(34, 82, 246, 0.28) !important;
+}
+
+.workflow-action-btn.action-pr:hover,
+.workflow-action-btn.action-approval:hover,
+.workflow-action-btn.action-po:hover,
+.workflow-action-btn.action-payment:hover,
+.workflow-action-btn.action-handover:hover {
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%) !important;
+  border-color: #1e40af !important;
+  box-shadow: 0 5px 14px rgba(34, 82, 246, 0.38) !important;
 }
 
 .workflow-action-btn.action-search {
@@ -259,6 +250,16 @@
   font-weight: 650;
   border-radius: 8px;
   white-space: nowrap;
+  background: linear-gradient(135deg, #3875f6 0%, #2252f6 100%) !important;
+  color: #ffffff !important;
+  border: 1px solid #1d4ed8 !important;
+  box-shadow: 0 3px 10px rgba(34, 82, 246, 0.28) !important;
+}
+
+.todo-hero-add-btn:hover:not(:disabled) {
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%) !important;
+  border-color: #1e40af !important;
+  box-shadow: 0 5px 14px rgba(34, 82, 246, 0.38) !important;
 }
 
 .todo-hero-helpers {
@@ -538,9 +539,9 @@
 .queue-code-link {
   border: 0;
   background: transparent;
-  color: #0284c7;
-  font-weight: 700;
-  font-size: 12px;
+  color: #0f172a;
+  font-weight: 400;
+  font-size: 13px;
   cursor: pointer;
   padding: 0;
   text-decoration: none;
@@ -548,7 +549,7 @@
 
 .queue-code-link:hover {
   text-decoration: underline;
-  color: #0369a1;
+  color: #0f172a;
 }
 
 .cell-dept-badge {
@@ -1003,49 +1004,32 @@
   text-decoration: underline;
 }
 
-.chip-po {
-  background: #f0fdf4;
-  border-color: #bbf7d0;
-  color: #15803d;
-}
-
-.chip-po:hover {
-  background: #dcfce7;
-  text-decoration: underline;
-}
-
-.chip-approval {
-  background: #fffbeb;
-  border-color: #fde68a;
-  color: #b45309;
-}
-
-.chip-approval:hover {
-  background: #fef3c7;
-  text-decoration: underline;
-}
-
+.chip-po,
+.chip-approval,
 .chip-supplier,
-.chip-ncc {
-  background: #f5f3ff;
-  border-color: #ddd6fe;
-  color: #7c3aed;
-}
-
-.chip-supplier:hover,
-.chip-ncc:hover {
-  background: #ede9fe;
-  text-decoration: underline;
-}
-
+.chip-ncc,
+.helper-chip,
+.helper-chip.chip-po,
+.helper-chip.chip-pr,
+.helper-chip.chip-approval,
 .helper-chip.chip-supplier {
-  border-color: #ddd6fe;
-  color: #7c3aed;
+  border: 1px dashed #cbd5e1;
+  background: #f8fafc;
+  color: #334155;
 }
 
+.chip-po:hover,
+.chip-approval:hover,
+.chip-supplier:hover,
+.chip-ncc:hover,
+.helper-chip:hover,
+.helper-chip.chip-po:hover,
+.helper-chip.chip-pr:hover,
+.helper-chip.chip-approval:hover,
 .helper-chip.chip-supplier:hover {
-  background: #f5f3ff;
-  border-color: #7c3aed;
+  background: #eff6ff;
+  border-color: #2563eb;
+  color: #2563eb;
 }
 
 .todo-del-btn {

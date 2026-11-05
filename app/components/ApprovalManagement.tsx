@@ -6153,10 +6153,10 @@ export default function ApprovalManagement({
                   display: "inline-flex",
                   alignItems: "center",
                   gap: 6,
-                  background: isButtonDisabled || isSubmittingPO ? "#94a3b8" : "linear-gradient(135deg, #0284c7 0%, #004890 100%)",
+                  background: isButtonDisabled || isSubmittingPO ? "#94a3b8" : "linear-gradient(135deg, #3875f6 0%, #2252f6 100%)",
                   color: "#ffffff",
                   cursor: isButtonDisabled || isSubmittingPO ? "not-allowed" : "pointer",
-                  boxShadow: isButtonDisabled || isSubmittingPO ? "none" : "0 2px 8px rgba(2, 132, 199, 0.35)",
+                  boxShadow: isButtonDisabled || isSubmittingPO ? "none" : "0 2px 8px rgba(34, 82, 246, 0.35)",
                 }}
                 disabled={isButtonDisabled || isSubmittingPO}
                 onClick={() => {

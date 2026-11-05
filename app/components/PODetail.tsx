@@ -1252,9 +1252,9 @@ export function PODetail({
                 display: "inline-flex",
                 alignItems: "center",
                 gap: "5px",
-                background: "linear-gradient(135deg, #0284c7 0%, #004890 100%)",
+                background: "linear-gradient(135deg, #3875f6 0%, #2252f6 100%)",
                 color: "#ffffff",
-                border: "1px solid #004890",
+                border: "1px solid #1d4ed8",
                 borderRadius: "6px",
                 fontWeight: 600,
                 cursor: "pointer",
@@ -2584,9 +2584,9 @@ export function PODetail({
                                 display: "inline-flex",
                                 alignItems: "center",
                                 gap: "5px",
-                                background: condition !== "advance" && (!p.invoiceNo || !p.invoiceNo.trim()) ? "#94a3b8" : "linear-gradient(135deg, #0284c7 0%, #004890 100%)",
+                                background: condition !== "advance" && (!p.invoiceNo || !p.invoiceNo.trim()) ? "#94a3b8" : "linear-gradient(135deg, #3875f6 0%, #2252f6 100%)",
                                 color: "#ffffff",
-                                border: "1px solid #004890",
+                                border: "1px solid #1d4ed8",
                                 opacity: condition !== "advance" && (!p.invoiceNo || !p.invoiceNo.trim()) ? 0.85 : 1,
                               }}
                               title={
@@ -2768,15 +2768,15 @@ export function PODetail({
                   padding: "0 13px",
                   fontSize: "12.5px",
                   fontWeight: 600,
-                  background: "linear-gradient(135deg, #0284c7 0%, #004890 100%)",
-                  border: "1px solid #004890",
+                  background: "linear-gradient(135deg, #3875f6 0%, #2252f6 100%)",
+                  border: "1px solid #1d4ed8",
                   color: "#ffffff",
                   borderRadius: "6px",
                   cursor: "pointer",
                   display: "inline-flex",
                   alignItems: "center",
                   gap: "6px",
-                  boxShadow: "0 1px 3px rgba(2, 132, 199, 0.25)",
+                  boxShadow: "0 1px 3px rgba(34, 82, 246, 0.25)",
                 }}
                 title="Nhân viên mua hàng bàn giao trực tiếp cho Bộ phận sử dụng (không qua kho), tự động đẩy dữ liệu sang Tab Bàn giao để tạo phiếu"
               >

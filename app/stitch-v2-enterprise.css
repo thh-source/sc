@@ -219,49 +219,85 @@
   /* ------------------------------------------------------------------------
      2. TACTILE & CRAFTED BUTTON ARCHITECTURE (NÚT BẤM NỔI BẬT CHUẨN STITCH v2)
      ------------------------------------------------------------------------ */
-  /* Primary & Action Tactile Buttons - Unified to Phenikaa Logo Blue */
+  /* Primary & Action Tactile Buttons - Unified to Vibrant Royal Blue (#2252F6 / #3467F9) */
   button.primary,
   .btn-primary,
   .payment-btn.btn-primary,
+  .payment-btn-primary,
   .m-btn-edit-card,
   .po-create-btn,
   .btn-accent,
+  .btn-teal,
+  .btn-success,
+  .m-btn-primary,
+  .m-btn-success,
+  .m-action-btn.m-btn-primary,
+  .m-action-btn.m-btn-success,
   .approval-source-btn,
   .approval-source-btn.source-compare,
   .approval-source-btn.source-pr,
   .payment-btn.btn-success,
-  .btn-teal,
   .m-btn-toggle-done.is-done,
+  .m-btn-mark-paid.is-done,
+  .po-save-btn,
+  .po-save-back-btn,
+  .btn-approve-status,
+  .btn-create-po-from-approval,
+  .workflow-action-btn:not(.action-search),
+  .workflow-action-btn.action-pr,
+  .workflow-action-btn.action-approval,
+  .workflow-action-btn.action-po,
+  .workflow-action-btn.action-payment,
+  .workflow-action-btn.action-handover,
+  .todo-hero-add-btn,
   .filter-actions button:last-child,
   .po-toolbar > button.primary,
   .pr-toolbar > button.primary,
   .product-toolbar > button.primary,
   .supplier-toolbar > button.primary {
-    background: linear-gradient(135deg, #0284c7 0%, #004890 100%) !important;
+    background: linear-gradient(135deg, #3875f6 0%, #2252f6 100%) !important;
     color: #ffffff !important;
-    border: 1px solid #004890 !important;
+    border: 1px solid #1d4ed8 !important;
     border-radius: 8px !important;
     font-weight: 600 !important;
-    box-shadow: 0 4px 12px rgba(2, 132, 199, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.25) !important;
+    box-shadow: 0 4px 12px rgba(34, 82, 246, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.25) !important;
     transition: all 0.16s cubic-bezier(0.16, 1, 0.3, 1) !important;
   }
 
   button.primary:hover:not(:disabled),
   .btn-primary:hover:not(:disabled),
   .payment-btn.btn-primary:hover:not(:disabled),
+  .payment-btn-primary:hover:not(:disabled),
   .m-btn-edit-card:hover:not(:disabled),
   .po-create-btn:hover:not(:disabled),
   .btn-accent:hover:not(:disabled),
+  .btn-teal:hover:not(:disabled),
+  .btn-success:hover:not(:disabled),
+  .m-btn-primary:hover:not(:disabled),
+  .m-btn-success:hover:not(:disabled),
+  .m-action-btn.m-btn-primary:hover:not(:disabled),
+  .m-action-btn.m-btn-success:hover:not(:disabled),
   .approval-source-btn:hover:not(:disabled),
   .approval-source-btn.source-compare:hover:not(:disabled),
   .approval-source-btn.source-pr:hover:not(:disabled),
   .payment-btn.btn-success:hover:not(:disabled),
-  .btn-teal:hover:not(:disabled),
-  .m-btn-toggle-done.is-done:hover:not(:disabled) {
-    background: linear-gradient(135deg, #0369a1 0%, #003366 100%) !important;
-    border-color: #003366 !important;
+  .m-btn-toggle-done.is-done:hover:not(:disabled),
+  .m-btn-mark-paid.is-done:hover:not(:disabled),
+  .po-save-btn:hover:not(:disabled),
+  .po-save-back-btn:hover:not(:disabled),
+  .btn-approve-status:hover:not(:disabled),
+  .btn-create-po-from-approval:hover:not(:disabled),
+  .workflow-action-btn:not(.action-search):hover:not(:disabled),
+  .workflow-action-btn.action-pr:hover:not(:disabled),
+  .workflow-action-btn.action-approval:hover:not(:disabled),
+  .workflow-action-btn.action-po:hover:not(:disabled),
+  .workflow-action-btn.action-payment:hover:not(:disabled),
+  .workflow-action-btn.action-handover:hover:not(:disabled),
+  .todo-hero-add-btn:hover:not(:disabled) {
+    background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%) !important;
+    border-color: #1e40af !important;
     transform: translateY(-1px) !important;
-    box-shadow: 0 6px 16px rgba(2, 132, 199, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.28) !important;
+    box-shadow: 0 6px 16px rgba(34, 82, 246, 0.38), inset 0 1px 0 rgba(255, 255, 255, 0.3) !important;
   }
 
   button.primary:active:not(:disabled),
@@ -269,7 +305,9 @@
   .payment-btn.btn-primary:active:not(:disabled),
   .po-create-btn:active:not(:disabled),
   .btn-accent:active:not(:disabled),
-  .approval-source-btn:active:not(:disabled) {
+  .approval-source-btn:active:not(:disabled),
+  .workflow-action-btn:active:not(:disabled),
+  .todo-hero-add-btn:active:not(:disabled) {
     transform: translateY(0) scale(0.99) !important;
   }
 
@@ -911,7 +949,7 @@
     white-space: nowrap;
   }
 
-  /* Stitch Action Pills in Data Tables - Unified to Phenikaa Logo Blue */
+  /* Stitch Action Pills in Data Tables - Unified to Vibrant Royal Blue */
   .stitch-action-pill,
   .stitch-action-pill.pill-navy,
   .stitch-action-pill.pill-emerald,
@@ -928,10 +966,10 @@
     transition: all 0.15s ease !important;
     white-space: nowrap !important;
     line-height: 1.2 !important;
-    background: linear-gradient(135deg, #0284c7 0%, #004890 100%) !important;
+    background: linear-gradient(135deg, #3875f6 0%, #2252f6 100%) !important;
     color: #ffffff !important;
-    border: 1px solid #004890 !important;
-    box-shadow: 0 2px 6px rgba(2, 132, 199, 0.22) !important;
+    border: 1px solid #1d4ed8 !important;
+    box-shadow: 0 2px 6px rgba(34, 82, 246, 0.25) !important;
   }
 
   .stitch-action-pill:hover,
@@ -939,10 +977,10 @@
   .stitch-action-pill.pill-emerald:hover,
   .stitch-action-pill.pill-sky:hover,
   .stitch-action-pill.pill-orange:hover {
-    background: linear-gradient(135deg, #0369a1 0%, #003366 100%) !important;
-    border-color: #003366 !important;
+    background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%) !important;
+    border-color: #1e40af !important;
     transform: translateY(-1px) !important;
-    box-shadow: 0 4px 10px rgba(2, 132, 199, 0.32) !important;
+    box-shadow: 0 4px 10px rgba(34, 82, 246, 0.35) !important;
     color: #ffffff !important;
   }
 
