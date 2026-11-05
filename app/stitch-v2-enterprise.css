@@ -1043,27 +1043,32 @@
   .draft-cell-input,
   .draft-cell-textarea {
     width: 100% !important;
-    border: 1px solid transparent !important;
-    border-radius: 6px !important;
+    border: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
     padding: 6px 8px !important;
     font-size: 13px !important;
     color: #0f172a !important;
     background: transparent !important;
     font-family: var(--stitch-font-sans) !important;
+    outline: none !important;
     transition: all 0.14s ease !important;
   }
 
   .draft-cell-input:hover,
   .draft-cell-textarea:hover {
     background: #f1f5f9 !important;
-    border-color: #cbd5e1 !important;
+    border: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
   }
 
   .draft-cell-input:focus,
   .draft-cell-textarea:focus {
     background: #ffffff !important;
-    border-color: #1e40af !important;
-    box-shadow: 0 0 0 3px rgba(30, 64, 175, 0.15) !important;
+    border: none !important;
+    border-radius: 0 !important;
+    box-shadow: inset 0 0 0 2px #1e40af !important;
     outline: none !important;
   }
 
@@ -1601,10 +1606,10 @@ button.secondary,
   padding: 0 12px !important;
 }
 
-/* 5. FORM CONTROLS & INPUTS (Ô NHẬP LIỆU & DROPDOWN TOÀN HỆ THỐNG) */
-input:not([type="checkbox"]):not([type="radio"]),
-select,
-textarea {
+/* 5. FORM CONTROLS & INPUTS (Ô NHẬP LIỆU & DROPDOWN TOÀN HỆ THỐNG - NGOẠI TRỪ TRONG CÁC Ô BẢNG) */
+:not(td):not(th) > input:not([type="checkbox"]):not([type="radio"]):not(.cell-input):not(.draft-cell-input):not(.qprice-input):not(.payment-input),
+:not(td):not(th) > select,
+:not(td):not(th) > textarea:not(.cell-textarea):not(.draft-cell-textarea):not(.smart-cell-textarea):not(.compare-custom-input) {
   font-size: 12.5px !important;
   font-weight: 500 !important;
   line-height: 1.4 !important;
@@ -1615,7 +1620,7 @@ textarea {
   padding: 0 10px !important;
 }
 
-textarea {
+textarea:not(td textarea):not(.cell-textarea):not(.draft-cell-textarea):not(.smart-cell-textarea):not(.compare-custom-input) {
   height: auto !important;
   padding: 8px 10px !important;
 }
@@ -1625,6 +1630,97 @@ textarea::placeholder {
   font-size: 12.5px !important;
   font-weight: 400 !important;
   color: #94a3b8 !important;
+}
+
+/* ==========================================================================
+   LOẠI BỎ TRIỆT ĐỂ TÌNH TRẠNG "Ô TRONG Ô" Ở TẤT CẢ CÁC BẢNG TRÊN TOÀN HỆ THỐNG
+   (Toàn bộ input, textarea, select trong ô bảng đều phẳng liền mạch như Excel)
+   ========================================================================== */
+table td input:not([type="checkbox"]):not([type="radio"]),
+table th input:not([type="checkbox"]):not([type="radio"]),
+table td textarea,
+table th textarea,
+table td select,
+table th select,
+.table-common td input,
+.table-common td textarea,
+.table-common td select,
+.smart-table-enabled td input,
+.smart-table-enabled td textarea,
+.smart-table-enabled td select,
+.phenikaa-approval-grid td input,
+.phenikaa-approval-grid td textarea,
+.phenikaa-approval-grid td select,
+.cell-input,
+.cell-textarea,
+.draft-cell-input,
+.draft-cell-textarea,
+.smart-cell-textarea,
+.qprice-input,
+.payment-input,
+.compare-custom-input {
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  outline: none !important;
+  margin: 0 !important;
+  height: 100% !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  padding: 4px 6px !important;
+  box-sizing: border-box !important;
+}
+
+table td textarea,
+table th textarea,
+.phenikaa-approval-grid td textarea,
+.cell-textarea,
+.draft-cell-textarea,
+.smart-cell-textarea,
+.compare-custom-input {
+  height: auto !important;
+}
+
+table td input:not([type="checkbox"]):not([type="radio"]):hover,
+table th input:not([type="checkbox"]):not([type="radio"]):hover,
+table td textarea:hover,
+table th textarea:hover,
+table td select:hover,
+table th select:hover,
+.phenikaa-approval-grid td input:hover,
+.phenikaa-approval-grid td textarea:hover,
+.cell-input:hover,
+.cell-textarea:hover,
+.draft-cell-input:hover,
+.draft-cell-textarea:hover,
+.qprice-input:hover,
+.payment-input:hover {
+  background: rgba(241, 245, 249, 0.5) !important;
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
+table td input:not([type="checkbox"]):not([type="radio"]):focus,
+table th input:not([type="checkbox"]):not([type="radio"]):focus,
+table td textarea:focus,
+table th textarea:focus,
+table td select:focus,
+table th select:focus,
+.phenikaa-approval-grid td input:focus,
+.phenikaa-approval-grid td textarea:focus,
+.cell-input:focus,
+.cell-textarea:focus,
+.draft-cell-input:focus,
+.draft-cell-textarea:focus,
+.qprice-input:focus,
+.payment-input:focus {
+  background: #ffffff !important;
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: inset 0 0 0 2px #2563eb !important;
+  outline: none !important;
 }
 
 /* Label tiêu đề trường nhập liệu */
@@ -2022,9 +2118,13 @@ main {
 .compare-matrix-table td input:not([type="checkbox"]):not([type="radio"]),
 .vat-quote-table td input:not([type="checkbox"]):not([type="radio"]) {
   min-height: 26px !important;
-  height: 26px !important;
+  height: 100% !important;
   padding: 1px 4px !important;
   font-size: 11px !important;
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  background: transparent !important;
 }
 
 /* Panels and Containers */

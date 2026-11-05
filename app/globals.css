@@ -1311,3 +1311,32 @@ tbody tr:hover td {
   }
 }
 
+/* ==========================================================================
+   TOÀN BỘ HỆ THỐNG: LOẠI BỎ TRIỆT ĐỂ TÌNH TRẠNG "Ô TRONG Ô" TRONG MỌI BẢNG
+   ========================================================================== */
+table td input:not([type="checkbox"]):not([type="radio"]),
+table th input:not([type="checkbox"]):not([type="radio"]),
+table td textarea,
+table th textarea,
+table td select,
+table th select {
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  outline: none !important;
+}
+
+table td input:not([type="checkbox"]):not([type="radio"]):focus,
+table th input:not([type="checkbox"]):not([type="radio"]):focus,
+table td textarea:focus,
+table th textarea:focus,
+table td select:focus,
+table th select:focus {
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: inset 0 0 0 2px #2563eb !important;
+  background: #ffffff !important;
+  outline: none !important;
+}
+

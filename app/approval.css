@@ -736,7 +736,7 @@
   margin-left: 3px;
 }
 
-/* Seamless Inline Cell Design (Thuần ô bảng tính Excel, không viền kép, không resize) */
+/* Seamless Inline Cell Design (Thuần ô bảng tính Excel, không viền kép, không bao giờ có ô trong ô) */
 .phenikaa-approval-grid td.cell-item-name,
 .phenikaa-approval-grid td.cell-sub-spec {
   padding: 0 !important;
@@ -751,34 +751,48 @@
   vertical-align: middle;
 }
 
-.cell-textarea {
-  width: 100% !important;
-  min-width: 0 !important;
-  max-width: 100%;
+.phenikaa-approval-grid td input,
+.phenikaa-approval-grid td textarea,
+.cell-textarea,
+.cell-input {
   border: none !important;
+  border-radius: 0 !important;
   outline: none !important;
   box-shadow: none !important;
   background: transparent !important;
   font-family: inherit;
   font-size: 10pt;
   color: #000000;
+  box-sizing: border-box !important;
+  margin: 0 !important;
+}
+
+.cell-textarea {
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: 100%;
   resize: none !important;
-  padding: 6px 8px !important;
+  padding: 5px 6px !important;
   line-height: 1.35;
   white-space: pre-wrap;
   word-break: break-word;
   overflow-wrap: break-word;
   overflow: hidden;
-  box-sizing: border-box;
   display: block;
 }
 
-.cell-textarea:hover {
+.cell-textarea:hover,
+.phenikaa-approval-grid td textarea:hover {
   background: rgba(241, 245, 249, 0.45) !important;
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
 }
 
-.cell-textarea:focus {
+.cell-textarea:focus,
+.phenikaa-approval-grid td textarea:focus {
   border: none !important;
+  border-radius: 0 !important;
   outline: none !important;
   box-shadow: inset 0 0 0 2px #2563eb !important;
   background: #ffffff !important;
@@ -788,15 +802,10 @@
   width: 100% !important;
   min-width: 0 !important;
   max-width: 100%;
-  border: none !important;
-  outline: none !important;
-  box-shadow: none !important;
-  background: transparent !important;
-  font-family: inherit;
-  font-size: 10pt;
-  color: #000000;
-  padding: 6px 8px !important;
-  box-sizing: border-box;
+  height: 100% !important;
+  min-height: 28px !important;
+  padding: 4px 6px !important;
+  display: block;
 }
 
 .cell-qty .cell-input,
@@ -807,12 +816,18 @@
   padding-right: 2px !important;
 }
 
-.cell-input:hover {
+.cell-input:hover,
+.phenikaa-approval-grid td input:hover {
   background: rgba(241, 245, 249, 0.45) !important;
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
 }
 
-.cell-input:focus {
+.cell-input:focus,
+.phenikaa-approval-grid td input:focus {
   border: none !important;
+  border-radius: 0 !important;
   outline: none !important;
   box-shadow: inset 0 0 0 2px #2563eb !important;
   background: #ffffff !important;
