@@ -1,10 +1,10 @@
 import React from "react";
 import { PaymentPrintTemplate, PaymentRequestEntry, Supplier } from "../types";
-import { parsePrintDate, moneyWords, fmtMoney, normName } from "../payment-utils";
+import { parsePrintDate, moneyWords, fmtMoney, normName, DEFAULT_PAYMENT_TEMPLATE } from "../payment-utils";
 
 export interface PaymentPrintSheetProps {
   req: PaymentRequestEntry;
-  tpl: PaymentPrintTemplate;
+  tpl?: PaymentPrintTemplate;
   suppliers?: Supplier[];
   selectedDocs?: string[];
   style?: React.CSSProperties;
@@ -29,6 +29,8 @@ export const PaymentPrintSheet: React.FC<PaymentPrintSheetProps> = ({
   className = "paper",
   isDraft = false,
 }) => {
+  if (!req) return null;
+  const safeTpl = { ...DEFAULT_PAYMENT_TEMPLATE, ...(tpl || {}) };
   const dateParts = parsePrintDate(req.request_date);
   const cur = String(req.currency || "VND").toUpperCase();
   const words = moneyWords({ amount: req.amount, currency: cur });
@@ -66,12 +68,12 @@ export const PaymentPrintSheet: React.FC<PaymentPrintSheetProps> = ({
     req.created_by_name.trim().toLowerCase() === "cung ứng";
 
   const requesterName = isGenericDepartment
-    ? (tpl.default_requester_name || "Trần Hải Hà")
-    : req.created_by_name.trim();
+    ? (safeTpl.default_requester_name || "Trần Hải Hà")
+    : (req.created_by_name ? req.created_by_name.trim() : "Trần Hải Hà");
 
   // Người ký vị trí số 4: Ưu tiên sign4_name từ mẫu in nếu đã cấu hình, nếu không dùng requesterName
-  const signer4Name = (tpl.sign4_name && tpl.sign4_name.trim())
-    ? tpl.sign4_name.trim()
+  const signer4Name = (safeTpl.sign4_name && safeTpl.sign4_name.trim())
+    ? safeTpl.sign4_name.trim()
     : requesterName;
 
   const docsToDisplay = (selectedDocs && selectedDocs.length > 0
@@ -79,8 +81,8 @@ export const PaymentPrintSheet: React.FC<PaymentPrintSheetProps> = ({
     : (req.documents || [])
   ).filter(Boolean).join(", ");
 
-  const signSpaceHeight = tpl.sign_space_height && tpl.sign_space_height > 0
-    ? tpl.sign_space_height
+  const signSpaceHeight = safeTpl.sign_space_height && safeTpl.sign_space_height > 0
+    ? safeTpl.sign_space_height
     : 130;
 
   return (
@@ -110,56 +112,56 @@ export const PaymentPrintSheet: React.FC<PaymentPrintSheetProps> = ({
             whiteSpace: "nowrap",
           }}
         >
-          {tpl.draft_warning || "BẢN NHÁP – CHƯA XÁC NHẬN TIỀN TỆ"}
+          {safeTpl.draft_warning || "BẢN NHÁP – CHƯA XÁC NHẬN TIỀN TỆ"}
         </div>
       )}
 
-      <div className="upper">{tpl.company_name}</div>
-      <div className="model">{tpl.form_code}</div>
-      <h1>{tpl.form_title}</h1>
+      <div className="upper">{safeTpl.company_name}</div>
+      <div className="model">{safeTpl.form_code}</div>
+      <h1>{safeTpl.form_title}</h1>
 
       <div className="recipients">
-        <strong>{tpl.recipient_label}</strong>
-        <div style={{ whiteSpace: "pre-line" }}>{tpl.recipients}</div>
+        <strong>{safeTpl.recipient_label}</strong>
+        <div style={{ whiteSpace: "pre-line" }}>{safeTpl.recipients}</div>
       </div>
 
       <div className="person">
-        <div>- {tpl.label_requester}</div>
+        <div>- {safeTpl.label_requester}</div>
         <div><b>{requesterName}</b></div>
-        <div>- {tpl.label_department}</div>
-        <div><b>{tpl.department_name}</b></div>
+        <div>- {safeTpl.label_department}</div>
+        <div><b>{safeTpl.department_name}</b></div>
       </div>
 
-      <div className="intro">- {tpl.intro_text}</div>
+      <div className="intro">- {safeTpl.intro_text}</div>
 
       <div className="details">
-        <div>+ {tpl.label_payee}</div>
+        <div>+ {safeTpl.label_payee}</div>
         <div className="val"><b>{fullPayeeName}</b></div>
-        <div>+ {tpl.label_address}</div>
+        <div>+ {safeTpl.label_address}</div>
         <div className="val">{payeeAddress}</div>
-        <div>+ {tpl.label_account}</div>
+        <div>+ {safeTpl.label_account}</div>
         <div className="val"><b>{payeeAccount}</b></div>
-        <div>+ {tpl.label_bank}</div>
+        <div>+ {safeTpl.label_bank}</div>
         <div className="val"><b>{payeeBank}</b></div>
-        <div>+ {tpl.label_description}</div>
+        <div>+ {safeTpl.label_description}</div>
         <div className="val">{req.description || ""}</div>
       </div>
 
       <div className="person transfer">
-        <div>- {tpl.deadline_label}</div>
-        <div><b>{tpl.deadline_val}</b></div>
+        <div>- {safeTpl.deadline_label}</div>
+        <div><b>{safeTpl.deadline_val}</b></div>
       </div>
 
-      <div className="moneytitle">- {tpl.table_title}</div>
+      <div className="moneytitle">- {safeTpl.table_title}</div>
 
       <table>
         <thead>
           <tr>
-            <th style={{ width: "36px" }}>{tpl.col_stt}</th>
-            <th style={{ width: "170px" }}>{tpl.col_invoice}</th>
-            <th>{tpl.col_item}</th>
-            <th style={{ width: "135px" }}>{tpl.col_amount}</th>
-            <th style={{ width: "90px" }}>{tpl.col_note}</th>
+            <th style={{ width: "36px" }}>{safeTpl.col_stt}</th>
+            <th style={{ width: "170px" }}>{safeTpl.col_invoice}</th>
+            <th>{safeTpl.col_item}</th>
+            <th style={{ width: "135px" }}>{safeTpl.col_amount}</th>
+            <th style={{ width: "90px" }}>{safeTpl.col_note}</th>
           </tr>
         </thead>
         <tbody>
@@ -177,7 +179,7 @@ export const PaymentPrintSheet: React.FC<PaymentPrintSheetProps> = ({
             </tr>
           ))}
           <tr className="sum">
-            <td colSpan={3} style={{ textAlign: "center", fontWeight: "bold" }}>{tpl.col_total}</td>
+            <td colSpan={3} style={{ textAlign: "center", fontWeight: "bold" }}>{safeTpl.col_total}</td>
             <td style={{ textAlign: "right", paddingRight: "8px", fontWeight: "bold", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "clip", fontVariantNumeric: "tabular-nums" }}>{fmtMoney(req.amount)}</td>
             <td style={{ textAlign: "center" }}>{cur}</td>
           </tr>
@@ -185,22 +187,22 @@ export const PaymentPrintSheet: React.FC<PaymentPrintSheetProps> = ({
       </table>
 
       <div className="words">
-        <div>- {tpl.label_money_words}</div>
+        <div>- {safeTpl.label_money_words}</div>
         <div>{words}</div>
       </div>
 
-      <div className="doclabel">- {tpl.label_docs}:</div>
+      <div className="doclabel">- {safeTpl.label_docs}:</div>
       <div className="docs">{docsToDisplay}</div>
 
       <div className="date">
-        {tpl.date_location}, ngày {dateParts ? dateParts.d : "...."} tháng {dateParts ? dateParts.m : "...."} năm {dateParts ? dateParts.y : "2026"}
+        {safeTpl.date_location}, ngày {dateParts ? dateParts.d : "...."} tháng {dateParts ? dateParts.m : "...."} năm {dateParts ? dateParts.y : "2026"}
       </div>
 
       <div className="sign">
-        <div style={{ height: `${signSpaceHeight}px` }}>{tpl.sign1_title}<span>{tpl.sign1_name}</span></div>
-        <div style={{ height: `${signSpaceHeight}px` }}>{tpl.sign2_title}<span>{tpl.sign2_name}</span></div>
-        <div style={{ height: `${signSpaceHeight}px` }}>{tpl.sign3_title}<span>{tpl.sign3_name}</span></div>
-        <div style={{ height: `${signSpaceHeight}px` }}>{tpl.sign4_title}<span>{signer4Name}</span></div>
+        <div style={{ height: `${signSpaceHeight}px` }}>{safeTpl.sign1_title}<span>{safeTpl.sign1_name}</span></div>
+        <div style={{ height: `${signSpaceHeight}px` }}>{safeTpl.sign2_title}<span>{safeTpl.sign2_name}</span></div>
+        <div style={{ height: `${signSpaceHeight}px` }}>{safeTpl.sign3_title}<span>{safeTpl.sign3_name}</span></div>
+        <div style={{ height: `${signSpaceHeight}px` }}>{safeTpl.sign4_title}<span>{signer4Name}</span></div>
       </div>
     </div>
   );

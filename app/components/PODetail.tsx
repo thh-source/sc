@@ -56,6 +56,7 @@ import { isPaymentCompleted } from "../utils/paymentSync";
 import { resolveDocFlow } from "../utils/docFlow";
 import { isPOCompleted, calcPODeliveryStats, calcPOItemDeliveryStats } from "../utils/paymentSync";
 import { PODeliveryModal, POItemsMobileCards, DeliveryConfirmPayload } from "./PODeliveryMobileSheet";
+import { POHandoverBatchSection } from "./POHandoverBatchSection";
 
 export type POTabId = "supplier" | "documents" | "payments" | "timeline" | "items" | "all";
 

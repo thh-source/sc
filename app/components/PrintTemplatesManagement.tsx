@@ -11,6 +11,7 @@ import {
   parsePrintDate,
   PHENIKAA_PHARMA_LOGO_BASE64,
 } from "../payment-utils";
+import { PaymentPrintSheet } from "./PaymentPrintSheet";
 import "../payment.css";
 
 const PHENIKAA_LOGO_SRC = PHENIKAA_PHARMA_LOGO_BASE64;

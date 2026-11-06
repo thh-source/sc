@@ -53,6 +53,7 @@ import {
 import "../payment.css";
 import { useIsMobile } from "../useIsMobile";
 import { AutoGrowTextarea } from "./AutoGrowTextarea";
+import { PaymentPrintSheet } from "./PaymentPrintSheet";
 import { isPaymentCompleted, syncPaymentCompletionToPO } from "../utils/paymentSync";
 
 export const isPOContract = (p: PO): boolean =>
@@ -1288,7 +1289,9 @@ export function PaymentManagement({
     setIsPrinting(true);
     setTimeout(() => {
       window.print();
-      setIsPrinting(false);
+      setTimeout(() => {
+        setIsPrinting(false);
+      }, 500);
     }, 150);
   };
 
@@ -1302,7 +1305,9 @@ export function PaymentManagement({
     setIsPrinting(true);
     setTimeout(() => {
       window.print();
-      setIsPrinting(false);
+      setTimeout(() => {
+        setIsPrinting(false);
+      }, 500);
     }, 150);
   };
 
@@ -4432,9 +4437,9 @@ export function PaymentManagement({
       {/* PORTAL PRINT CONTAINER - Completely isolated from app */}
       {typeof document !== "undefined" && isPrinting && createPortal(
         <div id="paymentPrintPortal">
-          {printEntriesList.map((req) => (
+          {(printEntriesList || []).map((req, idx) => (
             <PaymentPrintSheet
-              key={req.id}
+              key={req?.id || idx}
               req={req}
               tpl={paymentTemplate}
               suppliers={suppliers}

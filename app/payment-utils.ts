@@ -231,7 +231,7 @@ export function moneyWords(x: { amount: number | string; currency: string }): st
   return w.charAt(0).toUpperCase() + w.slice(1);
 }
 
-export function parsePrintDate(dStr: string) {
+export function parsePrintDate(dStr: any) {
   if (!dStr) {
     const now = new Date();
     return {
@@ -240,7 +240,8 @@ export function parsePrintDate(dStr: string) {
       y: String(now.getFullYear()),
     };
   }
-  const parts = dStr.split(/[-/]/);
+  const str = String(dStr).trim();
+  const parts = str.split(/[-/]/);
   if (parts.length === 3) {
     if (parts[0].length === 4) {
       return { d: parts[2].padStart(2, "0"), m: parts[1].padStart(2, "0"), y: parts[0] };

@@ -1,5 +1,5 @@
 import React, { useState, useRef } from "react";
-import { X, Printer, ExternalLink, ZoomIn, ZoomOut, RotateCw, Maximize2, FileText, Share2, Download } from "lucide-react";
+import { X, Printer, ExternalLink, ZoomIn, ZoomOut, RotateCw, Maximize2, FileText, Share2, Download, Image as ImageIcon } from "lucide-react";
 import { PR } from "../types";
 import { ShareFileModal } from "./ShareFileModal";
 

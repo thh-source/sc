@@ -1957,7 +1957,7 @@ export default function ApprovalManagement({
    * Xử lý kéo thả mép cột trực tiếp bằng chuột trên bảng
    */
   const startColumnDrag = (
-    colKey: "stt" | "item" | "qty" | "unit" | "spec" | "price" | "amt",
+    colKey: "stt" | "item" | "qty" | "unit" | "spec" | "price" | "supQty" | "amt",
     e: React.MouseEvent,
   ) => {
     e.preventDefault();
