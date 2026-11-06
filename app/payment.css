@@ -811,9 +811,14 @@ table.payment-table td .smart-cell-textarea:focus {
   height: auto;
 }
 
-.paper td:nth-child(4) {
-  text-align: right;
-  padding-right: 8px;
+.paper td:nth-child(4),
+.paper .sum td:nth-child(2) {
+  text-align: right !important;
+  padding-right: 8px !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: clip !important;
+  font-variant-numeric: tabular-nums !important;
 }
 
 .paper .sum td {

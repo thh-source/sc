@@ -248,17 +248,69 @@
   table-layout: auto !important;
 }
 
-.cell-center {
-  text-align: center !important;
+/* Universal Anti-Overflow and Cell Box Sizing Rule */
+table th, table td {
+  box-sizing: border-box !important;
 }
 
-.cell-right {
+/* Number & Currency Cells: Right-aligned, Tabular Nums, Never Bleed Across Borders */
+.cell-right,
+td.cell-right,
+.cell-price,
+.cell-amount,
+.cell-sub-price,
+.cell-sub-amount,
+.total-amount-cell,
+td.money,
+.money-cell,
+.vendor-price-cell,
+.best-price-cell,
+.foot-subtotal-val {
   text-align: right !important;
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: tabular-nums !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: clip !important;
 }
 
-.cell-left {
+/* Text & Description Cells: Left-aligned, Natural Word Wrap, Never Overflow Horizontally */
+.cell-left,
+td.cell-left,
+.cell-item-name,
+.cell-sub-spec,
+.cell-desc,
+.cell-multiline {
   text-align: left !important;
+  white-space: normal !important;
+  word-break: break-word !important;
+  overflow-wrap: break-word !important;
+}
+
+/* Center-aligned Cells (STT, Codes, Dates) */
+.cell-center,
+td.cell-center,
+.cell-stt,
+.col-stt,
+.cell-date {
+  text-align: center !important;
+  white-space: nowrap !important;
+}
+
+/* Quantity Cells: Center-aligned, Keep Digits Together */
+.cell-qty,
+.cell-sub-qty {
+  text-align: center !important;
+  white-space: nowrap !important;
+  word-break: keep-all !important;
+  font-variant-numeric: tabular-nums !important;
+}
+
+/* Unit (ĐVT) Cells: Center-aligned, Wrap Multi-word */
+.cell-unit {
+  text-align: center !important;
+  white-space: normal !important;
+  word-break: break-word !important;
+  overflow-wrap: break-word !important;
 }
 
 .cell-nowrap {

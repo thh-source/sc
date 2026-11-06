@@ -1667,33 +1667,33 @@ export default function ApprovalManagement({
    * - Đơn giá và Thành tiền được ưu tiên rộng rãi (~9.5% mỗi cột, ~19mm) để số tiền 7-9 chữ số không bao giờ chạm viền.
    * - Hàng hóa và Mặt hàng NCC báo có diện tích thoáng đãng, không bị co ép.
    */
-  const defaultColWidths = useMemo(() => {
+    const defaultColWidths = useMemo(() => {
     const numSups = Math.max(1, activeRequest?.supplierColumns.length || 1);
-    let sttPct = 3.5;
-    let itemPct = 22.0;
-    let qtyPct = 6.5;
-    let unitPct = 7.0;
+    let sttPct = 2.8;
+    let itemPct = hasQuotedProduct ? 18.0 : 25.0;
+    let qtyPct = 4.5;
+    let unitPct = 4.5;
 
     if (numSups === 1) {
-      sttPct = 4.0;
-      qtyPct = 7.0;
-      unitPct = 8.0;
-      itemPct = hasQuotedProduct ? 30.0 : 38.0;
-    } else if (numSups === 2) {
       sttPct = 3.5;
-      qtyPct = 6.5;
-      unitPct = 7.0;
-      itemPct = hasQuotedProduct ? 22.0 : 28.0;
-    } else if (numSups === 3) {
-      sttPct = 3.0;
       qtyPct = 5.5;
-      unitPct = 6.0;
-      itemPct = hasQuotedProduct ? 18.0 : 22.0;
-    } else {
-      sttPct = 2.8;
-      qtyPct = 5.0;
       unitPct = 5.5;
-      itemPct = hasQuotedProduct ? 15.0 : 18.0;
+      itemPct = hasQuotedProduct ? 24.5 : 34.0;
+    } else if (numSups === 2) {
+      sttPct = 2.8;
+      qtyPct = 4.5;
+      unitPct = 4.5;
+      itemPct = hasQuotedProduct ? 18.0 : 25.0;
+    } else if (numSups === 3) {
+      sttPct = 2.5;
+      qtyPct = 4.0;
+      unitPct = 4.0;
+      itemPct = hasQuotedProduct ? 14.5 : 19.5;
+    } else {
+      sttPct = 2.4;
+      qtyPct = 3.8;
+      unitPct = 3.8;
+      itemPct = hasQuotedProduct ? 12.0 : 16.0;
     }
 
     const remainingPct = 100 - (sttPct + itemPct + qtyPct + unitPct);
@@ -1705,22 +1705,52 @@ export default function ApprovalManagement({
     let amtPct = 0;
 
     if (hasQuotedProduct && hasSupplierQty) {
-      specPct = perSupPct * 0.35;
-      pricePct = perSupPct * 0.25;
-      supQtyPct = perSupPct * 0.15;
-      amtPct = perSupPct * 0.25;
+      if (numSups === 1) {
+        specPct = perSupPct * 0.40;
+        pricePct = perSupPct * 0.25;
+        supQtyPct = perSupPct * 0.10;
+        amtPct = perSupPct * 0.25;
+      } else if (numSups === 2) {
+        pricePct = 10.2;
+        amtPct = 10.2;
+        supQtyPct = 4.0;
+        specPct = Number((perSupPct - pricePct - amtPct - supQtyPct).toFixed(2));
+      } else if (numSups === 3) {
+        pricePct = 8.5;
+        amtPct = 8.5;
+        supQtyPct = 3.0;
+        specPct = Number((perSupPct - pricePct - amtPct - supQtyPct).toFixed(2));
+      } else {
+        pricePct = Number((perSupPct * 0.32).toFixed(2));
+        amtPct = Number((perSupPct * 0.32).toFixed(2));
+        supQtyPct = Number((perSupPct * 0.12).toFixed(2));
+        specPct = Number((perSupPct - pricePct - amtPct - supQtyPct).toFixed(2));
+      }
     } else if (hasQuotedProduct && !hasSupplierQty) {
-      // Chuẩn 2 NCC: specPct = 11.5%, pricePct = 9.5%, amtPct = 9.5%
-      specPct = perSupPct * 0.377;
-      pricePct = (perSupPct - specPct) / 2;
-      amtPct = pricePct;
+      if (numSups === 1) {
+        pricePct = perSupPct * 0.28;
+        amtPct = perSupPct * 0.28;
+        specPct = perSupPct * 0.44;
+      } else if (numSups === 2) {
+        pricePct = 11.0;
+        amtPct = 11.0;
+        specPct = Number((perSupPct - pricePct - amtPct).toFixed(2));
+      } else if (numSups === 3) {
+        pricePct = 9.0;
+        amtPct = 9.0;
+        specPct = Number((perSupPct - pricePct - amtPct).toFixed(2));
+      } else {
+        pricePct = Number((perSupPct * 0.36).toFixed(2));
+        amtPct = Number((perSupPct * 0.36).toFixed(2));
+        specPct = Number((perSupPct - pricePct - amtPct).toFixed(2));
+      }
     } else if (!hasQuotedProduct && hasSupplierQty) {
-      pricePct = perSupPct * 0.40;
-      supQtyPct = perSupPct * 0.18;
-      amtPct = perSupPct * 0.42;
+      supQtyPct = numSups >= 3 ? 4.0 : 5.0;
+      pricePct = Number(((perSupPct - supQtyPct) / 2).toFixed(2));
+      amtPct = pricePct;
     } else {
-      pricePct = perSupPct * 0.49;
-      amtPct = perSupPct * 0.51;
+      pricePct = Number((perSupPct / 2).toFixed(2));
+      amtPct = Number((perSupPct - pricePct).toFixed(2));
     }
 
     return {
@@ -1744,20 +1774,34 @@ export default function ApprovalManagement({
     if (typeof window !== "undefined") {
       try {
         const s = localStorage.getItem("scm_approval_col_widths");
-        if (s) savedGlobal = JSON.parse(s);
+        if (s) {
+          const parsed = JSON.parse(s);
+          if (parsed && (parsed.price < 9.5 || parsed.amt < 9.5)) {
+            parsed.price = Math.max(parsed.price || 0, 10.0);
+            parsed.amt = Math.max(parsed.amt || 0, 10.0);
+            parsed.qty = Math.min(parsed.qty || 6.5, 4.5);
+            parsed.unit = Math.min(parsed.unit || 7.0, 4.5);
+            localStorage.setItem("scm_approval_col_widths", JSON.stringify(parsed));
+          }
+          savedGlobal = parsed;
+        }
       } catch {}
     }
     const custom = activeRequest?.customColWidths || savedGlobal;
     const base = defaultColWidths;
+
+    const numSups = Math.max(1, activeRequest?.supplierColumns.length || 1);
+    const minPrice = numSups >= 3 ? 8.2 : (numSups === 2 ? 10.0 : 14.0);
+    const minAmt = numSups >= 3 ? 8.2 : (numSups === 2 ? 10.0 : 14.0);
 
     const stt = custom?.stt ?? base.stt;
     const item = custom?.item ?? base.item;
     const qty = custom?.qty ?? base.qty;
     const unit = custom?.unit ?? base.unit;
     const spec = custom?.spec ?? base.spec;
-    const price = custom?.price ?? base.price;
+    const price = Math.max(minPrice, custom?.price ?? base.price);
     const supQty = custom?.supQty ?? base.supQty;
-    const amt = custom?.amt ?? base.amt;
+    const amt = Math.max(minAmt, custom?.amt ?? base.amt);
 
     const subColSum = (hasQuotedProduct ? spec : 0) + price + (hasSupplierQty ? supQty : 0) + amt;
     const perSup = Number(subColSum.toFixed(2));
@@ -1775,7 +1819,7 @@ export default function ApprovalManagement({
       numValues: { stt, item, qty, unit, spec, price, supQty, amt, perSup },
       hasCustom: !!custom && Object.keys(custom).length > 0,
     };
-  }, [activeRequest?.customColWidths, defaultColWidths, hasQuotedProduct, hasSupplierQty]);
+  }, [activeRequest?.customColWidths, activeRequest?.supplierColumns.length, defaultColWidths, hasQuotedProduct, hasSupplierQty]);
 
   /**
    * Xử lý co kéo độ rộng cột đơn lẻ qua slider hoặc kéo chuột
@@ -1788,7 +1832,7 @@ export default function ApprovalManagement({
     const current = colWidths.numValues;
     const numSups = Math.max(1, activeRequest.supplierColumns.length || 1);
 
-    const minVal = key === "stt" ? 2.5 : key === "price" || key === "amt" ? 5.5 : 4.0;
+    const minVal = key === "stt" ? 2.5 : key === "price" || key === "amt" ? (numSups >= 3 ? 8.0 : 9.8) : 3.5;
     const maxVal = key === "item" ? 45.0 : 35.0;
     const clamped = Math.max(minVal, Math.min(maxVal, targetVal));
 
@@ -1798,10 +1842,11 @@ export default function ApprovalManagement({
     let nextWidths = { ...current };
     nextWidths[key] = clamped;
 
+    const minPriceAmt = numSups >= 3 ? 8.0 : 9.8;
     if (key === "item") {
       const deltaPerSupCol = delta / numSups / 2;
-      nextWidths.price = Math.max(6.0, Number((current.price - deltaPerSupCol).toFixed(2)));
-      nextWidths.amt = Math.max(6.0, Number((current.amt - deltaPerSupCol).toFixed(2)));
+      nextWidths.price = Math.max(minPriceAmt, Number((current.price - deltaPerSupCol).toFixed(2)));
+      nextWidths.amt = Math.max(minPriceAmt, Number((current.amt - deltaPerSupCol).toFixed(2)));
     } else if (key === "price" || key === "amt") {
       nextWidths.price = clamped;
       nextWidths.amt = clamped;
@@ -5131,26 +5176,52 @@ export default function ApprovalManagement({
                   vertical-align: middle !important;
                   color: #000000 !important;
                   background: transparent !important;
+                  overflow: hidden !important; /* Tuyệt đối không tràn ra ngoài ô */
                 }
                 #approvalPrintPortal .phenikaa-print-grid th,
                 #approvalPrintPortal .phenikaa-print-grid td {
                   border: 1px solid #000000 !important;
-                  padding: 2px 3px !important;
-                  font-size: 9.5pt !important;
+                  padding: 2px 2px !important;
+                  font-size: 8.5pt !important;
                   line-height: 1.15 !important;
+                  box-sizing: border-box !important;
+                  overflow: hidden !important;
                 }
                 #approvalPrintPortal .cell-item-name,
                 #approvalPrintPortal .cell-sub-spec {
-                  white-space: pre-wrap !important;
+                  white-space: normal !important;
                   word-break: break-word !important;
                   overflow-wrap: break-word !important;
+                  hyphens: auto !important;
+                  text-align: left !important;
+                  padding: 2px 3px !important;
                 }
                 #approvalPrintPortal .cell-right,
-                #approvalPrintPortal td.cell-right {
+                #approvalPrintPortal td.cell-right,
+                #approvalPrintPortal .cell-sub-price,
+                #approvalPrintPortal .cell-sub-amount,
+                #approvalPrintPortal .total-amount-cell {
                   text-align: right !important;
                   white-space: nowrap !important;
                   word-break: normal !important;
                   overflow-wrap: normal !important;
+                  font-variant-numeric: tabular-nums !important;
+                  font-size: ${(activeRequest.supplierColumns?.length || 1) >= 3 ? "7.5pt" : (activeRequest.supplierColumns?.length || 1) === 2 ? "8.5pt" : "9.5pt"} !important;
+                  letter-spacing: ${(activeRequest.supplierColumns?.length || 1) >= 3 ? "-0.3px" : (activeRequest.supplierColumns?.length || 1) === 2 ? "-0.2px" : "normal"} !important;
+                  padding-right: 2px !important;
+                  padding-left: 1px !important;
+                  overflow: hidden !important;
+                  text-overflow: clip !important;
+                }
+                #approvalPrintPortal .total-footer-row td.cell-right {
+                  font-size: ${(activeRequest.supplierColumns?.length || 1) >= 3 ? "7.5pt" : (activeRequest.supplierColumns?.length || 1) === 2 ? "8.5pt" : "9.5pt"} !important;
+                  letter-spacing: ${(activeRequest.supplierColumns?.length || 1) >= 3 ? "-0.3px" : (activeRequest.supplierColumns?.length || 1) === 2 ? "-0.2px" : "normal"} !important;
+                  padding-right: 2px !important;
+                  padding-left: 1px !important;
+                  white-space: nowrap !important;
+                  overflow: hidden !important;
+                  text-overflow: clip !important;
+                  font-weight: 700 !important;
                 }
                 #approvalPrintPortal .cell-left,
                 #approvalPrintPortal td.cell-left {
@@ -5164,41 +5235,25 @@ export default function ApprovalManagement({
                 #approvalPrintPortal .cell-stt,
                 #approvalPrintPortal .col-unit,
                 #approvalPrintPortal .col-sub-qty,
-                #approvalPrintPortal .cell-sub-price,
-                #approvalPrintPortal .cell-sub-amount {
-                  white-space: nowrap !important;
-                  word-break: normal !important;
-                  overflow-wrap: normal !important;
-                }
-                /* Số lượng khi in: Tuyệt đối không ngắt dòng từng chữ số (ví dụ 1000 luôn giữ 1 dòng) */
-                #approvalPrintPortal .cell-qty,
-                #approvalPrintPortal .cell-sub-qty {
+                #approvalPrintPortal .col-qty,
+                #approvalPrintPortal .cell-qty {
+                  text-align: center !important;
                   white-space: nowrap !important;
                   word-break: keep-all !important;
-                  overflow-wrap: normal !important;
-                  text-align: center !important;
+                  overflow: hidden !important;
                 }
-                #approvalPrintPortal .col-stt,
-                #approvalPrintPortal .cell-stt,
-                #approvalPrintPortal .col-unit,
+                #approvalPrintPortal .col-qty,
                 #approvalPrintPortal .col-sub-qty {
-                  text-align: center !important;
-                }
-                #approvalPrintPortal .col-qty {
                   white-space: normal !important;
-                  word-break: normal !important;
-                  overflow-wrap: normal !important;
-                  text-align: center !important;
-                  line-height: 1.15 !important;
+                  line-height: 1.1 !important;
                 }
-                /* ĐVT khi in: Cho phép ngắt dòng theo từ (Chai 500g, Thùng 24 lon...), không tràn sang ô bên cạnh */
                 #approvalPrintPortal .cell-unit {
                   white-space: normal !important;
-                  word-break: normal !important;
+                  word-break: break-word !important;
                   overflow-wrap: break-word !important;
                   text-align: center !important;
-                  line-height: 1.18 !important;
-                  padding: 1px 2px !important;
+                  line-height: 1.15 !important;
+                  padding: 1px 1px !important;
                   overflow: hidden !important;
                 }
                 #approvalPrintPortal .phenikaa-sign-table td {
