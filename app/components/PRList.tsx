@@ -600,9 +600,9 @@ export function PRList({
                           style={{
                             padding: "4px 9px",
                             fontSize: "11.5px",
-                            color: "#0369a1",
-                            backgroundColor: "#f0f9ff",
-                            border: "1px dashed #7dd3fc",
+                            color: "#0f172a",
+                            backgroundColor: "#ffffff",
+                            border: "1px dashed #cbd5e1",
                             cursor: "pointer",
                           }}
                         >

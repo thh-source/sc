@@ -92,23 +92,23 @@ export function getApprovalContextualStatus(
     if (isDelivered) {
       return {
         text: "Đã giao hàng",
-        badgeClass: "progress",
-        style: { background: "#e0f2fe", color: "#0369a1", border: "1px solid #7dd3fc" },
+        badgeClass: "done",
+        style: { background: "#ecfdf5", color: "#059669", border: "1px solid #a7f3d0" },
       };
     }
 
     return {
       text: "Đã tạo PO",
-      badgeClass: "progress",
-      style: { background: "#f0fdfa", color: "#0f766e", border: "1px solid #99f6e4" },
+      badgeClass: "done",
+      style: { background: "#ecfdf5", color: "#059669", border: "1px solid #a7f3d0" },
     };
   }
 
   if (req.status === "Đã tạo PO") {
     return {
       text: "Đã tạo PO",
-      badgeClass: "progress",
-      style: { background: "#f0fdfa", color: "#0f766e", border: "1px solid #99f6e4" },
+      badgeClass: "done",
+      style: { background: "#ecfdf5", color: "#059669", border: "1px solid #a7f3d0" },
     };
   }
 
@@ -3366,178 +3366,141 @@ export default function ApprovalManagement({
       )}
 
       {/* ===================================================================
-          BIỂU MẪU LÀM VIỆC TRÊN MÀN HÌNH (WYSIWYG WORKSPACE)
+          GIAO DIỆN LÀM VIỆC ĐNPD TRÊN MÀN HÌNH (DẠNG BẢNG CHUẨN DOANH NGHIỆP)
+          Khi cần in ra giấy -> Tự động dùng mẫu chuẩn A4 tại #approvalPrintPortal
          =================================================================== */}
-      <div
-        className={`approval-a4-sheet orient-${activeRequest.printOrientation}`}
-      >
-        {/* 1. KHUNG HEADER BIỂU MẪU CÔNG TY */}
-        <table className="phenikaa-header-table">
-          <tbody>
-            <tr>
-              <td className="phenikaa-logo-box">
-                <img
-                  src={PHENIKAA_PHARMA_LOGO_BASE64}
-                  alt="PHENIKAA PHARMA"
-                  className="phenikaa-logo-img"
-                />
-              </td>
-              <td className="phenikaa-title-box">
-                ĐỀ NGHỊ PHÊ DUYỆT LỰA CHỌN NCC
-              </td>
-            </tr>
-          </tbody>
-        </table>
-
-        {/* 2. KHUNG THÔNG TIN BÊN TRÁI (KHÔNG KẺ BẢNG, HIỂN THỊ LIỀN MẠCH HẾT BỀ NGANG) */}
-        <div className="phenikaa-meta-lines">
-          <div className="phenikaa-meta-line">
-            <span className="meta-lbl">Số PR:</span>
-            <input
-              type="text"
-              list="approval-prs-list"
-              className="sheet-inline-input meta-inline-input"
-              value={activeRequest.prNumber || ""}
-              placeholder="Để trống nếu không có..."
-              readOnly={isReportMode}
-              onChange={(e) => {
-                const val = e.target.value;
-                const matchedPR = prs.find((p) => p.number === val);
-                updateActive((prev) => ({
-                  ...prev,
-                  prNumber: val,
-                  noteRef:
-                    prev.noteRef === prev.prNumber || !prev.noteRef
-                      ? val
-                      : prev.noteRef,
-                  requestingDepartment:
-                    matchedPR?.department || prev.requestingDepartment,
-                  section1Title: matchedPR?.department
-                    ? formatApprovalSection1Title(matchedPR.department)
-                    : prev.section1Title,
-                }));
-              }}
-            />
-            <datalist id="approval-prs-list">
-              {prs.map((p) => (
-                <option key={p.id} value={p.number}>
-                  {p.number} — {p.department || "Yêu cầu mua sắm"}
-                </option>
-              ))}
-            </datalist>
-          </div>
-          <div className="phenikaa-meta-line">
-            <span className="meta-lbl">Ngày:</span>
-            <input
-              type="text"
-              className="sheet-inline-input meta-inline-input"
-              value={activeRequest.createdDate}
-              readOnly={isReportMode}
-              onChange={(e) =>
-                updateActive((prev) => ({
-                  ...prev,
-                  createdDate: e.target.value,
-                }))
-              }
-            />
-          </div>
-          <div className="phenikaa-meta-line">
-            <span className="meta-lbl">Đơn vị lập biểu mẫu:</span>
-            <input
-              type="text"
-              className="sheet-inline-input meta-inline-input"
-              value={activeRequest.department}
-              readOnly={isReportMode}
-              onChange={(e) =>
-                updateActive((prev) => ({
-                  ...prev,
-                  department: e.target.value,
-                }))
-              }
-            />
-          </div>
-          <div className="phenikaa-meta-line">
-            <span className="meta-lbl">Ghi chú: Căn cứ theo PR số:</span>
-            <input
-              type="text"
-              className="sheet-inline-input meta-inline-input"
-              value={activeRequest.noteRef || ""}
-              placeholder="Để trống nếu không có..."
-              readOnly={isReportMode}
-              onChange={(e) =>
-                updateActive((prev) => ({
-                  ...prev,
-                  noteRef: e.target.value,
-                }))
-              }
-            />
-          </div>
-        </div>
-
-        {/* 3. PHẦN I: NỘI DUNG ĐỀ NGHỊ PHÊ DUYỆT & BẢNG SO SÁNH ĐỘNG */}
-        <div className="phenikaa-section-block">
-          <div
-            className="phenikaa-section-heading"
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              flexWrap: "wrap",
-              gap: "8px",
-            }}
-          >
-            <span>I. Nội dung đề nghị phê duyệt:</span>
-
-            {!isReportMode && (
-              <div
-                className="no-print"
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: "6px",
-                  fontSize: "12px",
-                  fontWeight: "normal",
-                }}
-              >
-                <span style={{ color: "#475569", fontWeight: 600 }}>
-                  🏢 Phòng ban yêu cầu:
+      <div className="approval-screen-workspace">
+        {/* CARD 1: THÔNG TIN CHUNG PHIẾU ĐỀ NGHỊ PHÊ DUYỆT */}
+        <div className="dnpd-workspace-card dnpd-meta-card no-print">
+          <div className="dnpd-card-header">
+            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <h3>📋 Thông tin chung Đề nghị phê duyệt</h3>
+              <span style={{ fontSize: "12px", color: "#64748b" }}>
+                (Mã phiếu: <strong>{activeRequest.id}</strong>)
+              </span>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              {linkedPR?.number && (
+                <span
+                  style={{
+                    background: "#f1f5f9",
+                    color: "#0f172a",
+                    border: "1px solid #cbd5e1",
+                    padding: "3px 8px",
+                    borderRadius: "6px",
+                    fontSize: "12px",
+                    fontWeight: 600,
+                  }}
+                >
+                  🔗 Căn cứ PR: <strong>{linkedPR.number}</strong>
                 </span>
+              )}
+            </div>
+          </div>
 
-                {linkedPR?.department && (
+          <div className="dnpd-meta-grid">
+            {/* 1. Căn cứ theo PR số */}
+            <div className="dnpd-field-group">
+              <label className="dnpd-field-label">Căn cứ theo PR số</label>
+              <div style={{ display: "flex", gap: "6px" }}>
+                <input
+                  type="text"
+                  list="approval-prs-list"
+                  className="dnpd-field-input"
+                  style={{ flex: 1 }}
+                  value={activeRequest.prNumber || ""}
+                  placeholder="Chọn hoặc nhập số PR..."
+                  readOnly={isReportMode}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    const matchedPR = prs.find((p) => p.number === val);
+                    updateActive((prev) => ({
+                      ...prev,
+                      prNumber: val,
+                      noteRef:
+                        prev.noteRef === prev.prNumber || !prev.noteRef
+                          ? val
+                          : prev.noteRef,
+                      requestingDepartment:
+                        matchedPR?.department || prev.requestingDepartment,
+                      section1Title: matchedPR?.department
+                        ? formatApprovalSection1Title(matchedPR.department)
+                        : prev.section1Title,
+                    }));
+                  }}
+                />
+                <datalist id="approval-prs-list">
+                  {prs.map((p) => (
+                    <option key={p.id} value={p.number}>
+                      {p.number} — {p.department || "Yêu cầu mua sắm"}
+                    </option>
+                  ))}
+                </datalist>
+              </div>
+            </div>
+
+            {/* 2. Ngày lập */}
+            <div className="dnpd-field-group">
+              <label className="dnpd-field-label">Ngày lập biểu mẫu</label>
+              <input
+                type="text"
+                className="dnpd-field-input"
+                value={activeRequest.createdDate}
+                readOnly={isReportMode}
+                onChange={(e) =>
+                  updateActive((prev) => ({
+                    ...prev,
+                    createdDate: e.target.value,
+                  }))
+                }
+              />
+            </div>
+
+            {/* 3. Đơn vị lập biểu mẫu */}
+            <div className="dnpd-field-group">
+              <label className="dnpd-field-label">Đơn vị lập biểu mẫu</label>
+              <input
+                type="text"
+                className="dnpd-field-input"
+                value={activeRequest.department}
+                readOnly={isReportMode}
+                onChange={(e) =>
+                  updateActive((prev) => ({
+                    ...prev,
+                    department: e.target.value,
+                  }))
+                }
+              />
+            </div>
+
+            {/* 4. Phòng ban yêu cầu */}
+            <div className="dnpd-field-group">
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <label className="dnpd-field-label">Phòng ban yêu cầu</label>
+                {linkedPR?.department && !isReportMode && (
                   <button
                     type="button"
                     style={{
-                      background: "#eff6ff",
-                      color: "#1d4ed8",
-                      border: "1px solid #bfdbfe",
-                      padding: "2px 8px",
-                      fontSize: "11.5px",
+                      background: "none",
+                      border: "none",
+                      color: "#2563eb",
+                      fontSize: "11px",
                       fontWeight: 600,
-                      borderRadius: "5px",
                       cursor: "pointer",
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: "3px",
+                      padding: 0,
                     }}
                     onClick={() => handleSelectRequestingDept(linkedPR.department)}
                     title={`Điền tự động phòng ban từ PR số ${linkedPR.number}: ${linkedPR.department}`}
                   >
-                    📋 Lấy từ PR ({linkedPR.department})
+                    📋 Lấy từ PR
                   </button>
                 )}
-
+              </div>
+              <div style={{ display: "flex", gap: "6px" }}>
                 <select
-                  style={{
-                    height: "28px",
-                    padding: "0 8px",
-                    fontSize: "12px",
-                    border: "1px solid #cbd5e1",
-                    borderRadius: "5px",
-                    background: "#ffffff",
-                    color: "#0f172a",
-                    fontWeight: 500,
-                    cursor: "pointer",
-                  }}
+                  className="dnpd-field-input"
+                  style={{ flex: 1, cursor: "pointer" }}
+                  disabled={isReportMode}
                   value={
                     departmentOptions.includes(activeRequest.requestingDepartment || "")
                       ? activeRequest.requestingDepartment
@@ -3553,7 +3516,7 @@ export default function ApprovalManagement({
                     }
                   }}
                 >
-                  <option value="">-- Chọn phòng ban yêu cầu --</option>
+                  <option value="">-- Chọn phòng ban --</option>
                   {departmentOptions.map((dept) => (
                     <option key={dept} value={dept}>
                       {dept}
@@ -3561,31 +3524,27 @@ export default function ApprovalManagement({
                   ))}
                   <option value="__ADD_NEW__">＋ Thêm phòng ban mới...</option>
                 </select>
-
-                <button
-                  type="button"
-                  style={{
-                    background: "#f1f5f9",
-                    color: "#0f172a",
-                    border: "1px solid #cbd5e1",
-                    padding: "2px 8px",
-                    fontSize: "11.5px",
-                    fontWeight: 600,
-                    borderRadius: "5px",
-                    cursor: "pointer",
-                  }}
-                  onClick={handleAddNewDept}
-                  title="Thêm phòng ban mới vào hệ thống (không tự gõ không thêm mã)"
-                >
-                  ＋ Thêm mã
-                </button>
+                {!isReportMode && (
+                  <button
+                    type="button"
+                    className="btn"
+                    style={{ padding: "0 8px", fontSize: "11.5px", height: "34px" }}
+                    onClick={handleAddNewDept}
+                    title="Thêm mã phòng ban mới"
+                  >
+                    ＋ Thêm
+                  </button>
+                )}
               </div>
-            )}
+            </div>
           </div>
-          <div className="phenikaa-section-subline">
+
+          {/* Trích yếu / Nội dung đề nghị phê duyệt */}
+          <div className="dnpd-field-group" style={{ marginTop: "6px" }}>
+            <label className="dnpd-field-label">Nội dung đề nghị phê duyệt (Trích yếu)</label>
             <input
               type="text"
-              className="sheet-inline-input bold-input"
+              className="dnpd-field-input"
               value={activeRequest.section1Title}
               readOnly={isReportMode}
               placeholder="Theo yêu cầu mua hàng phục vụ công việc của phòng... Phòng Cung Ứng đã tìm kiếm, đánh giá và đề xuất phương án như sau:"
@@ -3596,6 +3555,37 @@ export default function ApprovalManagement({
                 }))
               }
             />
+          </div>
+        </div>
+
+        {/* CARD 2: BẢNG DỮ LIỆU HÀNG HÓA & SO SÁNH GIÁ (DATA GRID CHUẨN) */}
+        <div className="dnpd-workspace-card dnpd-table-card">
+          <div className="dnpd-card-header no-print">
+            <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
+              <h3>📊 Bảng so sánh báo giá Nhà cung cấp</h3>
+              <span style={{ fontSize: "12px", color: "#64748b" }}>
+                ({activeRequest.rows.length} mặt hàng, {activeRequest.supplierColumns.length} NCC)
+              </span>
+            </div>
+
+            <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+              <button
+                type="button"
+                className="btn"
+                onClick={handleAddRow}
+                disabled={isReportMode}
+              >
+                ＋ Thêm hàng hóa
+              </button>
+              <button
+                type="button"
+                className="btn"
+                onClick={handleAddSupplierColumn}
+                disabled={isReportMode}
+              >
+                ＋ Thêm NCC ({activeRequest.supplierColumns.length})
+              </button>
+            </div>
           </div>
 
           {/* NATIVE MOBILE VENDOR COMPARISON CARDS */}
@@ -4560,15 +4550,16 @@ export default function ApprovalManagement({
           )}
         </div>
 
-        {/* 4. PHẦN II: ĐÁNH GIÁ VÀ ĐỀ XUẤT LỰA CHỌN NHÀ CUNG CẤP */}
-        <div className="phenikaa-section-block">
-          <div className="phenikaa-section-heading">
-            II. Đánh giá và đề xuất lựa chọn nhà cung cấp:
+        {/* CARD 3: ĐÁNH GIÁ VÀ ĐIỀU KIỆN LỰA CHỌN NHÀ CUNG CẤP */}
+        <div className="dnpd-workspace-card dnpd-eval-card no-print">
+          <div className="dnpd-card-header">
+            <h3>⚖️ Đánh giá & Điều kiện lựa chọn Nhà cung cấp</h3>
           </div>
 
-          <div className="eval-row">
-            <span className="eval-label">1. Nhà cung cấp đề xuất:</span>
-            <div className="eval-field-wrap">
+          <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+            {/* 1. Nhà cung cấp đề xuất */}
+            <div className="dnpd-field-group">
+              <label className="dnpd-field-label">1. Nhà cung cấp đề xuất lựa chọn</label>
               <ProposalSupplierSearchCombobox
                 value={effectiveRecommendedSupplier}
                 suppliers={suppliers}
@@ -4594,14 +4585,13 @@ export default function ApprovalManagement({
                 }}
               />
             </div>
-          </div>
 
-          <div className="eval-row">
-            <span className="eval-label">2. Điều kiện giao hàng:</span>
-            <div className="eval-field-wrap">
+            {/* 2. Điều kiện giao hàng */}
+            <div className="dnpd-field-group">
+              <label className="dnpd-field-label">2. Điều kiện giao hàng</label>
               <input
                 type="text"
-                className="sheet-inline-input no-print"
+                className="dnpd-field-input"
                 value={activeRequest.deliveryTerms}
                 readOnly={isReportMode}
                 placeholder="Để trống hoặc nhập điều kiện giao hàng..."
@@ -4613,7 +4603,7 @@ export default function ApprovalManagement({
                 }
               />
               {!isReportMode && (
-                <div className="preset-pills no-print">
+                <div className="preset-pills" style={{ marginTop: "4px" }}>
                   {DELIVERY_TERM_PRESETS.map((preset) => (
                     <button
                       key={preset}
@@ -4646,17 +4636,16 @@ export default function ApprovalManagement({
                 </div>
               )}
             </div>
-          </div>
 
-          <div className="eval-row">
-            <span className="eval-label">3. Điều khoản thanh toán:</span>
-            <div className="eval-field-wrap">
+            {/* 3. Điều khoản thanh toán */}
+            <div className="dnpd-field-group">
+              <label className="dnpd-field-label">3. Điều khoản thanh toán</label>
               <input
                 type="text"
-                className="sheet-inline-input no-print"
+                className="dnpd-field-input"
                 value={activeRequest.paymentTerms}
                 readOnly={isReportMode}
-                placeholder="VD: Thanh toán 100% trước khi giao hàng."
+                placeholder="VD: Thanh toán 100% trong vòng 30 ngày sau khi nhận đủ hàng và hồ sơ hợp lệ."
                 onChange={(e) =>
                   updateActive((prev) => ({
                     ...prev,
@@ -4665,7 +4654,7 @@ export default function ApprovalManagement({
                 }
               />
               {!isReportMode && (
-                <div className="preset-pills no-print">
+                <div className="preset-pills" style={{ marginTop: "4px" }}>
                   {PAYMENT_TERM_PRESETS.map((preset) => (
                     <button
                       key={preset}
@@ -4684,393 +4673,331 @@ export default function ApprovalManagement({
                 </div>
               )}
             </div>
-          </div>
-        </div>
 
-        {/* 5. PHẦN III: LÝ DO LỰA CHỌN */}
-        <div className="phenikaa-section-block">
-          <div className="phenikaa-section-heading">III. Lý do lựa chọn:</div>
-
-          <div className="reasons-list">
-            {activeRequest.reasons.map((reason, idx) => (
-              <div key={idx} className="reason-item-row">
-                <span className="reason-index">{idx + 1}.</span>
-                <input
-                  type="text"
-                  className="sheet-inline-input no-print"
-                  value={reason}
-                  readOnly={isReportMode}
-                  placeholder="Nhập lý do đánh giá / lựa chọn..."
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    updateActive((prev) => ({
-                      ...prev,
-                      reasons: prev.reasons.map((r, i) =>
-                        i === idx ? val : r,
-                      ),
-                    }));
-                  }}
-                />
-                {!isReportMode && activeRequest.reasons.length > 1 && (
+            {/* 4. Lý do lựa chọn */}
+            <div className="dnpd-field-group">
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <label className="dnpd-field-label">4. Lý do lựa chọn</label>
+                {!isReportMode && (
                   <button
                     type="button"
-                    className="reason-del-btn no-print"
+                    className="btn btn-sm"
+                    style={{ fontSize: "11.5px" }}
                     onClick={() =>
                       updateActive((prev) => ({
                         ...prev,
-                        reasons: prev.reasons.filter((_, i) => i !== idx),
+                        reasons: [...prev.reasons, ""],
                       }))
                     }
-                    title="Xóa dòng lý do này"
                   >
-                    ×
+                    ＋ Thêm dòng lý do
                   </button>
                 )}
               </div>
-            ))}
+
+              <div className="reasons-list">
+                {activeRequest.reasons.map((reason, idx) => (
+                  <div key={idx} className="reason-item-row" style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                    <span style={{ fontWeight: 600, color: "#475569", width: "22px" }}>{idx + 1}.</span>
+                    <input
+                      type="text"
+                      className="dnpd-field-input"
+                      style={{ flex: 1 }}
+                      value={reason}
+                      readOnly={isReportMode}
+                      placeholder="Nhập lý do đánh giá / lựa chọn..."
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        updateActive((prev) => ({
+                          ...prev,
+                          reasons: prev.reasons.map((r, i) =>
+                            i === idx ? val : r,
+                          ),
+                        }));
+                      }}
+                    />
+                    {!isReportMode && activeRequest.reasons.length > 1 && (
+                      <button
+                        type="button"
+                        className="btn"
+                        style={{ color: "#dc2626", padding: "0 8px", height: "34px" }}
+                        onClick={() =>
+                          updateActive((prev) => ({
+                            ...prev,
+                            reasons: prev.reasons.filter((_, i) => i !== idx),
+                          }))
+                        }
+                        title="Xóa dòng lý do này"
+                      >
+                        ✕
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              {!isReportMode && (
+                <div className="preset-pills" style={{ marginTop: "4px" }}>
+                  {REASON_PRESETS.map((preset) => (
+                    <button
+                      key={preset}
+                      type="button"
+                      className="preset-chip"
+                      onClick={() =>
+                        updateActive((prev) => ({
+                          ...prev,
+                          reasons: [...prev.reasons, preset],
+                        }))
+                      }
+                    >
+                      + {preset}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* CARD 4: PHÊ DUYỆT & NGƯỜI KÝ (DẠNG THẺ CHUYÊN NGHIỆP) */}
+        <div className="dnpd-workspace-card dnpd-signers-card no-print">
+          <div className="dnpd-card-header">
+            <div>
+              <h3>✍️ Bộ phận phê duyệt & Người ký</h3>
+              <span style={{ fontSize: "12px", color: "#64748b" }}>
+                (Tên người ký sẽ tự động áp dụng vào mẫu in chuẩn A4 khi bấm &quot;In phiếu&quot;)
+              </span>
+            </div>
+
+            {!isReportMode && (
+              <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                <span style={{ fontSize: "11px", fontWeight: 600, color: "#64748b" }}>Thêm ô ký:</span>
+                <button
+                  type="button"
+                  onClick={() => handleAddCustomSigner("Bộ phận chuyên môn")}
+                  className="btn"
+                  style={{ fontSize: "11.5px", padding: "3px 8px" }}
+                >
+                  + BP Chuyên môn
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleAddCustomSigner("Kế toán")}
+                  className="btn"
+                  style={{ fontSize: "11.5px", padding: "3px 8px" }}
+                >
+                  + Kế toán
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleAddCustomSigner("Ô ký khác")}
+                  className="btn"
+                  style={{ fontSize: "11.5px", padding: "3px 8px" }}
+                >
+                  + Khác...
+                </button>
+              </div>
+            )}
           </div>
 
-          {!isReportMode && (
-            <div className="reasons-toolbar no-print">
-              <button
-                type="button"
-                className="btn btn-sm"
-                onClick={() =>
-                  updateActive((prev) => ({
-                    ...prev,
-                    reasons: [...prev.reasons, ""],
-                  }))
-                }
-              >
-                ＋ Thêm dòng lý do
-              </button>
-              <div className="preset-pills">
-                {REASON_PRESETS.map((preset) => (
-                  <button
-                    key={preset}
-                    type="button"
-                    className="preset-chip"
-                    onClick={() =>
-                      updateActive((prev) => ({
-                        ...prev,
-                        reasons: [...prev.reasons, preset],
-                      }))
+          {/* Grid thẻ người ký trên màn hình (Giao diện chuẩn, không có khoảng trắng giả giấy 96px) */}
+          <div className="dnpd-signers-grid">
+            {/* Cột 1: Lãnh đạo phê duyệt */}
+            <div className="dnpd-signer-card">
+              <div className="dnpd-signer-role">
+                <span>Lãnh đạo phê duyệt</span>
+                <span style={{ fontSize: "11px", color: "#64748b" }}>Duyệt chính</span>
+              </div>
+              <input
+                type="text"
+                className="dnpd-signer-input"
+                value={activeRequest.approverLeader}
+                placeholder="Họ và tên Lãnh đạo duyệt..."
+                readOnly={isReportMode}
+                title="Tự động lưu tên này cho các ĐNPD sau"
+                onChange={(e) => handleLeaderChange(e.target.value)}
+              />
+            </div>
+
+            {/* Các ô ký bổ sung (Bộ phận chuyên môn, Kế toán,...) */}
+            {(activeRequest.customSigners || []).map((signer) => (
+              <div key={signer.id} className="dnpd-signer-card">
+                <div className="dnpd-signer-role">
+                  <input
+                    type="text"
+                    value={signer.title}
+                    readOnly={isReportMode}
+                    placeholder="Tên chức danh ô ký..."
+                    onChange={(e) =>
+                      handleCustomSignerChange(signer.id, "title", e.target.value)
                     }
-                  >
-                    + {preset}
-                  </button>
-                ))}
+                    style={{
+                      fontWeight: 700,
+                      fontSize: "12px",
+                      border: "none",
+                      borderBottom: "1px dashed #cbd5e1",
+                      background: "transparent",
+                      outline: "none",
+                      width: "80%",
+                    }}
+                  />
+                  {!isReportMode && (
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveCustomSigner(signer.id)}
+                      title="Xóa ô ký này"
+                      style={{
+                        background: "none",
+                        border: "none",
+                        color: "#dc2626",
+                        cursor: "pointer",
+                        fontWeight: 700,
+                      }}
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+                <input
+                  type="text"
+                  className="dnpd-signer-input"
+                  value={signer.name}
+                  placeholder="Họ và tên..."
+                  readOnly={isReportMode}
+                  title="Tự động lưu tên này cho các ĐNPD sau"
+                  onChange={(e) =>
+                    handleCustomSignerChange(signer.id, "name", e.target.value)
+                  }
+                />
+              </div>
+            ))}
+
+            {/* Cột 2: Trưởng bộ phận */}
+            <div className="dnpd-signer-card">
+              <div className="dnpd-signer-role">
+                <span>Trưởng bộ phận</span>
+                <span style={{ fontSize: "11px", color: "#64748b" }}>Xác nhận</span>
+              </div>
+              <input
+                type="text"
+                className="dnpd-signer-input"
+                value={activeRequest.approverDeptHead}
+                placeholder="Họ và tên Trưởng bộ phận..."
+                readOnly={isReportMode}
+                title="Tự động lưu tên này cho các ĐNPD sau"
+                onChange={(e) => handleDeptHeadChange(e.target.value)}
+              />
+            </div>
+
+            {/* Cột 3: Người đề nghị */}
+            <div className="dnpd-signer-card">
+              <div className="dnpd-signer-role">
+                <span>Người đề nghị</span>
+                <span style={{ fontSize: "11px", color: "#64748b" }}>Lập biểu</span>
+              </div>
+              <input
+                type="text"
+                className="dnpd-signer-input"
+                value={activeRequest.requesterName}
+                placeholder="Họ và tên Người đề nghị..."
+                readOnly={isReportMode}
+                title="Tự động lưu tên này cho các ĐNPD sau"
+                onChange={(e) => handleRequesterChange(e.target.value)}
+              />
+            </div>
+          </div>
+
+          {/* Thanh chỉnh độ cao ô ký khi in giấy (Không ảnh hưởng màn hình làm việc) */}
+          {!isReportMode && (
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                flexWrap: "wrap",
+                gap: "8px",
+                marginTop: "14px",
+                padding: "8px 12px",
+                background: "#f8fafc",
+                border: "1px dashed #cbd5e1",
+                borderRadius: "6px",
+                fontSize: "12px",
+                color: "#475569",
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
+                <span>📐 <b>Khoảng trống chữ ký bản in:</b> {activeRequest.signSpaceHeight || 96}px</span>
+                <button
+                  type="button"
+                  className="btn btn-sm"
+                  style={{
+                    background: (activeRequest.signSpaceHeight || 96) === 48 ? "#2563eb" : "#ffffff",
+                    color: (activeRequest.signSpaceHeight || 96) === 48 ? "#ffffff" : "#334155",
+                  }}
+                  onClick={() =>
+                    updateActive((prev) => ({
+                      ...prev,
+                      signSpaceHeight: 48,
+                    }))
+                  }
+                >
+                  Gọn (48px)
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-sm"
+                  style={{
+                    background: (activeRequest.signSpaceHeight || 96) === 96 ? "#2563eb" : "#ffffff",
+                    color: (activeRequest.signSpaceHeight || 96) === 96 ? "#ffffff" : "#334155",
+                    fontWeight: (activeRequest.signSpaceHeight || 96) === 96 ? 700 : 400,
+                  }}
+                  onClick={() =>
+                    updateActive((prev) => ({
+                      ...prev,
+                      signSpaceHeight: 96,
+                    }))
+                  }
+                >
+                  Chuẩn (96px)
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-sm"
+                  style={{
+                    background: (activeRequest.signSpaceHeight || 96) === 130 ? "#2563eb" : "#ffffff",
+                    color: (activeRequest.signSpaceHeight || 96) === 130 ? "#ffffff" : "#334155",
+                  }}
+                  onClick={() =>
+                    updateActive((prev) => ({
+                      ...prev,
+                      signSpaceHeight: 130,
+                    }))
+                  }
+                >
+                  Rộng (130px)
+                </button>
+              </div>
+
+              <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                <span style={{ fontSize: "11px" }}>Kéo chỉnh:</span>
+                <input
+                  type="range"
+                  min="40"
+                  max="180"
+                  step="4"
+                  value={activeRequest.signSpaceHeight || 96}
+                  onChange={(e) =>
+                    updateActive((prev) => ({
+                      ...prev,
+                      signSpaceHeight: Number(e.target.value),
+                    }))
+                  }
+                  style={{ width: "80px", cursor: "pointer" }}
+                />
               </div>
             </div>
           )}
         </div>
-
-        {/* 6. KHU VỰC CHỮ KÝ ĐA CỘT */}
-        {(() => {
-          const totalCols = 3 + (activeRequest.customSigners?.length || 0);
-          const colWidth = `${(100 / totalCols).toFixed(2)}%`;
-          return (
-            <table className="phenikaa-sign-table" style={{ width: "100%", tableLayout: "fixed" }}>
-              <tbody>
-                <tr>
-                  {/* Cột 1: Lãnh đạo phê duyệt */}
-                  <td className="sign-col" style={{ width: colWidth }}>
-                    <div className="sign-title">Lãnh đạo phê duyệt</div>
-                    <div
-                      className="sign-space"
-                      style={{ height: `${activeRequest.signSpaceHeight || 96}px` }}
-                    />
-                    <div className="sign-name">
-                      <input
-                        type="text"
-                        className="sheet-inline-input center bold-input no-print"
-                        value={activeRequest.approverLeader}
-                        readOnly={isReportMode}
-                        title="Tự động lưu tên này cho các ĐNPD sau"
-                        onChange={(e) => handleLeaderChange(e.target.value)}
-                      />
-                    </div>
-                  </td>
-
-                  {/* Các ô ký bổ sung (Bộ phận chuyên môn, Kế toán,...) */}
-                  {(activeRequest.customSigners || []).map((signer) => (
-                    <td
-                      key={signer.id}
-                      className="sign-col"
-                      style={{
-                        width: colWidth,
-                        position: "relative",
-                      }}
-                    >
-                      <div
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          gap: "4px",
-                          position: "relative",
-                        }}
-                      >
-                        <input
-                          type="text"
-                          className="sheet-inline-input center bold-input"
-                          style={{
-                            fontWeight: 700,
-                            fontSize: "11pt",
-                            color: "#1e293b",
-                            borderBottom: isReportMode ? "none" : "1px dashed #cbd5e1",
-                          }}
-                          value={signer.title}
-                          readOnly={isReportMode}
-                          placeholder="Tên ô ký..."
-                          onChange={(e) =>
-                            handleCustomSignerChange(signer.id, "title", e.target.value)
-                          }
-                        />
-                        {!isReportMode && (
-                          <button
-                            type="button"
-                            onClick={() => handleRemoveCustomSigner(signer.id)}
-                            title="Xóa ô ký này"
-                            className="no-print"
-                            style={{
-                              background: "#fee2e2",
-                              border: "1px solid #fca5a5",
-                              borderRadius: "4px",
-                              color: "#b91c1c",
-                              cursor: "pointer",
-                              padding: "2px 4px",
-                              lineHeight: 1,
-                              fontSize: "10px",
-                              flexShrink: 0,
-                            }}
-                          >
-                            ✕
-                          </button>
-                        )}
-                      </div>
-                      <div
-                        className="sign-space"
-                        style={{ height: `${activeRequest.signSpaceHeight || 96}px` }}
-                      />
-                      <div className="sign-name">
-                        <input
-                          type="text"
-                          className="sheet-inline-input center bold-input no-print"
-                          value={signer.name}
-                          placeholder="Họ và tên..."
-                          readOnly={isReportMode}
-                          title="Tự động lưu tên này cho các ĐNPD sau"
-                          onChange={(e) =>
-                            handleCustomSignerChange(signer.id, "name", e.target.value)
-                          }
-                        />
-                      </div>
-                    </td>
-                  ))}
-
-                  {/* Cột 2: Trưởng bộ phận */}
-                  <td className="sign-col" style={{ width: colWidth }}>
-                    <div className="sign-title">Trưởng bộ phận</div>
-                    <div
-                      className="sign-space"
-                      style={{ height: `${activeRequest.signSpaceHeight || 96}px` }}
-                    />
-                    <div className="sign-name">
-                      <input
-                        type="text"
-                        className="sheet-inline-input center bold-input no-print"
-                        value={activeRequest.approverDeptHead}
-                        readOnly={isReportMode}
-                        title="Tự động lưu tên này cho các ĐNPD sau"
-                        onChange={(e) => handleDeptHeadChange(e.target.value)}
-                      />
-                    </div>
-                  </td>
-
-                  {/* Cột 3: Người đề nghị */}
-                  <td className="sign-col" style={{ width: colWidth }}>
-                    <div className="sign-title">Người đề nghị</div>
-                    <div
-                      className="sign-space"
-                      style={{ height: `${activeRequest.signSpaceHeight || 96}px` }}
-                    />
-                    <div className="sign-name">
-                      <input
-                        type="text"
-                        className="sheet-inline-input center bold-input no-print"
-                        value={activeRequest.requesterName}
-                        readOnly={isReportMode}
-                        title="Tự động lưu tên này cho các ĐNPD sau"
-                        onChange={(e) => handleRequesterChange(e.target.value)}
-                      />
-                    </div>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          );
-        })()}
-
-        {/* Thanh kéo chỉnh độ giãn cách & Thêm ô ký tùy chọn (Chỉ trên màn hình, không in) */}
-        {!isReportMode && (
-          <div
-            className="no-print"
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              flexWrap: "wrap",
-              gap: "8px",
-              marginTop: "8px",
-              padding: "6px 12px",
-              background: "#f8fafc",
-              border: "1px dashed #cbd5e1",
-              borderRadius: "6px",
-              fontSize: "12px",
-              color: "#475569",
-            }}
-          >
-            <div style={{ display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
-              <span>✍️ <b>Khu vực ký:</b> {activeRequest.signSpaceHeight || 96}px</span>
-              <button
-                type="button"
-                style={{
-                  padding: "2px 8px",
-                  fontSize: "11px",
-                  background: (activeRequest.signSpaceHeight || 96) === 48 ? "#2563eb" : "#ffffff",
-                  color: (activeRequest.signSpaceHeight || 96) === 48 ? "#ffffff" : "#334155",
-                  border: "1px solid #cbd5e1",
-                  borderRadius: "4px",
-                  cursor: "pointer",
-                }}
-                onClick={() =>
-                  updateActive((prev) => ({
-                    ...prev,
-                    signSpaceHeight: 48,
-                  }))
-                }
-              >
-                Gọn (48px)
-              </button>
-              <button
-                type="button"
-                style={{
-                  padding: "2px 8px",
-                  fontSize: "11px",
-                  background: (activeRequest.signSpaceHeight || 96) === 96 ? "#2563eb" : "#ffffff",
-                  color: (activeRequest.signSpaceHeight || 96) === 96 ? "#ffffff" : "#334155",
-                  border: "1px solid #cbd5e1",
-                  borderRadius: "4px",
-                  cursor: "pointer",
-                  fontWeight: (activeRequest.signSpaceHeight || 96) === 96 ? 700 : 400,
-                }}
-                onClick={() =>
-                  updateActive((prev) => ({
-                    ...prev,
-                    signSpaceHeight: 96,
-                  }))
-                }
-              >
-                Gấp đôi / Chuẩn (96px)
-              </button>
-              <button
-                type="button"
-                style={{
-                  padding: "2px 8px",
-                  fontSize: "11px",
-                  background: (activeRequest.signSpaceHeight || 96) === 130 ? "#2563eb" : "#ffffff",
-                  color: (activeRequest.signSpaceHeight || 96) === 130 ? "#ffffff" : "#334155",
-                  border: "1px solid #cbd5e1",
-                  borderRadius: "4px",
-                  cursor: "pointer",
-                }}
-                onClick={() =>
-                  updateActive((prev) => ({
-                    ...prev,
-                    signSpaceHeight: 130,
-                  }))
-                }
-              >
-                Rộng (130px)
-              </button>
-            </div>
-
-            {/* Thêm ô ký tùy chọn */}
-            <div style={{ display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
-              <span style={{ fontSize: "11px", fontWeight: 600, color: "#64748b" }}>Thêm ô ký:</span>
-              <button
-                type="button"
-                onClick={() => handleAddCustomSigner("Bộ phận chuyên môn")}
-                style={{
-                  padding: "2px 8px",
-                  fontSize: "11px",
-                  fontWeight: 600,
-                  borderRadius: "4px",
-                  background: "#eff6ff",
-                  color: "#2563eb",
-                  border: "1px solid #bfdbfe",
-                  cursor: "pointer",
-                }}
-                title="Thêm ô ký cho Bộ phận chuyên môn"
-              >
-                + Bộ phận chuyên môn
-              </button>
-              <button
-                type="button"
-                onClick={() => handleAddCustomSigner("Kế toán")}
-                style={{
-                  padding: "2px 8px",
-                  fontSize: "11px",
-                  fontWeight: 600,
-                  borderRadius: "4px",
-                  background: "#f0fdf4",
-                  color: "#16a34a",
-                  border: "1px solid #bbf7d0",
-                  cursor: "pointer",
-                }}
-                title="Thêm ô ký cho Kế toán"
-              >
-                + Kế toán
-              </button>
-              <button
-                type="button"
-                onClick={() => handleAddCustomSigner("Ô ký khác")}
-                style={{
-                  padding: "2px 8px",
-                  fontSize: "11px",
-                  fontWeight: 500,
-                  borderRadius: "4px",
-                  background: "#ffffff",
-                  color: "#475569",
-                  border: "1px dashed #cbd5e1",
-                  cursor: "pointer",
-                }}
-                title="Thêm ô ký tùy biến khác"
-              >
-                + Ô ký khác...
-              </button>
-            </div>
-
-            <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-              <span style={{ fontSize: "11px" }}>Kéo chỉnh:</span>
-              <input
-                type="range"
-                min="40"
-                max="180"
-                step="4"
-                value={activeRequest.signSpaceHeight || 96}
-                onChange={(e) =>
-                  updateActive((prev) => ({
-                    ...prev,
-                    signSpaceHeight: Number(e.target.value),
-                  }))
-                }
-                style={{ width: "80px", cursor: "pointer" }}
-              />
-            </div>
-          </div>
-        )}
       </div>
 
       {/* ===================================================================

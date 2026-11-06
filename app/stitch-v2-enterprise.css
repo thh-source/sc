@@ -232,7 +232,6 @@
   .btn-primary,
   .payment-btn.btn-primary,
   .payment-btn-primary,
-  .m-btn-edit-card,
   .po-create-btn,
   .btn-accent,
   .btn-teal,
@@ -245,8 +244,6 @@
   .approval-source-btn.source-compare,
   .approval-source-btn.source-pr,
   .payment-btn.btn-success,
-  .m-btn-toggle-done.is-done,
-  .m-btn-mark-paid.is-done,
   .po-save-btn,
   .po-save-back-btn,
   .btn-approve-status,
@@ -271,7 +268,6 @@
   .btn-primary:hover:not(:disabled),
   .payment-btn.btn-primary:hover:not(:disabled),
   .payment-btn-primary:hover:not(:disabled),
-  .m-btn-edit-card:hover:not(:disabled),
   .po-create-btn:hover:not(:disabled),
   .btn-accent:hover:not(:disabled),
   .btn-teal:hover:not(:disabled),
@@ -284,8 +280,6 @@
   .approval-source-btn.source-compare:hover:not(:disabled),
   .approval-source-btn.source-pr:hover:not(:disabled),
   .payment-btn.btn-success:hover:not(:disabled),
-  .m-btn-toggle-done.is-done:hover:not(:disabled),
-  .m-btn-mark-paid.is-done:hover:not(:disabled),
   .po-save-btn:hover:not(:disabled),
   .po-save-back-btn:hover:not(:disabled),
   .btn-approve-status:hover:not(:disabled),
@@ -947,47 +941,113 @@
     white-space: nowrap;
   }
 
-  /* Stitch Action Pills in Data Tables - Unified to Vibrant Royal Blue */
+  /* ------------------------------------------------------------------------
+   * NÚT CHỨC NĂNG TRONG CÁC BẢNG: THUẦN ĐEN TRẮNG (MONOCHROME BLACK & WHITE)
+   * Nền trắng, chữ đen, viền xám mảnh; hover chuyển nền xám nhạt tinh tế.
+   * CÁC NGHIỆP VỤ HOÀN THÀNH: GIỮ NỀN XANH LÁ TƯƠI SÁNG (EMERALD GREEN)
+   * ------------------------------------------------------------------------ */
   .stitch-action-pill,
   .stitch-action-pill.pill-navy,
-  .stitch-action-pill.pill-emerald,
   .stitch-action-pill.pill-sky,
-  .stitch-action-pill.pill-orange {
+  .stitch-action-pill.pill-orange,
+  .row-action,
+  .po-row-action,
+  .m-btn-edit-card,
+  .m-btn-icon-action,
+  .m-btn-toggle-done:not(.is-done),
+  .m-btn-mark-paid:not(.is-done),
+  table tbody td .stitch-action-pill,
+  table tbody td .row-action,
+  table tbody td button.stitch-action-pill {
     display: inline-flex !important;
     align-items: center !important;
+    justify-content: center !important;
     gap: 5px !important;
-    padding: 6px 11px !important;
-    border-radius: 8px !important;
-    font-size: 12px !important;
+    padding: 4px 9px !important;
+    border-radius: 6px !important;
+    font-size: 11.5px !important;
     font-weight: 600 !important;
     cursor: pointer !important;
-    transition: all 0.15s ease !important;
+    transition: all 0.14s ease !important;
     white-space: nowrap !important;
-    line-height: 1.2 !important;
-    background: linear-gradient(135deg, #3875f6 0%, #2252f6 100%) !important;
-    color: #ffffff !important;
-    border: 1px solid #1d4ed8 !important;
-    box-shadow: 0 2px 6px rgba(34, 82, 246, 0.25) !important;
+    line-height: 1.25 !important;
+    background: #ffffff !important;
+    color: #0f172a !important;
+    border: 1px solid #cbd5e1 !important;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04) !important;
   }
 
   .stitch-action-pill:hover,
   .stitch-action-pill.pill-navy:hover,
-  .stitch-action-pill.pill-emerald:hover,
   .stitch-action-pill.pill-sky:hover,
-  .stitch-action-pill.pill-orange:hover {
-    background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%) !important;
-    border-color: #1e40af !important;
-    transform: translateY(-1px) !important;
-    box-shadow: 0 4px 10px rgba(34, 82, 246, 0.35) !important;
-    color: #ffffff !important;
+  .stitch-action-pill.pill-orange:hover,
+  .row-action:hover,
+  .po-row-action:hover,
+  .m-btn-edit-card:hover,
+  .m-btn-icon-action:hover,
+  .m-btn-toggle-done:not(.is-done):hover,
+  .m-btn-mark-paid:not(.is-done):hover,
+  table tbody td .stitch-action-pill:hover,
+  table tbody td .row-action:hover {
+    background: #f1f5f9 !important;
+    border-color: #94a3b8 !important;
+    color: #000000 !important;
+    transform: translateY(-0.5px) !important;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08) !important;
   }
 
   .stitch-action-pill *,
   .stitch-action-pill.pill-navy *,
-  .stitch-action-pill.pill-emerald *,
   .stitch-action-pill.pill-sky *,
-  .stitch-action-pill.pill-orange * {
-    color: #ffffff !important;
+  .stitch-action-pill.pill-orange *,
+  .row-action *,
+  .po-row-action *,
+  .m-btn-edit-card *,
+  .m-btn-icon-action * {
+    color: #0f172a !important;
+  }
+
+  /* Nút / Badge các nghiệp vụ đã hoàn thành: ĐNPD đã duyệt, PO đã xong, Thanh toán đã xong... -> Luôn giữ nền xanh lá */
+  .stitch-action-pill.is-done,
+  .stitch-action-pill.status-done,
+  .stitch-action-pill.pill-emerald,
+  .row-action.is-done,
+  .m-btn-toggle-done.is-done,
+  .m-btn-mark-paid.is-done,
+  .btn-done,
+  .status.done,
+  .m-badge.done,
+  .m-badge.mb-badge-done,
+  .status-badge.done,
+  .status-badge.approved,
+  .status-approved,
+  .chip-status.st-approved,
+  .chip-status.st-po {
+    background: #ecfdf5 !important;
+    color: #15803d !important;
+    border: 1px solid #86efac !important;
+    box-shadow: none !important;
+    font-weight: 650 !important;
+  }
+
+  .stitch-action-pill.is-done *,
+  .stitch-action-pill.status-done *,
+  .stitch-action-pill.pill-emerald *,
+  .row-action.is-done *,
+  .m-btn-toggle-done.is-done *,
+  .m-btn-mark-paid.is-done *,
+  .btn-done * {
+    color: #15803d !important;
+  }
+
+  .stitch-action-pill.is-done:hover,
+  .row-action.is-done:hover,
+  .m-btn-toggle-done.is-done:hover,
+  .m-btn-mark-paid.is-done:hover,
+  .btn-done:hover {
+    background: #d1fae5 !important;
+    border-color: #4ade80 !important;
+    color: #166534 !important;
   }
 
   /* ========================================================================
@@ -2359,12 +2419,12 @@ main {
 .stitch-action-pill,
 .row-action,
 .history-btn {
-  height: 22px !important;
-  padding: 0 6px !important;
-  font-size: 10px !important;
-  line-height: 1 !important;
-  gap: 2px !important;
-  border-radius: 4px !important;
+  height: 26px !important;
+  padding: 0 8px !important;
+  font-size: 11px !important;
+  line-height: 1.2 !important;
+  gap: 4px !important;
+  border-radius: 6px !important;
 }
 
 .status,
