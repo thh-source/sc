@@ -4432,120 +4432,14 @@ export function PaymentManagement({
       {/* PORTAL PRINT CONTAINER - Completely isolated from app */}
       {typeof document !== "undefined" && isPrinting && createPortal(
         <div id="paymentPrintPortal">
-          {printEntriesList.map((req) => {
-            const tpl = paymentTemplate;
-            const dateParts = parsePrintDate(req.request_date);
-            const cur = String(req.currency || "VND").toUpperCase();
-            const words = moneyWords({ amount: req.amount, currency: cur });
-            const lines = (req.lines && req.lines.length > 0) ? req.lines : [
-              { description: req.item_name || req.description || "", invoice_no: req.invoice_no || "", invoice_date: req.invoice_date || "", amount: req.amount },
-            ];
-
-            const reqNorm = normName(req.payee_name);
-            const matchedSupplier = suppliers?.find(
-              (s) =>
-                (req.beneficiary_id && s.id === req.beneficiary_id) ||
-                (s.shortName && normName(s.shortName) === reqNorm) ||
-                (s.name && normName(s.name) === reqNorm) ||
-                (s.code && normName(s.code) === reqNorm)
-            );
-            const fullPayeeName = matchedSupplier?.name || req.payee_name || "";
-            const payeeAddress = req.address || matchedSupplier?.address || "";
-            const payeeAccount = req.account_no || matchedSupplier?.bankAccount || "";
-            const payeeBank = req.bank || matchedSupplier?.bank || "";
-
-            return (
-              <div key={req.id} className="paper" style={{ breakAfter: "page", pageBreakAfter: "always" }}>
-                <div className="upper">{tpl.company_name}</div>
-                <div className="model">{tpl.form_code}</div>
-                <h1>{tpl.form_title}</h1>
-                <div className="recipients">
-                  <strong>{tpl.recipient_label}</strong>
-                  <div style={{ whiteSpace: "pre-line" }}>{tpl.recipients}</div>
-                </div>
-
-                <div className="person">
-                  <div>- {tpl.label_requester}</div>
-                  <div><b>{req.created_by_name || tpl.default_requester_name}</b></div>
-                  <div>- {tpl.label_department}</div>
-                  <div><b>{tpl.department_name}</b></div>
-                </div>
-
-                <div className="intro">- {tpl.intro_text}</div>
-
-                <div className="details">
-                  <div>+ {tpl.label_payee}</div>
-                  <div className="val"><b>{fullPayeeName}</b></div>
-                  <div>+ {tpl.label_address}</div>
-                  <div className="val">{payeeAddress}</div>
-                  <div>+ {tpl.label_account}</div>
-                  <div className="val"><b>{payeeAccount}</b></div>
-                  <div>+ {tpl.label_bank}</div>
-                  <div className="val"><b>{payeeBank}</b></div>
-                  <div>+ {tpl.label_description}</div>
-                  <div className="val">{req.description || ""}</div>
-                </div>
-
-                <div className="person transfer">
-                  <div>- {tpl.deadline_label}</div>
-                  <div><b>{tpl.deadline_val}</b></div>
-                </div>
-
-                <div className="moneytitle">- {tpl.table_title}</div>
-
-                <table>
-                  <thead>
-                    <tr>
-                      <th style={{ width: "36px" }}>{tpl.col_stt}</th>
-                      <th style={{ width: "170px" }}>{tpl.col_invoice}</th>
-                      <th>{tpl.col_item}</th>
-                      <th style={{ width: "135px" }}>{tpl.col_amount}</th>
-                      <th style={{ width: "90px" }}>{tpl.col_note}</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {lines.map((l, li) => (
-                      <tr key={li}>
-                        <td>{li + 1}</td>
-                        <td style={{ textAlign: "center", wordBreak: "break-word", overflowWrap: "anywhere", whiteSpace: "normal", padding: "6px 6px" }}>
-                          {l.invoice_no ? `${l.invoice_no}${l.invoice_date ? " (" + l.invoice_date + ")" : ""}` : ""}
-                        </td>
-                        <td style={{ textAlign: "left", paddingLeft: "8px", paddingRight: "8px", wordBreak: "break-word", overflowWrap: "anywhere", whiteSpace: "normal", padding: "6px 8px" }}>
-                          {l.description}
-                        </td>
-                        <td style={{ textAlign: "right", paddingRight: "8px", whiteSpace: "nowrap" }}>{fmtMoney(l.amount)}</td>
-                        <td style={{ wordBreak: "break-word", overflowWrap: "anywhere" }}>{l.note || ""}</td>
-                      </tr>
-                    ))}
-                    <tr className="sum">
-                      <td colSpan={3} style={{ textAlign: "center", fontWeight: "bold" }}>{tpl.col_total}</td>
-                      <td style={{ textAlign: "right", paddingRight: "8px", fontWeight: "bold", whiteSpace: "nowrap" }}>{fmtMoney(req.amount)}</td>
-                      <td>{cur}</td>
-                    </tr>
-                  </tbody>
-                </table>
-
-                <div className="words">
-                  <div>- {tpl.label_money_words}</div>
-                  <div>{words}</div>
-                </div>
-
-                <div className="doclabel">- {tpl.label_docs}:</div>
-                <div className="docs">{(req.documents || []).filter(Boolean).join(", ")}</div>
-
-                <div className="date">
-                  {tpl.date_location}, ngày {dateParts ? dateParts.d : "...."} tháng {dateParts ? dateParts.m : "...."} năm {dateParts ? dateParts.y : "2026"}
-                </div>
-
-                <div className="sign">
-                  <div>{tpl.sign1_title}<span>{tpl.sign1_name}</span></div>
-                  <div>{tpl.sign2_title}<span>{tpl.sign2_name}</span></div>
-                  <div>{tpl.sign3_title}<span>{tpl.sign3_name}</span></div>
-                  <div>{tpl.sign4_title}<span>{req.created_by_name || tpl.default_requester_name}</span></div>
-                </div>
-              </div>
-            );
-          })}
+          {printEntriesList.map((req) => (
+            <PaymentPrintSheet
+              key={req.id}
+              req={req}
+              tpl={paymentTemplate}
+              suppliers={suppliers}
+            />
+          ))}
         </div>,
         document.body
       )}

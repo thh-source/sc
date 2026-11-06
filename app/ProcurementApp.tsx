@@ -717,11 +717,23 @@ function ProcurementAppInner({
       setPurchaseHistory(data.purchaseHistory || purchaseHistory0);
       setPurchaseHistoryImportIds(data.purchaseHistoryImportIds || []);
       
-      setPaymentRequests(data.paymentRequests || []);
+      const loadedTpl = data.paymentTemplate || DEFAULT_PAYMENT_TEMPLATE;
+      const defaultRequester = loadedTpl.default_requester_name || "Trần Hải Hà";
+      const sanitizedRequests = (data.paymentRequests || []).map((req: PaymentRequestEntry) => {
+        if (
+          !req.created_by_name ||
+          req.created_by_name.trim().toLowerCase() === "phòng cung ứng" ||
+          req.created_by_name.trim().toLowerCase() === "cung ứng"
+        ) {
+          return { ...req, created_by_name: defaultRequester };
+        }
+        return req;
+      });
+      setPaymentRequests(sanitizedRequests);
       setPaymentGroups(data.paymentGroups || []);
       setPaymentBeneficiaries(data.paymentBeneficiaries || []);
       setPaymentHandovers(data.paymentHandovers || []);
-      setPaymentTemplate(data.paymentTemplate || DEFAULT_PAYMENT_TEMPLATE);
+      setPaymentTemplate(loadedTpl);
       if (Array.isArray(data.approvalRequests)) {
         setApprovalRequests(data.approvalRequests);
       } else {
@@ -2347,7 +2359,7 @@ function ProcurementAppInner({
       address: finalAddress,
       account_no: finalAccount,
       bank: finalBank,
-      created_by_name: "Phòng Cung ứng",
+      created_by_name: paymentTemplate?.default_requester_name || "Trần Hải Hà",
       due_date: payment.date || todayStr,
       lines,
     };
@@ -2364,6 +2376,7 @@ function ProcurementAppInner({
 
     // Lưu vào state paymentRequests
     setPaymentRequests((prev) => [newRequest, ...prev]);
+    setTimeout(() => void persistState(false), 50);
     setStorageStatus(`✓ Đã tạo Đề nghị thanh toán #${maxId} cho ${payment.phase}. Mở bản in Mẫu 01-TT.`);
 
     // Mở trực tiếp trang in/modal xem trước bản in Giấy đề nghị thanh toán
@@ -3144,7 +3157,10 @@ function ProcurementAppInner({
               suppliers={suppliers}
               sampleRequest={paymentRequests[0] || null}
               onUpdateState={(patch) => {
-                if (patch.paymentTemplate !== undefined) setPaymentTemplate(patch.paymentTemplate);
+                if (patch.paymentTemplate !== undefined) {
+                  setPaymentTemplate(patch.paymentTemplate);
+                  setTimeout(() => void persistState(false), 50);
+                }
               }}
               readOnly={reportMode}
             />

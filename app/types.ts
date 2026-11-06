@@ -415,13 +415,22 @@ export const buildPOPaymentDescription = (
     }
   }
 
+  let hasExplicitStage = false;
+  if (payment && (payment.phase || "").match(/đợt\s*(\d+)/i)) {
+    hasExplicitStage = true;
+  }
+  const isMultiStage = Boolean(
+    (po.payments && po.payments.length > 1) || stageNum > 1 || hasExplicitStage
+  );
+  const stagePrefix = isMultiStage ? `đợt ${stageNum} ` : "";
+
   const contractInfo = getPOContractInfo(po);
   if (contractInfo.hasContract) {
     const cNo = contractInfo.contractNumber || po.number || "...";
     const cDate = formatContractDateVN(contractInfo.contractDate || po.createdDate);
-    return `Thanh toán đợt ${stageNum} ${pct}% hợp đồng số ${cNo} ngày ${cDate}`;
+    return `Thanh toán ${stagePrefix}${pct}% hợp đồng số ${cNo} ngày ${cDate}`;
   }
-  return `Thanh toán đợt ${stageNum} ${pct}% tiền vật tư hàng hóa`;
+  return `Thanh toán ${stagePrefix}${pct}% tiền vật tư hàng hóa`;
 };
 
 export const isContractPO = (
@@ -594,6 +603,7 @@ export type PaymentPrintTemplate = {
   sign4_title: string;
   sign4_name: string;
   draft_warning: string;
+  sign_space_height?: number;
 };
 
 export type ApprovalColumnMode = "basic" | "origin" | "extended";

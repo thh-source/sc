@@ -36,6 +36,12 @@ export function PrintTemplatesManagement({
   const [tplForm, setTplForm] = useState<PaymentPrintTemplate>(
     paymentTemplate || DEFAULT_PAYMENT_TEMPLATE
   );
+
+  useEffect(() => {
+    if (paymentTemplate) {
+      setTplForm(paymentTemplate);
+    }
+  }, [paymentTemplate]);
   const [isPrinting, setIsPrinting] = useState(false);
   const [printType, setPrintType] = useState<"01-TT" | "handover">("01-TT");
   const printTimerRef = useRef<any>(null);
@@ -380,6 +386,16 @@ export function PrintTemplatesManagement({
                   />
                 </div>
               </div>
+              <div className="tpl-field" style={{ marginTop: "10px" }}>
+                <label>Khoảng trống vùng ký (Chiều cao px, mặc định 130px)</label>
+                <input
+                  type="number"
+                  min="60"
+                  max="300"
+                  value={tplForm.sign_space_height ?? 130}
+                  onChange={(e) => setTplForm({ ...tplForm, sign_space_height: Number(e.target.value) || 130 })}
+                />
+              </div>
             </div>
 
             {/* Bottom action buttons */}
@@ -411,95 +427,7 @@ export function PrintTemplatesManagement({
             </div>
             <div className="tpl-preview-wrap">
               <div className="tpl-preview-scale">
-                <div className="paper">
-                  <div className="upper">{tplForm.company_name}</div>
-                  <div className="model">{tplForm.form_code}</div>
-                  <h1>{tplForm.form_title}</h1>
-                  <div className="recipients">
-                    <strong>{tplForm.recipient_label}</strong>
-                    <div style={{ whiteSpace: "pre-line" }}>{tplForm.recipients}</div>
-                  </div>
-
-                  <div className="person">
-                    <div>- {tplForm.label_requester}</div>
-                    <div><b>{sampleReq.created_by_name || tplForm.default_requester_name}</b></div>
-                    <div>- {tplForm.label_department}</div>
-                    <div><b>{tplForm.department_name}</b></div>
-                  </div>
-
-                  <div className="intro">- {tplForm.intro_text}</div>
-
-                  <div className="details">
-                    <div>+ {tplForm.label_payee}</div>
-                    <div className="val"><b>{fullPayeeName}</b></div>
-                    <div>+ {tplForm.label_address}</div>
-                    <div className="val">{sampleReq.address || ""}</div>
-                    <div>+ {tplForm.label_account}</div>
-                    <div className="val"><b>{sampleReq.account_no || ""}</b></div>
-                    <div>+ {tplForm.label_bank}</div>
-                    <div className="val"><b>{sampleReq.bank || ""}</b></div>
-                    <div>+ {tplForm.label_description}</div>
-                    <div className="val">{sampleReq.description || ""}</div>
-                  </div>
-
-                  <div className="person transfer">
-                    <div>- {tplForm.deadline_label}</div>
-                    <div><b>{tplForm.deadline_val}</b></div>
-                  </div>
-
-                  <div className="moneytitle">- {tplForm.table_title}</div>
-
-                  <table>
-                    <thead>
-                      <tr>
-                        <th style={{ width: "36px" }}>{tplForm.col_stt}</th>
-                        <th style={{ width: "170px" }}>{tplForm.col_invoice}</th>
-                        <th>{tplForm.col_item}</th>
-                        <th style={{ width: "135px" }}>{tplForm.col_amount}</th>
-                        <th style={{ width: "90px" }}>{tplForm.col_note}</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {lines.map((l, li) => (
-                        <tr key={li}>
-                          <td>{li + 1}</td>
-                          <td style={{ textAlign: "center", wordBreak: "break-word", overflowWrap: "anywhere", whiteSpace: "normal", padding: "6px 6px" }}>
-                            {l.invoice_no ? `${l.invoice_no}${l.invoice_date ? " (" + l.invoice_date + ")" : ""}` : ""}
-                          </td>
-                          <td style={{ textAlign: "left", paddingLeft: "8px", paddingRight: "8px", wordBreak: "break-word", overflowWrap: "anywhere", whiteSpace: "normal", padding: "6px 8px" }}>
-                            {l.description}
-                          </td>
-                          <td style={{ textAlign: "right", paddingRight: "8px", whiteSpace: "nowrap" }}>{fmtMoney(l.amount)}</td>
-                          <td style={{ wordBreak: "break-word", overflowWrap: "anywhere" }}>{l.note || ""}</td>
-                        </tr>
-                      ))}
-                      <tr className="sum">
-                        <td colSpan={3} style={{ textAlign: "center", fontWeight: "bold" }}>{tplForm.col_total}</td>
-                        <td style={{ textAlign: "right", paddingRight: "8px", fontWeight: "bold", whiteSpace: "nowrap" }}>{fmtMoney(sampleReq.amount)}</td>
-                        <td>{cur}</td>
-                      </tr>
-                    </tbody>
-                  </table>
-
-                  <div className="words">
-                    <div>- {tplForm.label_money_words}</div>
-                    <div>{words}</div>
-                  </div>
-
-                  <div className="doclabel">- {tplForm.label_docs}:</div>
-                  <div className="docs">{(sampleReq.documents || []).join(", ") || "Không có"}</div>
-
-                  <div className="date">
-                    {tplForm.date_location}, ngày {dateParts ? dateParts.d : "...."} tháng {dateParts ? dateParts.m : "...."} năm {dateParts ? dateParts.y : "2026"}
-                  </div>
-
-                  <div className="sign">
-                    <div>{tplForm.sign1_title}<span>{tplForm.sign1_name}</span></div>
-                    <div>{tplForm.sign2_title}<span>{tplForm.sign2_name}</span></div>
-                    <div>{tplForm.sign3_title}<span>{tplForm.sign3_name}</span></div>
-                    <div>{tplForm.sign4_title}<span>{sampleReq.created_by_name || tplForm.default_requester_name}</span></div>
-                  </div>
-                </div>
+                <PaymentPrintSheet req={sampleReq} tpl={tplForm} suppliers={suppliers} />
               </div>
             </div>
           </div>
@@ -669,95 +597,7 @@ export function PrintTemplatesManagement({
       {typeof document !== "undefined" && isPrinting && createPortal(
         <div id="paymentPrintPortal">
           {printType === "01-TT" ? (
-            <div className="paper">
-              <div className="upper">{tplForm.company_name}</div>
-              <div className="model">{tplForm.form_code}</div>
-              <h1>{tplForm.form_title}</h1>
-              <div className="recipients">
-                <strong>{tplForm.recipient_label}</strong>
-                <div style={{ whiteSpace: "pre-line" }}>{tplForm.recipients}</div>
-              </div>
-
-              <div className="person">
-                <div>- {tplForm.label_requester}</div>
-                <div><b>{sampleReq.created_by_name || tplForm.default_requester_name}</b></div>
-                <div>- {tplForm.label_department}</div>
-                <div><b>{tplForm.department_name}</b></div>
-              </div>
-
-              <div className="intro">- {tplForm.intro_text}</div>
-
-              <div className="details">
-                <div>+ {tplForm.label_payee}</div>
-                <div className="val"><b>{fullPayeeName}</b></div>
-                <div>+ {tplForm.label_address}</div>
-                <div className="val">{sampleReq.address || ""}</div>
-                <div>+ {tplForm.label_account}</div>
-                <div className="val"><b>{sampleReq.account_no || ""}</b></div>
-                <div>+ {tplForm.label_bank}</div>
-                <div className="val"><b>{sampleReq.bank || ""}</b></div>
-                <div>+ {tplForm.label_description}</div>
-                <div className="val">{sampleReq.description || ""}</div>
-              </div>
-
-              <div className="person transfer">
-                <div>- {tplForm.deadline_label}</div>
-                <div><b>{tplForm.deadline_val}</b></div>
-              </div>
-
-              <div className="moneytitle">- {tplForm.table_title}</div>
-
-              <table>
-                <thead>
-                  <tr>
-                    <th style={{ width: "36px" }}>{tplForm.col_stt}</th>
-                    <th style={{ width: "170px" }}>{tplForm.col_invoice}</th>
-                    <th>{tplForm.col_item}</th>
-                    <th style={{ width: "135px" }}>{tplForm.col_amount}</th>
-                    <th style={{ width: "90px" }}>{tplForm.col_note}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {lines.map((l, li) => (
-                    <tr key={li}>
-                      <td>{li + 1}</td>
-                      <td style={{ textAlign: "center", wordBreak: "break-word", overflowWrap: "anywhere", whiteSpace: "normal", padding: "6px 6px" }}>
-                        {l.invoice_no ? `${l.invoice_no}${l.invoice_date ? " (" + l.invoice_date + ")" : ""}` : ""}
-                      </td>
-                      <td style={{ textAlign: "left", paddingLeft: "8px", paddingRight: "8px", wordBreak: "break-word", overflowWrap: "anywhere", whiteSpace: "normal", padding: "6px 8px" }}>
-                        {l.description}
-                      </td>
-                      <td style={{ textAlign: "right", paddingRight: "8px", whiteSpace: "nowrap" }}>{fmtMoney(l.amount)}</td>
-                      <td style={{ wordBreak: "break-word", overflowWrap: "anywhere" }}>{l.note || ""}</td>
-                    </tr>
-                  ))}
-                  <tr className="sum">
-                    <td colSpan={3} style={{ textAlign: "center", fontWeight: "bold" }}>{tplForm.col_total}</td>
-                    <td style={{ textAlign: "right", paddingRight: "8px", fontWeight: "bold", whiteSpace: "nowrap" }}>{fmtMoney(sampleReq.amount)}</td>
-                    <td>{cur}</td>
-                  </tr>
-                </tbody>
-              </table>
-
-              <div className="words">
-                <div>- {tplForm.label_money_words}</div>
-                <div>{words}</div>
-              </div>
-
-              <div className="doclabel">- {tplForm.label_docs}:</div>
-              <div className="docs">{(sampleReq.documents || []).join(", ") || "Không có"}</div>
-
-              <div className="date">
-                {tplForm.date_location}, ngày {dateParts ? dateParts.d : "...."} tháng {dateParts ? dateParts.m : "...."} năm {dateParts ? dateParts.y : "2026"}
-              </div>
-
-              <div className="sign">
-                <div>{tplForm.sign1_title}<span>{tplForm.sign1_name}</span></div>
-                <div>{tplForm.sign2_title}<span>{tplForm.sign2_name}</span></div>
-                <div>{tplForm.sign3_title}<span>{tplForm.sign3_name}</span></div>
-                <div>{tplForm.sign4_title}<span>{sampleReq.created_by_name || tplForm.default_requester_name}</span></div>
-              </div>
-            </div>
+            <PaymentPrintSheet req={sampleReq} tpl={tplForm} suppliers={suppliers} />
           ) : (
             <div>
               {[1, 2].map((copyNum) => (

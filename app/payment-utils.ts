@@ -129,8 +129,9 @@ export const DEFAULT_PAYMENT_TEMPLATE: PaymentPrintTemplate = {
   sign3_title: "Trưởng bộ phận",
   sign3_name: "Lưu Thị Thanh Xuân",
   sign4_title: "Người đề nghị TT",
-  sign4_name: "",
+  sign4_name: "Trần Hải Hà",
   draft_warning: "BẢN NHÁP – CHƯA XÁC NHẬN TIỀN TỆ",
+  sign_space_height: 130,
 };
 
 export function normName(str: string): string {
