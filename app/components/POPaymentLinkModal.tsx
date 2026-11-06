@@ -129,9 +129,6 @@ export function POPaymentLinkModal({
         justifyContent: "center",
         padding: "16px",
       }}
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
     >
       <div
         className="payment-link-modal-card"

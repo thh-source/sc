@@ -362,7 +362,8 @@ export function AdvancedItemsTable({
             className={`${key === "unit" || key === "qty" ? "short" : ""} ${numeric ? "num" : ""}`}
             type={numeric ? "number" : "text"}
             list={key === "unit" ? "commonAdvancedUnitDatalist" : undefined}
-            value={String(item[inputKey])}
+            placeholder={numeric ? "0" : ""}
+            value={numeric ? (item[inputKey] === 0 ? "" : String(item[inputKey] ?? "")) : String(item[inputKey] ?? "")}
             onChange={(e) => itemChange(item.id, inputKey, e.target.value)}
             onPaste={(e) => handleExcelPaste(e, item.id, colId)}
           />

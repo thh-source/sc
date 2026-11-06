@@ -1959,15 +1959,16 @@ export function POList({
                               <input
                                 type="number"
                                 min="1"
+                                placeholder="0"
                                 className="payment-input"
                                 style={{
                                   width: "100%",
                                   textAlign: "right",
                                 }}
-                                value={item.qty}
+                                value={item.qty === 0 ? "" : item.qty}
                                 onPaste={(e) => handleDraftItemPaste(e, idx, "qty")}
                                 onChange={(e) => {
-                                  const val = Number(e.target.value) || 0;
+                                  const val = e.target.value === "" ? 0 : (Number(e.target.value) || 0);
                                   setDraftItems((prev) =>
                                     prev.map((it, i) =>
                                       i === idx ? { ...it, qty: val } : it
@@ -1981,15 +1982,16 @@ export function POList({
                                 type="number"
                                 min="0"
                                 step="1000"
+                                placeholder="0"
                                 className="payment-input"
                                 style={{
                                   width: "100%",
                                   textAlign: "right",
                                 }}
-                                value={item.price}
+                                value={item.price === 0 ? "" : item.price}
                                 onPaste={(e) => handleDraftItemPaste(e, idx, "price")}
                                 onChange={(e) => {
-                                  const val = Number(e.target.value) || 0;
+                                  const val = e.target.value === "" ? 0 : (Number(e.target.value) || 0);
                                   setDraftItems((prev) =>
                                     prev.map((it, i) =>
                                       i === idx ? { ...it, price: val } : it
@@ -2231,7 +2233,6 @@ export function POList({
       <div
         className="backdrop no-print"
         style={{ zIndex: 10000 }}
-        onClick={() => setEditingPONumberModal(null)}
       >
         <div
           className="modal-panel"

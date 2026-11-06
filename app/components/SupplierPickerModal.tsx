@@ -53,7 +53,7 @@ export function SupplierPickerModal({
   };
 
   return (
-    <div className="backdrop" onMouseDown={onClose}>
+    <div className="backdrop">
       <div
         className="modal"
         onMouseDown={(e) => e.stopPropagation()}

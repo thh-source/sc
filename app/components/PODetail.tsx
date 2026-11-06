@@ -3007,14 +3007,16 @@ export function PODetail({
                       </td>
                       <td>
                         <input
-                          value={i.name || (i as any).itemName || (i as any).item_name || (i as any).productName || ""}
+                          value={i.name ?? (i as any).itemName ?? (i as any).item_name ?? (i as any).productName ?? ""}
                           disabled={readOnly}
                           placeholder="Nhập tên hàng hóa / vật tư..."
                           style={{ width: "100%", fontWeight: 600 }}
                           onPaste={(e) => handlePOItemPaste(e, idx, "name")}
                           onChange={(e) => {
                             const nextItems = items.map((x) =>
-                              x.id === i.id ? { ...x, name: e.target.value } : x
+                              x.id === i.id
+                                ? ({ ...x, name: e.target.value, itemName: undefined, item_name: undefined, productName: undefined } as any)
+                                : x
                             );
                             onUpdate({ ...po, items: nextItems });
                           }}
@@ -3024,12 +3026,13 @@ export function PODetail({
                         <input
                           type="number"
                           min="0"
-                          value={i.qty ?? 0}
+                          placeholder="0"
+                          value={i.qty === 0 ? "" : (i.qty ?? "")}
                           disabled={readOnly}
                           style={{ width: "100%", textAlign: "right", fontWeight: 600 }}
                           onPaste={(e) => handlePOItemPaste(e, idx, "qty")}
                           onChange={(e) => {
-                            const val = Number(e.target.value) || 0;
+                            const val = e.target.value === "" ? 0 : (Number(e.target.value) || 0);
                             const nextItems = items.map((x) =>
                               x.id === i.id ? { ...x, qty: val } : x
                             );
@@ -3056,12 +3059,13 @@ export function PODetail({
                         <input
                           type="number"
                           min="0"
-                          value={i.price ?? 0}
+                          placeholder="0"
+                          value={i.price === 0 ? "" : (i.price ?? "")}
                           disabled={readOnly}
                           style={{ width: "100%", textAlign: "right", fontWeight: 600 }}
                           onPaste={(e) => handlePOItemPaste(e, idx, "price")}
                           onChange={(e) => {
-                            const val = Number(e.target.value) || 0;
+                            const val = e.target.value === "" ? 0 : (Number(e.target.value) || 0);
                             const nextItems = items.map((x) =>
                               x.id === i.id ? { ...x, price: val } : x
                             );

@@ -2242,14 +2242,15 @@ export function ContractManagement({
                                   <input
                                     type="number"
                                     min="1"
+                                    placeholder="0"
                                     className="payment-input"
                                     style={{
                                       width: "100%",
                                       textAlign: "right",
                                     }}
-                                    value={it.qty}
+                                    value={it.qty === 0 ? "" : it.qty}
                                     onChange={(e) => {
-                                      const val = Number(e.target.value) || 0;
+                                      const val = e.target.value === "" ? 0 : (Number(e.target.value) || 0);
                                       setCItems((prev) =>
                                         prev.map((x, i) =>
                                           i === idx ? { ...x, qty: val } : x
@@ -2263,14 +2264,15 @@ export function ContractManagement({
                                     type="number"
                                     min="0"
                                     step="1000"
+                                    placeholder="0"
                                     className="payment-input"
                                     style={{
                                       width: "100%",
                                       textAlign: "right",
                                     }}
-                                    value={it.price}
+                                    value={it.price === 0 ? "" : it.price}
                                     onChange={(e) => {
-                                      const val = Number(e.target.value) || 0;
+                                      const val = e.target.value === "" ? 0 : (Number(e.target.value) || 0);
                                       setCItems((prev) =>
                                         prev.map((x, i) =>
                                           i === idx ? { ...x, price: val } : x

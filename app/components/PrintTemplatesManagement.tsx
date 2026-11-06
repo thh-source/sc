@@ -393,8 +393,18 @@ export function PrintTemplatesManagement({
                   type="number"
                   min="60"
                   max="300"
-                  value={tplForm.sign_space_height ?? 130}
-                  onChange={(e) => setTplForm({ ...tplForm, sign_space_height: Number(e.target.value) || 130 })}
+                  placeholder="130"
+                  value={tplForm.sign_space_height === 0 ? "" : (tplForm.sign_space_height ?? 130)}
+                  onChange={(e) => {
+                    const raw = e.target.value;
+                    setTplForm({ ...tplForm, sign_space_height: raw === "" ? 0 : (Number(raw) || 0) });
+                  }}
+                  onBlur={(e) => {
+                    const num = Number(e.target.value);
+                    if (!num || num < 60) {
+                      setTplForm({ ...tplForm, sign_space_height: 130 });
+                    }
+                  }}
                 />
               </div>
             </div>
@@ -452,7 +462,7 @@ export function PrintTemplatesManagement({
               <div className="tpl-field">
                 <label>Người giao hàng mặc định</label>
                 <input
-                  value={tplForm.default_requester_name || "Trần Hải Hà"}
+                  value={tplForm.default_requester_name ?? "Trần Hải Hà"}
                   onChange={(e) => setTplForm({ ...tplForm, default_requester_name: e.target.value })}
                 />
               </div>

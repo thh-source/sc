@@ -162,7 +162,8 @@ export function DraftItemsTable({
             className={`draft-cell-input ${key === "unit" || key === "qty" ? "short" : ""} ${numeric ? "num" : ""}`}
             type={numeric ? "number" : "text"}
             list={key === "unit" ? "commonUnitDatalist" : undefined}
-            value={String(item[inputKey])}
+            placeholder={numeric ? "0" : ""}
+            value={numeric ? (item[inputKey] === 0 ? "" : String(item[inputKey] ?? "")) : String(item[inputKey] ?? "")}
             onChange={(e) =>
               itemChange(item.id, inputKey, e.target.value, true)
             }
@@ -379,9 +380,13 @@ export function DraftItemsTable({
                     <input
                       type="number"
                       className="step-input"
-                      value={i.qty || 1}
+                      value={i.qty === 0 ? "" : i.qty}
+                      placeholder="1"
                       min={1}
                       onChange={(e) => itemChange(i.id, "qty", e.target.value, true)}
+                      onBlur={(e) => {
+                        if (!Number(e.target.value)) itemChange(i.id, "qty", "1", true);
+                      }}
                     />
                     <button
                       type="button"

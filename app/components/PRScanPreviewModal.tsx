@@ -126,7 +126,6 @@ export function PRScanPreviewModal({ pr, onClose }: PRScanPreviewModalProps) {
         justifyContent: "center",
         padding: "16px",
       }}
-      onClick={onClose}
     >
       <div
         className="modal-panel"

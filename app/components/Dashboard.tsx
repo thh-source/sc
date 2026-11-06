@@ -2213,11 +2213,6 @@ export function Dashboard({
             zIndex: 9999,
             padding: "16px",
           }}
-          onClick={(e) => {
-            if (e.target === e.currentTarget) {
-              setPaymentConfirmModal(null);
-            }
-          }}
         >
           <div
             className="payment-confirm-dialog"

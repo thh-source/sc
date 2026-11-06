@@ -232,9 +232,6 @@ export function SettingsModal({
         backgroundColor: "rgba(15, 23, 42, 0.6)",
         backdropFilter: "blur(4px)",
       }}
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
     >
       <div
         className="settings-modal"

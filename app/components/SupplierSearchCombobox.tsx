@@ -402,7 +402,6 @@ export function SupplierSearchCombobox({
         <div
           className="payment-modal-overlay"
           style={{ zIndex: 10000 }}
-          onClick={() => setShowQuickAddModal(false)}
         >
           <div
             className="payment-modal-card"

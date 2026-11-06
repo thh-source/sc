@@ -156,6 +156,7 @@ export function HandoverManagement({
   const showMobileCards = userMobileToggle !== null ? userMobileToggle : true;
   const [expandedBatchKeys, setExpandedBatchKeys] = useState<Set<string>>(new Set());
   const [editingBatchKey, setEditingBatchKey] = useState<string | null>(null);
+  const [editingBatchItemIds, setEditingBatchItemIds] = useState<number[] | null>(null);
 
   // Column customization modal state & persistence
   const [showColumnConfigModal, setShowColumnConfigModal] = useState(false);
@@ -1138,7 +1139,7 @@ export function HandoverManagement({
         return (
           <AutoGrowTextarea
             className="cell-editor cell-editor-textarea"
-            value={h.sender_name || "Trần Hải Hà"}
+            value={h.sender_name ?? "Trần Hải Hà"}
             onChange={(val) => handleEditHandover(h.id, "sender_name", val)}
             placeholder="Bên giao..."
             title={h.sender_name || "Bên giao..."}
@@ -1741,7 +1742,10 @@ export function HandoverManagement({
                   <button
                     type="button"
                     className="stitch-action-pill pill-navy"
-                    onClick={() => setEditingBatchKey(batch.batchKey)}
+                    onClick={() => {
+                      setEditingBatchKey(batch.batchKey);
+                      setEditingBatchItemIds(batch.items.map((it) => it.id));
+                    }}
                     title="Mở xem & chỉnh sửa chi tiết đợt bàn giao này"
                   >
                     <span>✎ Chi tiết / Sửa đợt</span>
@@ -2679,8 +2683,14 @@ export function HandoverManagement({
                         min={45}
                         max={600}
                         step={5}
-                        value={col.width || col.minWidth}
+                        value={col.width === 0 ? "" : (col.width || col.minWidth)}
                         onChange={(e) => {
+                          const raw = e.target.value;
+                          const w = raw === "" ? 0 : Math.max(0, parseInt(raw, 10) || 0);
+                          const next = columns.map((c, i) => (i === idx ? { ...c, width: w } : c));
+                          saveColumns(next);
+                        }}
+                        onBlur={(e) => {
                           const w = Math.max(45, parseInt(e.target.value, 10) || col.minWidth);
                           const next = columns.map((c, i) => (i === idx ? { ...c, width: w } : c));
                           saveColumns(next);
@@ -2785,10 +2795,30 @@ export function HandoverManagement({
       )}
 
       {/* POPUP XEM & SỬA CHI TIẾT TỪNG ĐỢT BÀN GIAO */}
-      {editingBatchKey && (() => {
-        const targetBatch = handoverBatches.find((b) => b.batchKey === editingBatchKey);
-        if (!targetBatch) return null;
+      {(editingBatchKey || (editingBatchItemIds && editingBatchItemIds.length > 0)) && (() => {
+        const rawBatchItems = editingBatchItemIds && editingBatchItemIds.length > 0
+          ? paymentHandovers.filter((h) => editingBatchItemIds.includes(h.id))
+          : (handoverBatches.find((b) => b.batchKey === editingBatchKey)?.items || []);
+        if (rawBatchItems.length === 0) return null;
+
+        const sortedItems = sortHandoversByPOLineOrder(rawBatchItems, pos);
+        const first = sortedItems[0] || rawBatchItems[0];
+        const srcNum = (first?.source_number || "").trim();
+        const srcType = (first?.source_type || (srcNum ? "PO" : "")).trim();
+        const targetBatch = {
+          items: sortedItems,
+          date: first?.handover_date ?? "",
+          department: first?.department ?? "",
+          senderName: first?.sender_name ?? "Trần Hải Hà",
+          receiverName: first?.receiver_name ?? "",
+          sourceType: srcType,
+          sourceNumber: srcNum,
+        };
         const batchItemIds = new Set(targetBatch.items.map((i) => i.id));
+        const closeBatchModal = () => {
+          setEditingBatchKey(null);
+          setEditingBatchItemIds(null);
+        };
 
         const updateBatchMetadata = (key: keyof PaymentHandoverItem, value: string) => {
           if (readOnly) return;
@@ -2799,7 +2829,7 @@ export function HandoverManagement({
         };
 
         return (
-          <div className="payment-modal-overlay" onClick={() => setEditingBatchKey(null)}>
+          <div className="payment-modal-overlay">
             <div
               className="payment-modal-card"
               style={{ maxWidth: "1020px", width: "95vw", maxHeight: "90vh", display: "flex", flexDirection: "column", padding: 0, overflow: "hidden" }}
@@ -2808,7 +2838,7 @@ export function HandoverManagement({
               <div className="payment-modal-header">
                 <div>
                   <h3 style={{ margin: 0, fontSize: "17px" }}>
-                    📦 Chi tiết Đợt Bàn Giao {targetBatch.sourceNumber ? `· ${targetBatch.sourceType || "PO"} #${targetBatch.sourceNumber}` : `· ${targetBatch.department}`}
+                    📦 Chi tiết Đợt Bàn Giao {targetBatch.sourceNumber ? `· ${targetBatch.sourceType || "PO"} #${targetBatch.sourceNumber}` : `· ${targetBatch.department || "Chưa chọn bộ phận"}`}
                   </h3>
                   <small>
                     Chỉnh sửa thông tin chung của đợt hoặc cập nhật số lượng nghiệm thu từng mặt hàng ({targetBatch.items.length} mặt hàng)
@@ -2817,7 +2847,7 @@ export function HandoverManagement({
                 <button
                   type="button"
                   className="payment-modal-close"
-                  onClick={() => setEditingBatchKey(null)}
+                  onClick={closeBatchModal}
                 >
                   ×
                 </button>
@@ -2865,7 +2895,7 @@ export function HandoverManagement({
                     </label>
                     <input
                       list="handoverSenderSuggestions"
-                      value={targetBatch.senderName || ""}
+                      value={targetBatch.senderName ?? ""}
                       onChange={(e) => updateBatchMetadata("sender_name", e.target.value)}
                       placeholder="Họ tên người giao..."
                       style={{ width: "100%" }}
@@ -2877,7 +2907,7 @@ export function HandoverManagement({
                     </label>
                     <input
                       list="handoverReceiverSuggestions"
-                      value={targetBatch.receiverName || ""}
+                      value={targetBatch.receiverName ?? ""}
                       onChange={(e) => updateBatchMetadata("receiver_name", e.target.value)}
                       placeholder="Họ tên người nhận..."
                       style={{ width: "100%" }}
@@ -2990,7 +3020,7 @@ export function HandoverManagement({
                     type="button"
                     className="btn btn-accent btn-md"
                     onClick={() => {
-                      setEditingBatchKey(null);
+                      closeBatchModal();
                       handleCreatePaymentRequestFromSelected(targetBatch.items);
                     }}
                   >
@@ -3000,7 +3030,7 @@ export function HandoverManagement({
                 <button
                   type="button"
                   className="btn btn-primary btn-md"
-                  onClick={() => setEditingBatchKey(null)}
+                  onClick={closeBatchModal}
                 >
                   <Check size={15} /> Hoàn tất & Đóng
                 </button>

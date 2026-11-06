@@ -1052,10 +1052,11 @@ export function PODeliveryModal({
                             <input
                               type="number"
                               min="0"
+                              placeholder="0"
                               disabled={!isChecked}
-                              value={currentQty}
+                              value={currentQty === 0 ? "" : currentQty}
                               onChange={(e) => {
-                                const val = Number(e.target.value) || 0;
+                                const val = e.target.value === "" ? 0 : (Number(e.target.value) || 0);
                                 setItemQtys((prev) => ({ ...prev, [it.id]: val }));
                                 setSelectedIds((prev) => ({ ...prev, [it.id]: true }));
                               }}
@@ -1097,7 +1098,7 @@ export function PODeliveryModal({
                           <input
                             type="date"
                             disabled={!isChecked}
-                            value={itemDates[it.id] || sharedDate}
+                            value={itemDates[it.id] ?? sharedDate}
                             onChange={(e) =>
                               setItemDates((prev) => ({ ...prev, [it.id]: e.target.value }))
                             }
@@ -1275,7 +1276,6 @@ export function PODeliveryModal({
         {activeReasonItemId !== null && activeReasonItem && (
           <div
             className="po-bottom-sheet-overlay"
-            onClick={() => setActiveReasonItemId(null)}
             style={{
               position: "absolute",
               inset: 0,
@@ -1397,7 +1397,7 @@ export function PODeliveryModal({
                 </label>
                 <input
                   type="date"
-                  value={itemDates[activeReasonItem.id] || sharedDate}
+                  value={itemDates[activeReasonItem.id] ?? sharedDate}
                   onChange={(e) =>
                     setItemDates((prev) => ({ ...prev, [activeReasonItem.id]: e.target.value }))
                   }
@@ -1438,7 +1438,6 @@ export function PODeliveryModal({
         {showSignatureDrawer && (
           <div
             className="po-signature-overlay"
-            onClick={() => setShowSignatureDrawer(false)}
             style={{
               position: "absolute",
               inset: 0,
@@ -1948,9 +1947,10 @@ export function POItemsMobileCards({
                     <label style={{ fontSize: "11px", color: "#64748b", fontWeight: 600 }}>Số lượng:</label>
                     <input
                       type="number"
-                      value={i.qty}
+                      placeholder="0"
+                      value={i.qty === 0 ? "" : i.qty}
                       disabled={readOnly}
-                      onChange={(e) => onUpdateItem(i.id, { qty: Number(e.target.value) || 0 })}
+                      onChange={(e) => onUpdateItem(i.id, { qty: e.target.value === "" ? 0 : (Number(e.target.value) || 0) })}
                       style={{
                         width: "100%",
                         height: "36px",
@@ -1966,9 +1966,10 @@ export function POItemsMobileCards({
                     <label style={{ fontSize: "11px", color: "#64748b", fontWeight: 600 }}>Đơn giá (₫):</label>
                     <input
                       type="number"
-                      value={i.price}
+                      placeholder="0"
+                      value={i.price === 0 ? "" : i.price}
                       disabled={readOnly}
-                      onChange={(e) => onUpdateItem(i.id, { price: Number(e.target.value) || 0 })}
+                      onChange={(e) => onUpdateItem(i.id, { price: e.target.value === "" ? 0 : (Number(e.target.value) || 0) })}
                       style={{
                         width: "100%",
                         height: "36px",

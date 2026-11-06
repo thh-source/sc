@@ -68,7 +68,7 @@ export function POHandoverBatchSection({
       setSaveSuccessMsg(null);
       setSaveErrorMsg(null);
     }
-  }, [activeBatch]);
+  }, [selectedBatchId]);
 
   if (!po) return null;
 
@@ -543,10 +543,11 @@ export function POHandoverBatchSection({
                         type="number"
                         min={0}
                         max={it.maxAllowedInThisBatch}
+                        placeholder="0"
                         disabled={readOnly}
-                        value={currentVal}
+                        value={currentVal === 0 ? "" : currentVal}
                         onChange={(e) => {
-                          const val = Number(e.target.value);
+                          const val = e.target.value === "" ? 0 : (Number(e.target.value) || 0);
                           setEditQtyMap((prev) => ({ ...prev, [it.handoverItem.id]: val }));
                         }}
                         style={{
@@ -645,10 +646,11 @@ export function POHandoverBatchSection({
                             type="number"
                             min={0}
                             max={it.maxAllowedInThisBatch}
+                            placeholder="0"
                             disabled={readOnly}
-                            value={currentVal}
+                            value={currentVal === 0 ? "" : currentVal}
                             onChange={(e) => {
-                              const val = Number(e.target.value);
+                              const val = e.target.value === "" ? 0 : (Number(e.target.value) || 0);
                               setEditQtyMap((prev) => ({ ...prev, [it.handoverItem.id]: val }));
                             }}
                             style={{

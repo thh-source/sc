@@ -1194,17 +1194,30 @@ function ProcurementAppInner({
     v: string,
     forDraft = false,
   ) => {
-    const setter = forDraft
-      ? (fn: (x: Item[]) => Item[]) =>
-          setDraft((d) => ({ ...d, items: fn(d.items) }))
-      : setItems;
-    setter((x) =>
+    const mapItems = (x: Item[]) =>
       x.map((i) =>
         i.id === id
-          ? { ...i, [k]: ["qty", "estimate"].includes(k) ? Number(v) : v }
+          ? ({
+              ...i,
+              [k]: ["qty", "estimate"].includes(k) ? Number(v) : v,
+              ...(k === "name" ? { itemName: undefined, item_name: undefined, productName: undefined } : {}),
+            } as Item)
           : i,
-      ),
-    );
+      );
+    if (forDraft) {
+      setDraft((d) => ({ ...d, items: mapItems(d.items) }));
+    } else {
+      setItems((prev) => {
+        const next = mapItems(prev);
+        if (selectedPR?.id) {
+          setSelectedPR((cur) => (cur.id === selectedPR.id ? { ...cur, items: next } : cur));
+          setPrs((all) =>
+            all.map((pr) => (pr.id === selectedPR.id ? { ...pr, items: next } : pr)),
+          );
+        }
+        return next;
+      });
+    }
   };
   const quoteChange = (
     iid: number,
@@ -1967,12 +1980,14 @@ function ProcurementAppInner({
     if (currentPO?.id === updatedPO.id) {
       setCurrentPO(updatedPO);
     }
-    if (prevNumber && prevNumber !== updatedPO.number) {
+    const cleanPrev = (prevNumber || "").trim();
+    const cleanNext = (updatedPO.number || "").trim();
+    if (cleanPrev.length >= 2 && cleanNext.length >= 2 && cleanPrev !== cleanNext) {
       // 1. Cascade to ApprovalRequests
       setApprovalRequests((list) =>
         list.map((a) =>
-          a.linkedPoId === updatedPO.id || a.linkedPoNumber === prevNumber
-            ? { ...a, linkedPoNumber: updatedPO.number }
+          a.linkedPoId === updatedPO.id || a.linkedPoNumber === cleanPrev
+            ? { ...a, linkedPoNumber: cleanNext }
             : a
         )
       );
@@ -1982,12 +1997,12 @@ function ProcurementAppInner({
           let modified = false;
           let newGroup = pr.group_code;
           let newDesc = pr.description;
-          if (pr.group_code === prevNumber) {
-            newGroup = updatedPO.number;
+          if (pr.group_code === cleanPrev) {
+            newGroup = cleanNext;
             modified = true;
           }
-          if (newDesc && newDesc.includes(prevNumber)) {
-            newDesc = newDesc.replaceAll(prevNumber, updatedPO.number);
+          if (cleanPrev.length >= 4 && newDesc && newDesc.includes(cleanPrev)) {
+            newDesc = newDesc.replaceAll(cleanPrev, cleanNext);
             modified = true;
           }
           return modified ? { ...pr, group_code: newGroup, description: newDesc } : pr;
@@ -1996,20 +2011,22 @@ function ProcurementAppInner({
       // 3. Cascade to PaymentHandovers where source_number === prevNumber
       setPaymentHandovers((list) =>
         list.map((h) =>
-          h.source_number === prevNumber
-            ? { ...h, source_number: updatedPO.number }
+          h.source_number === cleanPrev
+            ? { ...h, source_number: cleanNext }
             : h
         )
       );
       broadcastTabMessage({
         type: "PO_NUMBER_RENAMED",
         workspaceId,
-        oldNumber: prevNumber,
-        newNumber: updatedPO.number,
+        oldNumber: cleanPrev,
+        newNumber: cleanNext,
         poId: updatedPO.id,
       });
     }
-    setStorageStatus(`Đã đổi số PO thành ${updatedPO.number}`);
+    if (cleanNext) {
+      setStorageStatus(`Đã đổi số PO thành ${cleanNext}`);
+    }
     setTimeout(() => void persistState(false), 50);
   };
 
@@ -3581,7 +3598,18 @@ function ProcurementAppInner({
                   <>
                     <button
                       className="btn btn-secondary"
-                      onClick={() => setItems((x) => [...x, emptyItem(x.length)])}
+                      onClick={() => {
+                        setItems((prev) => {
+                          const next = [...prev, emptyItem(prev.length)];
+                          if (selectedPR?.id) {
+                            setSelectedPR((cur) => (cur.id === selectedPR.id ? { ...cur, items: next } : cur));
+                            setPrs((all) =>
+                              all.map((pr) => (pr.id === selectedPR.id ? { ...pr, items: next } : pr)),
+                            );
+                          }
+                          return next;
+                        });
+                      }}
                     >
                       <Plus size={16} /> Thêm hàng
                     </button>
@@ -3730,7 +3758,7 @@ function ProcurementAppInner({
         </Suspense>
       </main>
       {poCartOpen && (
-        <div className="backdrop" onMouseDown={() => setPoCartOpen(false)}>
+        <div className="backdrop">
           <div className="po-cart-modal" onMouseDown={(e) => e.stopPropagation()}>
             <header>
               <div>
@@ -3779,9 +3807,10 @@ function ProcurementAppInner({
                             min={0.0001}
                             max={available}
                             step="any"
-                            value={line.allocation.qty}
+                            placeholder="0"
+                            value={line.allocation.qty === 0 ? "" : line.allocation.qty}
                             onChange={(e) => {
-                              const qty = Math.max(0, Math.min(available, Number(e.target.value) || 0));
+                              const qty = e.target.value === "" ? 0 : Math.max(0, Math.min(available, Number(e.target.value) || 0));
                               setPoCart((cart) => cart.map((item) => item.id === line.id ? { ...item, allocation: { ...item.allocation, qty } } : item));
                             }}
                           />
@@ -3809,7 +3838,7 @@ function ProcurementAppInner({
         </div>
       )}
       {deleteTarget && (
-        <div className="backdrop" onMouseDown={() => !deleteBusy && setDeleteTarget(null)}>
+        <div className="backdrop">
           <div className="modal delete-confirm" onMouseDown={(e) => e.stopPropagation()}>
             <i>!</i>
             <h2>Xác nhận chuyển vào thùng rác</h2>

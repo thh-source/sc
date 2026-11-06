@@ -496,7 +496,7 @@ export function CreatePRCatalog({
                         <span className="text-slate-500 block mb-0.5">Đơn vị tính</span>
                         <input
                           type="text"
-                          value={item.unit || "Cái"}
+                          value={item.unit ?? ""}
                           onChange={(e) => itemChange(item.id, "unit", e.target.value, true)}
                           placeholder="ĐVT (Cái, Bộ...)"
                           className="w-full h-8 px-2 rounded-lg border border-slate-200 text-xs text-slate-700 outline-none"
@@ -521,9 +521,13 @@ export function CreatePRCatalog({
                         </button>
                         <input
                           type="number"
-                          value={item.qty || 1}
+                          value={item.qty === 0 ? "" : item.qty}
+                          placeholder="1"
                           min={1}
                           onChange={(e) => itemChange(item.id, "qty", e.target.value, true)}
+                          onBlur={(e) => {
+                            if (!Number(e.target.value)) itemChange(item.id, "qty", "1", true);
+                          }}
                           className="w-12 h-7 text-center font-bold text-xs rounded-lg border border-slate-200 text-slate-800"
                         />
                         <button

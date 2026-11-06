@@ -41,7 +41,6 @@ export function ShareFileModal({
         zIndex: 9999,
         padding: "16px",
       }}
-      onClick={onClose}
     >
       <div
         style={{

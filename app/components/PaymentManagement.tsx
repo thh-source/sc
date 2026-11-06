@@ -804,28 +804,41 @@ export function PaymentManagement({
     const next = paymentRequests.map((r) => {
       if (r.id === id) {
         const updated = { ...r, ...patch };
-        if ("payee_name" in patch && patch.payee_name) {
-          const valName = patch.payee_name;
-          const match = suppliers.find(
-            (s) =>
-              normName(s.name) === normName(valName) ||
-              (s.shortName && normName(s.shortName) === normName(valName)) ||
-              (s.code && normName(s.code) === normName(valName))
-          );
-          if (match) {
-            updated.payee_name = match.shortName || match.name;
-            updated.beneficiary_id = match.id;
-            if (match.address) updated.address = match.address;
-            if (match.bankAccount) updated.account_no = match.bankAccount;
-            if (match.bank) updated.bank = match.bank;
+        if ("payee_name" in patch) {
+          const valName = patch.payee_name || "";
+          if (!valName.trim()) {
+            updated.payee_name = valName;
+            updated.beneficiary_id = undefined;
+          } else {
+            const match = suppliers.find(
+              (s) =>
+                normName(s.name) === normName(valName) ||
+                (s.shortName && normName(s.shortName) === normName(valName)) ||
+                (s.code && normName(s.code) === normName(valName))
+            );
+            if (match) {
+              updated.payee_name = valName;
+              updated.beneficiary_id = match.id;
+              if (match.address) updated.address = match.address;
+              if (match.bankAccount) updated.account_no = match.bankAccount;
+              if (match.bank) updated.bank = match.bank;
+            } else {
+              updated.payee_name = valName;
+              updated.beneficiary_id = undefined;
+            }
           }
         }
-        if ("group_code" in patch && patch.group_code) {
-          const valCode = patch.group_code;
-          const g = paymentGroups.find(
-            (x) => normName(x.code) === normName(valCode) || normName(x.name) === normName(valCode)
-          );
-          if (g) updated.group_id = g.id;
+        if ("group_code" in patch) {
+          const valCode = patch.group_code || "";
+          if (!valCode.trim()) {
+            updated.group_code = valCode;
+            updated.group_id = undefined;
+          } else {
+            const g = paymentGroups.find(
+              (x) => normName(x.code) === normName(valCode) || normName(x.name) === normName(valCode)
+            );
+            updated.group_id = g ? g.id : undefined;
+          }
         }
         if ("status" in patch) {
           const isPaid = patch.status === "Đã thanh toán" || PAID_STATUSES.includes(patch.status as string);
@@ -1356,7 +1369,7 @@ export function PaymentManagement({
             normName(s.name) === normName(r.payee_name) ||
             (s.shortName && normName(s.shortName) === normName(r.payee_name))
         );
-        const displayVal = matched?.shortName || r.payee_name || "";
+        const displayVal = r.payee_name !== undefined ? r.payee_name : (matched?.shortName || "");
         return (
           <input
             className="cell-editor"
@@ -2851,7 +2864,7 @@ export function PaymentManagement({
                             normName(s.name) === normName(editReq.payee_name) ||
                             (s.shortName && normName(s.shortName) === normName(editReq.payee_name))
                         );
-                        const displayVal = matched?.shortName || editReq.payee_name || "";
+                        const displayVal = editReq.payee_name !== undefined ? editReq.payee_name : (matched?.shortName || "");
                         return (
                           <input
                             list="nccDataList"
@@ -2924,7 +2937,7 @@ export function PaymentManagement({
                       </div>
                       <input
                         list="groupDataList"
-                        value={editReq.group_code || (paymentGroups.find((g) => g.id === editReq.group_id)?.code || "")}
+                        value={editReq.group_code ?? (paymentGroups.find((g) => g.id === editReq.group_id)?.code || "")}
                         onChange={(e) => handleEditRequest(editReq.id, "group_code", e.target.value)}
                         placeholder="Chọn hoặc nhập mã PO / Nhóm..."
                         className="card-edit-input"
@@ -4126,8 +4139,14 @@ export function PaymentManagement({
                         min={50}
                         max={600}
                         step={5}
-                        value={col.width || col.minWidth}
+                        value={col.width === 0 ? "" : (col.width || col.minWidth)}
                         onChange={(e) => {
+                          const raw = e.target.value;
+                          const w = raw === "" ? 0 : Math.max(0, parseInt(raw, 10) || 0);
+                          const next = columns.map((c, i) => (i === idx ? { ...c, width: w } : c));
+                          saveColumns(next);
+                        }}
+                        onBlur={(e) => {
                           const w = Math.max(50, parseInt(e.target.value, 10) || col.minWidth);
                           const next = columns.map((c, i) => (i === idx ? { ...c, width: w } : c));
                           saveColumns(next);

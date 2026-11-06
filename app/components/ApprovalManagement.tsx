@@ -374,7 +374,7 @@ function SupplierColumnSearchCombobox({
           ref={inputRef}
           type="text"
           className="sup-short-input"
-          value={isOpen ? (query !== "" ? query : column.shortName) : column.shortName}
+          value={column.shortName ?? ""}
           readOnly={isReportMode}
           placeholder="Tên viết tắt / gõ tìm NCC..."
           title="Tên viết tắt của NCC (Hiển thị ở phía trên của bảng so sánh)"
@@ -388,14 +388,22 @@ function SupplierColumnSearchCombobox({
             const val = e.target.value;
             setQuery(val);
             if (!isOpen) setIsOpen(true);
-            onUpdate({
-              shortName: val,
-              supplierName:
-                column.supplierName && column.supplierName !== column.shortName
-                  ? column.supplierName
-                  : val,
-              supplierId: column.supplierId,
-            });
+            if (!val.trim()) {
+              onUpdate({
+                shortName: "",
+                supplierName: "",
+                supplierId: undefined,
+              });
+            } else {
+              onUpdate({
+                shortName: val,
+                supplierName:
+                  column.supplierName && column.supplierName !== column.shortName
+                    ? column.supplierName
+                    : val,
+                supplierId: column.supplierId,
+              });
+            }
           }}
           onKeyDown={(e) => {
             if (e.key === "Enter" || e.key === "Escape") {
@@ -581,7 +589,7 @@ function ProposalSupplierSearchCombobox({
           ref={inputRef}
           type="text"
           className="sheet-inline-input bold-input no-print"
-          value={isOpen ? (query !== "" ? query : value) : value}
+          value={value ?? ""}
           readOnly={isReportMode}
           placeholder="Nhập hoặc gõ tìm tên đầy đủ của Nhà cung cấp được đề xuất..."
           onFocus={() => {
@@ -5867,9 +5875,11 @@ export default function ApprovalManagement({
 
     const todayDate = localToday();
     const fallbackAutoCode = generatePOCode(targetSup, todayDate, pos, trash);
-    const effectivePoNumber = (poCreateCustomNumber && poCreateCustomNumber.trim())
+    const effectivePoNumber = poCreateNumberManual
       ? poCreateCustomNumber.trim()
-      : fallbackAutoCode;
+      : (poCreateCustomNumber && poCreateCustomNumber.trim())
+        ? poCreateCustomNumber.trim()
+        : fallbackAutoCode;
 
     const subtotal = selectedCol
       ? computeSupplierTotal(poCreateModalReq, selectedCol.colId)
@@ -5893,7 +5903,6 @@ export default function ApprovalManagement({
           justifyContent: "center",
           padding: 16,
         }}
-        onClick={() => setPoCreateModalReq(null)}
       >
         <div
           className="payment-modal-card"
@@ -6022,7 +6031,7 @@ export default function ApprovalManagement({
                     boxSizing: "border-box",
                     outline: "none",
                   }}
-                  value={poCreateCustomNumber || effectivePoNumber}
+                  value={poCreateNumberManual ? poCreateCustomNumber : (poCreateCustomNumber || fallbackAutoCode)}
                   onChange={(e) => {
                     setPoCreateCustomNumber(e.target.value);
                     setPoCreateNumberManual(true);
