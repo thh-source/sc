@@ -1818,13 +1818,13 @@ function ProcurementAppInner({
       payments: [
         {
           id: 1,
-          phase: "Đợt 1 (100%)",
+          phase: "Thanh toán 100%",
           condition: isAdvance ? "advance" : "post",
           percent: 100,
           amount: totalWithVat,
           status: "Chưa thanh toán",
           date: "",
-          note: req.paymentTerms || "",
+          note: "",
         },
       ],
       note: [
@@ -2303,10 +2303,7 @@ function ProcurementAppInner({
     const todayStr = localToday();
     const condition = payment.condition || "post";
 
-    const docSupplement =
-      condition === "advance"
-        ? "Yêu cầu NCC bổ sung hóa đơn VAT đầy đủ sau khi giao hàng"
-        : (payment.note || "");
+    const docSupplement = ""; // Người dùng yêu cầu: không tự động thêm ghi chú
 
     const finalAddress = customInfo?.address || supplier?.address || "";
     const finalAccount = customInfo?.bankAccount || supplier?.bankAccount || "";
@@ -2331,11 +2328,11 @@ function ProcurementAppInner({
     // Không cập nhật danh sách sản phẩm của PO vào DNTT, chỉ tạo dòng thanh toán tổng quát
     const lines: PaymentDetailLine[] = [
       {
-        description: desc || payment.phase || `Thanh toán theo đơn hàng ${po.number}`,
+        description: desc || `Thanh toán theo đơn hàng ${po.number}`,
         invoice_no: finalInvoiceNo,
         invoice_date: finalInvoiceDate,
         amount: payment.amount,
-        note: payment.note || "",
+        note: "", // Người dùng yêu cầu: không tự động thêm ghi chú
       },
     ];
 
@@ -2346,7 +2343,7 @@ function ProcurementAppInner({
       payee_name: supplier?.name || "Chưa xác định",
       group_code: po.number,
       description: desc,
-      item_name: payment.phase || desc,
+      item_name: desc,
       invoice_no: finalInvoiceNo,
       invoice_date: finalInvoiceDate,
       amount: payment.amount,
@@ -2355,7 +2352,7 @@ function ProcurementAppInner({
       request_date: payment.date || todayStr,
       payment_type: condition === "advance" ? "Tạm ứng" : "Thanh toán công nợ",
       status: "Chờ duyệt",
-      doc_supplement: docSupplement,
+      doc_supplement: "", // Người dùng yêu cầu: không tự động thêm ghi chú
       address: finalAddress,
       account_no: finalAccount,
       bank: finalBank,

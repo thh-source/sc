@@ -415,14 +415,11 @@ export const buildPOPaymentDescription = (
     }
   }
 
-  let hasExplicitStage = false;
-  if (payment && (payment.phase || "").match(/đợt\s*(\d+)/i)) {
-    hasExplicitStage = true;
-  }
-  const isMultiStage = Boolean(
-    (po.payments && po.payments.length > 1) || stageNum > 1 || hasExplicitStage
-  );
-  const stagePrefix = isMultiStage ? `đợt ${stageNum} ` : "";
+  // Chỉ ghi đợt khi thực tế có nhiều đợt và đợt này không phải là 100%
+  // Nếu thanh toán 100% hoặc đơn hàng chỉ có 1 đợt thì không ghi đợt 1
+  const totalStages = po.payments?.length || 1;
+  const isMultiStage = totalStages > 1 && pct < 100;
+  const stagePrefix = isMultiStage && stageNum > 0 ? `đợt ${stageNum} ` : "";
 
   const contractInfo = getPOContractInfo(po);
   if (contractInfo.hasContract) {

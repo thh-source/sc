@@ -31,6 +31,28 @@ export const PaymentPrintSheet: React.FC<PaymentPrintSheetProps> = ({
 }) => {
   if (!req) return null;
   const safeTpl = { ...DEFAULT_PAYMENT_TEMPLATE, ...(tpl || {}) };
+  // Làm sạch tự động: nếu thanh toán 100% thì không bao giờ ghi "đợt 1"
+  const cleanDesc = (s?: string) => {
+    if (!s) return "";
+    return s.replace(/đợt\s*1\s+100%/gi, "100%").replace(/đợt\s*1\s*\(100%\)/gi, "100%").trim();
+  };
+
+  // Làm sạch tự động: loại bỏ các ghi chú điều khoản boilerplate tự sinh
+  const cleanNote = (n?: string) => {
+    if (!n) return "";
+    const s = n.trim();
+    if (
+      s.includes("sau khi nhận đủ hàng") ||
+      s.includes("nhận đủ hàng và hồ sơ") ||
+      s.includes("nhận đủ hàng và HĐ") ||
+      s.includes("bổ sung hóa đơn VAT") ||
+      s.includes("trong vòng 30 ngày")
+    ) {
+      return "";
+    }
+    return s;
+  };
+
   const dateParts = parsePrintDate(req.request_date);
   const cur = String(req.currency || "VND").toUpperCase();
   const words = moneyWords({ amount: req.amount, currency: cur });
@@ -144,7 +166,7 @@ export const PaymentPrintSheet: React.FC<PaymentPrintSheetProps> = ({
         <div>+ {safeTpl.label_bank}</div>
         <div className="val"><b>{payeeBank}</b></div>
         <div>+ {safeTpl.label_description}</div>
-        <div className="val">{req.description || ""}</div>
+        <div className="val">{cleanDesc(req.description || "")}</div>
       </div>
 
       <div className="person transfer">
@@ -172,10 +194,10 @@ export const PaymentPrintSheet: React.FC<PaymentPrintSheetProps> = ({
                 {l.invoice_no ? `${l.invoice_no}${l.invoice_date ? " (" + l.invoice_date + ")" : ""}` : ""}
               </td>
               <td style={{ textAlign: "left", paddingLeft: "8px", paddingRight: "8px", wordBreak: "break-word", overflowWrap: "anywhere", whiteSpace: "normal", padding: "6px 8px" }}>
-                {l.description}
+                {cleanDesc(l.description)}
               </td>
               <td style={{ textAlign: "right", paddingRight: "8px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "clip", fontVariantNumeric: "tabular-nums" }}>{fmtMoney(l.amount)}</td>
-              <td style={{ wordBreak: "break-word", overflowWrap: "anywhere" }}>{l.note || ""}</td>
+              <td style={{ wordBreak: "break-word", overflowWrap: "anywhere" }}>{cleanNote(l.note)}</td>
             </tr>
           ))}
           <tr className="sum">
