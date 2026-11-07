@@ -278,60 +278,211 @@ export async function POST(request: Request) {
       });
     }
 
-    // 4. Tìm kiếm / Liệt kê tài liệu trên Cloud CamScanner
+    // 4. Tìm kiếm / Liệt kê tài liệu trên Cloud CamScanner (Hỗ trợ phân trang tự động lấy toàn bộ >270+ tài liệu)
     if (action === "search") {
       const keyword = String(body.keyword || "").trim();
-      const limit = Math.min(50, Math.max(1, Number(body.limit) || 30));
       const scope = body.scope === "full" ? "full" : "title";
       const docType = String(body.docType || "").trim();
+      const mode = String(body.mode || "fast").trim(); // "fast" (trang đầu 50 file + dirs) hoặc "all" (quét toàn bộ các trang còn lại)
+      const initialEndTime = body.endTime ? Number(body.endTime) : undefined;
 
-      const payload: Record<string, any> = {
-        keyword,
-        limit,
-        search_scope: scope,
-      };
-      if (docType && docType !== "all") {
-        payload.doc_type = docType;
-      }
-
-      const res = await fetch(
-        `${CS_API_BASE}/v1/tools/search_cloud_doc/execute?channel=camscanner-cli`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${activeToken}`,
-            "Content-Type": "application/json",
-            "User-Agent": CS_USER_AGENT,
-            "X-IS-AGENT": CS_AGENT_HEADER,
-          },
-          body: JSON.stringify(payload),
+      const callCsSearch = async (extra: Record<string, any> = {}) => {
+        const payload: Record<string, any> = {
+          keyword,
+          limit: 50,
+          search_scope: scope,
+          ...extra,
+        };
+        if (docType && docType !== "all") {
+          payload.doc_type = docType;
         }
-      );
 
-      if (res.status === 401) {
-        return Response.json(
-          { error: "Phiên đăng nhập CamScanner đã hết hạn, vui lòng đăng nhập lại." },
-          { status: 401 }
+        for (let attempt = 0; attempt < 3; attempt++) {
+          const res = await fetch(
+            `${CS_API_BASE}/v1/tools/search_cloud_doc/execute?channel=camscanner-cli`,
+            {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${activeToken}`,
+                "Content-Type": "application/json",
+                "User-Agent": CS_USER_AGENT,
+                "X-IS-AGENT": CS_AGENT_HEADER,
+              },
+              body: JSON.stringify(payload),
+            }
+          );
+
+          if (res.status === 401) {
+            return { unauthorized: true, docs: [] as any[], error: "" };
+          }
+          if (res.status === 429 && attempt < 2) {
+            await new Promise((r) => setTimeout(r, 1500 * (attempt + 1)));
+            continue;
+          }
+
+          const data: any = await res.json().catch(() => ({}));
+          if (!res.ok || data?.tool_result?.success === false) {
+            const errMsg =
+              data?.tool_result?.error ||
+              data?.error ||
+              "Không thể truy vấn danh sách tài liệu từ CamScanner Cloud";
+            return { unauthorized: false, docs: [] as any[], error: errMsg };
+          }
+
+          const resultData = data?.tool_result?.data || data?.data?.tool_result || {};
+          const docs = Array.isArray(resultData.docs) ? resultData.docs : [];
+          return { unauthorized: false, docs, error: "" };
+        }
+        return { unauthorized: false, docs: [] as any[], error: "" };
+      };
+
+      // Chế độ "fast": Trả về ngay 50 file mới nhất + danh sách thư mục trong ~0.3s
+      if (mode !== "all") {
+        const [searchRes, dirRes] = await Promise.all([
+          callCsSearch(initialEndTime ? { end_time: initialEndTime } : {}),
+          fetch(`${CS_API_BASE}/v1/tools/query_cloud_dir/execute?channel=camscanner-cli`, {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${activeToken}`,
+              "Content-Type": "application/json",
+              "User-Agent": CS_USER_AGENT,
+              "X-IS-AGENT": CS_AGENT_HEADER,
+            },
+            body: JSON.stringify({}),
+          })
+            .then((r) => (r.ok ? r.json() : null))
+            .catch(() => null),
+        ]);
+
+        if (searchRes.unauthorized) {
+          return Response.json(
+            { error: "Phiên đăng nhập CamScanner đã hết hạn, vui lòng đăng nhập lại." },
+            { status: 401 }
+          );
+        }
+        if (searchRes.error && searchRes.docs.length === 0) {
+          return Response.json({ error: searchRes.error }, { status: 400 });
+        }
+
+        const docs = searchRes.docs;
+        const dirs =
+          (dirRes as any)?.tool_result?.data?.dirs ||
+          (dirRes as any)?.data?.tool_result?.dirs ||
+          [];
+        const lastDoc = docs.length > 0 ? docs[docs.length - 1] : null;
+        const nextEndTime = lastDoc ? Number(lastDoc.create_time) || Number(lastDoc.modify_time) || 0 : 0;
+
+        return Response.json({
+          ok: true,
+          total: docs.length,
+          docs,
+          dirs,
+          hasMore: docs.length === 50 && nextEndTime > 0,
+          nextEndTime,
+        });
+      }
+
+      // Chế độ "all": Quét toàn bộ các trang tiếp theo bằng end_time / start_time để lấy đủ 100% kho CamScanner
+      const seenMap = new Map<string, any>();
+      const addDocs = (list: any[]) => {
+        for (const item of list) {
+          if (item && item.cs_doc_id && !seenMap.has(item.cs_doc_id)) {
+            seenMap.set(item.cs_doc_id, item);
+          }
+        }
+      };
+
+      if (Array.isArray(body.seedDocs)) {
+        addDocs(body.seedDocs);
+      }
+
+      const fullPages: { endTime?: number; docs: any[] }[] = [];
+      let cursorEndTime: number | undefined = initialEndTime;
+
+      // Nếu đã có seedDocs (trang 1), thêm trang 1 vào fullPages để kiểm tra luôn khoảng thời gian giao thoa
+      if (Array.isArray(body.seedDocs) && body.seedDocs.length === 50) {
+        fullPages.push({ endTime: undefined, docs: body.seedDocs });
+      }
+
+      for (let page = 0; page < 15; page++) {
+        const resPage = await callCsSearch(
+          cursorEndTime !== undefined ? { end_time: cursorEndTime } : {}
         );
+        if (resPage.unauthorized) {
+          return Response.json(
+            { error: "Phiên đăng nhập CamScanner đã hết hạn, vui lòng đăng nhập lại." },
+            { status: 401 }
+          );
+        }
+        const pageDocs = resPage.docs;
+        if (pageDocs.length === 0) break;
+
+        const sizeBefore = seenMap.size;
+        addDocs(pageDocs);
+        if (pageDocs.length === 50) {
+          fullPages.push({ endTime: cursorEndTime, docs: pageDocs });
+        }
+        if (pageDocs.length < 50) break;
+
+        const lastC =
+          Number(pageDocs[pageDocs.length - 1].create_time) ||
+          Number(pageDocs[pageDocs.length - 1].modify_time) ||
+          0;
+        if (!lastC) break;
+
+        if (seenMap.size === sizeBefore || cursorEndTime === lastC) {
+          cursorEndTime = lastC - 1;
+        } else {
+          cursorEndTime = lastC;
+        }
       }
 
-      const data: any = await res.json();
-      if (!res.ok || data?.tool_result?.success === false) {
-        const errMsg =
-          data?.tool_result?.error ||
-          data?.error ||
-          "Không thể truy vấn danh sách tài liệu từ CamScanner Cloud";
-        return Response.json({ error: errMsg }, { status: 400 });
+      // Quét bổ sung các cửa sổ có mật độ cao hoặc file tạo cũ nhưng di chuyển thư mục về sau
+      for (const { endTime: pEnd, docs: pDocs } of fullPages) {
+        const mods = pDocs
+          .map((x) => Number(x.modify_time) || Number(x.create_time))
+          .filter(Boolean)
+          .sort((a, b) => a - b);
+        if (mods.length === 0) continue;
+        const minT = Math.min(Number(pDocs[pDocs.length - 1].create_time) || mods[0], mods[0]);
+        const maxT = pEnd !== undefined ? pEnd : mods[mods.length - 1];
+        const midT = mods[Math.floor(mods.length / 2)];
+
+        if (midT >= minT && midT < maxT) {
+          const lowRes = await callCsSearch({ start_time: minT, end_time: midT });
+          addDocs(lowRes.docs);
+          if (lowRes.docs.length === 50 && midT > minT) {
+            const subMods = lowRes.docs
+              .map((x) => Number(x.modify_time) || Number(x.create_time))
+              .filter(Boolean)
+              .sort((a, b) => a - b);
+            const subMid =
+              subMods.length > 0
+                ? subMods[Math.floor(subMods.length / 2)]
+                : Math.floor((minT + midT) / 2);
+            if (subMid >= minT && subMid < midT) {
+              const [s1, s2] = await Promise.all([
+                callCsSearch({ start_time: minT, end_time: subMid }),
+                callCsSearch({ start_time: subMid + 1, end_time: midT }),
+              ]);
+              addDocs(s1.docs);
+              addDocs(s2.docs);
+            }
+          }
+        }
       }
 
-      const resultData = data?.tool_result?.data || data?.data?.tool_result || {};
-      const docs = Array.isArray(resultData.docs) ? resultData.docs : [];
-      const total = Number(resultData.total) || docs.length;
+      const allDocs = Array.from(seenMap.values()).sort(
+        (a, b) =>
+          (Number(b.create_time) || Number(b.modify_time) || 0) -
+          (Number(a.create_time) || Number(a.modify_time) || 0)
+      );
 
       return Response.json({
         ok: true,
-        total,
-        docs,
+        total: allDocs.length,
+        docs: allDocs,
+        hasMore: false,
       });
     }
 

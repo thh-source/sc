@@ -119,9 +119,12 @@ export function CamScannerCloudModal({
   // Cloud docs search state
   const [keyword, setKeyword] = useState("");
   const [docTypeFilter, setDocTypeFilter] = useState("all");
+  const [folderFilter, setFolderFilter] = useState<string>("__ALL__");
   const [searchScope, setSearchScope] = useState<"title" | "full">("title");
   const [loadingDocs, setLoadingDocs] = useState(false);
+  const [syncingAllDocs, setSyncingAllDocs] = useState(false);
   const [docs, setDocs] = useState<CamScannerDocItem[]>([]);
+  const [cloudDirs, setCloudDirs] = useState<{ dir_id: string; title: string; doc_count?: number }[]>([]);
   const [totalDocs, setTotalDocs] = useState(0);
   const [searchError, setSearchError] = useState("");
 
@@ -145,17 +148,19 @@ export function CamScannerCloudModal({
   const fetchCloudDocs = useCallback(
     async (kw = keyword, typeF = docTypeFilter, scope = searchScope, tokenOverride?: string) => {
       setLoadingDocs(true);
+      setSyncingAllDocs(false);
       setSearchError("");
       try {
+        // Bước 1: Tải nhanh 50 tài liệu mới nhất + danh sách thư mục (~0.3s)
         const res = await fetch("/api/camscanner", {
           method: "POST",
           headers: getHeaders(tokenOverride),
           body: JSON.stringify({
             action: "search",
+            mode: "fast",
             keyword: kw,
             docType: typeF === "all" ? "" : typeF,
             scope,
-            limit: 35,
           }),
         });
         const data: any = await res.json();
@@ -167,8 +172,42 @@ export function CamScannerCloudModal({
         if (!res.ok || !data.ok) {
           throw new Error(data.error || "Không thể tải danh sách tài liệu từ CamScanner Cloud");
         }
-        setDocs(Array.isArray(data.docs) ? data.docs : []);
-        setTotalDocs(Number(data.total) || (data.docs?.length ?? 0));
+        const firstBatch: CamScannerDocItem[] = Array.isArray(data.docs) ? data.docs : [];
+        setDocs(firstBatch);
+        if (Array.isArray(data.dirs)) {
+          setCloudDirs(data.dirs);
+        }
+        setTotalDocs(Number(data.total) || firstBatch.length);
+        setLoadingDocs(false);
+
+        // Bước 2: Nếu kho còn nhiều hơn 50 file, tự động tải ngầm toàn bộ các trang còn lại (270+ file)
+        if (data.hasMore && data.nextEndTime) {
+          setSyncingAllDocs(true);
+          try {
+            const fullRes = await fetch("/api/camscanner", {
+              method: "POST",
+              headers: getHeaders(tokenOverride),
+              body: JSON.stringify({
+                action: "search",
+                mode: "all",
+                keyword: kw,
+                docType: typeF === "all" ? "" : typeF,
+                scope,
+                endTime: data.nextEndTime,
+                seedDocs: firstBatch,
+              }),
+            });
+            const fullData: any = await fullRes.json();
+            if (fullRes.ok && fullData.ok && Array.isArray(fullData.docs)) {
+              setDocs(fullData.docs);
+              setTotalDocs(Number(fullData.total) || fullData.docs.length);
+            }
+          } catch {
+            // Giữ nguyên batch đầu nếu mạng gián đoạn
+          } finally {
+            setSyncingAllDocs(false);
+          }
+        }
       } catch (err: any) {
         setSearchError(err?.message || "Lỗi kết nối CamScanner Cloud");
       } finally {
@@ -344,6 +383,45 @@ export function CamScannerCloudModal({
   };
 
   if (!isOpen || typeof document === "undefined") return null;
+
+  // Tổng hợp danh sách thư mục từ dữ liệu thực tế + cloudDirs
+  const folderStats = (() => {
+    const map = new Map<string, number>();
+    let rootCount = 0;
+    for (const d of docs) {
+      const fName = (d.dir_title || "").trim();
+      if (!fName) {
+        rootCount++;
+      } else {
+        map.set(fName, (map.get(fName) || 0) + 1);
+      }
+    }
+    for (const cd of cloudDirs) {
+      const t = (cd.title || "").trim();
+      if (t && !map.has(t)) {
+        map.set(t, cd.doc_count || 0);
+      }
+    }
+    return {
+      rootCount,
+      folders: Array.from(map.entries()).map(([name, count]) => ({ name, count })),
+    };
+  })();
+
+  const kwLower = keyword.trim().toLowerCase();
+  const filteredDocs = docs.filter((d) => {
+    if (folderFilter === "__ROOT__") {
+      if ((d.dir_title || "").trim() !== "") return false;
+    } else if (folderFilter !== "__ALL__") {
+      if ((d.dir_title || "").trim() !== folderFilter) return false;
+    }
+    if (kwLower && searchScope === "title") {
+      const titleMatch = (d.title || "").toLowerCase().includes(kwLower);
+      const dirMatch = (d.dir_title || "").toLowerCase().includes(kwLower);
+      if (!titleMatch && !dirMatch) return false;
+    }
+    return true;
+  });
 
   return createPortal(
     <div
@@ -748,7 +826,7 @@ export function CamScannerCloudModal({
                 <button
                   type="button"
                   onClick={() => void fetchCloudDocs(keyword, docTypeFilter, searchScope)}
-                  disabled={loadingDocs}
+                  disabled={loadingDocs || syncingAllDocs}
                   style={{
                     display: "inline-flex",
                     alignItems: "center",
@@ -765,10 +843,112 @@ export function CamScannerCloudModal({
                     whiteSpace: "nowrap",
                   }}
                 >
-                  <RefreshCw size={13} className={loadingDocs ? "animate-spin" : ""} />
-                  <span>{loadingDocs ? "Đang tải..." : "Tìm / Làm mới"}</span>
+                  <RefreshCw size={13} className={loadingDocs || syncingAllDocs ? "animate-spin" : ""} />
+                  <span>
+                    {loadingDocs
+                      ? "Đang tải..."
+                      : syncingAllDocs
+                      ? `Đang tải đủ kho (${docs.length}+)...`
+                      : "Tìm / Làm mới"}
+                  </span>
                 </button>
               </div>
+
+              {/* Thanh lọc nhanh theo Thư mục trên CamScanner Cloud */}
+              {docs.length > 0 && (
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "6px",
+                    flexWrap: "wrap",
+                  }}
+                >
+                  <button
+                    type="button"
+                    onClick={() => setFolderFilter("__ALL__")}
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "5px",
+                      padding: "4px 10px",
+                      borderRadius: "999px",
+                      fontSize: "11.5px",
+                      fontWeight: 700,
+                      border: folderFilter === "__ALL__" ? "1px solid #0d9488" : "1px solid #cbd5e1",
+                      background: folderFilter === "__ALL__" ? "#f0fdfa" : "#ffffff",
+                      color: folderFilter === "__ALL__" ? "#0f766e" : "#475569",
+                      cursor: "pointer",
+                    }}
+                  >
+                    <span>Tất cả tài liệu ({docs.length})</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setFolderFilter("__ROOT__")}
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "5px",
+                      padding: "4px 10px",
+                      borderRadius: "999px",
+                      fontSize: "11.5px",
+                      fontWeight: 600,
+                      border: folderFilter === "__ROOT__" ? "1px solid #0d9488" : "1px solid #cbd5e1",
+                      background: folderFilter === "__ROOT__" ? "#f0fdfa" : "#ffffff",
+                      color: folderFilter === "__ROOT__" ? "#0f766e" : "#475569",
+                      cursor: "pointer",
+                    }}
+                  >
+                    <Folder size={12} />
+                    <span>Thư mục gốc ({folderStats.rootCount})</span>
+                  </button>
+
+                  {folderStats.folders.map((f) => (
+                    <button
+                      key={f.name}
+                      type="button"
+                      onClick={() => setFolderFilter(f.name)}
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: "5px",
+                        padding: "4px 10px",
+                        borderRadius: "999px",
+                        fontSize: "11.5px",
+                        fontWeight: 600,
+                        border: folderFilter === f.name ? "1px solid #0d9488" : "1px solid #cbd5e1",
+                        background: folderFilter === f.name ? "#f0fdfa" : "#ffffff",
+                        color: folderFilter === f.name ? "#0f766e" : "#475569",
+                        cursor: "pointer",
+                      }}
+                    >
+                      <Folder size={12} />
+                      <span>
+                        {f.name} ({f.count})
+                      </span>
+                    </button>
+                  ))}
+
+                  {syncingAllDocs && (
+                    <span
+                      style={{
+                        marginLeft: "auto",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: "5px",
+                        fontSize: "11.5px",
+                        fontWeight: 600,
+                        color: "#0f766e",
+                      }}
+                    >
+                      <Loader2 size={12} className="animate-spin" />
+                      <span>Đang tải toàn bộ lịch sử kho CamScanner...</span>
+                    </span>
+                  )}
+                </div>
+              )}
 
               {searchError && (
                 <div
@@ -806,13 +986,13 @@ export function CamScannerCloudModal({
                       Đang đồng bộ danh sách bản scan từ CamScanner Cloud...
                     </div>
                   </div>
-                ) : docs.length === 0 ? (
+                ) : filteredDocs.length === 0 ? (
                   <div style={{ padding: "36px 20px", textAlign: "center", color: "#64748b" }}>
                     <div style={{ fontWeight: 700, color: "#334155", marginBottom: "4px" }}>
                       Không tìm thấy bản scan nào khớp với bộ lọc
                     </div>
                     <div style={{ fontSize: "12.5px" }}>
-                      Hãy đảm bảo ứng dụng CamScanner trên điện thoại đã đồng bộ (Sync) tài liệu lên Cloud, sau đó bấm <b>Tìm / Làm mới</b>.
+                      Hãy thử xóa từ khóa tìm kiếm, chọn tab <b>Tất cả tài liệu</b> hoặc bấm <b>Tìm / Làm mới</b>.
                     </div>
                   </div>
                 ) : (
@@ -853,7 +1033,7 @@ export function CamScannerCloudModal({
                         </tr>
                       </thead>
                       <tbody>
-                        {docs.map((doc, idx) => {
+                        {filteredDocs.map((doc, idx) => {
                           const isImporting = importingDocId === doc.cs_doc_id;
                           const docWebUrl = doc.doc_id || doc.display_key || "";
                           return (
@@ -1016,9 +1196,9 @@ export function CamScannerCloudModal({
         >
           <div>
             {authenticated
-              ? `Đang hiển thị ${docs.length} / ${totalDocs} tài liệu trên Cloud CamScanner${
-                  csUserId ? ` (ID: ${csUserId})` : ""
-                }`
+              ? `Đang hiển thị ${filteredDocs.length} / ${docs.length} tài liệu trên Cloud CamScanner${
+                  syncingAllDocs ? " (Đang tải tiếp các trang cũ...)" : ""
+                }${csUserId ? ` · ID: ${csUserId}` : ""}`
               : "Tích hợp trực tiếp qua giao thức CamScanner Cloud API"}
           </div>
           <button
