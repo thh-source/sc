@@ -349,8 +349,16 @@ export function HandoverManagement({
   // Danh sách các phòng ban thống nhất toàn web
   const handoverDepts = useMemo(() => {
     const set = new Set<string>(sysDepts);
+    paymentHandovers.forEach((h) => {
+      if (h.department?.trim() && h.department.trim() !== "Chưa chọn bộ phận") {
+        set.add(h.department.trim());
+      }
+    });
+    prs.forEach((pr) => {
+      if (pr.department?.trim()) set.add(pr.department.trim());
+    });
     return Array.from(set).filter(Boolean).sort((a, b) => a.localeCompare(b, "vi"));
-  }, [sysDepts]);
+  }, [sysDepts, paymentHandovers, prs]);
 
   const handoverItemSuggestions = useMemo(() => {
     const set = new Set<string>();

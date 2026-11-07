@@ -35,6 +35,7 @@ import { POList } from "./components/POList";
 import { PODetail } from "./components/PODetail";
 import { PRList } from "./components/PRList";
 import { PRScanPreviewModal } from "./components/PRScanPreviewModal";
+import { GlobalDatalistEnhancer } from "./components/GlobalDatalistEnhancer";
 import { compressUploadFile } from "./utils/compressUploadFile";
 import { KnowledgeBase, KnowledgeBaseDrawer } from "./components/KnowledgeBase";
 import { DocFlowLinks } from "./components/DocFlowLinks";
@@ -4741,6 +4742,9 @@ function ProcurementAppInner({
           onClose={() => setPreviewScanPR(null)}
         />
       )}
+
+      {/* Global Datalist Dropdown Enhancer (hiển thị đầy đủ danh sách khi xổ xuống kể cả khi ô đã có dữ liệu) */}
+      <GlobalDatalistEnhancer />
 
       {/* Floating Offline Sync Status Banner */}
       <OfflineSyncBanner

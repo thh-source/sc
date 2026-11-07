@@ -345,15 +345,15 @@ function SupplierColumnSearchCombobox({
 
   const filteredSuppliers = useMemo(() => {
     const q = (query || "").trim().toLowerCase();
-    if (!q) return suppliers.slice(0, 25);
-    return suppliers
-      .filter(
-        (s) =>
-          s.name.toLowerCase().includes(q) ||
-          (s.shortName && s.shortName.toLowerCase().includes(q)) ||
-          s.code.toLowerCase().includes(q)
-      )
-      .slice(0, 25);
+    if (!q) return suppliers;
+    const matched = suppliers.filter(
+      (s) =>
+        s.name.toLowerCase().includes(q) ||
+        (s.shortName && s.shortName.toLowerCase().includes(q)) ||
+        s.code.toLowerCase().includes(q)
+    );
+    const others = suppliers.filter((s) => !matched.includes(s));
+    return [...matched, ...others];
   }, [query, suppliers]);
 
   const handleSelect = (s: Supplier) => {
@@ -418,6 +418,7 @@ function SupplierColumnSearchCombobox({
             title="Gõ tìm hoặc chọn NCC từ danh bạ"
             onClick={(e) => {
               e.stopPropagation();
+              setQuery("");
               setIsOpen((prev) => !prev);
               if (!isOpen) inputRef.current?.focus();
             }}
@@ -555,15 +556,15 @@ function ProposalSupplierSearchCombobox({
 
   const filteredSuppliers = useMemo(() => {
     const q = (query || "").trim().toLowerCase();
-    if (!q) return suppliers.slice(0, 30);
-    return suppliers
-      .filter(
-        (s) =>
-          s.name.toLowerCase().includes(q) ||
-          (s.shortName && s.shortName.toLowerCase().includes(q)) ||
-          s.code.toLowerCase().includes(q)
-      )
-      .slice(0, 30);
+    if (!q) return suppliers;
+    const matched = suppliers.filter(
+      (s) =>
+        s.name.toLowerCase().includes(q) ||
+        (s.shortName && s.shortName.toLowerCase().includes(q)) ||
+        s.code.toLowerCase().includes(q)
+    );
+    const others = suppliers.filter((s) => !matched.includes(s));
+    return [...matched, ...others];
   }, [query, suppliers]);
 
   const handleChoose = (s: Supplier) => {
@@ -617,6 +618,7 @@ function ProposalSupplierSearchCombobox({
             title="Gõ tìm hoặc chọn NCC từ danh bạ"
             onClick={(e) => {
               e.stopPropagation();
+              setQuery("");
               setIsOpen((prev) => !prev);
               if (!isOpen) inputRef.current?.focus();
             }}
