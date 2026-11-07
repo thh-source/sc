@@ -57,6 +57,7 @@ export interface VaultItem {
   category: Exclude<VaultCategoryId, "all">;
   categoryLabel: string;
   fileName: string;
+  subLabel?: string;
   fileUrl: string;
   docCode: string;
   relatedInfo: string;
@@ -101,37 +102,83 @@ const CATEGORY_DEFS: {
   shortLabel: string;
   icon: React.ReactNode;
 }[] = [
-  { id: "all", label: "Tất cả tài liệu", shortLabel: "Tất cả", icon: <FolderOpen size={15} /> },
-  { id: "pr", label: "PR (Yêu cầu mua hàng)", shortLabel: "PR", icon: <FileText size={15} /> },
-  { id: "dnpd", label: "ĐNPD & Báo giá", shortLabel: "ĐNPD", icon: <CheckSquare size={15} /> },
-  { id: "po", label: "PO (Đơn đặt hàng)", shortLabel: "PO", icon: <Package size={15} /> },
-  { id: "contract", label: "Hợp đồng", shortLabel: "Hợp đồng", icon: <FileCheck size={15} /> },
-  { id: "invoice", label: "Hóa đơn GTGT", shortLabel: "Hóa đơn", icon: <Receipt size={15} /> },
-  { id: "handover", label: "BB bàn giao", shortLabel: "BB bàn giao", icon: <Truck size={15} /> },
-  { id: "payment", label: "ĐNTT (Thanh toán)", shortLabel: "ĐNTT", icon: <CreditCard size={15} /> },
+  { id: "all", label: "Tất cả tài liệu", shortLabel: "Tất cả", icon: <FolderOpen size={14} /> },
+  { id: "pr", label: "PR (Yêu cầu mua hàng)", shortLabel: "PR", icon: <FileText size={14} /> },
+  { id: "dnpd", label: "ĐNPD & Báo giá", shortLabel: "ĐNPD", icon: <CheckSquare size={14} /> },
+  { id: "po", label: "PO (Đơn đặt hàng)", shortLabel: "PO", icon: <Package size={14} /> },
+  { id: "contract", label: "Hợp đồng", shortLabel: "Hợp đồng", icon: <FileCheck size={14} /> },
+  { id: "invoice", label: "Hóa đơn GTGT", shortLabel: "Hóa đơn", icon: <Receipt size={14} /> },
+  { id: "handover", label: "BB bàn giao", shortLabel: "BB bàn giao", icon: <Truck size={14} /> },
+  { id: "payment", label: "ĐNTT (Thanh toán)", shortLabel: "ĐNTT", icon: <CreditCard size={14} /> },
 ];
+
+/**
+ * Trích xuất ngày PR từ pr.date, hoặc suy luận từ mã PR (VD: QC261106.1 -> 06/11/2026, RD20261026002 -> 26/10/2026, 2810WH -> 28/10/2026)
+ */
+function resolvePRDateStr(pr: PR): string {
+  const direct = (pr.date || (pr as any).createdDate || "").trim();
+  if (direct) return direct;
+
+  const num = (pr.number || "").trim();
+  // Pattern 1: DD.MM.YYYY hoặc DD.MM/YYYY (e.g. 10.02/2026/D, 10.03.2026 TĐSH)
+  const dmyMatch = num.match(/(\d{2})[\.\/\-](\d{2})[\.\/\-](20\d{2})/);
+  if (dmyMatch) {
+    return `${dmyMatch[1]}/${dmyMatch[2]}/${dmyMatch[3]}`;
+  }
+  // Pattern 2: YYYYMMDD (e.g. RD20261026002)
+  const ymd8 = num.match(/(20\d{2})(0[1-9]|1[0-2])(0[1-9]|[12]\d|3[01])/);
+  if (ymd8) {
+    return `${ymd8[3]}/${ymd8[2]}/${ymd8[1]}`;
+  }
+  // Pattern 3: YYMMDD (e.g. QC261106.1, QC260122.01)
+  const ymd6 = num.match(/(2[4-9])(0[1-9]|1[0-2])(0[1-9]|[12]\d|3[01])/);
+  if (ymd6) {
+    return `${ymd6[3]}/${ymd6[2]}/20${ymd6[1]}`;
+  }
+  // Pattern 4: DDMM trong năm 2026 (e.g. 2810WH, EM2710, EM 1910)
+  const dm4 = num.match(/(?:^|[^0-9])(0[1-9]|[12]\d|3[01])(0[1-9]|1[0-2])(?:[^0-9]|$)/);
+  if (dm4) {
+    return `${dm4[1]}/${dm4[2]}/2026`;
+  }
+  // Pattern 5: Timestamp ID
+  if (pr.id && pr.id > 1500000000000 && pr.id < 3000000000000) {
+    const d = new Date(pr.id);
+    const dd = String(d.getDate()).padStart(2, "0");
+    const mm = String(d.getMonth() + 1).padStart(2, "0");
+    return `${dd}/${mm}/${d.getFullYear()}`;
+  }
+  return "";
+}
 
 function parseDateToTimestamp(d?: string): number {
   if (!d) return 0;
   const trimmed = d.trim();
-  const iso = Date.parse(trimmed);
-  if (!isNaN(iso)) return iso;
-  const parts = trimmed.split(/[\/\-]/);
+  if (/^\d{4}-\d{2}-\d{2}/.test(trimmed)) {
+    const iso = Date.parse(trimmed);
+    if (!isNaN(iso)) return iso;
+  }
+  const parts = trimmed.split(/[\/\-\.]/);
   if (parts.length === 3) {
     if (parts[0].length === 4) {
       return new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2])).getTime() || 0;
     }
-    return new Date(Number(parts[2]), Number(parts[1]) - 1, Number(parts[0])).getTime() || 0;
+    const year = parts[2].length === 2 ? 2000 + Number(parts[2]) : Number(parts[2]);
+    return new Date(year, Number(parts[1]) - 1, Number(parts[0])).getTime() || 0;
   }
-  return 0;
+  const fallback = Date.parse(trimmed);
+  return isNaN(fallback) ? 0 : fallback;
 }
 
 function formatDateDisplay(d?: string): string {
   if (!d) return "—";
   const trimmed = d.trim();
+  if (!trimmed) return "—";
   if (/^\d{4}-\d{2}-\d{2}T/.test(trimmed)) {
     try {
-      return new Intl.DateTimeFormat("vi-VN").format(new Date(trimmed));
+      const dt = new Date(trimmed);
+      const dd = String(dt.getDate()).padStart(2, "0");
+      const mm = String(dt.getMonth() + 1).padStart(2, "0");
+      return `${dd}/${mm}/${dt.getFullYear()}`;
     } catch {
       return trimmed.slice(0, 10);
     }
@@ -139,6 +186,9 @@ function formatDateDisplay(d?: string): string {
   if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
     const [y, m, day] = trimmed.split("-");
     return `${day}/${m}/${y}`;
+  }
+  if (/^\d{2}\.\d{2}\.\d{4}$/.test(trimmed)) {
+    return trimmed.replace(/\./g, "/");
   }
   return trimmed;
 }
@@ -218,25 +268,27 @@ export function DataVault({
     const list: VaultItem[] = [];
     const seenUrls = new Set<string>();
 
-    // 1. Bản scan PR (từ prs[].scan_file_url)
+    // 1. Bản scan PR (từ prs[].scan_file_url) -> Lấy số PR làm tên PR luôn, lấy ngày từ pr.date
     prs.forEach((pr) => {
       if (!pr.scan_file_url) return;
       const url = pr.scan_file_url.trim();
       if (!url) return;
       seenUrls.add(url);
 
-      const urlFileName = decodeURIComponent(url.split("/").pop()?.split("?")[0] || "");
+      const prNumber = (pr.number || `PR-${pr.id}`).trim();
+      const prDate = resolvePRDateStr(pr);
+
       list.push({
         uid: `pr-scan-${pr.id}`,
         category: "pr",
         categoryLabel: "PR",
-        fileName: urlFileName || `Bản scan PR #${pr.number}`,
+        fileName: prNumber,
         fileUrl: url,
-        docCode: pr.number || `PR-${pr.id}`,
+        docCode: prNumber,
         relatedInfo: `${pr.items?.length || 0} mặt hàng`,
         partyOrDept: pr.department || "Chưa rõ bộ phận",
-        dateStr: pr.createdDate || "",
-        sortTime: parseDateToTimestamp(pr.createdDate) || pr.id,
+        dateStr: prDate,
+        sortTime: parseDateToTimestamp(prDate) || pr.id,
         note: pr.purpose || pr.note || "",
         route: { view: "compare", prId: pr.id },
       });
@@ -256,16 +308,21 @@ export function DataVault({
         const linkedDntt = pay.paymentRequestId
           ? paymentRequests.find((r) => r.id === pay.paymentRequestId)
           : undefined;
+        const displayTitle = invNo
+          ? `HĐ GTGT #${invNo} (PO: ${po.number})`
+          : pay.invoiceScanName || `Hóa đơn PO #${po.number}`;
 
         const item: VaultItem = {
           uid: `po-inv-${po.id}-${pay.id}`,
           category: "invoice",
           categoryLabel: "Hóa đơn",
-          fileName:
-            pay.invoiceScanName ||
-            (invNo ? `Hóa đơn GTGT #${invNo}` : `Hóa đơn PO #${po.number}`),
+          fileName: displayTitle,
+          subLabel:
+            pay.invoiceScanName && pay.invoiceScanName !== displayTitle
+              ? pay.invoiceScanName
+              : undefined,
           fileUrl: url,
-          docCode: invNo ? `HĐ: ${invNo}` : `PO: ${po.number}`,
+          docCode: invNo ? `HĐ ${invNo}` : `PO ${po.number}`,
           relatedInfo: [
             `PO: ${po.number}`,
             linkedDntt ? `ĐNTT #${linkedDntt.legacy_stt || linkedDntt.id}` : "",
@@ -287,19 +344,25 @@ export function DataVault({
     // 3. Bản scan Hóa đơn GTGT từ Đề nghị thanh toán (paymentRequests)
     paymentRequests.forEach((req) => {
       const topUrl = (req.invoice_scan_url || "").trim();
+      const dnttNo = req.legacy_stt || req.id;
       if (topUrl && !invoiceByUrl.has(topUrl)) {
         const invNo = (req.invoice_no || "").trim();
+        const displayTitle = invNo
+          ? `HĐ GTGT #${invNo} (ĐNTT #${dnttNo})`
+          : req.invoice_scan_name || `Hóa đơn ĐNTT #${dnttNo}`;
         invoiceByUrl.set(topUrl, {
           uid: `dntt-inv-${req.id}`,
           category: "invoice",
           categoryLabel: "Hóa đơn",
-          fileName:
-            req.invoice_scan_name ||
-            (invNo ? `Hóa đơn GTGT #${invNo}` : `Hóa đơn ĐNTT #${req.legacy_stt || req.id}`),
+          fileName: displayTitle,
+          subLabel:
+            req.invoice_scan_name && req.invoice_scan_name !== displayTitle
+              ? req.invoice_scan_name
+              : undefined,
           fileUrl: topUrl,
-          docCode: invNo ? `HĐ: ${invNo}` : `ĐNTT #${req.legacy_stt || req.id}`,
+          docCode: invNo ? `HĐ ${invNo}` : `ĐNTT #${dnttNo}`,
           relatedInfo: [
-            `ĐNTT #${req.legacy_stt || req.id}`,
+            `ĐNTT #${dnttNo}`,
             req.group_code ? `PO/HĐ: ${req.group_code}` : "",
           ]
             .filter(Boolean)
@@ -317,16 +380,21 @@ export function DataVault({
         const lineUrl = (line.invoice_scan_url || "").trim();
         if (!lineUrl || invoiceByUrl.has(lineUrl)) return;
         const invNo = (line.invoice_no || req.invoice_no || "").trim();
+        const displayTitle = invNo
+          ? `HĐ GTGT #${invNo} (ĐNTT #${dnttNo})`
+          : line.invoice_scan_name || `Hóa đơn ĐNTT #${dnttNo}`;
         invoiceByUrl.set(lineUrl, {
           uid: `dntt-line-inv-${req.id}-${lIdx}`,
           category: "invoice",
           categoryLabel: "Hóa đơn",
-          fileName:
-            line.invoice_scan_name ||
-            (invNo ? `Hóa đơn GTGT #${invNo}` : `Hóa đơn ĐNTT #${req.legacy_stt || req.id}`),
+          fileName: displayTitle,
+          subLabel:
+            line.invoice_scan_name && line.invoice_scan_name !== displayTitle
+              ? line.invoice_scan_name
+              : undefined,
           fileUrl: lineUrl,
-          docCode: invNo ? `HĐ: ${invNo}` : `ĐNTT #${req.legacy_stt || req.id}`,
-          relatedInfo: `ĐNTT #${req.legacy_stt || req.id}${req.group_code ? ` · ${req.group_code}` : ""}`,
+          docCode: invNo ? `HĐ ${invNo}` : `ĐNTT #${dnttNo}`,
+          relatedInfo: `ĐNTT #${dnttNo}${req.group_code ? ` · ${req.group_code}` : ""}`,
           partyOrDept: req.payee_name || "Chưa rõ đơn vị",
           dateStr: line.invoice_date || req.invoice_date || req.request_date || "",
           sortTime:
@@ -362,19 +430,22 @@ export function DataVault({
       seenUrls.add(url);
       const srcNum = (first.source_number || "").trim();
       const srcType = (first.source_type || (srcNum ? "PO" : "")).trim();
+      const displayTitle = srcNum
+        ? `BB bàn giao ${srcType} #${srcNum}`
+        : first.handover_scan_name || `BB bàn giao (${first.department || "Vật tư"})`;
       list.push({
         uid: `handover-scan-${maxId}`,
         category: "handover",
         categoryLabel: "BB bàn giao",
-        fileName:
-          first.handover_scan_name ||
-          (srcNum
-            ? `Biên bản bàn giao ${srcType} #${srcNum}`
-            : `Biên bản bàn giao (${first.department || "Vật tư"})`),
+        fileName: displayTitle,
+        subLabel:
+          first.handover_scan_name && first.handover_scan_name !== displayTitle
+            ? first.handover_scan_name
+            : undefined,
         fileUrl: url,
-        docCode: srcNum ? `${srcType}: ${srcNum}` : `Đợt BG #${maxId}`,
+        docCode: srcNum ? `${srcType} ${srcNum}` : `Đợt BG #${maxId}`,
         relatedInfo: `${count} mặt hàng bàn giao`,
-        partyOrDept: `Nhận: ${first.department || "Chưa rõ"}${
+        partyOrDept: `${first.department || "Chưa rõ"}${
           first.receiver_name ? ` (${first.receiver_name})` : ""
         }`,
         dateStr: first.handover_date || "",
@@ -411,19 +482,22 @@ export function DataVault({
         categoryLabel = "ĐNTT";
       } else if (docType === "Báo giá" || entType === "dnpd" || entType === "quote") {
         category = "dnpd";
-        categoryLabel = docType || "ĐNPD / Báo giá";
+        categoryLabel = docType || "ĐNPD";
       } else if (entType === "pr") {
         category = "pr";
         categoryLabel = "PR";
       } else {
         category = "po";
-        categoryLabel = docType || "Hồ sơ PO";
+        categoryLabel = docType || "PO";
       }
 
       // Tra cứu thông tin chứng từ gốc
-      let docCode = f.entityId && f.entityId !== "0" ? f.entityId : "Tải trực tiếp";
+      let docCode = f.entityId && f.entityId !== "0" ? f.entityId : "";
+      let displayTitle = f.fileName || docCode || "Tài liệu";
+      let subLabel: string | undefined;
       let partyOrDept = "—";
       let relatedInfo = docType || "";
+      let resolvedDate = f.uploadedAt || "";
       let route: AppRoute | undefined;
 
       if (entType === "pr") {
@@ -431,9 +505,14 @@ export function DataVault({
           (p) => String(p.id) === String(f.entityId) || p.number === f.entityId
         );
         if (matchedPR) {
-          docCode = `PR: ${matchedPR.number}`;
+          docCode = matchedPR.number;
+          displayTitle = matchedPR.number;
+          if (f.fileName && f.fileName !== matchedPR.number) {
+            subLabel = f.fileName;
+          }
           partyOrDept = matchedPR.department || "—";
-          relatedInfo = matchedPR.purpose || `${matchedPR.items?.length || 0} mặt hàng`;
+          relatedInfo = `${matchedPR.items?.length || 0} mặt hàng`;
+          resolvedDate = resolvePRDateStr(matchedPR) || f.uploadedAt || "";
           route = { view: "compare", prId: matchedPR.id };
         }
       } else if (entType === "po" || entType === "contract") {
@@ -441,16 +520,18 @@ export function DataVault({
           (p) =>
             String(p.id) === String(f.entityId) ||
             p.number === f.entityId ||
-            p.contractNumber === f.entityId
+            (p as any).contractNumber === f.entityId
         );
         if (matchedPO) {
           const sup = supplierMap.get(Number(matchedPO.supplierId));
-          docCode =
-            category === "contract" && matchedPO.contractNumber
-              ? `HĐ: ${matchedPO.contractNumber}`
-              : `PO: ${matchedPO.number}`;
+          docCode = matchedPO.number;
+          displayTitle =
+            f.fileName && f.fileName !== "upload-scan"
+              ? `${matchedPO.number} · ${f.fileName}`
+              : matchedPO.number;
           partyOrDept = sup?.name || "—";
           relatedInfo = `PO #${matchedPO.number}`;
+          resolvedDate = matchedPO.createdDate || f.uploadedAt || "";
           route = {
             view: category === "contract" ? "contracts" : "po-detail",
             id: matchedPO.id,
@@ -461,8 +542,10 @@ export function DataVault({
           (a) => String(a.id) === String(f.entityId) || a.number === f.entityId
         );
         if (matchedApp) {
-          docCode = `ĐNPD: ${matchedApp.number}`;
+          docCode = matchedApp.number;
+          displayTitle = `${matchedApp.number} · ${f.fileName}`;
           partyOrDept = matchedApp.department || "—";
+          resolvedDate = matchedApp.createdDate || f.uploadedAt || "";
           route = { view: "approval", id: matchedApp.id };
         }
       } else if (entType === "payment") {
@@ -473,22 +556,27 @@ export function DataVault({
         );
         if (matchedReq) {
           docCode = `ĐNTT #${matchedReq.legacy_stt || matchedReq.id}`;
+          displayTitle = `${docCode} · ${f.fileName}`;
           partyOrDept = matchedReq.payee_name || "—";
+          resolvedDate = matchedReq.request_date || f.uploadedAt || "";
           route = { view: "payment", id: matchedReq.id };
         }
+      } else if (docCode && docCode !== "KHO_DU_LIEU" && !displayTitle.includes(docCode)) {
+        displayTitle = `${docCode} · ${displayTitle}`;
       }
 
       list.push({
         uid: `r2-file-${f.id}`,
         category,
         categoryLabel,
-        fileName: f.fileName,
+        fileName: displayTitle,
+        subLabel,
         fileUrl,
-        docCode,
+        docCode: docCode || displayTitle,
         relatedInfo,
         partyOrDept,
-        dateStr: f.uploadedAt || "",
-        sortTime: parseDateToTimestamp(f.uploadedAt),
+        dateStr: resolvedDate,
+        sortTime: parseDateToTimestamp(resolvedDate) || Date.now(),
         note: f.note || "",
         sizeBytes: f.size,
         r2FileId: f.id,
@@ -527,6 +615,7 @@ export function DataVault({
       if (!q) return true;
       const haystack = [
         item.fileName,
+        item.subLabel || "",
         item.docCode,
         item.relatedInfo,
         item.partyOrDept,
@@ -546,14 +635,14 @@ export function DataVault({
       const shareUrl = await createScanShareUrl({
         scanUrl: item.fileUrl,
         fileName: item.fileName,
-        entityCode: item.docCode || "TAI_LIEU",
+        entityCode: item.docCode || item.fileName || "TAI_LIEU",
         entityType: item.category,
       });
       setShareState({
         isOpen: true,
         shareUrl,
         fileName: item.fileName,
-        entityCode: item.docCode || "TAI_LIEU",
+        entityCode: item.docCode || item.fileName || "TAI_LIEU",
       });
     } catch (err: any) {
       alert(err?.message || "Không thể tạo link chia sẻ tài liệu");
@@ -637,236 +726,333 @@ export function DataVault({
 
   return (
     <section
-      className="content"
+      className="content vault-page"
       style={{
         padding: isMobile ? "12px 10px 80px" : "18px 24px 40px",
         display: "flex",
         flexDirection: "column",
-        gap: "16px",
+        gap: "14px",
       }}
     >
-      {/* Header Kho dữ liệu */}
+      <style>{`
+        .vault-page .vault-header-btn {
+          display: inline-flex !important;
+          align-items: center !important;
+          justify-content: center !important;
+          gap: 6px !important;
+          height: 36px !important;
+          padding: 0 14px !important;
+          font-size: 12.5px !important;
+          font-weight: 600 !important;
+          border-radius: 8px !important;
+          border: 1px solid #cbd5e1 !important;
+          background: #ffffff !important;
+          color: #1e293b !important;
+          cursor: pointer !important;
+          white-space: nowrap !important;
+          transition: all 0.15s ease !important;
+          box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04) !important;
+        }
+        .vault-page .vault-header-btn:hover {
+          background: #f8fafc !important;
+          border-color: #94a3b8 !important;
+        }
+        .vault-page .vault-header-btn.vault-btn-upload {
+          background: #eff6ff !important;
+          border-color: #93c5fd !important;
+          color: #1d4ed8 !important;
+          font-weight: 700 !important;
+        }
+        .vault-page .vault-header-btn.vault-btn-upload:hover {
+          background: #dbeafe !important;
+          border-color: #60a5fa !important;
+        }
+        .vault-page .vault-tab-btn {
+          display: inline-flex !important;
+          align-items: center !important;
+          gap: 6px !important;
+          height: 34px !important;
+          padding: 0 12px !important;
+          border-radius: 8px !important;
+          border: 1px solid #e2e8f0 !important;
+          background: #f8fafc !important;
+          color: #475569 !important;
+          font-size: 12.5px !important;
+          font-weight: 600 !important;
+          cursor: pointer !important;
+          white-space: nowrap !important;
+          transition: all 0.15s ease !important;
+        }
+        .vault-page .vault-tab-btn:hover {
+          background: #f1f5f9 !important;
+          color: #0f172a !important;
+          border-color: #cbd5e1 !important;
+        }
+        .vault-page .vault-tab-btn.active {
+          background: #eff6ff !important;
+          border-color: #3b82f6 !important;
+          color: #1d4ed8 !important;
+          font-weight: 700 !important;
+          box-shadow: 0 1px 2px rgba(37, 99, 235, 0.08) !important;
+        }
+        .vault-page .vault-doc-link {
+          display: inline-flex !important;
+          align-items: center !important;
+          gap: 7px !important;
+          background: transparent !important;
+          border: none !important;
+          padding: 2px 0 !important;
+          color: #0f172a !important;
+          font-size: 13.5px !important;
+          font-weight: 700 !important;
+          cursor: pointer !important;
+          text-align: left !important;
+          transition: color 0.15s ease !important;
+        }
+        .vault-page .vault-doc-link:hover {
+          color: #0284c7 !important;
+        }
+        .vault-page .vault-actions-row {
+          display: inline-flex !important;
+          align-items: center !important;
+          justify-content: center !important;
+          gap: 5px !important;
+          flex-wrap: nowrap !important;
+          white-space: nowrap !important;
+        }
+        .vault-page .vault-action-btn {
+          display: inline-flex !important;
+          align-items: center !important;
+          justify-content: center !important;
+          gap: 4px !important;
+          height: 28px !important;
+          padding: 0 9px !important;
+          font-size: 11.5px !important;
+          font-weight: 600 !important;
+          border-radius: 6px !important;
+          border: 1px solid #cbd5e1 !important;
+          background: #ffffff !important;
+          color: #334155 !important;
+          cursor: pointer !important;
+          white-space: nowrap !important;
+          text-decoration: none !important;
+          transition: all 0.12s ease !important;
+          box-shadow: 0 1px 1px rgba(15, 23, 42, 0.03) !important;
+        }
+        .vault-page .vault-action-btn:hover {
+          background: #f1f5f9 !important;
+          border-color: #94a3b8 !important;
+          color: #0f172a !important;
+        }
+        .vault-page .vault-action-btn.btn-view {
+          background: #f0f9ff !important;
+          border-color: #bae6fd !important;
+          color: #0369a1 !important;
+          font-weight: 700 !important;
+        }
+        .vault-page .vault-action-btn.btn-view:hover {
+          background: #e0f2fe !important;
+          border-color: #7dd3fc !important;
+        }
+        .vault-page .vault-action-btn.btn-open-doc {
+          background: #f8fafc !important;
+          border-color: #cbd5e1 !important;
+          color: #475569 !important;
+        }
+        .vault-page .vault-action-btn.btn-open-doc:hover {
+          background: #eff6ff !important;
+          border-color: #93c5fd !important;
+          color: #1d4ed8 !important;
+        }
+        .vault-page .vault-table tbody tr:hover {
+          background: #f8fafc !important;
+        }
+      `}</style>
+
+      {/* Header & Thanh công cụ gộp gọn gàng */}
       <div
         style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          gap: "12px",
-          flexWrap: "wrap",
           background: "#ffffff",
-          padding: "16px 20px",
+          border: "1px solid #cbd5e1",
           borderRadius: "12px",
-          border: "1px solid #cbd5e1",
-        }}
-      >
-        <div>
-          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-            <FolderOpen size={22} style={{ color: "#0f172a" }} />
-            <h1 style={{ margin: 0, fontSize: "20px", fontWeight: 800, color: "#0f172a" }}>
-              Kho dữ liệu & Chứng từ số hóa
-            </h1>
-            <span
-              style={{
-                fontSize: "12px",
-                fontWeight: 700,
-                padding: "2px 10px",
-                borderRadius: "999px",
-                background: "#f1f5f9",
-                color: "#0f172a",
-                border: "1px solid #cbd5e1",
-              }}
-            >
-              {allVaultItems.length} tài liệu
-            </span>
-          </div>
-          <p style={{ margin: "4px 0 0", fontSize: "13px", color: "#475569" }}>
-            Tổng hợp toàn bộ bản scan và file đính kèm từ PR, ĐNPD, PO, Hợp đồng, Hóa đơn GTGT, Biên bản bàn giao và ĐNTT. Bấm vào từng tài liệu để xem trực tiếp, in hoặc chia sẻ.
-          </p>
-        </div>
-
-        <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
-          <button
-            type="button"
-            onClick={() => void loadR2Files()}
-            disabled={loadingFiles}
-            title="Làm mới danh sách tài liệu"
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "6px",
-              padding: "8px 12px",
-              fontSize: "12.5px",
-              fontWeight: 600,
-              borderRadius: "8px",
-              border: "1px solid #cbd5e1",
-              background: "#ffffff",
-              color: "#0f172a",
-              cursor: "pointer",
-            }}
-          >
-            <RefreshCw size={14} className={loadingFiles ? "animate-spin" : ""} />
-            <span>Làm mới</span>
-          </button>
-
-          {!readOnly && (
-            <button
-              type="button"
-              onClick={() => setUploadModalOpen(true)}
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "6px",
-                padding: "8px 14px",
-                fontSize: "12.5px",
-                fontWeight: 700,
-                borderRadius: "8px",
-                border: "1px solid #0f172a",
-                background: "#0f172a",
-                color: "#ffffff",
-                cursor: "pointer",
-              }}
-            >
-              <Upload size={14} />
-              <span>+ Tải tài liệu lên kho</span>
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* Bộ lọc Phân loại theo từng mục (Category Tabs) */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: isMobile
-            ? "repeat(2, 1fr)"
-            : "repeat(auto-fit, minmax(145px, 1fr))",
-          gap: "8px",
-        }}
-      >
-        {CATEGORY_DEFS.map((cat) => {
-          const isActive = activeCategory === cat.id;
-          const count = categoryCounts[cat.id] || 0;
-          return (
-            <button
-              key={cat.id}
-              type="button"
-              onClick={() => setActiveCategory(cat.id)}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                gap: "8px",
-                padding: "10px 12px",
-                borderRadius: "10px",
-                border: isActive ? "2px solid #0f172a" : "1px solid #cbd5e1",
-                background: isActive ? "#0f172a" : "#ffffff",
-                color: isActive ? "#ffffff" : "#0f172a",
-                cursor: "pointer",
-                textAlign: "left",
-                transition: "all 0.15s ease",
-              }}
-            >
-              <div style={{ display: "flex", alignItems: "center", gap: "7px", minWidth: 0 }}>
-                <span style={{ display: "inline-flex", flexShrink: 0 }}>{cat.icon}</span>
-                <span
-                  style={{
-                    fontSize: "12.5px",
-                    fontWeight: 700,
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  {cat.shortLabel}
-                </span>
-              </div>
-              <span
-                style={{
-                  fontSize: "11.5px",
-                  fontWeight: 800,
-                  padding: "2px 7px",
-                  borderRadius: "999px",
-                  background: isActive ? "#ffffff" : "#f1f5f9",
-                  color: "#0f172a",
-                  flexShrink: 0,
-                }}
-              >
-                {count}
-              </span>
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Thanh tìm kiếm & Bộ lọc nhanh */}
-      <div
-        style={{
+          padding: "16px 20px",
           display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          gap: "12px",
-          flexWrap: "wrap",
-          background: "#ffffff",
-          padding: "10px 14px",
-          borderRadius: "10px",
-          border: "1px solid #cbd5e1",
+          flexDirection: "column",
+          gap: "14px",
+          boxShadow: "0 1px 3px rgba(15, 23, 42, 0.03)",
         }}
       >
+        {/* Hàng 1: Tiêu đề + Nút tải lên / Làm mới */}
         <div
           style={{
             display: "flex",
             alignItems: "center",
-            gap: "8px",
-            flex: 1,
-            minWidth: "240px",
+            justifyContent: "space-between",
+            gap: "12px",
+            flexWrap: "wrap",
           }}
         >
-          <Search size={16} style={{ color: "#64748b", flexShrink: 0 }} />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Tìm theo tên file, số PR, số PO, số Hóa đơn, Hợp đồng, Nhà cung cấp, Bộ phận..."
-            style={{
-              width: "100%",
-              border: "none",
-              outline: "none",
-              fontSize: "13px",
-              color: "#0f172a",
-              background: "transparent",
-            }}
-          />
-          {searchQuery && (
+          <div>
+            <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+              <FolderOpen size={20} style={{ color: "#0284c7" }} />
+              <h1 style={{ margin: 0, fontSize: "18px", fontWeight: 800, color: "#0f172a" }}>
+                Kho dữ liệu & Chứng từ số hóa
+              </h1>
+              <span
+                style={{
+                  fontSize: "11.5px",
+                  fontWeight: 700,
+                  padding: "2px 9px",
+                  borderRadius: "999px",
+                  background: "#f1f5f9",
+                  color: "#334155",
+                  border: "1px solid #cbd5e1",
+                }}
+              >
+                {allVaultItems.length} tài liệu
+              </span>
+            </div>
+            <p style={{ margin: "3px 0 0", fontSize: "12.5px", color: "#64748b" }}>
+              Tập trung toàn bộ bản scan PR, ĐNPD, PO, Hợp đồng, Hóa đơn GTGT, Biên bản bàn giao và ĐNTT. Click vào tên chứng từ để xem nhanh.
+            </p>
+          </div>
+
+          <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "nowrap" }}>
             <button
               type="button"
-              onClick={() => setSearchQuery("")}
-              style={{
-                border: "none",
-                background: "#f1f5f9",
-                color: "#475569",
-                borderRadius: "4px",
-                padding: "2px 6px",
-                fontSize: "11px",
-                cursor: "pointer",
-              }}
+              className="vault-header-btn"
+              onClick={() => void loadR2Files()}
+              disabled={loadingFiles}
+              title="Làm mới danh sách tài liệu"
             >
-              Xóa lọc
+              <RefreshCw size={14} className={loadingFiles ? "animate-spin" : ""} />
+              <span>Làm mới</span>
             </button>
-          )}
+
+            {!readOnly && (
+              <button
+                type="button"
+                className="vault-header-btn vault-btn-upload"
+                onClick={() => setUploadModalOpen(true)}
+              >
+                <Upload size={14} />
+                <span>+ Tải tài liệu lên kho</span>
+              </button>
+            )}
+          </div>
         </div>
 
-        <div style={{ fontSize: "12px", color: "#475569", fontWeight: 600 }}>
-          Đang hiển thị: <b>{filteredItems.length}</b> / {allVaultItems.length} tài liệu
+        {/* Hàng 2: Các tab phân loại (1 dòng gọn gàng) + Ô tìm kiếm */}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: "12px",
+            flexWrap: "wrap",
+            paddingTop: "12px",
+            borderTop: "1px solid #f1f5f9",
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "6px",
+              flexWrap: "wrap",
+            }}
+          >
+            {CATEGORY_DEFS.map((cat) => {
+              const isActive = activeCategory === cat.id;
+              const count = categoryCounts[cat.id] || 0;
+              return (
+                <button
+                  key={cat.id}
+                  type="button"
+                  className={`vault-tab-btn ${isActive ? "active" : ""}`}
+                  onClick={() => setActiveCategory(cat.id)}
+                >
+                  {cat.icon}
+                  <span>{cat.shortLabel}</span>
+                  <span
+                    style={{
+                      fontSize: "11px",
+                      fontWeight: 700,
+                      padding: "1px 6px",
+                      borderRadius: "999px",
+                      background: isActive ? "#dbeafe" : "#e2e8f0",
+                      color: isActive ? "#1e40af" : "#475569",
+                    }}
+                  >
+                    {count}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Ô tìm kiếm */}
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+              flex: "1 1 280px",
+              maxWidth: isMobile ? "100%" : "420px",
+              background: "#f8fafc",
+              border: "1px solid #cbd5e1",
+              borderRadius: "8px",
+              padding: "0 10px",
+              height: "34px",
+            }}
+          >
+            <Search size={15} style={{ color: "#64748b", flexShrink: 0 }} />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Tìm số PR, PO, Hóa đơn, Hợp đồng, Nhà cung cấp, Bộ phận..."
+              style={{
+                width: "100%",
+                border: "none",
+                outline: "none",
+                fontSize: "12.5px",
+                color: "#0f172a",
+                background: "transparent",
+                padding: 0,
+              }}
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery("")}
+                style={{
+                  border: "none",
+                  background: "#e2e8f0",
+                  color: "#334155",
+                  borderRadius: "4px",
+                  padding: "1px 6px",
+                  fontSize: "11px",
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                Xóa
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
-      {/* Danh sách tài liệu (Table View trên máy tính / Card List trên điện thoại) */}
+      {/* Bảng danh sách tài liệu */}
       <div
         style={{
           background: "#ffffff",
           border: "1px solid #cbd5e1",
           borderRadius: "12px",
           overflow: "hidden",
+          boxShadow: "0 1px 3px rgba(15, 23, 42, 0.03)",
         }}
       >
         {filteredItems.length === 0 ? (
@@ -889,35 +1075,41 @@ export function DataVault({
         ) : (
           <div style={{ overflowX: "auto" }}>
             <table
+              className="vault-table"
               style={{
                 width: "100%",
                 borderCollapse: "collapse",
-                fontSize: "12.5px",
+                fontSize: "13px",
               }}
             >
               <thead>
                 <tr
                   style={{
                     background: "#f8fafc",
-                    borderBottom: "2px solid #cbd5e1",
-                    color: "#0f172a",
+                    borderBottom: "1px solid #cbd5e1",
+                    color: "#334155",
+                    fontSize: "12px",
+                    fontWeight: 700,
                     textAlign: "left",
                   }}
                 >
-                  <th style={{ padding: "10px 8px", width: "44px", textAlign: "center" }}>STT</th>
-                  <th style={{ padding: "10px 10px", width: "115px" }}>Phân loại</th>
-                  <th style={{ padding: "10px 10px", minWidth: "230px" }}>
-                    Tên tài liệu / Bản scan (Click để xem)
+                  <th style={{ padding: "11px 10px", width: "48px", textAlign: "center" }}>STT</th>
+                  <th style={{ padding: "11px 10px", width: "100px", textAlign: "center" }}>
+                    Phân loại
                   </th>
-                  <th style={{ padding: "10px 10px", width: "165px" }}>Mã chứng từ</th>
-                  <th style={{ padding: "10px 10px", minWidth: "180px" }}>
-                    Nhà cung cấp / Bộ phận
+                  <th style={{ padding: "11px 12px", minWidth: "200px" }}>
+                    Tên PR / Chứng từ (Click để xem)
                   </th>
-                  <th style={{ padding: "10px 10px", width: "105px", textAlign: "center" }}>
+                  <th style={{ padding: "11px 12px", minWidth: "150px" }}>
+                    Bộ phận / Nhà cung cấp
+                  </th>
+                  <th style={{ padding: "11px 10px", width: "115px", textAlign: "center" }}>
                     Ngày
                   </th>
-                  <th style={{ padding: "10px 10px", minWidth: "160px" }}>Ghi chú / Liên kết</th>
-                  <th style={{ padding: "10px 10px", width: "210px", textAlign: "center" }}>
+                  <th style={{ padding: "11px 12px", minWidth: "220px" }}>
+                    Nội dung / Ghi chú
+                  </th>
+                  <th style={{ padding: "11px 12px", width: "290px", textAlign: "center" }}>
                     Thao tác
                   </th>
                 </tr>
@@ -931,9 +1123,10 @@ export function DataVault({
                       background: idx % 2 === 0 ? "#ffffff" : "#fcfdfe",
                     }}
                   >
+                    {/* STT */}
                     <td
                       style={{
-                        padding: "10px 8px",
+                        padding: "10px",
                         textAlign: "center",
                         fontWeight: 600,
                         color: "#64748b",
@@ -942,19 +1135,20 @@ export function DataVault({
                       {idx + 1}
                     </td>
 
-                    <td style={{ padding: "10px" }}>
+                    {/* Phân loại */}
+                    <td style={{ padding: "10px", textAlign: "center" }}>
                       <span
                         style={{
                           display: "inline-flex",
                           alignItems: "center",
-                          gap: "4px",
-                          padding: "3px 8px",
+                          justifyContent: "center",
+                          padding: "3px 9px",
                           borderRadius: "6px",
                           fontSize: "11.5px",
                           fontWeight: 700,
                           border: "1px solid #cbd5e1",
                           background: "#f8fafc",
-                          color: "#0f172a",
+                          color: "#1e293b",
                           whiteSpace: "nowrap",
                         }}
                       >
@@ -962,164 +1156,91 @@ export function DataVault({
                       </span>
                     </td>
 
-                    <td style={{ padding: "10px" }}>
+                    {/* Tên PR / Chứng từ (Click để xem trực tiếp) */}
+                    <td style={{ padding: "10px 12px" }}>
                       <button
                         type="button"
+                        className="vault-doc-link"
                         onClick={() => setPreviewItem(item)}
-                        title="Bấm để mở xem trực tiếp tài liệu này"
-                        style={{
-                          background: "none",
-                          border: "none",
-                          padding: 0,
-                          textAlign: "left",
-                          cursor: "pointer",
-                          color: "#0f172a",
-                          fontWeight: 700,
-                          fontSize: "13px",
-                          display: "flex",
-                          alignItems: "center",
-                          gap: "6px",
-                          textDecoration: "underline",
-                          textUnderlineOffset: "3px",
-                        }}
+                        title="Bấm để mở xem trực tiếp bản scan / tài liệu này"
                       >
-                        <FileText size={15} style={{ flexShrink: 0, color: "#334155" }} />
+                        <FileText size={15} style={{ flexShrink: 0, color: "#0284c7" }} />
                         <span style={{ wordBreak: "break-word" }}>{item.fileName}</span>
                       </button>
-                      {item.sizeBytes ? (
-                        <div style={{ fontSize: "11px", color: "#64748b", marginTop: "2px" }}>
-                          Dung lượng: {formatFileSize(item.sizeBytes)}
+                      {(item.subLabel || item.sizeBytes) && (
+                        <div style={{ fontSize: "11px", color: "#64748b", marginTop: "2px", paddingLeft: "22px" }}>
+                          {item.subLabel ? `${item.subLabel}` : ""}
+                          {item.subLabel && item.sizeBytes ? " · " : ""}
+                          {item.sizeBytes ? formatFileSize(item.sizeBytes) : ""}
                         </div>
-                      ) : null}
+                      )}
                     </td>
 
-                    <td style={{ padding: "10px" }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
-                        <span style={{ fontWeight: 700, color: "#0f172a" }}>{item.docCode}</span>
-                        {item.route && (
-                          <button
-                            type="button"
-                            onClick={() => navigateTo(item.route!)}
-                            title="Mở chứng từ gốc trong hệ thống"
-                            style={{
-                              display: "inline-flex",
-                              alignItems: "center",
-                              gap: "3px",
-                              padding: "2px 6px",
-                              fontSize: "11px",
-                              fontWeight: 600,
-                              borderRadius: "4px",
-                              border: "1px solid #cbd5e1",
-                              background: "#ffffff",
-                              color: "#334155",
-                              cursor: "pointer",
-                            }}
-                          >
-                            <ExternalLink size={11} /> Mở phiếu
-                          </button>
-                        )}
-                      </div>
-                    </td>
-
-                    <td style={{ padding: "10px", color: "#1e293b", fontWeight: 600 }}>
+                    {/* Bộ phận / Nhà cung cấp */}
+                    <td style={{ padding: "10px 12px", color: "#1e293b", fontWeight: 600 }}>
                       {item.partyOrDept || "—"}
                     </td>
 
+                    {/* Ngày */}
                     <td
                       style={{
                         padding: "10px",
                         textAlign: "center",
-                        color: "#334155",
+                        color: "#1e293b",
+                        fontWeight: 600,
                         whiteSpace: "nowrap",
                       }}
                     >
                       {formatDateDisplay(item.dateStr)}
                     </td>
 
-                    <td style={{ padding: "10px", color: "#475569" }}>
-                      {item.relatedInfo && (
-                        <div style={{ fontWeight: 600, color: "#334155", fontSize: "11.5px" }}>
-                          {item.relatedInfo}
-                        </div>
-                      )}
-                      {item.note && (
-                        <div style={{ fontSize: "11.5px", color: "#64748b" }}>{item.note}</div>
-                      )}
-                      {!item.relatedInfo && !item.note && "—"}
+                    {/* Nội dung / Ghi chú */}
+                    <td style={{ padding: "10px 12px", color: "#475569" }}>
+                      <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                        {item.relatedInfo && (
+                          <span style={{ fontWeight: 600, color: "#1e293b", fontSize: "12px" }}>
+                            {item.relatedInfo}
+                          </span>
+                        )}
+                        {item.note && (
+                          <span style={{ fontSize: "12px", color: "#64748b" }}>{item.note}</span>
+                        )}
+                        {!item.relatedInfo && !item.note && "—"}
+                      </div>
                     </td>
 
-                    <td style={{ padding: "10px", textAlign: "center" }}>
-                      <div
-                        style={{
-                          display: "inline-flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          gap: "4px",
-                          flexWrap: "wrap",
-                        }}
-                      >
+                    {/* Thao tác: Tất cả nút nằm gọn trên 1 dòng duy nhất */}
+                    <td style={{ padding: "10px 12px", textAlign: "center", whiteSpace: "nowrap" }}>
+                      <div className="vault-actions-row">
                         <button
                           type="button"
+                          className="vault-action-btn btn-view"
                           onClick={() => setPreviewItem(item)}
-                          title="Xem trực tiếp tài liệu"
-                          style={{
-                            display: "inline-flex",
-                            alignItems: "center",
-                            gap: "4px",
-                            padding: "4px 8px",
-                            fontSize: "11.5px",
-                            fontWeight: 700,
-                            borderRadius: "5px",
-                            border: "1px solid #0f172a",
-                            background: "#0f172a",
-                            color: "#ffffff",
-                            cursor: "pointer",
-                          }}
+                          title="Xem trực tiếp bản scan"
                         >
-                          <Eye size={12} /> Xem
+                          <Eye size={13} />
+                          <span>Xem</span>
                         </button>
 
                         <button
                           type="button"
+                          className="vault-action-btn"
                           onClick={() => printScanFileUrl(item.fileUrl, item.fileName)}
                           title="In tài liệu này"
-                          style={{
-                            display: "inline-flex",
-                            alignItems: "center",
-                            gap: "3px",
-                            padding: "4px 7px",
-                            fontSize: "11.5px",
-                            fontWeight: 600,
-                            borderRadius: "5px",
-                            border: "1px solid #cbd5e1",
-                            background: "#ffffff",
-                            color: "#0f172a",
-                            cursor: "pointer",
-                          }}
                         >
-                          <Printer size={12} /> In
+                          <Printer size={13} />
+                          <span>In</span>
                         </button>
 
                         <button
                           type="button"
+                          className="vault-action-btn"
                           onClick={() => void handleShareItem(item)}
                           disabled={sharingUid === item.uid}
-                          title="Tạo link chia sẻ tài liệu"
-                          style={{
-                            display: "inline-flex",
-                            alignItems: "center",
-                            gap: "3px",
-                            padding: "4px 7px",
-                            fontSize: "11.5px",
-                            fontWeight: 600,
-                            borderRadius: "5px",
-                            border: "1px solid #cbd5e1",
-                            background: "#ffffff",
-                            color: "#0f172a",
-                            cursor: "pointer",
-                          }}
+                          title="Tạo link hoặc mã QR chia sẻ"
                         >
-                          <Share2 size={12} /> {sharingUid === item.uid ? "..." : "Chia sẻ"}
+                          <Share2 size={13} />
+                          <span>{sharingUid === item.uid ? "..." : "Chia sẻ"}</span>
                         </button>
 
                         <a
@@ -1127,42 +1248,32 @@ export function DataVault({
                           download={item.fileName}
                           target="_blank"
                           rel="noreferrer"
-                          title="Tải tài liệu về máy"
-                          style={{
-                            display: "inline-flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            padding: "4px 6px",
-                            fontSize: "11.5px",
-                            borderRadius: "5px",
-                            border: "1px solid #cbd5e1",
-                            background: "#ffffff",
-                            color: "#334155",
-                            textDecoration: "none",
-                          }}
+                          className="vault-action-btn"
+                          title="Tải file về máy"
                         >
-                          <Download size={12} />
+                          <Download size={13} />
                         </a>
+
+                        {item.route && (
+                          <button
+                            type="button"
+                            className="vault-action-btn btn-open-doc"
+                            onClick={() => navigateTo(item.route!)}
+                            title="Mở phiếu gốc trong hệ thống"
+                          >
+                            <ExternalLink size={12} />
+                            <span>Mở phiếu</span>
+                          </button>
+                        )}
 
                         {item.r2FileId && !readOnly && (
                           <button
                             type="button"
+                            className="vault-action-btn"
                             onClick={() => void handleDeleteR2File(item)}
                             title="Xóa file khỏi kho dữ liệu"
-                            style={{
-                              display: "inline-flex",
-                              alignItems: "center",
-                              justifyContent: "center",
-                              padding: "4px 6px",
-                              fontSize: "11.5px",
-                              borderRadius: "5px",
-                              border: "1px solid #cbd5e1",
-                              background: "#ffffff",
-                              color: "#475569",
-                              cursor: "pointer",
-                            }}
                           >
-                            <Trash2 size={12} />
+                            <Trash2 size={13} />
                           </button>
                         )}
                       </div>
@@ -1204,6 +1315,7 @@ export function DataVault({
                   style={{
                     border: "none",
                     background: "#f1f5f9",
+                    color: "#334155",
                     width: "28px",
                     height: "28px",
                     borderRadius: "6px",
@@ -1270,7 +1382,7 @@ export function DataVault({
                     type="text"
                     value={uploadDocCode}
                     onChange={(e) => setUploadDocCode(e.target.value)}
-                    placeholder="Ví dụ: PO-001, HĐ 0012345, PR-QC-01..."
+                    placeholder="Ví dụ: PO-001, HĐ 0012345, QC261106.1..."
                     style={{
                       width: "100%",
                       padding: "8px 10px",
@@ -1354,9 +1466,9 @@ export function DataVault({
                       fontSize: "13px",
                       fontWeight: 700,
                       borderRadius: "8px",
-                      border: "1px solid #0f172a",
-                      background: "#0f172a",
-                      color: "#ffffff",
+                      border: "1px solid #93c5fd",
+                      background: "#eff6ff",
+                      color: "#1d4ed8",
                       cursor: uploading ? "wait" : "pointer",
                     }}
                   >
@@ -1387,7 +1499,7 @@ export function DataVault({
                       fontSize: "13px",
                       fontWeight: 700,
                       borderRadius: "8px",
-                      border: "1px solid #334155",
+                      border: "1px solid #cbd5e1",
                       background: "#ffffff",
                       color: "#0f172a",
                       cursor: uploading ? "wait" : "pointer",
@@ -1409,13 +1521,12 @@ export function DataVault({
         createPortal(
           <PRScanPreviewModal
             pr={{
-              number: previewItem.docCode || previewItem.categoryLabel,
+              number: previewItem.docCode || previewItem.fileName,
               scan_file_url: previewItem.fileUrl,
               customTitle: `${previewItem.categoryLabel} · ${previewItem.fileName}`,
               customSubtitle: [
-                previewItem.docCode ? `Mã: ${previewItem.docCode}` : "",
                 previewItem.partyOrDept && previewItem.partyOrDept !== "—"
-                  ? `Đơn vị: ${previewItem.partyOrDept}`
+                  ? `Đơn vị / Bộ phận: ${previewItem.partyOrDept}`
                   : "",
                 previewItem.dateStr ? `Ngày: ${formatDateDisplay(previewItem.dateStr)}` : "",
               ]
