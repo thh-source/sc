@@ -567,6 +567,8 @@ export type PaymentHandoverItem = {
   batch_id?: string;
   batch_number?: number;
   item_order?: number;
+  handover_scan_url?: string;
+  handover_scan_name?: string;
 };
 
 export type PaymentPrintTemplate = {

@@ -36,6 +36,7 @@ import { AutoGrowTextarea } from "./AutoGrowTextarea";
 import { useTranslation } from "../i18n";
 import { addNewDepartment, getUnifiedDepartments } from "../utils/departments";
 import { sortHandoversByPOLineOrder } from "../utils/handoverBatches";
+import { HandoverScanControl } from "./HandoverScanControl";
 
 const PHENIKAA_LOGO_SRC = PHENIKAA_PHARMA_LOGO_BASE64;
 
@@ -444,6 +445,7 @@ export function HandoverManagement({
       const totalDocQty = sortedItems.reduce((s, it) => s + (Number(it.quantity_doc) || 0), 0);
       const totalPassQty = sortedItems.reduce((s, it) => s + (Number(it.quantity_pass) || 0), 0);
       const totalFailQty = sortedItems.reduce((s, it) => s + (Number(it.quantity_fail) || 0), 0);
+      const itemWithScan = sortedItems.find((it) => it.handover_scan_url);
 
       return {
         batchKey: key,
@@ -462,6 +464,8 @@ export function HandoverManagement({
         totalPassQty,
         totalFailQty,
         batchNumber: first?.batch_number || 1,
+        scanUrl: itemWithScan?.handover_scan_url,
+        scanName: itemWithScan?.handover_scan_name,
       };
     });
 
@@ -1717,15 +1721,40 @@ export function HandoverManagement({
                   )}
                 </div>
 
-                {/* Thông tin Người giao - Người nhận */}
+                {/* Thông tin Người giao - Người nhận & File biên bản */}
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "11.5px", color: "#475569", flexWrap: "wrap", gap: "6px" }}>
                   <span>
                     👤 Bên giao: <b style={{ color: "#0f172a" }}>{batch.senderName || "Trần Hải Hà"}</b> · Bên nhận:{" "}
                     <b style={{ color: "#0f172a" }}>{batch.receiverName || "Chưa ghi tên"}</b>
                   </span>
-                  <span style={{ color: "#64748b" }}>
-                    Mã dòng: #{batch.minId}{batch.maxId !== batch.minId ? ` → #${batch.maxId}` : ""}
-                  </span>
+                  <HandoverScanControl
+                    compact
+                    readOnly={readOnly}
+                    scanUrl={batch.scanUrl}
+                    scanName={batch.scanName}
+                    batchTitle={
+                      batch.sourceNumber
+                        ? `${batch.sourceType || "PO"} #${batch.sourceNumber}`
+                        : `Đợt bàn giao #${handoverBatches.length - bIdx}`
+                    }
+                    sourceNumber={batch.sourceNumber}
+                    department={batch.department}
+                    handoverDate={batch.date}
+                    receiverName={batch.receiverName}
+                    onUpdate={(scanUrl, scanName) => {
+                      const batchIdSet = new Set(batch.items.map((it) => it.id));
+                      const next = paymentHandovers.map((h) =>
+                        batchIdSet.has(h.id)
+                          ? {
+                              ...h,
+                              handover_scan_url: scanUrl,
+                              handover_scan_name: scanName,
+                            }
+                          : h
+                      );
+                      triggerUpdateHandovers(next);
+                    }}
+                  />
                 </div>
 
                 {/* Footer Thao tác của cả Đợt Bàn Giao */}
@@ -2803,6 +2832,7 @@ export function HandoverManagement({
 
         const sortedItems = sortHandoversByPOLineOrder(rawBatchItems, pos);
         const first = sortedItems[0] || rawBatchItems[0];
+        const itemWithScan = sortedItems.find((it) => it.handover_scan_url);
         const srcNum = (first?.source_number || "").trim();
         const srcType = (first?.source_type || (srcNum ? "PO" : "")).trim();
         const targetBatch = {
@@ -2813,6 +2843,8 @@ export function HandoverManagement({
           receiverName: first?.receiver_name ?? "",
           sourceType: srcType,
           sourceNumber: srcNum,
+          scanUrl: itemWithScan?.handover_scan_url,
+          scanName: itemWithScan?.handover_scan_name,
         };
         const batchItemIds = new Set(targetBatch.items.map((i) => i.id));
         const closeBatchModal = () => {
@@ -2820,10 +2852,24 @@ export function HandoverManagement({
           setEditingBatchItemIds(null);
         };
 
-        const updateBatchMetadata = (key: keyof PaymentHandoverItem, value: string) => {
+        const updateBatchMetadata = (key: keyof PaymentHandoverItem, value: string | undefined) => {
           if (readOnly) return;
           const next = paymentHandovers.map((h) =>
             batchItemIds.has(h.id) ? { ...h, [key]: value } : h
+          );
+          triggerUpdateHandovers(next);
+        };
+
+        const updateBatchScan = (scanUrl: string | undefined, scanName: string | undefined) => {
+          if (readOnly) return;
+          const next = paymentHandovers.map((h) =>
+            batchItemIds.has(h.id)
+              ? {
+                  ...h,
+                  handover_scan_url: scanUrl,
+                  handover_scan_name: scanName,
+                }
+              : h
           );
           triggerUpdateHandovers(next);
         };
@@ -2914,6 +2960,23 @@ export function HandoverManagement({
                     />
                   </div>
                 </div>
+
+                {/* Tải file / Chụp ảnh Biên bản bàn giao */}
+                <HandoverScanControl
+                  readOnly={readOnly}
+                  scanUrl={targetBatch.scanUrl}
+                  scanName={targetBatch.scanName}
+                  batchTitle={
+                    targetBatch.sourceNumber
+                      ? `${targetBatch.sourceType || "PO"} #${targetBatch.sourceNumber}`
+                      : targetBatch.department || "Đợt bàn giao"
+                  }
+                  sourceNumber={targetBatch.sourceNumber}
+                  department={targetBatch.department}
+                  handoverDate={targetBatch.date}
+                  receiverName={targetBatch.receiverName}
+                  onUpdate={updateBatchScan}
+                />
 
                 {/* Bảng chỉnh sửa các mặt hàng thuộc Đợt bàn giao */}
                 <div style={{ border: "1px solid #cbd5e1", borderRadius: "10px", overflow: "hidden" }}>

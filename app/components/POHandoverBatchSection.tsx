@@ -11,6 +11,7 @@ import {
 } from "../utils/handoverBatches";
 import { dateVN } from "../utils";
 import { useIsMobile } from "../useIsMobile";
+import { HandoverScanControl } from "./HandoverScanControl";
 
 interface POHandoverBatchSectionProps {
   po: PO | null;
@@ -504,6 +505,40 @@ export function POHandoverBatchSection({
                 ✕ Đóng
               </button>
             </div>
+          </div>
+
+          <div style={{ marginBottom: "12px" }}>
+            <HandoverScanControl
+              readOnly={readOnly}
+              scanUrl={
+                activeBatch.rawHandovers.find((h) => h.handover_scan_url)?.handover_scan_url
+              }
+              scanName={
+                activeBatch.rawHandovers.find((h) => h.handover_scan_url)?.handover_scan_name
+              }
+              batchTitle={`${activeBatch.batchLabel} - PO #${po.number}`}
+              sourceNumber={po.number}
+              department={activeBatch.department}
+              handoverDate={activeBatch.date}
+              receiverName={activeBatch.receiverName}
+              onUpdate={(scanUrl, scanName) => {
+                const realIds = new Set(
+                  activeBatch.rawHandovers.filter((h) => h.id > 0).map((h) => h.id)
+                );
+                if (realIds.size > 0) {
+                  const next = paymentHandovers.map((h) =>
+                    realIds.has(h.id)
+                      ? {
+                          ...h,
+                          handover_scan_url: scanUrl,
+                          handover_scan_name: scanName,
+                        }
+                      : h
+                  );
+                  onUpdateHandovers(next);
+                }
+              }}
+            />
           </div>
 
           {/* Bảng danh mục sản phẩm của đợt */}

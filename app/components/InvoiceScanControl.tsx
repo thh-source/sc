@@ -11,10 +11,14 @@ export interface InvoiceScanControlProps {
   scanUrl?: string;
   scanName?: string;
   invoiceNo?: string;
+  invoiceDate?: string;
   entityCode?: string;
+  supplierName?: string;
   subtitle?: string;
-  onUploadSuccess: (scanUrl: string, fileName: string) => void;
+  onUpdate?: (scanUrl: string | undefined, fileName: string | undefined) => void;
+  onUploadSuccess?: (scanUrl: string, fileName: string) => void;
   onRemove?: () => void;
+  onStatus?: (msg: string) => void;
   compact?: boolean;
   readOnly?: boolean;
   label?: string;
@@ -24,10 +28,14 @@ export function InvoiceScanControl({
   scanUrl,
   scanName,
   invoiceNo,
+  invoiceDate,
   entityCode = "HD",
+  supplierName,
   subtitle,
+  onUpdate,
   onUploadSuccess,
   onRemove,
+  onStatus,
   compact = false,
   readOnly = false,
   label,
@@ -42,6 +50,16 @@ export function InvoiceScanControl({
   const displayTitle = invoiceNo?.trim()
     ? `Bản scan Hóa đơn GTGT #${invoiceNo.trim()}`
     : `Bản scan Hóa đơn GTGT (${entityCode})`;
+
+  const computedSubtitle =
+    subtitle ||
+    [
+      supplierName ? `NCC: ${supplierName}` : "",
+      invoiceDate ? `Ngày HĐ: ${invoiceDate}` : "",
+      scanName ? `File: ${scanName}` : `Mã chứng từ: ${entityCode}`,
+    ]
+      .filter(Boolean)
+      .join(" · ");
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -70,13 +88,22 @@ export function InvoiceScanControl({
         throw new Error(data.error || "Tải lên bản scan hóa đơn thất bại");
       }
 
-      onUploadSuccess(data.scan_file_url, file.name);
+      onUpdate?.(data.scan_file_url, file.name);
+      onUploadSuccess?.(data.scan_file_url, file.name);
+      onStatus?.(`✓ Đã tải lên bản scan hóa đơn "${file.name}"`);
     } catch (err: any) {
       alert(err?.message || "Lỗi tải lên bản scan hóa đơn");
     } finally {
       setUploading(false);
       setProgressText("");
     }
+  };
+
+  const handleRemoveScan = () => {
+    if (!confirm("Bạn có muốn gỡ bản scan hóa đơn này không?")) return;
+    onUpdate?.(undefined, undefined);
+    onRemove?.();
+    onStatus?.("Đã gỡ bản scan hóa đơn");
   };
 
   const handleDirectShare = async (e: React.MouseEvent) => {
@@ -116,7 +143,7 @@ export function InvoiceScanControl({
                 number: invoiceNo?.trim() || entityCode,
                 scan_file_url: scanUrl,
                 customTitle: displayTitle,
-                customSubtitle: subtitle || (scanName ? `File: ${scanName}` : `Mã chứng từ: ${entityCode}`),
+                customSubtitle: computedSubtitle,
                 entityType: "invoice",
               }}
               onClose={() => setPreviewOpen(false)}
@@ -270,17 +297,11 @@ export function InvoiceScanControl({
 
   return (
     <div style={{ display: "flex", flexDirection: "column", justifyContent: "flex-end" }}>
-      {label !== undefined ? (
-        label ? (
-          <span style={{ display: "block", fontSize: "11px", fontWeight: 600, marginBottom: "2px", color: "#334155" }}>
-            {label}
-          </span>
-        ) : null
-      ) : (
-        <span style={{ display: "block", fontSize: "11px", fontWeight: 600, marginBottom: "2px", color: scanUrl ? "#166534" : "#334155" }}>
-          Bản scan Hóa đơn (PDF / Ảnh): {scanUrl ? "✓ Đã đính kèm" : "(Tải lên để xem / in / chia sẻ)"}
+      {label ? (
+        <span style={{ display: "block", fontSize: "11px", fontWeight: 600, marginBottom: "4px", color: "#334155" }}>
+          {label}
         </span>
-      )}
+      ) : null}
 
       <input
         ref={fileInputRef}
@@ -297,8 +318,8 @@ export function InvoiceScanControl({
             alignItems: "center",
             gap: "6px",
             flexWrap: "wrap",
-            minHeight: "34px",
-            padding: "3px 6px",
+            minHeight: "36px",
+            padding: "4px 8px",
             background: "#ffffff",
             border: "1px solid #86efac",
             borderRadius: "6px",
@@ -368,6 +389,22 @@ export function InvoiceScanControl({
             <Share2 size={13} /> {sharing ? "Đang tạo..." : "Chia sẻ"}
           </button>
 
+          {scanName && (
+            <span
+              style={{
+                fontSize: "11.5px",
+                color: "#475569",
+                maxWidth: "220px",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+              }}
+              title={scanName}
+            >
+              📎 {scanName}
+            </span>
+          )}
+
           {!readOnly && (
             <button
               type="button"
@@ -393,14 +430,10 @@ export function InvoiceScanControl({
             </button>
           )}
 
-          {!readOnly && onRemove && (
+          {!readOnly && (onRemove || onUpdate) && (
             <button
               type="button"
-              onClick={() => {
-                if (confirm("Bạn có muốn gỡ bản scan hóa đơn này không?")) {
-                  onRemove();
-                }
-              }}
+              onClick={handleRemoveScan}
               title="Gỡ bản scan hóa đơn"
               style={{
                 display: "inline-flex",
