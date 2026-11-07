@@ -15,6 +15,7 @@ import {
   X,
   ShieldCheck,
   Sparkles,
+  Eye,
 } from "lucide-react";
 
 export interface CamScannerDocItem {
@@ -130,6 +131,55 @@ export function CamScannerCloudModal({
 
   // Importing state
   const [importingDocId, setImportingDocId] = useState<string | null>(null);
+
+  // Hover / Click Preview popup state
+  const [previewDoc, setPreviewDoc] = useState<CamScannerDocItem | null>(null);
+  const [previewPinned, setPreviewPinned] = useState(false);
+  const [previewFrameLoading, setPreviewFrameLoading] = useState(false);
+  const hoverTimerRef = useRef<any>(null);
+  const closePreviewTimerRef = useRef<any>(null);
+  const isHoveringPopupRef = useRef(false);
+
+  const handleRowMouseEnter = (doc: CamScannerDocItem) => {
+    if (closePreviewTimerRef.current) {
+      clearTimeout(closePreviewTimerRef.current);
+      closePreviewTimerRef.current = null;
+    }
+    if (previewPinned) return;
+    if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current);
+    hoverTimerRef.current = setTimeout(() => {
+      setPreviewDoc((prev) => {
+        if (prev?.cs_doc_id !== doc.cs_doc_id) {
+          setPreviewFrameLoading(true);
+        }
+        return doc;
+      });
+    }, 220);
+  };
+
+  const handleRowMouseLeave = () => {
+    if (hoverTimerRef.current) {
+      clearTimeout(hoverTimerRef.current);
+      hoverTimerRef.current = null;
+    }
+    if (previewPinned) return;
+    if (closePreviewTimerRef.current) clearTimeout(closePreviewTimerRef.current);
+    closePreviewTimerRef.current = setTimeout(() => {
+      if (!isHoveringPopupRef.current) {
+        setPreviewDoc(null);
+      }
+    }, 320);
+  };
+
+  const handlePinPreview = (doc: CamScannerDocItem) => {
+    if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current);
+    if (closePreviewTimerRef.current) clearTimeout(closePreviewTimerRef.current);
+    if (previewDoc?.cs_doc_id !== doc.cs_doc_id) {
+      setPreviewFrameLoading(true);
+    }
+    setPreviewDoc(doc);
+    setPreviewPinned(true);
+  };
 
   const getHeaders = useCallback(
     (tokenOverride?: string) => {
@@ -1035,13 +1085,21 @@ export function CamScannerCloudModal({
                       <tbody>
                         {filteredDocs.map((doc, idx) => {
                           const isImporting = importingDocId === doc.cs_doc_id;
+                          const isPreviewing = previewDoc?.cs_doc_id === doc.cs_doc_id;
                           const docWebUrl = doc.doc_id || doc.display_key || "";
                           return (
                             <tr
                               key={doc.cs_doc_id || idx}
+                              onMouseEnter={() => handleRowMouseEnter(doc)}
+                              onMouseLeave={handleRowMouseLeave}
                               style={{
                                 borderBottom: "1px solid #f1f5f9",
-                                background: idx % 2 === 0 ? "#ffffff" : "#fcfdfe",
+                                background: isPreviewing
+                                  ? "#f0fdfa"
+                                  : idx % 2 === 0
+                                  ? "#ffffff"
+                                  : "#fcfdfe",
+                                transition: "background 0.12s ease",
                               }}
                             >
                               <td
@@ -1063,7 +1121,10 @@ export function CamScannerCloudModal({
                                     fontWeight: 700,
                                     color: "#0f172a",
                                     fontSize: "13px",
+                                    cursor: "pointer",
                                   }}
+                                  onClick={() => handlePinPreview(doc)}
+                                  title="Di chuột vào để xem trước nhanh, hoặc click để ghim cửa sổ xem trước"
                                 >
                                   <FileText
                                     size={15}
@@ -1075,6 +1136,7 @@ export function CamScannerCloudModal({
                                       href={docWebUrl}
                                       target="_blank"
                                       rel="noreferrer"
+                                      onClick={(e) => e.stopPropagation()}
                                       title="Mở xem trên trang CamScanner"
                                       style={{
                                         color: "#64748b",
@@ -1135,39 +1197,66 @@ export function CamScannerCloudModal({
                                   whiteSpace: "nowrap",
                                 }}
                               >
-                                <button
-                                  type="button"
-                                  disabled={!!importingDocId}
-                                  onClick={() => void handleImportDoc(doc)}
-                                  style={{
-                                    display: "inline-flex",
-                                    alignItems: "center",
-                                    justifyContent: "center",
-                                    gap: "5px",
-                                    height: "28px",
-                                    padding: "0 11px",
-                                    borderRadius: "6px",
-                                    border: "1px solid #0d9488",
-                                    background: isImporting ? "#0f766e" : "#0d9488",
-                                    color: "#ffffff",
-                                    fontSize: "11.5px",
-                                    fontWeight: 700,
-                                    cursor: importingDocId ? "wait" : "pointer",
-                                    whiteSpace: "nowrap",
-                                  }}
-                                >
-                                  {isImporting ? (
-                                    <>
-                                      <Loader2 size={12} className="animate-spin" />
-                                      <span>Đang lấy file...</span>
-                                    </>
-                                  ) : (
-                                    <>
-                                      <Check size={13} />
-                                      <span>Chọn bản scan này</span>
-                                    </>
-                                  )}
-                                </button>
+                                <div style={{ display: "inline-flex", alignItems: "center", gap: "5px" }}>
+                                  <button
+                                    type="button"
+                                    onClick={() => handlePinPreview(doc)}
+                                    title="Xem trước bản scan này"
+                                    style={{
+                                      display: "inline-flex",
+                                      alignItems: "center",
+                                      justifyContent: "center",
+                                      gap: "4px",
+                                      height: "28px",
+                                      padding: "0 8px",
+                                      borderRadius: "6px",
+                                      border: isPreviewing ? "1px solid #0d9488" : "1px solid #cbd5e1",
+                                      background: isPreviewing ? "#ccfbf1" : "#ffffff",
+                                      color: isPreviewing ? "#0f766e" : "#334155",
+                                      fontSize: "11.5px",
+                                      fontWeight: 600,
+                                      cursor: "pointer",
+                                      whiteSpace: "nowrap",
+                                    }}
+                                  >
+                                    <Eye size={13} />
+                                    <span>Xem</span>
+                                  </button>
+
+                                  <button
+                                    type="button"
+                                    disabled={!!importingDocId}
+                                    onClick={() => void handleImportDoc(doc)}
+                                    style={{
+                                      display: "inline-flex",
+                                      alignItems: "center",
+                                      justifyContent: "center",
+                                      gap: "5px",
+                                      height: "28px",
+                                      padding: "0 11px",
+                                      borderRadius: "6px",
+                                      border: "1px solid #0d9488",
+                                      background: isImporting ? "#0f766e" : "#0d9488",
+                                      color: "#ffffff",
+                                      fontSize: "11.5px",
+                                      fontWeight: 700,
+                                      cursor: importingDocId ? "wait" : "pointer",
+                                      whiteSpace: "nowrap",
+                                    }}
+                                  >
+                                    {isImporting ? (
+                                      <>
+                                        <Loader2 size={12} className="animate-spin" />
+                                        <span>Đang lấy...</span>
+                                      </>
+                                    ) : (
+                                      <>
+                                        <Check size={13} />
+                                        <span>Chọn</span>
+                                      </>
+                                    )}
+                                  </button>
+                                </div>
                               </td>
                             </tr>
                           );
@@ -1219,6 +1308,171 @@ export function CamScannerCloudModal({
           </button>
         </div>
       </div>
+
+      {/* Popup Xem trước (Hover / Click Preview) trực tiếp bản scan từ CamScanner Cloud */}
+      {previewDoc && (
+        <div
+          onMouseEnter={() => {
+            isHoveringPopupRef.current = true;
+            if (closePreviewTimerRef.current) {
+              clearTimeout(closePreviewTimerRef.current);
+              closePreviewTimerRef.current = null;
+            }
+          }}
+          onMouseLeave={() => {
+            isHoveringPopupRef.current = false;
+            if (!previewPinned) {
+              closePreviewTimerRef.current = setTimeout(() => {
+                setPreviewDoc(null);
+              }, 280);
+            }
+          }}
+          onClick={(e) => e.stopPropagation()}
+          style={{
+            position: "fixed",
+            right: "20px",
+            top: "50%",
+            transform: "translateY(-50%)",
+            width: "min(480px, 92vw)",
+            height: "min(660px, 86vh)",
+            background: "#ffffff",
+            borderRadius: "14px",
+            border: "2px solid #0d9488",
+            boxShadow: "0 24px 48px rgba(15, 23, 42, 0.35)",
+            display: "flex",
+            flexDirection: "column",
+            overflow: "hidden",
+            zIndex: 2147483645,
+          }}
+        >
+          {/* Header của Popup Xem trước */}
+          <div
+            style={{
+              padding: "10px 14px",
+              background: "#0f172a",
+              color: "#ffffff",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: "8px",
+            }}
+          >
+            <div style={{ minWidth: 0, flex: 1 }}>
+              <div
+                style={{
+                  fontSize: "13px",
+                  fontWeight: 800,
+                  whiteSpace: "nowrap",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                }}
+                title={previewDoc.title}
+              >
+                👁 {previewDoc.title}
+              </div>
+              <div style={{ fontSize: "11px", color: "#94a3b8", marginTop: "2px" }}>
+                📁 {previewDoc.dir_title || "Thư mục gốc"} · {formatCsTime(previewDoc.modify_time || previewDoc.create_time)}
+              </div>
+            </div>
+
+            <div style={{ display: "inline-flex", alignItems: "center", gap: "6px", flexShrink: 0 }}>
+              <button
+                type="button"
+                disabled={!!importingDocId}
+                onClick={() => void handleImportDoc(previewDoc)}
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "4px",
+                  padding: "5px 10px",
+                  borderRadius: "6px",
+                  border: "1px solid #14b8a6",
+                  background: "#0d9488",
+                  color: "#ffffff",
+                  fontSize: "11.5px",
+                  fontWeight: 700,
+                  cursor: importingDocId ? "wait" : "pointer",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {importingDocId === previewDoc.cs_doc_id ? (
+                  <>
+                    <Loader2 size={12} className="animate-spin" />
+                    <span>Đang lấy...</span>
+                  </>
+                ) : (
+                  <>
+                    <Check size={13} />
+                    <span>Chọn bản scan này</span>
+                  </>
+                )}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setPreviewPinned(false);
+                  setPreviewDoc(null);
+                }}
+                title="Đóng xem trước"
+                style={{
+                  width: "26px",
+                  height: "26px",
+                  borderRadius: "6px",
+                  border: "1px solid rgba(255,255,255,0.2)",
+                  background: "rgba(255,255,255,0.1)",
+                  color: "#ffffff",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  cursor: "pointer",
+                }}
+              >
+                <X size={14} />
+              </button>
+            </div>
+          </div>
+
+          {/* Nội dung file PDF xem trước */}
+          <div style={{ flex: 1, position: "relative", background: "#f1f5f9" }}>
+            {previewFrameLoading && (
+              <div
+                style={{
+                  position: "absolute",
+                  inset: 0,
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  background: "rgba(248, 250, 252, 0.92)",
+                  zIndex: 2,
+                  color: "#0f766e",
+                  gap: "8px",
+                }}
+              >
+                <Loader2 size={26} className="animate-spin" />
+                <span style={{ fontSize: "12.5px", fontWeight: 700 }}>
+                  Đang tải bản xem trước từ CamScanner Cloud...
+                </span>
+              </div>
+            )}
+            <iframe
+              key={previewDoc.cs_doc_id}
+              src={`/api/camscanner?action=preview&csDocId=${encodeURIComponent(
+                previewDoc.cs_doc_id
+              )}&token=${encodeURIComponent(localToken)}#toolbar=0&navpanes=0&view=FitH`}
+              title={`Xem trước ${previewDoc.title}`}
+              onLoad={() => setPreviewFrameLoading(false)}
+              style={{
+                width: "100%",
+                height: "100%",
+                border: "none",
+                display: "block",
+              }}
+            />
+          </div>
+        </div>
+      )}
     </div>,
     document.body
   );

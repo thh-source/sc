@@ -154,6 +154,80 @@ export async function GET(request: Request) {
       });
     }
 
+    // Xem trước (Stream inline PDF) trực tiếp từ CamScanner Cloud (có bộ nhớ đệm R2 siêu tốc)
+    if (action === "preview") {
+      const csDocId = (url.searchParams.get("csDocId") || "").trim();
+      const queryToken = (url.searchParams.get("token") || "").trim();
+      if (!csDocId) {
+        return new Response("Thiếu mã tài liệu csDocId", { status: 400 });
+      }
+
+      const bucket = env.R2_BUCKET || env.BUCKET;
+      const cacheKey = `cs-preview-cache/${csDocId.replace(/[^a-zA-Z0-9_-]/g, "_")}`;
+
+      // 1. Kiểm tra bộ nhớ đệm trên R2 trước (nếu đã từng xem trước thì phản hồi tức thì ~30ms)
+      if (bucket) {
+        try {
+          const cachedObj = await bucket.get(cacheKey);
+          if (cachedObj) {
+            const ct = cachedObj.httpMetadata?.contentType || "application/pdf";
+            return new Response(cachedObj.body, {
+              headers: {
+                "Content-Type": ct,
+                "Content-Disposition": `inline; filename="${csDocId}.pdf"`,
+                "Cache-Control": "public, max-age=3600",
+              },
+            });
+          }
+        } catch {}
+      }
+
+      // 2. Lấy token CamScanner và tải bản xem trước
+      const saved = await getSavedTokenRecord(env.DB, userKey);
+      const rawToken = headerToken || queryToken || saved?.token || "";
+      if (!rawToken) {
+        return new Response("Chưa kết nối tài khoản CamScanner", { status: 401 });
+      }
+
+      const dlRes = await fetch(
+        `${CS_API_BASE}/v1/tools/download_cloud_doc/execute?channel=camscanner-cli&output_mode=raw`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${rawToken}`,
+            "Content-Type": "application/json",
+            "User-Agent": CS_USER_AGENT,
+            "X-IS-AGENT": CS_AGENT_HEADER,
+          },
+          body: JSON.stringify({ doc_id: csDocId }),
+        }
+      );
+
+      if (!dlRes.ok) {
+        return new Response(`Không thể tải bản xem trước (${dlRes.status})`, { status: 502 });
+      }
+
+      const fileBuffer = await dlRes.arrayBuffer();
+      const contentType = dlRes.headers.get("content-type") || "application/pdf";
+
+      // Lưu vào R2 cache để lần di chuột sau hoặc khi bấm "Chọn bản scan này" dùng lại ngay lập tức
+      if (bucket && fileBuffer.byteLength > 0) {
+        try {
+          await bucket.put(cacheKey, fileBuffer, {
+            httpMetadata: { contentType },
+          });
+        } catch {}
+      }
+
+      return new Response(fileBuffer, {
+        headers: {
+          "Content-Type": contentType,
+          "Content-Disposition": `inline; filename="${csDocId}.pdf"`,
+          "Cache-Control": "public, max-age=3600",
+        },
+      });
+    }
+
     // Default: check status
     const saved = await getSavedTokenRecord(env.DB, userKey);
     const tokenToCheck = headerToken || saved?.token || "";
@@ -508,31 +582,48 @@ export async function POST(request: Request) {
         return Response.json({ error: "R2 Bucket chưa được cấu hình" }, { status: 500 });
       }
 
-      const dlRes = await fetch(
-        `${CS_API_BASE}/v1/tools/download_cloud_doc/execute?channel=camscanner-cli&output_mode=raw`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${activeToken}`,
-            "Content-Type": "application/json",
-            "User-Agent": CS_USER_AGENT,
-            "X-IS-AGENT": CS_AGENT_HEADER,
-          },
-          body: JSON.stringify({ doc_id: csDocId }),
-        }
-      );
+      const cacheKey = `cs-preview-cache/${csDocId.replace(/[^a-zA-Z0-9_-]/g, "_")}`;
+      let fileBuffer: ArrayBuffer | null = null;
+      let rawContentType = "application/pdf";
 
-      if (!dlRes.ok) {
-        const errText = await dlRes.text().catch(() => "");
-        return Response.json(
+      // Tận dụng ngay bản đã lưu trong bộ nhớ đệm R2 khi người dùng di chuột xem trước (nhanh tức thì)
+      try {
+        const cachedObj = await bucket.get(cacheKey);
+        if (cachedObj) {
+          fileBuffer = await cachedObj.arrayBuffer();
+          rawContentType = cachedObj.httpMetadata?.contentType || "application/pdf";
+        }
+      } catch {}
+
+      if (!fileBuffer || fileBuffer.byteLength === 0) {
+        const dlRes = await fetch(
+          `${CS_API_BASE}/v1/tools/download_cloud_doc/execute?channel=camscanner-cli&output_mode=raw`,
           {
-            error: `Không thể tải tài liệu từ CamScanner Cloud (${dlRes.status}): ${errText.slice(0, 200)}`,
-          },
-          { status: 502 }
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${activeToken}`,
+              "Content-Type": "application/json",
+              "User-Agent": CS_USER_AGENT,
+              "X-IS-AGENT": CS_AGENT_HEADER,
+            },
+            body: JSON.stringify({ doc_id: csDocId }),
+          }
         );
+
+        if (!dlRes.ok) {
+          const errText = await dlRes.text().catch(() => "");
+          return Response.json(
+            {
+              error: `Không thể tải tài liệu từ CamScanner Cloud (${dlRes.status}): ${errText.slice(0, 200)}`,
+            },
+            { status: 502 }
+          );
+        }
+
+        fileBuffer = await dlRes.arrayBuffer();
+        rawContentType = dlRes.headers.get("content-type") || "application/pdf";
       }
 
-      const fileBuffer = await dlRes.arrayBuffer();
       const byteSize = fileBuffer.byteLength;
       if (byteSize === 0) {
         return Response.json(
@@ -543,7 +634,7 @@ export async function POST(request: Request) {
 
       // Xác định định dạng file (mặc định là PDF đối với bản scan CamScanner)
       let ext = "pdf";
-      let contentType = dlRes.headers.get("content-type") || "application/pdf";
+      let contentType = rawContentType;
       if (csDocId.endsWith("_word1") || contentType.includes("word")) {
         ext = "docx";
         contentType = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
