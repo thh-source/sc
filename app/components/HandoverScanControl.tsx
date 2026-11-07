@@ -11,6 +11,7 @@ import {
   Loader2,
   RefreshCw,
   X,
+  Cloud,
 } from "lucide-react";
 import { compressUploadFile } from "../utils/compressUploadFile";
 import {
@@ -19,6 +20,7 @@ import {
   createScanShareUrl,
 } from "./PRScanPreviewModal";
 import { ShareFileModal } from "./ShareFileModal";
+import { CamScannerCloudModal } from "./CamScannerCloudModal";
 import { useIsMobile } from "../useIsMobile";
 
 export interface HandoverScanControlProps {
@@ -54,6 +56,7 @@ export function HandoverScanControl({
   const [uploading, setUploading] = useState(false);
   const [progressText, setProgressText] = useState("");
   const [previewOpen, setPreviewOpen] = useState(false);
+  const [camScannerOpen, setCamScannerOpen] = useState(false);
   const [shareState, setShareState] = useState<{ isOpen: boolean; shareUrl: string } | null>(null);
   const [sharing, setSharing] = useState(false);
 
@@ -194,6 +197,16 @@ export function HandoverScanControl({
             />,
             document.body
           )}
+        <CamScannerCloudModal
+          isOpen={camScannerOpen}
+          onClose={() => setCamScannerOpen(false)}
+          targetLabel={displayTitle}
+          prCode={`BBBG_${entityCode}_${handoverDate || ""}`.replace(/[^a-zA-Z0-9_-]/g, "_") || "BBBG"}
+          onImported={({ url, fileName }) => {
+            onUpdate(url, fileName);
+            onStatus?.(`✓ Đã lấy biên bản bàn giao "${fileName}" từ CamScanner Cloud`);
+          }}
+        />
       </>
     );
   };
@@ -382,6 +395,28 @@ export function HandoverScanControl({
               >
                 <Camera size={12} />
                 <span>Chụp ảnh</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setCamScannerOpen(true)}
+                title="Lấy biên bản bàn giao từ kho CamScanner Cloud"
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "4px",
+                  padding: "3px 8px",
+                  fontSize: "11.5px",
+                  fontWeight: 700,
+                  borderRadius: "6px",
+                  border: "1px solid #5eead4",
+                  background: "#f0fdfa",
+                  color: "#0f766e",
+                  cursor: "pointer",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                <Cloud size={12} />
+                <span>CamScanner</span>
               </button>
             </>
           )
@@ -660,6 +695,30 @@ export function HandoverScanControl({
               >
                 <Camera size={15} />
                 <span>Chụp ảnh biên bản</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setCamScannerOpen(true)}
+                title="Chọn trực tiếp biên bản bàn giao từ kho CamScanner Pro Cloud"
+                style={{
+                  flex: isMobile ? 1 : undefined,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: "6px",
+                  padding: "7px 14px",
+                  fontSize: "12.5px",
+                  fontWeight: 700,
+                  borderRadius: "7px",
+                  border: "1px solid #2dd4bf",
+                  background: "#f0fdfa",
+                  color: "#0f766e",
+                  cursor: "pointer",
+                }}
+              >
+                <Cloud size={15} />
+                <span>Lấy từ CamScanner</span>
               </button>
             </div>
           )

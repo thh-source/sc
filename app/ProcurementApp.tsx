@@ -35,6 +35,7 @@ import { POList } from "./components/POList";
 import { PODetail } from "./components/PODetail";
 import { PRList } from "./components/PRList";
 import { PRScanPreviewModal } from "./components/PRScanPreviewModal";
+import { CamScannerCloudModal } from "./components/CamScannerCloudModal";
 import { GlobalDatalistEnhancer } from "./components/GlobalDatalistEnhancer";
 import { compressUploadFile } from "./utils/compressUploadFile";
 import { KnowledgeBase, KnowledgeBaseDrawer } from "./components/KnowledgeBase";
@@ -112,6 +113,7 @@ import {
   Paperclip,
   Loader2,
   FolderOpen,
+  Cloud,
 } from "lucide-react";
 import {
   AppRoute,
@@ -321,6 +323,7 @@ function ProcurementAppInner({
   const [mobileActionSheetOpen, setMobileActionSheetOpen] = useState(false);
   const [catalogSubTab, setCatalogSubTab] = useState<"products" | "suppliers">("products");
   const [previewScanPR, setPreviewScanPR] = useState<PR | null>(null);
+  const [camScannerTargetPR, setCamScannerTargetPR] = useState<PR | null>(null);
   const [uploadingScanPrId, setUploadingScanPrId] = useState<number | null>(null);
   const [compareCompressProgress, setCompareCompressProgress] = useState<string>("");
   const compareScanInputRef = useRef<HTMLInputElement>(null);
@@ -3478,39 +3481,83 @@ function ProcurementAppInner({
                         )}
                         <span>Đổi scan</span>
                       </button>
+                      <button
+                        type="button"
+                        onClick={() => setCamScannerTargetPR(selectedPR)}
+                        title="Đổi bản scan từ kho dữ liệu CamScanner Pro Cloud"
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: "5px",
+                          padding: "5px 10px",
+                          fontSize: "12px",
+                          fontWeight: 600,
+                          backgroundColor: "#f0fdfa",
+                          color: "#0f766e",
+                          border: "1px solid #5eead4",
+                          borderRadius: "6px",
+                          cursor: "pointer",
+                        }}
+                      >
+                        <Cloud size={13} />
+                        <span>CamScanner</span>
+                      </button>
                     </div>
                   ) : (
-                    <button
-                      type="button"
-                      onClick={() => compareScanInputRef.current?.click()}
-                      title="Tải lên bản scan PR gốc (PDF hoặc ảnh)"
-                      disabled={uploadingScanPrId === selectedPR.id}
-                      style={{
-                        display: "inline-flex",
-                        alignItems: "center",
-                        gap: "6px",
-                        padding: "5px 12px",
-                        fontSize: "12.5px",
-                        fontWeight: 600,
-                        backgroundColor: "#f0fdf4",
-                        color: "#15803d",
-                        border: "1px dashed #86efac",
-                        borderRadius: "6px",
-                        cursor: "pointer",
-                      }}
-                    >
-                      {uploadingScanPrId === selectedPR.id ? (
-                        <>
-                          <Loader2 size={14} className="animate-spin text-emerald-600" />
-                          <span>{compareCompressProgress || "Đang tối ưu scan..."}</span>
-                        </>
-                      ) : (
-                        <>
-                          <Paperclip size={14} />
-                          <span>+ Tải bản scan PR</span>
-                        </>
-                      )}
-                    </button>
+                    <div style={{ display: "inline-flex", alignItems: "center", gap: "6px", flexWrap: "nowrap" }}>
+                      <button
+                        type="button"
+                        onClick={() => compareScanInputRef.current?.click()}
+                        title="Tải lên bản scan PR gốc (PDF hoặc ảnh)"
+                        disabled={uploadingScanPrId === selectedPR.id}
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: "6px",
+                          padding: "5px 12px",
+                          fontSize: "12.5px",
+                          fontWeight: 600,
+                          backgroundColor: "#f0fdf4",
+                          color: "#15803d",
+                          border: "1px dashed #86efac",
+                          borderRadius: "6px",
+                          cursor: "pointer",
+                        }}
+                      >
+                        {uploadingScanPrId === selectedPR.id ? (
+                          <>
+                            <Loader2 size={14} className="animate-spin text-emerald-600" />
+                            <span>{compareCompressProgress || "Đang tối ưu scan..."}</span>
+                          </>
+                        ) : (
+                          <>
+                            <Paperclip size={14} />
+                            <span>+ Tải bản scan PR</span>
+                          </>
+                        )}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setCamScannerTargetPR(selectedPR)}
+                        title="Lấy bản scan trực tiếp từ tài khoản CamScanner Pro Cloud"
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: "5px",
+                          padding: "5px 12px",
+                          fontSize: "12.5px",
+                          fontWeight: 700,
+                          backgroundColor: "#f0fdfa",
+                          color: "#0f766e",
+                          border: "1px solid #2dd4bf",
+                          borderRadius: "6px",
+                          cursor: "pointer",
+                        }}
+                      >
+                        <Cloud size={14} />
+                        <span>Lấy từ CamScanner</span>
+                      </button>
+                    </div>
                   )
                 )}
 
@@ -4740,6 +4787,20 @@ function ProcurementAppInner({
         <PRScanPreviewModal
           pr={previewScanPR}
           onClose={() => setPreviewScanPR(null)}
+        />
+      )}
+
+      {camScannerTargetPR && (
+        <CamScannerCloudModal
+          isOpen={!!camScannerTargetPR}
+          onClose={() => setCamScannerTargetPR(null)}
+          targetLabel={`PR #${camScannerTargetPR.number}`}
+          prCode={camScannerTargetPR.number || "PR"}
+          prId={camScannerTargetPR.id}
+          onImported={({ url }) => {
+            handleUpdatePRScan(camScannerTargetPR.id, url);
+            setStorageStatus(`✓ Đã lấy bản scan PR #${camScannerTargetPR.number} từ CamScanner Cloud`);
+          }}
         />
       )}
 

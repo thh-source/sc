@@ -1,7 +1,8 @@
 import React, { ChangeEvent, useState, useMemo, useEffect } from "react";
-import { ArrowLeft, Check, Plus, Download, Upload, Paperclip, Eye, Trash2, Loader2, AlertTriangle, RotateCcw, ChevronRight } from "lucide-react";
+import { ArrowLeft, Check, Plus, Download, Upload, Paperclip, Eye, Trash2, Loader2, AlertTriangle, RotateCcw, ChevronRight, Cloud } from "lucide-react";
 import { compressUploadFile } from "../utils/compressUploadFile";
 import { PRScanPreviewModal } from "./PRScanPreviewModal";
+import { CamScannerCloudModal } from "./CamScannerCloudModal";
 import { Item, ColumnKey, SortState } from "../types";
 import { fmt, makeId, emptyItem, applyTools, BASE_COLUMNS } from "../utils";
 import { DraftItemsTable } from "./DraftItemsTable";
@@ -66,6 +67,7 @@ export function CreatePRCatalog({
   const [scanError, setScanError] = useState("");
   const [isDragging, setIsDragging] = useState(false);
   const [showPreviewModal, setShowPreviewModal] = useState(false);
+  const [showCamScannerModal, setShowCamScannerModal] = useState(false);
   const [showNoteField, setShowNoteField] = useState(false);
   const scanInputRef = React.useRef<HTMLInputElement>(null);
 
@@ -382,23 +384,33 @@ export function CreatePRCatalog({
                     </div>
                   </div>
                 ) : (
-                  <button
-                    type="button"
-                    onClick={() => scanInputRef.current?.click()}
-                    className="w-full py-2.5 border border-dashed border-sky-400 bg-sky-50/50 rounded-xl text-xs font-semibold text-sky-700 flex items-center justify-center gap-2"
-                  >
-                    {uploadingScan ? (
-                      <>
-                        <Loader2 size={14} className="animate-spin text-sky-600" />
-                        <span>Đang tải lên...</span>
-                      </>
-                    ) : (
-                      <>
-                        <Paperclip size={14} />
-                        <span>Chụp hoặc tải ảnh/PDF scan</span>
-                      </>
-                    )}
-                  </button>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => scanInputRef.current?.click()}
+                      className="w-full py-2.5 border border-dashed border-sky-400 bg-sky-50/50 rounded-xl text-xs font-semibold text-sky-700 flex items-center justify-center gap-1.5"
+                    >
+                      {uploadingScan ? (
+                        <>
+                          <Loader2 size={14} className="animate-spin text-sky-600" />
+                          <span>Đang tải...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Paperclip size={14} />
+                          <span>Tải ảnh / PDF</span>
+                        </>
+                      )}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setShowCamScannerModal(true)}
+                      className="w-full py-2.5 border border-teal-400 bg-teal-50 rounded-xl text-xs font-bold text-teal-800 flex items-center justify-center gap-1.5"
+                    >
+                      <Cloud size={14} />
+                      <span>Từ CamScanner</span>
+                    </button>
+                  </div>
                 )}
               </div>
             </div>
@@ -630,6 +642,17 @@ export function CreatePRCatalog({
             onClose={() => setShowPreviewModal(false)}
           />
         )}
+
+        <CamScannerCloudModal
+          isOpen={showCamScannerModal}
+          onClose={() => setShowCamScannerModal(false)}
+          targetLabel={draft.number ? `PR #${draft.number}` : "PR mới"}
+          prCode={draft.number || "PR"}
+          onImported={({ url, fileName }) => {
+            setDraft((d) => ({ ...d, scan_file_url: url }));
+            setScanFileName(fileName);
+          }}
+        />
       </div>
     );
   }
@@ -1058,52 +1081,79 @@ export function CreatePRCatalog({
                 </div>
               </div>
             ) : (
-              <button
-                type="button"
-                onClick={() => scanInputRef.current?.click()}
-                onDragOver={(e) => {
-                  e.preventDefault();
-                  setIsDragging(true);
-                }}
-                onDragLeave={() => setIsDragging(false)}
-                onDrop={(e) => {
-                  e.preventDefault();
-                  setIsDragging(false);
-                  const f = e.dataTransfer.files?.[0];
-                  if (f) handleScanUpload(f);
-                }}
-                disabled={uploadingScan}
-                style={{
-                  height: "40px",
-                  display: "inline-flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: "6px",
-                  border: `1.5px dashed #38bdf8`,
-                  background: isDragging ? "#e0f2fe" : "#f0f9ff",
-                  borderRadius: "8px",
-                  color: "#0369a1",
-                  fontSize: "12.5px",
-                  fontWeight: 700,
-                  cursor: "pointer",
-                  padding: "0 12px",
-                  width: "100%",
-                  transition: "all 0.15s ease",
-                }}
-                title="Bấm để chọn file scan hoặc kéo thả trực tiếp (tối đa 5MB)"
-              >
-                {uploadingScan ? (
-                  <>
-                    <Loader2 size={14} className="animate-spin text-sky-600" />
-                    <span>{scanProgressMessage || "Đang nén & lưu..."}</span>
-                  </>
-                ) : (
-                  <>
-                    <Paperclip size={14} />
-                    <span>+ Đính kèm bản scan PR</span>
-                  </>
-                )}
-              </button>
+              <div style={{ display: "flex", gap: "6px", width: "100%" }}>
+                <button
+                  type="button"
+                  onClick={() => scanInputRef.current?.click()}
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    setIsDragging(true);
+                  }}
+                  onDragLeave={() => setIsDragging(false)}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    setIsDragging(false);
+                    const f = e.dataTransfer.files?.[0];
+                    if (f) handleScanUpload(f);
+                  }}
+                  disabled={uploadingScan}
+                  style={{
+                    height: "40px",
+                    flex: 1,
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: "5px",
+                    border: `1.5px dashed #38bdf8`,
+                    background: isDragging ? "#e0f2fe" : "#f0f9ff",
+                    borderRadius: "8px",
+                    color: "#0369a1",
+                    fontSize: "12px",
+                    fontWeight: 700,
+                    cursor: "pointer",
+                    padding: "0 10px",
+                    whiteSpace: "nowrap",
+                    transition: "all 0.15s ease",
+                  }}
+                  title="Bấm để chọn file scan từ máy tính hoặc kéo thả trực tiếp"
+                >
+                  {uploadingScan ? (
+                    <>
+                      <Loader2 size={14} className="animate-spin text-sky-600" />
+                      <span>{scanProgressMessage || "Đang lưu..."}</span>
+                    </>
+                  ) : (
+                    <>
+                      <Paperclip size={14} />
+                      <span>+ Tải file scan</span>
+                    </>
+                  )}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowCamScannerModal(true)}
+                  style={{
+                    height: "40px",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: "5px",
+                    border: "1.5px solid #2dd4bf",
+                    background: "#f0fdfa",
+                    borderRadius: "8px",
+                    color: "#0f766e",
+                    fontSize: "12px",
+                    fontWeight: 700,
+                    cursor: "pointer",
+                    padding: "0 10px",
+                    whiteSpace: "nowrap",
+                  }}
+                  title="Chọn trực tiếp bản scan từ kho dữ liệu CamScanner Pro Cloud"
+                >
+                  <Cloud size={14} />
+                  <span>CamScanner</span>
+                </button>
+              </div>
             )}
           </div>
         </div>
@@ -1451,6 +1501,17 @@ export function CreatePRCatalog({
           onClose={() => setShowPreviewModal(false)}
         />
       )}
+
+      <CamScannerCloudModal
+        isOpen={showCamScannerModal}
+        onClose={() => setShowCamScannerModal(false)}
+        targetLabel={draft.number ? `PR #${draft.number}` : "PR mới"}
+        prCode={draft.number || "PR"}
+        onImported={({ url, fileName }) => {
+          setDraft((d) => ({ ...d, scan_file_url: url }));
+          setScanFileName(fileName);
+        }}
+      />
     </section>
   );
 }

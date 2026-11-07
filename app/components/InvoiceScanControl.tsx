@@ -2,10 +2,11 @@
 
 import React, { useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Eye, Printer, Share2, Paperclip, Loader2, RefreshCw, X } from "lucide-react";
+import { Eye, Printer, Share2, Paperclip, Loader2, RefreshCw, X, Cloud } from "lucide-react";
 import { compressUploadFile } from "../utils/compressUploadFile";
 import { PRScanPreviewModal, printScanFileUrl, createScanShareUrl } from "./PRScanPreviewModal";
 import { ShareFileModal } from "./ShareFileModal";
+import { CamScannerCloudModal } from "./CamScannerCloudModal";
 
 export interface InvoiceScanControlProps {
   scanUrl?: string;
@@ -44,6 +45,7 @@ export function InvoiceScanControl({
   const [uploading, setUploading] = useState(false);
   const [progressText, setProgressText] = useState("");
   const [previewOpen, setPreviewOpen] = useState(false);
+  const [camScannerOpen, setCamScannerOpen] = useState(false);
   const [shareState, setShareState] = useState<{ isOpen: boolean; shareUrl: string } | null>(null);
   const [sharing, setSharing] = useState(false);
 
@@ -161,6 +163,17 @@ export function InvoiceScanControl({
             />,
             document.body
           )}
+        <CamScannerCloudModal
+          isOpen={camScannerOpen}
+          onClose={() => setCamScannerOpen(false)}
+          targetLabel={displayTitle}
+          prCode={`HD_${entityCode}_${invoiceNo || ""}`.replace(/[^a-zA-Z0-9_-]/g, "_") || "HD_VAT"}
+          onImported={({ url, fileName }) => {
+            onUpdate?.(url, fileName);
+            onUploadSuccess?.(url, fileName);
+            onStatus?.(`✓ Đã lấy bản scan hóa đơn "${fileName}" từ CamScanner Cloud`);
+          }}
+        />
       </>
     );
   };
@@ -265,29 +278,53 @@ export function InvoiceScanControl({
           </>
         ) : (
           !readOnly && (
-            <button
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={uploading}
-              title="Tải lên bản scan Hóa đơn (PDF hoặc Ảnh)"
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "3px",
-                padding: "2px 6px",
-                fontSize: "11px",
-                fontWeight: 600,
-                borderRadius: "4px",
-                border: "1px dashed #94a3b8",
-                background: "#ffffff",
-                color: "#334155",
-                cursor: "pointer",
-                whiteSpace: "nowrap",
-              }}
-            >
-              {uploading ? <Loader2 size={11} className="animate-spin" /> : <Paperclip size={11} />}
-              <span>{uploading ? "..." : "+ Scan HĐ"}</span>
-            </button>
+            <>
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploading}
+                title="Tải lên bản scan Hóa đơn (PDF hoặc Ảnh)"
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "3px",
+                  padding: "2px 6px",
+                  fontSize: "11px",
+                  fontWeight: 600,
+                  borderRadius: "4px",
+                  border: "1px dashed #94a3b8",
+                  background: "#ffffff",
+                  color: "#334155",
+                  cursor: "pointer",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {uploading ? <Loader2 size={11} className="animate-spin" /> : <Paperclip size={11} />}
+                <span>{uploading ? "..." : "+ Scan HĐ"}</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setCamScannerOpen(true)}
+                title="Lấy bản scan Hóa đơn từ CamScanner Cloud"
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "3px",
+                  padding: "2px 6px",
+                  fontSize: "11px",
+                  fontWeight: 700,
+                  borderRadius: "4px",
+                  border: "1px solid #5eead4",
+                  background: "#f0fdfa",
+                  color: "#0f766e",
+                  cursor: "pointer",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                <Cloud size={11} />
+                <span>CS</span>
+              </button>
+            </>
           )
         )}
         {renderModals()}
@@ -454,20 +491,20 @@ export function InvoiceScanControl({
           )}
         </div>
       ) : (
-        <div style={{ display: "flex", alignItems: "center" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
           <button
             type="button"
             disabled={readOnly || uploading}
             onClick={() => fileInputRef.current?.click()}
             title="Tải lên bản scan Hóa đơn GTGT (PDF hoặc hình ảnh)"
             style={{
-              width: "100%",
+              flex: 1,
               minHeight: "34px",
               display: "inline-flex",
               alignItems: "center",
               justifyContent: "center",
               gap: "6px",
-              padding: "5px 12px",
+              padding: "5px 10px",
               fontSize: "12px",
               fontWeight: 600,
               borderRadius: "6px",
@@ -475,6 +512,7 @@ export function InvoiceScanControl({
               background: "#ffffff",
               color: "#0f172a",
               cursor: readOnly ? "not-allowed" : "pointer",
+              whiteSpace: "nowrap",
             }}
           >
             {uploading ? (
@@ -485,10 +523,36 @@ export function InvoiceScanControl({
             ) : (
               <>
                 <Paperclip size={14} />
-                <span>+ Tải bản scan Hóa đơn (PDF / Ảnh)</span>
+                <span>+ Tải bản scan HĐ</span>
               </>
             )}
           </button>
+          {!readOnly && (
+            <button
+              type="button"
+              onClick={() => setCamScannerOpen(true)}
+              title="Chọn bản scan Hóa đơn GTGT trực tiếp từ kho dữ liệu CamScanner Pro Cloud"
+              style={{
+                minHeight: "34px",
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: "5px",
+                padding: "5px 10px",
+                fontSize: "12px",
+                fontWeight: 700,
+                borderRadius: "6px",
+                border: "1px solid #2dd4bf",
+                background: "#f0fdfa",
+                color: "#0f766e",
+                cursor: "pointer",
+                whiteSpace: "nowrap",
+              }}
+            >
+              <Cloud size={14} />
+              <span>CamScanner</span>
+            </button>
+          )}
         </div>
       )}
 

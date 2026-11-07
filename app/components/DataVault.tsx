@@ -23,6 +23,7 @@ import {
   Trash2,
   Loader2,
   X,
+  Cloud,
 } from "lucide-react";
 import {
   PR,
@@ -39,6 +40,7 @@ import {
   createScanShareUrl,
 } from "./PRScanPreviewModal";
 import { ShareFileModal } from "./ShareFileModal";
+import { CamScannerCloudModal } from "./CamScannerCloudModal";
 import { navigateTo, AppRoute } from "../utils/navigation";
 import { useIsMobile } from "../useIsMobile";
 
@@ -228,6 +230,7 @@ export function DataVault({
 
   // Upload new document directly into Vault
   const [uploadModalOpen, setUploadModalOpen] = useState(false);
+  const [camScannerOpen, setCamScannerOpen] = useState(false);
   const [uploadCategory, setUploadCategory] = useState<Exclude<VaultCategoryId, "all">>("invoice");
   const [uploadDocCode, setUploadDocCode] = useState("");
   const [uploadNote, setUploadNote] = useState("");
@@ -1508,6 +1511,30 @@ export function DataVault({
                     <Camera size={15} />
                     <span>Chụp ảnh chứng từ</span>
                   </button>
+
+                  <button
+                    type="button"
+                    disabled={uploading}
+                    onClick={() => setCamScannerOpen(true)}
+                    style={{
+                      width: "100%",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: "6px",
+                      padding: "10px 14px",
+                      fontSize: "13px",
+                      fontWeight: 700,
+                      borderRadius: "8px",
+                      border: "1px solid #2dd4bf",
+                      background: "#f0fdfa",
+                      color: "#0f766e",
+                      cursor: uploading ? "wait" : "pointer",
+                    }}
+                  >
+                    <Cloud size={15} />
+                    <span>Chọn trực tiếp từ Kho dữ liệu CamScanner Pro Cloud</span>
+                  </button>
                 </div>
               </div>
             </div>
@@ -1552,6 +1579,35 @@ export function DataVault({
           />,
           document.body
         )}
+
+      <CamScannerCloudModal
+        isOpen={camScannerOpen}
+        onClose={() => setCamScannerOpen(false)}
+        targetLabel={`Kho dữ liệu (${uploadCategory.toUpperCase()})`}
+        targetType="vault"
+        vaultOptions={{
+          workspaceId,
+          entityType: uploadCategory,
+          entityId: uploadDocCode.trim() || "KHO_DU_LIEU",
+          documentType: {
+            pr: "PR",
+            dnpd: "Báo giá",
+            po: "PO xác nhận",
+            contract: "Hợp đồng",
+            invoice: "Hóa đơn",
+            handover: "Biên bản giao nhận",
+            payment: "Hồ sơ thanh toán",
+          }[uploadCategory],
+          note: uploadNote.trim(),
+        }}
+        onImported={async ({ fileName }) => {
+          await loadR2Files();
+          setUploadModalOpen(false);
+          setUploadDocCode("");
+          setUploadNote("");
+          onStatus?.(`✓ Đã lấy "${fileName}" từ CamScanner Cloud vào Kho dữ liệu`);
+        }}
+      />
     </section>
   );
 }

@@ -1,7 +1,8 @@
 import React, { useState } from "react";
-import { Plus, Trash2, Search, CheckCircle2, Circle, Scale, Eye, Printer, Paperclip, Loader2, Truck } from "lucide-react";
+import { Plus, Trash2, Search, CheckCircle2, Circle, Scale, Eye, Printer, Paperclip, Loader2, Truck, Cloud } from "lucide-react";
 import { compressUploadFile } from "../utils/compressUploadFile";
 import { PRScanPreviewModal } from "./PRScanPreviewModal";
+import { CamScannerCloudModal } from "./CamScannerCloudModal";
 import { PR, PO, ApprovalRequest, PaymentRequestEntry, PaymentHandoverItem } from "../types";
 import { fmt, dateVN } from "../utils";
 import { useTranslation } from "../i18n";
@@ -43,6 +44,7 @@ export function PRList({
   const [previewScanPR, setPreviewScanPR] = useState<PR | null>(null);
   const [uploadingPrId, setUploadingPrId] = useState<number | null>(null);
   const [targetUploadPR, setTargetUploadPR] = useState<PR | null>(null);
+  const [camScannerTargetPR, setCamScannerTargetPR] = useState<PR | null>(null);
   const [compressProgress, setCompressProgress] = useState<string>("");
   const rowScanInputRef = React.useRef<HTMLInputElement>(null);
 
@@ -390,30 +392,50 @@ export function PRList({
                         <Printer size={17} />
                         <span>In</span>
                       </button>
+                      <button
+                        type="button"
+                        className="m-action-btn m-btn-outline-secondary"
+                        onClick={() => setCamScannerTargetPR(pr)}
+                        title="Đổi bản scan từ CamScanner Cloud"
+                      >
+                        <Cloud size={17} />
+                        <span>CamScanner</span>
+                      </button>
                     </>
                   ) : (
-                    <button
-                      type="button"
-                      className="m-action-btn m-btn-outline-secondary"
-                      onClick={() => {
-                        setTargetUploadPR(pr);
-                        rowScanInputRef.current?.click();
-                      }}
-                      title="Tải lên bản scan PR"
-                      disabled={uploadingPrId === pr.id}
-                    >
-                      {uploadingPrId === pr.id ? (
-                        <span style={{ fontSize: "11px", display: "inline-flex", alignItems: "center", gap: "4px" }}>
-                          <Loader2 size={15} className="animate-spin text-sky-600" />
-                          <span>{compressProgress || "Đang nén..."}</span>
-                        </span>
-                      ) : (
-                        <>
-                          <Paperclip size={17} />
-                          <span>Tải scan</span>
-                        </>
-                      )}
-                    </button>
+                    <>
+                      <button
+                        type="button"
+                        className="m-action-btn m-btn-outline-secondary"
+                        onClick={() => {
+                          setTargetUploadPR(pr);
+                          rowScanInputRef.current?.click();
+                        }}
+                        title="Tải lên bản scan PR"
+                        disabled={uploadingPrId === pr.id}
+                      >
+                        {uploadingPrId === pr.id ? (
+                          <span style={{ fontSize: "11px", display: "inline-flex", alignItems: "center", gap: "4px" }}>
+                            <Loader2 size={15} className="animate-spin text-sky-600" />
+                            <span>{compressProgress || "Đang nén..."}</span>
+                          </span>
+                        ) : (
+                          <>
+                            <Paperclip size={17} />
+                            <span>Tải scan</span>
+                          </>
+                        )}
+                      </button>
+                      <button
+                        type="button"
+                        className="m-action-btn m-btn-outline-primary"
+                        onClick={() => setCamScannerTargetPR(pr)}
+                        title="Lấy bản scan trực tiếp từ tài khoản CamScanner Pro Cloud"
+                      >
+                        <Cloud size={17} />
+                        <span>CamScanner</span>
+                      </button>
+                    </>
                   )}
 
                   {onDelete && (
@@ -558,13 +580,13 @@ export function PRList({
                     </td>
                     <td className="cell-center">
                       {pr.scan_file_url ? (
-                        <div style={{ display: "inline-flex", gap: "5px", alignItems: "center", justifyContent: "center" }}>
+                        <div style={{ display: "inline-flex", gap: "4px", alignItems: "center", justifyContent: "center", flexWrap: "nowrap" }}>
                           <button
                             type="button"
                             className="stitch-action-pill pill-navy"
                             onClick={() => setPreviewScanPR(pr)}
                             title="Xem bản scan PR gốc"
-                            style={{ padding: "4px 8px", fontSize: "11.5px" }}
+                            style={{ padding: "4px 8px", fontSize: "11.5px", whiteSpace: "nowrap" }}
                           >
                             <Eye size={13} /> Xem scan
                           </button>
@@ -586,38 +608,81 @@ export function PRList({
                           >
                             <Printer size={13} />
                           </button>
+                          <button
+                            type="button"
+                            className="btn-icon secondary-ghost"
+                            onClick={() => setCamScannerTargetPR(pr)}
+                            title="Đổi bản scan từ CamScanner Pro Cloud"
+                            style={{
+                              color: "#0d9488",
+                              backgroundColor: "#f0fdfa",
+                              border: "1px solid #99f6e4",
+                              borderRadius: "6px",
+                              padding: "4px 6px",
+                              display: "inline-flex",
+                              alignItems: "center",
+                              cursor: "pointer",
+                            }}
+                          >
+                            <Cloud size={13} />
+                          </button>
                         </div>
                       ) : (
-                        <button
-                          type="button"
-                          className="stitch-action-pill"
-                          onClick={() => {
-                            setTargetUploadPR(pr);
-                            rowScanInputRef.current?.click();
-                          }}
-                          title="Tải lên file scan / ảnh phiếu yêu cầu PR"
-                          disabled={uploadingPrId === pr.id}
-                          style={{
-                            padding: "4px 9px",
-                            fontSize: "11.5px",
-                            color: "#0f172a",
-                            backgroundColor: "#ffffff",
-                            border: "1px dashed #cbd5e1",
-                            cursor: "pointer",
-                          }}
-                        >
-                          {uploadingPrId === pr.id ? (
-                            <>
-                              <Loader2 size={13} className="animate-spin text-sky-600" />
-                              <span>{compressProgress || "Đang tối ưu..."}</span>
-                            </>
-                          ) : (
-                            <>
-                              <Paperclip size={13} />
-                              <span>+ Tải scan</span>
-                            </>
-                          )}
-                        </button>
+                        <div style={{ display: "inline-flex", gap: "4px", alignItems: "center", justifyContent: "center", flexWrap: "nowrap" }}>
+                          <button
+                            type="button"
+                            className="stitch-action-pill"
+                            onClick={() => {
+                              setTargetUploadPR(pr);
+                              rowScanInputRef.current?.click();
+                            }}
+                            title="Tải lên file scan / ảnh phiếu yêu cầu PR từ máy tính"
+                            disabled={uploadingPrId === pr.id}
+                            style={{
+                              padding: "4px 8px",
+                              fontSize: "11.5px",
+                              color: "#0f172a",
+                              backgroundColor: "#ffffff",
+                              border: "1px dashed #cbd5e1",
+                              cursor: "pointer",
+                              whiteSpace: "nowrap",
+                            }}
+                          >
+                            {uploadingPrId === pr.id ? (
+                              <>
+                                <Loader2 size={13} className="animate-spin text-sky-600" />
+                                <span>{compressProgress || "Đang tối ưu..."}</span>
+                              </>
+                            ) : (
+                              <>
+                                <Paperclip size={13} />
+                                <span>+ Tải scan</span>
+                              </>
+                            )}
+                          </button>
+                          <button
+                            type="button"
+                            className="stitch-action-pill"
+                            onClick={() => setCamScannerTargetPR(pr)}
+                            title="Lấy bản scan trực tiếp từ kho dữ liệu CamScanner Pro Cloud"
+                            style={{
+                              padding: "4px 8px",
+                              fontSize: "11.5px",
+                              color: "#0f766e",
+                              backgroundColor: "#f0fdfa",
+                              border: "1px solid #5eead4",
+                              fontWeight: 700,
+                              cursor: "pointer",
+                              whiteSpace: "nowrap",
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: "4px",
+                            }}
+                          >
+                            <Cloud size={13} />
+                            <span>CamScanner</span>
+                          </button>
+                        </div>
                       )}
                     </td>
                     <td>
@@ -675,6 +740,20 @@ export function PRList({
         <PRScanPreviewModal
           pr={previewScanPR}
           onClose={() => setPreviewScanPR(null)}
+        />
+      )}
+
+      {camScannerTargetPR && (
+        <CamScannerCloudModal
+          isOpen={!!camScannerTargetPR}
+          onClose={() => setCamScannerTargetPR(null)}
+          targetLabel={`PR #${camScannerTargetPR.number}`}
+          prCode={camScannerTargetPR.number || "PR"}
+          prId={camScannerTargetPR.id}
+          onImported={({ url }) => {
+            camScannerTargetPR.scan_file_url = url;
+            onUpdateScanUrl?.(camScannerTargetPR.id, url);
+          }}
         />
       )}
     </section>
