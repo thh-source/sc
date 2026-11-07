@@ -305,6 +305,8 @@ export type Payment = {
   condition?: "advance" | "post" | "other";
   invoiceNo?: string;
   invoiceDate?: string;
+  invoiceScanUrl?: string;
+  invoiceScanName?: string;
   note?: string;
   paymentRequestId?: number;
   percent: number;
@@ -489,6 +491,8 @@ export type PaymentDetailLine = {
   description: string;
   invoice_no: string;
   invoice_date?: string;
+  invoice_scan_url?: string;
+  invoice_scan_name?: string;
   amount: number | string;
   note?: string;
 };
@@ -504,6 +508,8 @@ export type PaymentRequestEntry = {
   item_name?: string;
   invoice_no?: string;
   invoice_date?: string;
+  invoice_scan_url?: string;
+  invoice_scan_name?: string;
   amount: number | string;
   currency: "VND" | "USD" | "EUR" | string;
   documents: string[];

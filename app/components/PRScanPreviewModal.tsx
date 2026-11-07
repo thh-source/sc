@@ -4,8 +4,98 @@ import { PR } from "../types";
 import { ShareFileModal } from "./ShareFileModal";
 
 interface PRScanPreviewModalProps {
-  pr: PR | { number: string; scan_file_url?: string; department?: string };
+  pr:
+    | PR
+    | {
+        number: string;
+        scan_file_url?: string;
+        department?: string;
+        customTitle?: string;
+        customSubtitle?: string;
+        entityType?: string;
+      };
   onClose: () => void;
+}
+
+export function printScanFileUrl(scanUrl: string, title = "Bản scan chứng từ") {
+  if (!scanUrl) return;
+  const isPdf =
+    scanUrl.toLowerCase().includes(".pdf") ||
+    (scanUrl.toLowerCase().includes("key=") && scanUrl.toLowerCase().includes(".pdf"));
+
+  if (isPdf) {
+    const printFrame = document.createElement("iframe");
+    printFrame.style.position = "fixed";
+    printFrame.style.right = "0";
+    printFrame.style.bottom = "0";
+    printFrame.style.width = "0";
+    printFrame.style.height = "0";
+    printFrame.style.border = "none";
+    printFrame.src = scanUrl;
+    document.body.appendChild(printFrame);
+    printFrame.onload = () => {
+      try {
+        printFrame.contentWindow?.focus();
+        printFrame.contentWindow?.print();
+      } catch {
+        window.open(scanUrl, "_blank");
+      }
+      setTimeout(() => {
+        try {
+          document.body.removeChild(printFrame);
+        } catch {}
+      }, 60000);
+    };
+  } else {
+    const printWindow = window.open("", "_blank");
+    if (printWindow) {
+      printWindow.document.write(`
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <title>${title}</title>
+            <style>
+              @page { size: auto; margin: 8mm; }
+              body { margin: 0; padding: 0; display: flex; justify-content: center; align-items: flex-start; background: #fff; }
+              img { max-width: 100%; height: auto; object-fit: contain; }
+            </style>
+          </head>
+          <body>
+            <img src="${scanUrl}" onload="window.print(); setTimeout(() => window.close(), 1000);" />
+          </body>
+        </html>
+      `);
+      printWindow.document.close();
+    }
+  }
+}
+
+export async function createScanShareUrl(params: {
+  scanUrl: string;
+  fileName: string;
+  entityCode: string;
+  entityType?: string;
+}): Promise<string> {
+  const isPdf =
+    params.scanUrl.toLowerCase().includes(".pdf") ||
+    (params.scanUrl.toLowerCase().includes("key=") && params.scanUrl.toLowerCase().includes(".pdf"));
+  const res = await fetch("/api/share-file", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      fileUrl: params.scanUrl,
+      fileName: params.fileName,
+      fileType: isPdf ? "application/pdf" : "image/jpeg",
+      entityCode: params.entityCode,
+      entityType: params.entityType || "pr",
+    }),
+  });
+  const data = await res.json();
+  if (!res.ok || !data.ok) throw new Error(data.error || "Không thể tạo link chia sẻ");
+  try {
+    await navigator.clipboard.writeText(data.shareUrl);
+  } catch {}
+  return data.shareUrl;
 }
 
 export function PRScanPreviewModal({ pr, onClose }: PRScanPreviewModalProps) {
@@ -19,27 +109,22 @@ export function PRScanPreviewModal({ pr, onClose }: PRScanPreviewModalProps) {
     scanUrl.toLowerCase().includes(".pdf") ||
     (scanUrl.toLowerCase().includes("key=") && scanUrl.toLowerCase().includes(".pdf"));
 
+  const displayTitle = (pr as any).customTitle || `Bản scan PR #${pr.number}`;
+  const displaySubtitle = (pr as any).customSubtitle || (pr.department ? `Đơn vị: ${pr.department}` : "");
+  const entityType = (pr as any).entityType || "pr";
+
   const handleCreateShareLink = async () => {
     if (!scanUrl) return;
     try {
-      const res = await fetch("/api/share-file", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          fileUrl: scanUrl,
-          fileName: `Bản scan PR #${pr.number}`,
-          fileType: isPdf ? "application/pdf" : "image/jpeg",
-          entityCode: pr.number,
-          entityType: "pr",
-        }),
+      const shareUrl = await createScanShareUrl({
+        scanUrl,
+        fileName: displayTitle,
+        entityCode: pr.number,
+        entityType,
       });
-      const data = await res.json();
-      if (!res.ok || !data.ok) throw new Error(data.error || "Không thể tạo link chia sẻ");
-
-      navigator.clipboard.writeText(data.shareUrl);
       setShareData({
         isOpen: true,
-        shareUrl: data.shareUrl,
+        shareUrl,
       });
     } catch (err: any) {
       alert(err.message || "Lỗi tạo link chia sẻ");
@@ -171,10 +256,10 @@ export function PRScanPreviewModal({ pr, onClose }: PRScanPreviewModalProps) {
             </span>
             <div>
               <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 700, color: "#0f172a" }}>
-                Bản scan PR #{pr.number}
+                {displayTitle}
               </h3>
               <small style={{ color: "#64748b" }}>
-                {pr.department ? `Đơn vị: ${pr.department} · ` : ""}
+                {displaySubtitle ? `${displaySubtitle} · ` : ""}
                 Định dạng: <strong>{isPdf ? "PDF Tài liệu" : "Hình ảnh Scan"}</strong>
               </small>
             </div>
@@ -410,7 +495,7 @@ export function PRScanPreviewModal({ pr, onClose }: PRScanPreviewModalProps) {
         <ShareFileModal
           isOpen={shareData.isOpen}
           onClose={() => setShareData(null)}
-          fileName={`Bản scan PR #${pr.number}`}
+          fileName={displayTitle}
           shareUrl={shareData.shareUrl}
           entityCode={pr.number}
         />

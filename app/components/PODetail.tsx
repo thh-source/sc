@@ -53,6 +53,7 @@ import DocumentManager from "./DocumentManager";
 import { DocFlowLinks } from "./DocFlowLinks";
 import { POPaymentLinkModal } from "./POPaymentLinkModal";
 import { isPaymentCompleted } from "../utils/paymentSync";
+import { InvoiceScanControl } from "./InvoiceScanControl";
 import { resolveDocFlow } from "../utils/docFlow";
 import { isPOCompleted, calcPODeliveryStats, calcPOItemDeliveryStats } from "../utils/paymentSync";
 import { PODeliveryModal, POItemsMobileCards, DeliveryConfirmPayload } from "./PODeliveryMobileSheet";
@@ -732,6 +733,7 @@ export function PODetail({
   };
 
   const handleUpdatePaymentStage = (id: number, patch: Partial<Payment>) => {
+    let updatedStage: Payment | undefined;
     onUpdate({
       ...po,
       payments: (po.payments || []).map((p) => {
@@ -744,33 +746,91 @@ export function PODetail({
           const amt = Number(patch.amount) || 0;
           updated.percent = total > 0 ? Math.round((amt / total) * 100) : 0;
         }
+        updatedStage = updated;
         return updated;
       }),
     });
+
+    // Đồng bộ thông tin hóa đơn & bản scan sang ĐNTT đã liên kết (nếu có)
+    if (
+      updatedStage?.paymentRequestId &&
+      onUpdatePaymentRequest &&
+      (patch.invoiceNo !== undefined ||
+        patch.invoiceDate !== undefined ||
+        patch.invoiceScanUrl !== undefined ||
+        patch.invoiceScanName !== undefined)
+    ) {
+      const linkedReq = paymentRequests.find((r) => r.id === updatedStage!.paymentRequestId);
+      if (linkedReq) {
+        const nextInvoiceNo =
+          patch.invoiceNo !== undefined ? patch.invoiceNo : linkedReq.invoice_no;
+        const nextInvoiceDate =
+          patch.invoiceDate !== undefined ? patch.invoiceDate : linkedReq.invoice_date;
+        const nextScanUrl =
+          patch.invoiceScanUrl !== undefined ? patch.invoiceScanUrl : linkedReq.invoice_scan_url;
+        const nextScanName =
+          patch.invoiceScanName !== undefined ? patch.invoiceScanName : linkedReq.invoice_scan_name;
+
+        const nextLines =
+          linkedReq.lines && linkedReq.lines.length > 0
+            ? linkedReq.lines.map((line, idx) =>
+                idx === 0
+                  ? {
+                      ...line,
+                      invoice_no: nextInvoiceNo || "",
+                      invoice_date: nextInvoiceDate || "",
+                      invoice_scan_url: nextScanUrl,
+                      invoice_scan_name: nextScanName,
+                    }
+                  : line
+              )
+            : linkedReq.lines;
+
+        onUpdatePaymentRequest({
+          ...linkedReq,
+          invoice_no: nextInvoiceNo || "",
+          invoice_date: nextInvoiceDate || "",
+          invoice_scan_url: nextScanUrl,
+          invoice_scan_name: nextScanName,
+          lines: nextLines,
+        });
+      }
+    }
   };
 
   const handleConfirmLinkPaymentRequest = (req: PaymentRequestEntry) => {
     if (!linkingStage) return;
+
+    const reqScanUrl = req.invoice_scan_url || req.lines?.[0]?.invoice_scan_url;
+    const reqScanName = req.invoice_scan_name || req.lines?.[0]?.invoice_scan_name;
 
     const patch: Partial<Payment> = {
       paymentRequestId: req.id,
       status: isPaymentCompleted(req) ? "Đã thanh toán" : "Chưa thanh toán",
     };
 
-    // Đồng bộ số hóa đơn từ ĐNTT sang PO nếu PO chưa có mà ĐNTT đã có
+    // Đồng bộ số hóa đơn & bản scan từ ĐNTT sang PO nếu PO chưa có mà ĐNTT đã có
     if (!linkingStage.invoiceNo && req.invoice_no) {
       patch.invoiceNo = req.invoice_no;
       patch.invoiceDate = req.invoice_date || linkingStage.invoiceDate;
     }
+    if (!linkingStage.invoiceScanUrl && reqScanUrl) {
+      patch.invoiceScanUrl = reqScanUrl;
+      patch.invoiceScanName = reqScanName || linkingStage.invoiceScanName;
+    }
 
     handleUpdatePaymentStage(linkingStage.id, patch);
 
-    // Đồng bộ ĐNTT: gán group_code = po.number nếu chưa có, hoặc cập nhật HĐ nếu PO có mà ĐNTT chưa có
+    // Đồng bộ ĐNTT: gán group_code = po.number nếu chưa có, hoặc cập nhật HĐ & bản scan nếu PO có mà ĐNTT chưa có
+    const mergedScanUrl = reqScanUrl || linkingStage.invoiceScanUrl;
+    const mergedScanName = reqScanName || linkingStage.invoiceScanName;
     const updatedReq: PaymentRequestEntry = {
       ...req,
       group_code: req.group_code || po.number,
       invoice_no: req.invoice_no || linkingStage.invoiceNo || "",
       invoice_date: req.invoice_date || linkingStage.invoiceDate || "",
+      invoice_scan_url: mergedScanUrl,
+      invoice_scan_name: mergedScanName,
     };
     if (onUpdatePaymentRequest) {
       onUpdatePaymentRequest(updatedReq);
@@ -2379,6 +2439,23 @@ export function PODetail({
                             />
                           </div>
                         </div>
+                        <div style={{ marginTop: "8px", paddingTop: "8px", borderTop: "1px dashed rgba(148, 163, 184, 0.4)" }}>
+                          <span style={{ display: "block", fontSize: "11px", fontWeight: 600, marginBottom: "4px", color: "#334155" }}>
+                            Bản scan Hóa đơn GTGT (Xem trực tiếp / In / Chia sẻ):
+                          </span>
+                          <InvoiceScanControl
+                            scanUrl={p.invoiceScanUrl}
+                            scanName={p.invoiceScanName}
+                            invoiceNo={p.invoiceNo}
+                            invoiceDate={p.invoiceDate}
+                            entityCode={po.number}
+                            supplierName={supplier?.name}
+                            onUpdate={(scanUrl, scanName) =>
+                              handleUpdatePaymentStage(p.id, { invoiceScanUrl: scanUrl, invoiceScanName: scanName })
+                            }
+                            onStatus={onStatus}
+                          />
+                        </div>
                       </div>
                     )}
 
@@ -2430,6 +2507,23 @@ export function PODetail({
                             />
                           </div>
                         </div>
+                        <div style={{ marginTop: "8px", paddingTop: "8px", borderTop: "1px dashed rgba(22, 101, 52, 0.25)" }}>
+                          <span style={{ display: "block", fontSize: "11px", fontWeight: 600, marginBottom: "4px", color: "#14532d" }}>
+                            Bản scan Hóa đơn GTGT (Xem trực tiếp / In / Chia sẻ):
+                          </span>
+                          <InvoiceScanControl
+                            scanUrl={p.invoiceScanUrl}
+                            scanName={p.invoiceScanName}
+                            invoiceNo={p.invoiceNo}
+                            invoiceDate={p.invoiceDate}
+                            entityCode={po.number}
+                            supplierName={supplier?.name}
+                            onUpdate={(scanUrl, scanName) =>
+                              handleUpdatePaymentStage(p.id, { invoiceScanUrl: scanUrl, invoiceScanName: scanName })
+                            }
+                            onStatus={onStatus}
+                          />
+                        </div>
                       </div>
                     )}
 
@@ -2469,6 +2563,23 @@ export function PODetail({
                               onChange={(e) => handleUpdatePaymentStage(p.id, { note: e.target.value })}
                             />
                           </div>
+                        </div>
+                        <div style={{ marginTop: "8px", paddingTop: "8px", borderTop: "1px dashed rgba(148, 163, 184, 0.4)" }}>
+                          <span style={{ display: "block", fontSize: "11px", fontWeight: 600, marginBottom: "4px", color: "#334155" }}>
+                            Bản scan Hóa đơn GTGT (Xem trực tiếp / In / Chia sẻ):
+                          </span>
+                          <InvoiceScanControl
+                            scanUrl={p.invoiceScanUrl}
+                            scanName={p.invoiceScanName}
+                            invoiceNo={p.invoiceNo}
+                            invoiceDate={p.invoiceDate}
+                            entityCode={po.number}
+                            supplierName={supplier?.name}
+                            onUpdate={(scanUrl, scanName) =>
+                              handleUpdatePaymentStage(p.id, { invoiceScanUrl: scanUrl, invoiceScanName: scanName })
+                            }
+                            onStatus={onStatus}
+                          />
                         </div>
                       </div>
                     )}

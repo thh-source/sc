@@ -2328,19 +2328,25 @@ function ProcurementAppInner({
 
     const desc = buildPOPaymentDescription(po, payment);
 
-    // Lấy thông tin hóa đơn nếu có từ payment stage hiện tại hoặc từ PO
+    // Lấy thông tin hóa đơn & bản scan nếu có từ payment stage hiện tại hoặc từ PO
     const invoiceFromCurrent = payment.invoiceNo && payment.invoiceNo.trim();
-    const fallbackInvoice = (po.payments || []).find((p) => p.invoiceNo && p.invoiceNo.trim());
+    const fallbackInvoice = (po.payments || []).find(
+      (p) => (p.invoiceNo && p.invoiceNo.trim()) || p.invoiceScanUrl
+    );
     const finalInvoiceNo = invoiceFromCurrent
       ? payment.invoiceNo!.trim()
-      : fallbackInvoice
-      ? fallbackInvoice.invoiceNo!.trim()
+      : fallbackInvoice?.invoiceNo
+      ? fallbackInvoice.invoiceNo.trim()
       : "";
     const finalInvoiceDate = invoiceFromCurrent
       ? (payment.invoiceDate || "")
       : fallbackInvoice
       ? (fallbackInvoice.invoiceDate || "")
       : "";
+    const finalInvoiceScanUrl =
+      payment.invoiceScanUrl || fallbackInvoice?.invoiceScanUrl || undefined;
+    const finalInvoiceScanName =
+      payment.invoiceScanName || fallbackInvoice?.invoiceScanName || undefined;
 
     // Không cập nhật danh sách sản phẩm của PO vào DNTT, chỉ tạo dòng thanh toán tổng quát
     const lines: PaymentDetailLine[] = [
@@ -2348,6 +2354,8 @@ function ProcurementAppInner({
         description: desc || `Thanh toán theo đơn hàng ${po.number}`,
         invoice_no: finalInvoiceNo,
         invoice_date: finalInvoiceDate,
+        invoice_scan_url: finalInvoiceScanUrl,
+        invoice_scan_name: finalInvoiceScanName,
         amount: payment.amount,
         note: "", // Người dùng yêu cầu: không tự động thêm ghi chú
       },
@@ -2363,6 +2371,8 @@ function ProcurementAppInner({
       item_name: desc,
       invoice_no: finalInvoiceNo,
       invoice_date: finalInvoiceDate,
+      invoice_scan_url: finalInvoiceScanUrl,
+      invoice_scan_name: finalInvoiceScanName,
       amount: payment.amount,
       currency: "VND",
       documents: [], // Phần hồ sơ không tự động thêm gì cả, để người dùng tự chọn

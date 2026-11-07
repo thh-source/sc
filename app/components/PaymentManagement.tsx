@@ -53,6 +53,7 @@ import {
 import "../payment.css";
 import { useIsMobile } from "../useIsMobile";
 import { AutoGrowTextarea } from "./AutoGrowTextarea";
+import { InvoiceScanControl } from "./InvoiceScanControl";
 import { PaymentPrintSheet } from "./PaymentPrintSheet";
 import { isPaymentCompleted, syncPaymentCompletionToPO } from "../utils/paymentSync";
 
@@ -210,7 +211,7 @@ export const DEFAULT_COLUMN_SETTINGS: ColumnSetting[] = [
   { id: "group_code", label: "C · Nhóm PO", minWidth: 120, width: 145, visible: true, pinned: false },
   { id: "description", label: "D · Nội dung TT", minWidth: 180, width: 240, visible: true, pinned: false },
   { id: "item_name", label: "E · Hàng hóa/DV", minWidth: 150, width: 190, visible: true, pinned: false },
-  { id: "invoice_no", label: "F · Số HĐ", minWidth: 110, width: 135, visible: true, pinned: false },
+  { id: "invoice_no", label: "F · Số HĐ", minWidth: 155, width: 185, visible: true, pinned: false },
   { id: "invoice_date", label: "Ngày HĐ", minWidth: 110, width: 125, visible: true, pinned: false },
   { id: "amount", label: "G · Số tiền", minWidth: 120, width: 145, visible: true, pinned: false },
   { id: "currency", label: "Tiền tệ", minWidth: 65, width: 75, visible: true, pinned: false },
@@ -852,6 +853,44 @@ export function PaymentManagement({
       return r;
     });
     onUpdateState({ paymentRequests: next });
+
+    // Đồng bộ ngược thông tin hóa đơn & bản scan về đợt thanh toán của PO đã liên kết (nếu có)
+    if (
+      onUpdatePO &&
+      ("invoice_no" in patch ||
+        "invoice_date" in patch ||
+        "invoice_scan_url" in patch ||
+        "invoice_scan_name" in patch)
+    ) {
+      const updatedReq = next.find((r) => r.id === id);
+      if (updatedReq) {
+        const linkedPO = pos.find((po) =>
+          (po.payments || []).some((p) => p.paymentRequestId === id)
+        );
+        if (linkedPO) {
+          onUpdatePO({
+            ...linkedPO,
+            payments: (linkedPO.payments || []).map((p) =>
+              p.paymentRequestId === id
+                ? {
+                    ...p,
+                    invoiceNo:
+                      "invoice_no" in patch ? updatedReq.invoice_no || "" : p.invoiceNo,
+                    invoiceDate:
+                      "invoice_date" in patch ? updatedReq.invoice_date || "" : p.invoiceDate,
+                    invoiceScanUrl:
+                      "invoice_scan_url" in patch ? updatedReq.invoice_scan_url : p.invoiceScanUrl,
+                    invoiceScanName:
+                      "invoice_scan_name" in patch
+                        ? updatedReq.invoice_scan_name
+                        : p.invoiceScanName,
+                  }
+                : p
+            ),
+          });
+        }
+      }
+    }
   };
 
   // Toggle paid status on mobile and cards
@@ -1166,6 +1205,9 @@ export function PaymentManagement({
     const customPct = poTotal > 0 ? Math.round((amountToPay / poTotal) * 100) : 100;
     const itemNames = po.items.map((i) => i.name).slice(0, 3).join(", ");
     const description = buildPOPaymentDescription(po, matchedPayment, customPct);
+    const fallbackPaymentWithInv =
+      matchedPayment ||
+      (po.payments || []).find((p) => (p.invoiceNo && p.invoiceNo.trim()) || p.invoiceScanUrl);
 
     const newReq: PaymentRequestEntry = {
       id: maxId,
@@ -1174,8 +1216,10 @@ export function PaymentManagement({
       group_code: po.number,
       description,
       item_name: itemNames,
-      invoice_no: "",
-      invoice_date: "",
+      invoice_no: fallbackPaymentWithInv?.invoiceNo || "",
+      invoice_date: fallbackPaymentWithInv?.invoiceDate || "",
+      invoice_scan_url: fallbackPaymentWithInv?.invoiceScanUrl,
+      invoice_scan_name: fallbackPaymentWithInv?.invoiceScanName,
       amount: amountToPay,
       currency: "VND",
       documents: [],
@@ -1421,8 +1465,10 @@ export function PaymentManagement({
         );
       case "invoice_no": {
         const lineCount = r.lines?.length || 0;
+        const activeScanUrl = r.invoice_scan_url || r.lines?.find((l) => l.invoice_scan_url)?.invoice_scan_url;
+        const activeScanName = r.invoice_scan_name || r.lines?.find((l) => l.invoice_scan_url)?.invoice_scan_name;
         return (
-          <div style={{ display: "flex", alignItems: "center", width: "100%", height: "100%", gap: "2px" }}>
+          <div style={{ display: "flex", alignItems: "center", width: "100%", height: "100%", gap: "2px", paddingRight: "2px" }}>
             {lineCount > 1 ? (
               <button
                 type="button"
@@ -1461,7 +1507,33 @@ export function PaymentManagement({
                 handleEditRequest(r.id, patch);
               }}
               placeholder="Số HĐ..."
-              style={{ flex: 1, minWidth: 0, padding: "0 4px" }}
+              style={{ flex: 1, minWidth: "56px", padding: "0 4px" }}
+            />
+            <InvoiceScanControl
+              compact
+              readOnly={readOnly}
+              scanUrl={activeScanUrl}
+              scanName={activeScanName}
+              invoiceNo={r.invoice_no}
+              invoiceDate={r.invoice_date}
+              entityCode={r.group_code || `DNTT-${r.legacy_stt || r.id}`}
+              supplierName={r.payee_name}
+              onUpdate={(scanUrl, scanName) => {
+                const patch: Partial<PaymentRequestEntry> = {
+                  invoice_scan_url: scanUrl,
+                  invoice_scan_name: scanName,
+                };
+                if (r.lines && r.lines.length === 1) {
+                  const nextLines = [...r.lines];
+                  nextLines[0] = {
+                    ...nextLines[0],
+                    invoice_scan_url: scanUrl,
+                    invoice_scan_name: scanName,
+                  };
+                  patch.lines = nextLines;
+                }
+                handleEditRequest(r.id, patch);
+              }}
             />
             {lineCount <= 1 && (
               <button
@@ -2220,12 +2292,38 @@ export function PaymentManagement({
                     }
                     return null;
                   })()}
-                  {(r.invoice_no || r.invoice_date) && (
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "6px", flexWrap: "wrap", marginTop: "2px" }}>
                     <div>
-                      🧾 HĐ: <b>{r.invoice_no || "---"}</b>{" "}
+                      🧾 HĐ: <b>{r.invoice_no || "Chưa nhập số HĐ"}</b>{" "}
                       {r.invoice_date && <span style={{ color: "#64748b" }}>({r.invoice_date})</span>}
                     </div>
-                  )}
+                    <InvoiceScanControl
+                      compact
+                      readOnly={readOnly}
+                      scanUrl={r.invoice_scan_url || r.lines?.find((l) => l.invoice_scan_url)?.invoice_scan_url}
+                      scanName={r.invoice_scan_name || r.lines?.find((l) => l.invoice_scan_url)?.invoice_scan_name}
+                      invoiceNo={r.invoice_no}
+                      invoiceDate={r.invoice_date}
+                      entityCode={r.group_code || `DNTT-${r.legacy_stt || r.id}`}
+                      supplierName={r.payee_name}
+                      onUpdate={(scanUrl, scanName) => {
+                        const patch: Partial<PaymentRequestEntry> = {
+                          invoice_scan_url: scanUrl,
+                          invoice_scan_name: scanName,
+                        };
+                        if (r.lines && r.lines.length === 1) {
+                          const nextLines = [...r.lines];
+                          nextLines[0] = {
+                            ...nextLines[0],
+                            invoice_scan_url: scanUrl,
+                            invoice_scan_name: scanName,
+                          };
+                          patch.lines = nextLines;
+                        }
+                        handleEditRequest(r.id, patch);
+                      }}
+                    />
+                  </div>
                 </div>
 
                 {docs.length > 0 && (
@@ -3177,6 +3275,34 @@ export function PaymentManagement({
                         onChange={(e) => handleEditRequest(editReq.id, "doc_supplement", e.target.value)}
                         placeholder="Ghi chú hồ sơ còn thiếu..."
                         className="card-edit-input"
+                      />
+                    </div>
+                    <div className="card-edit-field" style={{ gridColumn: "1 / -1" }}>
+                      <label>Bản scan Hóa đơn GTGT (Xem trực tiếp / In / Chia sẻ):</label>
+                      <InvoiceScanControl
+                        readOnly={readOnly}
+                        scanUrl={editReq.invoice_scan_url || editReq.lines?.[0]?.invoice_scan_url}
+                        scanName={editReq.invoice_scan_name || editReq.lines?.[0]?.invoice_scan_name}
+                        invoiceNo={editReq.invoice_no || editReq.lines?.[0]?.invoice_no}
+                        invoiceDate={editReq.invoice_date || editReq.lines?.[0]?.invoice_date}
+                        entityCode={editReq.group_code || `DNTT-${editReq.legacy_stt || editReq.id}`}
+                        supplierName={editReq.payee_name}
+                        onUpdate={(scanUrl, scanName) => {
+                          const patch: Partial<PaymentRequestEntry> = {
+                            invoice_scan_url: scanUrl,
+                            invoice_scan_name: scanName,
+                          };
+                          if (editReq.lines && editReq.lines.length > 0) {
+                            const nextLines = [...editReq.lines];
+                            nextLines[0] = {
+                              ...nextLines[0],
+                              invoice_scan_url: scanUrl,
+                              invoice_scan_name: scanName,
+                            };
+                            patch.lines = nextLines;
+                          }
+                          handleEditRequest(editReq.id, patch);
+                        }}
                       />
                     </div>
                   </div>
@@ -4305,11 +4431,12 @@ export function PaymentManagement({
                     <thead>
                       <tr style={{ background: "#f8fafc", borderBottom: "1px solid #e2e8f0" }}>
                         <th style={{ padding: "8px 6px", textAlign: "center", width: "35px" }}>STT</th>
-                        <th style={{ padding: "8px 6px", textAlign: "left", width: "140px" }}>Số hóa đơn</th>
-                        <th style={{ padding: "8px 6px", textAlign: "left", width: "130px" }}>Ngày hóa đơn</th>
+                        <th style={{ padding: "8px 6px", textAlign: "left", width: "130px" }}>Số hóa đơn</th>
+                        <th style={{ padding: "8px 6px", textAlign: "left", width: "125px" }}>Ngày hóa đơn</th>
+                        <th style={{ padding: "8px 6px", textAlign: "left", width: "170px" }}>Bản scan HĐ</th>
                         <th style={{ padding: "8px 6px", textAlign: "left" }}>Tên hàng / Dịch vụ</th>
-                        <th style={{ padding: "8px 6px", textAlign: "right", width: "140px" }}>Số tiền (₫)</th>
-                        <th style={{ padding: "8px 6px", textAlign: "center", width: "40px" }}></th>
+                        <th style={{ padding: "8px 6px", textAlign: "right", width: "135px" }}>Số tiền (₫)</th>
+                        <th style={{ padding: "8px 6px", textAlign: "center", width: "36px" }}></th>
                       </tr>
                     </thead>
                     <tbody>
@@ -4367,6 +4494,32 @@ export function PaymentManagement({
                                 📅
                               </button>
                             </div>
+                          </td>
+                          <td style={{ padding: "4px" }}>
+                            <InvoiceScanControl
+                              compact
+                              readOnly={readOnly}
+                              scanUrl={line.invoice_scan_url || (lIdx === 0 ? multiReq.invoice_scan_url : undefined)}
+                              scanName={line.invoice_scan_name || (lIdx === 0 ? multiReq.invoice_scan_name : undefined)}
+                              invoiceNo={line.invoice_no || multiReq.invoice_no}
+                              invoiceDate={line.invoice_date || multiReq.invoice_date}
+                              entityCode={multiReq.group_code || `DNTT-${multiReq.legacy_stt || multiReq.id}`}
+                              supplierName={multiReq.payee_name}
+                              onUpdate={(scanUrl, scanName) => {
+                                const lines = [...(multiReq.lines || [])];
+                                lines[lIdx] = {
+                                  ...lines[lIdx],
+                                  invoice_scan_url: scanUrl,
+                                  invoice_scan_name: scanName,
+                                };
+                                const patch: Partial<PaymentRequestEntry> = { lines };
+                                if (lIdx === 0) {
+                                  patch.invoice_scan_url = scanUrl;
+                                  patch.invoice_scan_name = scanName;
+                                }
+                                handleEditRequest(multiReq.id, patch);
+                              }}
+                            />
                           </td>
                           <td style={{ padding: "4px" }}>
                             <input
