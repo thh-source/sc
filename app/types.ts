@@ -470,7 +470,8 @@ export type View =
   | "trash"
   | "settings"
   | "guide"
-  | "catalog";
+  | "catalog"
+  | "data-vault";
 
 export type ColumnKey =
   | "stt"

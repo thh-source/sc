@@ -9,7 +9,7 @@ export async function GET(request:Request){
  const user=await getCurrentUser();if(!user)return Response.json({error:"Yêu cầu đăng nhập"},{status:401});
  await ensureFiles();const env=await bindings(),url=new URL(request.url),entityType=url.searchParams.get("entityType"),entityId=url.searchParams.get("entityId"),workspaceId=await resolveWorkspace(user,url.searchParams.get("workspace"));
  const select="SELECT id,entity_type AS entityType,entity_id AS entityId,file_name AS fileName,content_type AS contentType,size,uploaded_at AS uploadedAt,document_type AS documentType,expires_at AS expiresAt,status,note FROM files";
- const result=entityType&&entityId?await env.DB.prepare(`${select} WHERE owner_user_id=? AND entity_type=? AND entity_id=? ORDER BY uploaded_at DESC`).bind(workspaceId,entityType,entityId).all():await env.DB.prepare(`${select} WHERE owner_user_id=? ORDER BY uploaded_at DESC LIMIT 200`).bind(workspaceId).all();
+ const result=entityType&&entityId?await env.DB.prepare(`${select} WHERE owner_user_id=? AND entity_type=? AND entity_id=? ORDER BY uploaded_at DESC`).bind(workspaceId,entityType,entityId).all():await env.DB.prepare(`${select} WHERE owner_user_id=? ORDER BY uploaded_at DESC LIMIT 1000`).bind(workspaceId).all();
  return Response.json({files:result.results});
 }
 

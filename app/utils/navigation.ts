@@ -42,6 +42,7 @@ export function parseRouteFromHash(hashString?: string): AppRoute {
     if (simple === "suppliers") return { view: "suppliers" };
     if (simple === "products") return { view: "products" };
     if (simple === "catalog") return { view: "catalog" };
+    if (simple === "data-vault" || simple === "vault" || simple === "files") return { view: "data-vault" };
     if (simple === "trash") return { view: "trash" };
     if (simple === "settings") return { view: "settings" };
     if (simple === "print-templates") return { view: "print-templates" };
@@ -137,6 +138,12 @@ export function parseRouteFromHash(hashString?: string): AppRoute {
 
     case "catalog":
       view = "catalog";
+      break;
+
+    case "data-vault":
+    case "vault":
+    case "files":
+      view = "data-vault";
       break;
 
     case "trash":

@@ -55,6 +55,7 @@ const ContractManagement = lazy(() => import("./components/ContractManagement").
 const HandoverManagement = lazy(() => import("./components/HandoverManagement").then(m => ({ default: m.HandoverManagement })));
 const ProductCatalog = lazy(() => import("./components/ProductCatalog").then(m => ({ default: m.ProductCatalog })));
 const SupplierManagement = lazy(() => import("./components/SupplierManagement").then(m => ({ default: m.SupplierManagement })));
+const DataVault = lazy(() => import("./components/DataVault").then(m => ({ default: m.DataVault })));
 import { GlobalSpotlightModal } from "./components/GlobalSpotlightModal";
 import { POHandoverPickerModal } from "./components/POHandoverPickerModal";
 import { generateHandoverBatchId, getPODeliveryBatches, PODeliveryBatch, sortHandoversByPOLineOrder } from "./utils/handoverBatches";
@@ -109,6 +110,7 @@ import {
   Eye,
   Paperclip,
   Loader2,
+  FolderOpen,
 } from "lucide-react";
 import {
   AppRoute,
@@ -2653,6 +2655,7 @@ function ProcurementAppInner({
     if (view === "payment" && id === "payment") return true;
     if (view === "handover" && id === "handover") return true;
     if ((view === "catalog" || view === "products" || view === "suppliers") && id === "catalog") return true;
+    if (view === "data-vault" && id === "data-vault") return true;
     if (view === "trash" && id === "trash") return true;
     return false;
   };
@@ -2698,6 +2701,12 @@ function ProcurementAppInner({
       action: () => navigateTo({ view: "handover" }),
     },
     {
+      id: "data-vault",
+      icon: <FolderOpen size={18} />,
+      name: "Kho dữ liệu",
+      action: () => navigateTo({ view: "data-vault" }),
+    },
+    {
       id: "catalog",
       icon: <Layers size={18} />,
       name: "Danh mục",
@@ -2720,6 +2729,7 @@ function ProcurementAppInner({
           "po-list",
           "payment",
           "handover",
+          "data-vault",
           "catalog",
         ].includes(n.id),
       )
@@ -3285,6 +3295,21 @@ function ProcurementAppInner({
             onPermanentDelete={permanentDeleteTrash}
             onEmptyTrash={emptyTrash}
           />
+        )}
+        {view === "data-vault" && (
+          <ErrorBoundary key="data-vault" fallbackTitle="Lỗi hiển thị Kho dữ liệu" onReset={() => navigateTo({ view: "dashboard" })}>
+            <DataVault
+              workspaceId={workspaceId}
+              prs={prs}
+              pos={pos}
+              suppliers={suppliers}
+              approvalRequests={approvalRequests}
+              paymentRequests={paymentRequests}
+              paymentHandovers={paymentHandovers}
+              readOnly={reportMode}
+              onStatus={setStorageStatus}
+            />
+          </ErrorBoundary>
         )}
         {view === "po-detail" && (
           <ErrorBoundary key="po-detail" fallbackTitle="Lỗi hiển thị chi tiết Đơn mua hàng (PO)" onReset={() => navigateTo({ view: "po-list" })}>
@@ -4318,7 +4343,46 @@ function ProcurementAppInner({
                 </span>
               </button>
 
-              {/* Item 6: Hợp đồng */}
+              {/* Item 6: Kho dữ liệu */}
+              <button
+                type="button"
+                onClick={() => {
+                  setMobileActionSheetOpen(false);
+                  navigateTo({ view: "data-vault" });
+                }}
+                style={{
+                  background: "transparent",
+                  border: "none",
+                  padding: "6px 2px",
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  gap: "8px",
+                  cursor: "pointer",
+                  WebkitTapHighlightColor: "transparent",
+                }}
+              >
+                <div
+                  style={{
+                    width: "56px",
+                    height: "56px",
+                    borderRadius: "18px",
+                    background: "linear-gradient(135deg, #0ea5e9 0%, #0369a1 100%)",
+                    color: "#ffffff",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    boxShadow: "0 6px 14px rgba(14, 165, 233, 0.3)",
+                  }}
+                >
+                  <FolderOpen size={24} />
+                </div>
+                <span style={{ fontSize: "12.5px", fontWeight: 700, color: "#1e293b", textAlign: "center" }}>
+                  Kho dữ liệu
+                </span>
+              </button>
+
+              {/* Item 6b: Hợp đồng */}
               <button
                 type="button"
                 onClick={() => {
