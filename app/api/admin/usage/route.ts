@@ -32,7 +32,79 @@ export async function GET() {
     env.DB.prepare("SELECT COUNT(*) AS count FROM users").first<{ count: number }>(),
   ]);
   const dbBytes = Number(stateRows?.bytes || 0);
-  const r2Bytes = Number(fileRows?.bytes || 0);
+
+  // Quét trực tiếp Cloudflare R2 Bucket để lấy số lượng file và dung lượng thực tế 100%
+  const bucket = env.R2_BUCKET || env.BUCKET;
+  let r2TotalBytes = 0;
+  let r2FileCount = 0;
+  let r2LatestUploaded: string | null = fileRows?.updatedAt || null;
+
+  const breakdown = {
+    prScans: { count: 0, bytes: 0 },
+    vault: { count: 0, bytes: 0 },
+    snapshots: { count: 0, bytes: 0 },
+    cache: { count: 0, bytes: 0 },
+    other: { count: 0, bytes: 0 },
+  };
+
+  if (bucket && typeof bucket.list === "function") {
+    try {
+      let cursor: string | undefined = undefined;
+      let totalB = 0;
+      let count = 0;
+      let latestTime = 0;
+      do {
+        const listResult: any = await bucket.list({ cursor, limit: 1000 });
+        const objs = listResult?.objects || [];
+        for (const obj of objs) {
+          count++;
+          const objSize = Number(obj.size || 0);
+          totalB += objSize;
+          const upTime = obj.uploaded ? new Date(obj.uploaded).getTime() : 0;
+          if (upTime > latestTime) {
+            latestTime = upTime;
+          }
+          const key = String(obj.key || "");
+          if (key.startsWith("pr-scans/")) {
+            breakdown.prScans.count++;
+            breakdown.prScans.bytes += objSize;
+          } else if (key.startsWith("snapshots/")) {
+            breakdown.snapshots.count++;
+            breakdown.snapshots.bytes += objSize;
+          } else if (key.startsWith("cs-preview-cache/")) {
+            breakdown.cache.count++;
+            breakdown.cache.bytes += objSize;
+          } else if (
+            key.includes("/general/") ||
+            key.includes("/pr/") ||
+            key.includes("/po/") ||
+            key.includes("/payment/")
+          ) {
+            breakdown.vault.count++;
+            breakdown.vault.bytes += objSize;
+          } else {
+            breakdown.other.count++;
+            breakdown.other.bytes += objSize;
+          }
+        }
+        cursor = listResult?.truncated ? listResult?.cursor : undefined;
+      } while (cursor);
+
+      r2TotalBytes = totalB;
+      r2FileCount = count;
+      if (latestTime > 0) {
+        r2LatestUploaded = new Date(latestTime).toISOString();
+      }
+    } catch (err) {
+      console.error("Lỗi quét R2 bucket trong /api/admin/usage:", err);
+      r2TotalBytes = Number(fileRows?.bytes || 0);
+      r2FileCount = Number(fileRows?.count || 0);
+    }
+  } else {
+    r2TotalBytes = Number(fileRows?.bytes || 0);
+    r2FileCount = Number(fileRows?.count || 0);
+  }
+
   return Response.json({
     generatedAt: new Date().toISOString(),
     freeTier: {
@@ -52,11 +124,12 @@ export async function GET() {
       updatedAt: stateRows?.updatedAt,
     },
     r2: {
-      estimatedBytes: r2Bytes,
-      remainingBytes: Math.max(0, R2_FREE_BYTES - r2Bytes),
-      usedPercent: (r2Bytes / R2_FREE_BYTES) * 100,
-      fileCount: Number(fileRows?.count || 0),
-      updatedAt: fileRows?.updatedAt,
+      estimatedBytes: r2TotalBytes,
+      remainingBytes: Math.max(0, R2_FREE_BYTES - r2TotalBytes),
+      usedPercent: (r2TotalBytes / R2_FREE_BYTES) * 100,
+      fileCount: r2FileCount,
+      updatedAt: r2LatestUploaded,
+      breakdown,
     },
   });
 }

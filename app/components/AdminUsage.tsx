@@ -29,6 +29,13 @@ export function AdminUsage({
       usedPercent: number;
       fileCount: number;
       updatedAt: string | null;
+      breakdown?: {
+        prScans: { count: number; bytes: number };
+        vault: { count: number; bytes: number };
+        snapshots: { count: number; bytes: number };
+        cache: { count: number; bytes: number };
+        other: { count: number; bytes: number };
+      };
     };
   } | null;
   onRefresh: () => void;
@@ -89,6 +96,26 @@ export function AdminUsage({
                 {fmt(usage.freeTier.r2ClassAOperationsPerMonth)} request/tháng ·
                 đọc/download miễn phí {fmt(usage.freeTier.r2ClassBOperationsPerMonth)} request/tháng
               </p>
+              {usage.r2.breakdown && usage.r2.fileCount > 0 && (
+                <div style={{ fontSize: "11px", color: "#64748b", marginTop: "6px", lineHeight: "1.45", background: "#f8fafc", padding: "4px 8px", borderRadius: "6px", border: "1px solid #e2e8f0" }}>
+                  <b style={{ color: "#334155" }}>Chi tiết lưu trữ:</b>{" "}
+                  {usage.r2.breakdown.prScans.count > 0 && (
+                    <span><b>{usage.r2.breakdown.prScans.count}</b> bản scan PR ({size(usage.r2.breakdown.prScans.bytes)}) · </span>
+                  )}
+                  {usage.r2.breakdown.vault.count > 0 && (
+                    <span><b>{usage.r2.breakdown.vault.count}</b> file kho ({size(usage.r2.breakdown.vault.bytes)}) · </span>
+                  )}
+                  {usage.r2.breakdown.snapshots.count > 0 && (
+                    <span><b>{usage.r2.breakdown.snapshots.count}</b> bản sao lưu snapshot ({size(usage.r2.breakdown.snapshots.bytes)}) · </span>
+                  )}
+                  {usage.r2.breakdown.cache.count > 0 && (
+                    <span><b>{usage.r2.breakdown.cache.count}</b> đệm cache ({size(usage.r2.breakdown.cache.bytes)}) · </span>
+                  )}
+                  {usage.r2.breakdown.other.count > 0 && (
+                    <span><b>{usage.r2.breakdown.other.count}</b> file khác ({size(usage.r2.breakdown.other.bytes)})</span>
+                  )}
+                </div>
+              )}
             </article>
           </div>
           <div className="usage-note">

@@ -135,6 +135,35 @@ export async function POST(request: Request) {
     // Cập nhật D1 nếu có prId
     if (env.DB) {
       await ensureScanTable(env.DB);
+      try {
+        await env.DB.prepare(
+          "CREATE TABLE IF NOT EXISTS files (id TEXT PRIMARY KEY, entity_type TEXT NOT NULL, entity_id TEXT NOT NULL, file_name TEXT NOT NULL, object_key TEXT NOT NULL, content_type TEXT NOT NULL, size INTEGER NOT NULL, uploaded_at TEXT NOT NULL, owner_user_id TEXT, document_type TEXT, expires_at TEXT, status TEXT, note TEXT)"
+        ).run();
+        const fileId = crypto.randomUUID();
+        const nowIso = new Date().toISOString();
+        await env.DB.prepare(
+          "INSERT INTO files (id, entity_type, entity_id, file_name, object_key, content_type, size, uploaded_at, owner_user_id, document_type, expires_at, status, note) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+        )
+          .bind(
+            fileId,
+            "pr",
+            safePrCode,
+            file.name,
+            key,
+            contentType,
+            file.size,
+            nowIso,
+            user.username,
+            "Bản scan PR",
+            "",
+            "Đã nhận",
+            `Bản scan cho PR ${safePrCode}`
+          )
+          .run();
+      } catch (e) {
+        console.error("Lỗi đồng bộ files table từ upload-scan:", e);
+      }
+
       if (prId) {
         try {
           await env.DB.prepare("UPDATE prs SET scan_file_url = ? WHERE id = ?").bind(scanFileUrl, Number(prId)).run();
