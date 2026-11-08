@@ -40,12 +40,17 @@ import {
   createScanShareUrl,
 } from "./PRScanPreviewModal";
 import { ShareFileModal } from "./ShareFileModal";
-import { CamScannerCloudModal } from "./CamScannerCloudModal";
+import {
+  CamScannerCloudModal,
+  CamScannerCreateActionType,
+  CamScannerImportResult,
+} from "./CamScannerCloudModal";
 import { navigateTo, AppRoute } from "../utils/navigation";
 import { useIsMobile } from "../useIsMobile";
 
 export type VaultCategoryId =
   | "all"
+  | "camscanner"
   | "pr"
   | "dnpd"
   | "po"
@@ -56,7 +61,7 @@ export type VaultCategoryId =
 
 export interface VaultItem {
   uid: string;
-  category: Exclude<VaultCategoryId, "all">;
+  category: Exclude<VaultCategoryId, "all" | "camscanner">;
   categoryLabel: string;
   fileName: string;
   subLabel?: string;
@@ -96,6 +101,9 @@ export interface DataVaultProps {
   paymentHandovers: PaymentHandoverItem[];
   readOnly?: boolean;
   onStatus?: (msg: string) => void;
+  onCreatePRFromScan?: (scanUrl: string, fileName: string, title: string) => void;
+  onCreateDNTTFromScan?: (scanUrl: string, fileName: string, title: string) => void;
+  onCreateHandoverFromScan?: (scanUrl: string, fileName: string, title: string) => void;
 }
 
 const CATEGORY_DEFS: {
@@ -103,8 +111,16 @@ const CATEGORY_DEFS: {
   label: string;
   shortLabel: string;
   icon: React.ReactNode;
+  isCloud?: boolean;
 }[] = [
   { id: "all", label: "Tất cả tài liệu", shortLabel: "Tất cả", icon: <FolderOpen size={14} /> },
+  {
+    id: "camscanner",
+    label: "Kho dữ liệu Cloud CamScanner Pro",
+    shortLabel: "Cloud CamScanner",
+    icon: <Cloud size={14} />,
+    isCloud: true,
+  },
   { id: "pr", label: "PR (Yêu cầu mua hàng)", shortLabel: "PR", icon: <FileText size={14} /> },
   { id: "dnpd", label: "ĐNPD & Báo giá", shortLabel: "ĐNPD", icon: <CheckSquare size={14} /> },
   { id: "po", label: "PO (Đơn đặt hàng)", shortLabel: "PO", icon: <Package size={14} /> },
@@ -122,27 +138,22 @@ function resolvePRDateStr(pr: PR): string {
   if (direct) return direct;
 
   const num = (pr.number || "").trim();
-  // Pattern 1: DD.MM.YYYY hoặc DD.MM/YYYY (e.g. 10.02/2026/D, 10.03.2026 TĐSH)
   const dmyMatch = num.match(/(\d{2})[\.\/\-](\d{2})[\.\/\-](20\d{2})/);
   if (dmyMatch) {
     return `${dmyMatch[1]}/${dmyMatch[2]}/${dmyMatch[3]}`;
   }
-  // Pattern 2: YYYYMMDD (e.g. RD20261026002)
   const ymd8 = num.match(/(20\d{2})(0[1-9]|1[0-2])(0[1-9]|[12]\d|3[01])/);
   if (ymd8) {
     return `${ymd8[3]}/${ymd8[2]}/${ymd8[1]}`;
   }
-  // Pattern 3: YYMMDD (e.g. QC261106.1, QC260122.01)
   const ymd6 = num.match(/(2[4-9])(0[1-9]|1[0-2])(0[1-9]|[12]\d|3[01])/);
   if (ymd6) {
     return `${ymd6[3]}/${ymd6[2]}/20${ymd6[1]}`;
   }
-  // Pattern 4: DDMM trong năm 2026 (e.g. 2810WH, EM2710, EM 1910)
   const dm4 = num.match(/(?:^|[^0-9])(0[1-9]|[12]\d|3[01])(0[1-9]|1[0-2])(?:[^0-9]|$)/);
   if (dm4) {
     return `${dm4[1]}/${dm4[2]}/2026`;
   }
-  // Pattern 5: Timestamp ID
   if (pr.id && pr.id > 1500000000000 && pr.id < 3000000000000) {
     const d = new Date(pr.id);
     const dd = String(d.getDate()).padStart(2, "0");
@@ -211,6 +222,9 @@ export function DataVault({
   paymentHandovers = [],
   readOnly = false,
   onStatus,
+  onCreatePRFromScan,
+  onCreateDNTTFromScan,
+  onCreateHandoverFromScan,
 }: DataVaultProps) {
   const isMobile = useIsMobile(768);
   const [activeCategory, setActiveCategory] = useState<VaultCategoryId>("all");
@@ -231,7 +245,8 @@ export function DataVault({
   // Upload new document directly into Vault
   const [uploadModalOpen, setUploadModalOpen] = useState(false);
   const [camScannerOpen, setCamScannerOpen] = useState(false);
-  const [uploadCategory, setUploadCategory] = useState<Exclude<VaultCategoryId, "all">>("invoice");
+  const [uploadCategory, setUploadCategory] =
+    useState<Exclude<VaultCategoryId, "all" | "camscanner">>("invoice");
   const [uploadDocCode, setUploadDocCode] = useState("");
   const [uploadNote, setUploadNote] = useState("");
   const [uploading, setUploading] = useState(false);
@@ -468,7 +483,7 @@ export function DataVault({
       const docType = (f.documentType || "").trim();
       const entType = (f.entityType || "").trim().toLowerCase();
 
-      let category: Exclude<VaultCategoryId, "all"> = "po";
+      let category: Exclude<VaultCategoryId, "all" | "camscanner"> = "po";
       let categoryLabel = docType || "PO";
 
       if (docType === "Hóa đơn" || entType === "invoice") {
@@ -494,7 +509,6 @@ export function DataVault({
         categoryLabel = docType || "PO";
       }
 
-      // Tra cứu thông tin chứng từ gốc
       let docCode = f.entityId && f.entityId !== "0" ? f.entityId : "";
       let displayTitle = f.fileName || docCode || "Tài liệu";
       let subLabel: string | undefined;
@@ -594,6 +608,7 @@ export function DataVault({
   const categoryCounts = useMemo(() => {
     const counts: Record<VaultCategoryId, number> = {
       all: allVaultItems.length,
+      camscanner: 0,
       pr: 0,
       dnpd: 0,
       po: 0,
@@ -612,7 +627,11 @@ export function DataVault({
   const filteredItems = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
     return allVaultItems.filter((item) => {
-      if (activeCategory !== "all" && item.category !== activeCategory) {
+      if (
+        activeCategory !== "all" &&
+        activeCategory !== "camscanner" &&
+        item.category !== activeCategory
+      ) {
         return false;
       }
       if (!q) return true;
@@ -680,7 +699,7 @@ export function DataVault({
         onProgress: (_pct, msg) => setUploadProgressText(msg || "Đang xử lý..."),
       });
 
-      const docTypeMap: Record<Exclude<VaultCategoryId, "all">, string> = {
+      const docTypeMap: Record<Exclude<VaultCategoryId, "all" | "camscanner">, string> = {
         pr: "PR",
         dnpd: "Báo giá",
         po: "PO xác nhận",
@@ -727,14 +746,30 @@ export function DataVault({
     }
   };
 
+  const handleCreateFromCamScanner = useCallback(
+    async (actionType: CamScannerCreateActionType, result: CamScannerImportResult) => {
+      if (actionType === "pr") {
+        onCreatePRFromScan?.(result.url, result.fileName, result.title);
+      } else if (actionType === "payment") {
+        onCreateDNTTFromScan?.(result.url, result.fileName, result.title);
+      } else if (actionType === "handover") {
+        onCreateHandoverFromScan?.(result.url, result.fileName, result.title);
+      } else if (actionType === "vault") {
+        await loadR2Files();
+        onStatus?.(`✓ Đã lưu bản scan "${result.title}" từ CamScanner Cloud vào Kho dữ liệu`);
+      }
+    },
+    [onCreatePRFromScan, onCreateDNTTFromScan, onCreateHandoverFromScan, loadR2Files, onStatus]
+  );
+
   return (
     <section
       className="content vault-page"
       style={{
-        padding: isMobile ? "12px 10px 80px" : "18px 24px 40px",
+        padding: isMobile ? "12px 10px 80px" : "16px 20px 40px",
         display: "flex",
         flexDirection: "column",
-        gap: "14px",
+        gap: "12px",
       }}
     >
       <style>{`
@@ -743,9 +778,9 @@ export function DataVault({
           align-items: center !important;
           justify-content: center !important;
           gap: 6px !important;
-          height: 36px !important;
-          padding: 0 14px !important;
-          font-size: 12.5px !important;
+          height: 34px !important;
+          padding: 0 12px !important;
+          font-size: 12px !important;
           font-weight: 600 !important;
           border-radius: 8px !important;
           border: 1px solid #cbd5e1 !important;
@@ -770,17 +805,27 @@ export function DataVault({
           background: #dbeafe !important;
           border-color: #60a5fa !important;
         }
+        .vault-page .vault-header-btn.vault-btn-camscanner {
+          background: #f0fdfa !important;
+          border-color: #2dd4bf !important;
+          color: #0f766e !important;
+          font-weight: 700 !important;
+        }
+        .vault-page .vault-header-btn.vault-btn-camscanner:hover {
+          background: #ccfbf1 !important;
+          border-color: #14b8a6 !important;
+        }
         .vault-page .vault-tab-btn {
           display: inline-flex !important;
           align-items: center !important;
           gap: 6px !important;
-          height: 34px !important;
-          padding: 0 12px !important;
+          height: 32px !important;
+          padding: 0 11px !important;
           border-radius: 8px !important;
           border: 1px solid #e2e8f0 !important;
           background: #f8fafc !important;
           color: #475569 !important;
-          font-size: 12.5px !important;
+          font-size: 12px !important;
           font-weight: 600 !important;
           cursor: pointer !important;
           white-space: nowrap !important;
@@ -798,15 +843,55 @@ export function DataVault({
           font-weight: 700 !important;
           box-shadow: 0 1px 2px rgba(37, 99, 235, 0.08) !important;
         }
+        .vault-page .vault-tab-btn.cloud-tab {
+          background: #f0fdfa !important;
+          border-color: #5eead4 !important;
+          color: #0f766e !important;
+          font-weight: 700 !important;
+        }
+        .vault-page .vault-tab-btn.cloud-tab.active {
+          background: #0d9488 !important;
+          border-color: #0f766e !important;
+          color: #ffffff !important;
+          box-shadow: 0 2px 6px rgba(13, 148, 136, 0.25) !important;
+        }
+        .vault-page .vault-search-box input.vault-search-input {
+          border: none !important;
+          box-shadow: none !important;
+          background: transparent !important;
+          outline: none !important;
+          height: 30px !important;
+          padding: 0 4px !important;
+          font-size: 12.5px !important;
+          color: #0f172a !important;
+          width: 100% !important;
+        }
+        .vault-page .vault-table {
+          width: 100% !important;
+          min-width: 0 !important;
+          table-layout: fixed !important;
+          border-collapse: collapse !important;
+        }
+        .vault-page .vault-table th,
+        .vault-page .vault-table td {
+          box-sizing: border-box !important;
+          overflow: hidden !important;
+          text-overflow: ellipsis !important;
+          white-space: nowrap !important;
+          padding: 8px 8px !important;
+          font-size: 12.5px !important;
+        }
         .vault-page .vault-doc-link {
-          display: inline-flex !important;
+          display: flex !important;
           align-items: center !important;
-          gap: 7px !important;
+          gap: 6px !important;
+          width: 100% !important;
+          overflow: hidden !important;
           background: transparent !important;
           border: none !important;
-          padding: 2px 0 !important;
+          padding: 1px 0 !important;
           color: #0f172a !important;
-          font-size: 13.5px !important;
+          font-size: 13px !important;
           font-weight: 700 !important;
           cursor: pointer !important;
           text-align: left !important;
@@ -819,7 +904,7 @@ export function DataVault({
           display: inline-flex !important;
           align-items: center !important;
           justify-content: center !important;
-          gap: 5px !important;
+          gap: 4px !important;
           flex-wrap: nowrap !important;
           white-space: nowrap !important;
         }
@@ -827,12 +912,12 @@ export function DataVault({
           display: inline-flex !important;
           align-items: center !important;
           justify-content: center !important;
-          gap: 4px !important;
-          height: 28px !important;
-          padding: 0 9px !important;
-          font-size: 11.5px !important;
+          gap: 3px !important;
+          height: 26px !important;
+          padding: 0 7px !important;
+          font-size: 11px !important;
           font-weight: 600 !important;
-          border-radius: 6px !important;
+          border-radius: 5px !important;
           border: 1px solid #cbd5e1 !important;
           background: #ffffff !important;
           color: #334155 !important;
@@ -840,7 +925,6 @@ export function DataVault({
           white-space: nowrap !important;
           text-decoration: none !important;
           transition: all 0.12s ease !important;
-          box-shadow: 0 1px 1px rgba(15, 23, 42, 0.03) !important;
         }
         .vault-page .vault-action-btn:hover {
           background: #f1f5f9 !important;
@@ -853,19 +937,10 @@ export function DataVault({
           color: #0369a1 !important;
           font-weight: 700 !important;
         }
-        .vault-page .vault-action-btn.btn-view:hover {
-          background: #e0f2fe !important;
-          border-color: #7dd3fc !important;
-        }
         .vault-page .vault-action-btn.btn-open-doc {
           background: #f8fafc !important;
           border-color: #cbd5e1 !important;
           color: #475569 !important;
-        }
-        .vault-page .vault-action-btn.btn-open-doc:hover {
-          background: #eff6ff !important;
-          border-color: #93c5fd !important;
-          color: #1d4ed8 !important;
         }
         .vault-page .vault-table tbody tr:hover {
           background: #f8fafc !important;
@@ -878,14 +953,14 @@ export function DataVault({
           background: "#ffffff",
           border: "1px solid #cbd5e1",
           borderRadius: "12px",
-          padding: "16px 20px",
+          padding: "14px 18px",
           display: "flex",
           flexDirection: "column",
-          gap: "14px",
+          gap: "12px",
           boxShadow: "0 1px 3px rgba(15, 23, 42, 0.03)",
         }}
       >
-        {/* Hàng 1: Tiêu đề + Nút tải lên / Làm mới */}
+        {/* Hàng 1: Tiêu đề + Nút mở Cloud CamScanner / Tải lên / Làm mới */}
         <div
           style={{
             display: "flex",
@@ -898,12 +973,12 @@ export function DataVault({
           <div>
             <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
               <FolderOpen size={20} style={{ color: "#0284c7" }} />
-              <h1 style={{ margin: 0, fontSize: "18px", fontWeight: 800, color: "#0f172a" }}>
+              <h1 style={{ margin: 0, fontSize: "17px", fontWeight: 800, color: "#0f172a" }}>
                 Kho dữ liệu & Chứng từ số hóa
               </h1>
               <span
                 style={{
-                  fontSize: "11.5px",
+                  fontSize: "11px",
                   fontWeight: 700,
                   padding: "2px 9px",
                   borderRadius: "999px",
@@ -912,15 +987,26 @@ export function DataVault({
                   border: "1px solid #cbd5e1",
                 }}
               >
-                {allVaultItems.length} tài liệu
+                {allVaultItems.length} tài liệu hệ thống
               </span>
             </div>
-            <p style={{ margin: "3px 0 0", fontSize: "12.5px", color: "#64748b" }}>
-              Tập trung toàn bộ bản scan PR, ĐNPD, PO, Hợp đồng, Hóa đơn GTGT, Biên bản bàn giao và ĐNTT. Click vào tên chứng từ để xem nhanh.
+            <p style={{ margin: "2px 0 0", fontSize: "12px", color: "#64748b" }}>
+              Quản lý tập trung bản scan PR, ĐNPD, PO, Hợp đồng, Hóa đơn, Bàn giao, ĐNTT và kết nối trực tiếp{" "}
+              <b>Cloud CamScanner Pro</b> để xem & tạo phiếu nhanh.
             </p>
           </div>
 
-          <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "nowrap" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "7px", flexWrap: "wrap" }}>
+            <button
+              type="button"
+              className="vault-header-btn vault-btn-camscanner"
+              onClick={() => setActiveCategory("camscanner")}
+              title="Truy cập trực tiếp Kho dữ liệu Cloud CamScanner Pro để xem file và tạo PR, ĐNTT, Biên bản bàn giao"
+            >
+              <Cloud size={14} />
+              <span>☁️ Mở Kho Cloud CamScanner</span>
+            </button>
+
             <button
               type="button"
               className="vault-header-btn"
@@ -928,7 +1014,7 @@ export function DataVault({
               disabled={loadingFiles}
               title="Làm mới danh sách tài liệu"
             >
-              <RefreshCw size={14} className={loadingFiles ? "animate-spin" : ""} />
+              <RefreshCw size={13} className={loadingFiles ? "animate-spin" : ""} />
               <span>Làm mới</span>
             </button>
 
@@ -938,22 +1024,22 @@ export function DataVault({
                 className="vault-header-btn vault-btn-upload"
                 onClick={() => setUploadModalOpen(true)}
               >
-                <Upload size={14} />
+                <Upload size={13} />
                 <span>+ Tải tài liệu lên kho</span>
               </button>
             )}
           </div>
         </div>
 
-        {/* Hàng 2: Các tab phân loại (1 dòng gọn gàng) + Ô tìm kiếm */}
+        {/* Hàng 2: Các tab phân loại (bao gồm mục Cloud CamScanner) + Ô tìm kiếm */}
         <div
           style={{
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
-            gap: "12px",
+            gap: "10px",
             flexWrap: "wrap",
-            paddingTop: "12px",
+            paddingTop: "10px",
             borderTop: "1px solid #f1f5f9",
           }}
         >
@@ -972,322 +1058,322 @@ export function DataVault({
                 <button
                   key={cat.id}
                   type="button"
-                  className={`vault-tab-btn ${isActive ? "active" : ""}`}
+                  className={`vault-tab-btn ${cat.isCloud ? "cloud-tab" : ""} ${
+                    isActive ? "active" : ""
+                  }`}
                   onClick={() => setActiveCategory(cat.id)}
                 >
                   {cat.icon}
                   <span>{cat.shortLabel}</span>
-                  <span
-                    style={{
-                      fontSize: "11px",
-                      fontWeight: 700,
-                      padding: "1px 6px",
-                      borderRadius: "999px",
-                      background: isActive ? "#dbeafe" : "#e2e8f0",
-                      color: isActive ? "#1e40af" : "#475569",
-                    }}
-                  >
-                    {count}
-                  </span>
+                  {!cat.isCloud && (
+                    <span
+                      style={{
+                        fontSize: "10.5px",
+                        fontWeight: 700,
+                        padding: "1px 6px",
+                        borderRadius: "999px",
+                        background: isActive ? "#dbeafe" : "#e2e8f0",
+                        color: isActive ? "#1e40af" : "#475569",
+                      }}
+                    >
+                      {count}
+                    </span>
+                  )}
                 </button>
               );
             })}
           </div>
 
-          {/* Ô tìm kiếm */}
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "8px",
-              flex: "1 1 280px",
-              maxWidth: isMobile ? "100%" : "420px",
-              background: "#f8fafc",
-              border: "1px solid #cbd5e1",
-              borderRadius: "8px",
-              padding: "0 10px",
-              height: "34px",
-            }}
-          >
-            <Search size={15} style={{ color: "#64748b", flexShrink: 0 }} />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Tìm số PR, PO, Hóa đơn, Hợp đồng, Nhà cung cấp, Bộ phận..."
+          {/* Ô tìm kiếm (Ẩn khi đang ở tab Cloud CamScanner vì Cloud CamScanner có thanh tìm kiếm riêng) */}
+          {activeCategory !== "camscanner" && (
+            <div
+              className="vault-search-box"
               style={{
-                width: "100%",
-                border: "none",
-                outline: "none",
-                fontSize: "12.5px",
-                color: "#0f172a",
-                background: "transparent",
-                padding: 0,
+                display: "flex",
+                alignItems: "center",
+                gap: "6px",
+                flex: "1 1 240px",
+                maxWidth: isMobile ? "100%" : "360px",
+                background: "#f8fafc",
+                border: "1px solid #cbd5e1",
+                borderRadius: "8px",
+                padding: "0 10px",
+                height: "32px",
               }}
-            />
-            {searchQuery && (
-              <button
-                type="button"
-                onClick={() => setSearchQuery("")}
-                style={{
-                  border: "none",
-                  background: "#e2e8f0",
-                  color: "#334155",
-                  borderRadius: "4px",
-                  padding: "1px 6px",
-                  fontSize: "11px",
-                  fontWeight: 600,
-                  cursor: "pointer",
-                  whiteSpace: "nowrap",
-                }}
-              >
-                Xóa
-              </button>
-            )}
-          </div>
+            >
+              <Search size={14} style={{ color: "#64748b", flexShrink: 0 }} />
+              <input
+                type="text"
+                className="vault-search-input"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Tìm số PR, PO, Hóa đơn, Hợp đồng, NCC, Bộ phận..."
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery("")}
+                  style={{
+                    border: "none",
+                    background: "#e2e8f0",
+                    color: "#334155",
+                    borderRadius: "4px",
+                    padding: "1px 6px",
+                    fontSize: "11px",
+                    fontWeight: 600,
+                    cursor: "pointer",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  Xóa
+                </button>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Bảng danh sách tài liệu */}
-      <div
-        style={{
-          background: "#ffffff",
-          border: "1px solid #cbd5e1",
-          borderRadius: "12px",
-          overflow: "hidden",
-          boxShadow: "0 1px 3px rgba(15, 23, 42, 0.03)",
-        }}
-      >
-        {filteredItems.length === 0 ? (
-          <div
-            style={{
-              padding: "48px 20px",
-              textAlign: "center",
-              color: "#64748b",
-              fontSize: "13.5px",
-            }}
-          >
-            <FolderOpen size={36} style={{ margin: "0 auto 10px", opacity: 0.4 }} />
-            <div style={{ fontWeight: 700, color: "#334155", marginBottom: "4px" }}>
-              Chưa có tài liệu nào trong mục này
-            </div>
-            <div>
-              Khi bạn tải lên bản scan PR, Hóa đơn GTGT, Biên bản bàn giao, Hợp đồng hoặc PO, toàn bộ tài liệu sẽ tự động hiển thị tại đây.
-            </div>
-          </div>
-        ) : (
-          <div style={{ overflowX: "auto" }}>
-            <table
-              className="vault-table"
+      {/* Nội dung chính: Mục Cloud CamScanner HOẶC Bảng danh sách tài liệu hệ thống */}
+      {activeCategory === "camscanner" ? (
+        <CamScannerCloudModal
+          isOpen={true}
+          embedded={true}
+          onClose={() => setActiveCategory("all")}
+          targetLabel="Kho dữ liệu & Tạo chứng từ"
+          workspaceId={workspaceId}
+          onImported={async ({ fileName }) => {
+            await loadR2Files();
+            onStatus?.(`✓ Đã lấy "${fileName}" từ CamScanner Cloud`);
+          }}
+          onCreateFromScan={handleCreateFromCamScanner}
+        />
+      ) : (
+        <div
+          style={{
+            background: "#ffffff",
+            border: "1px solid #cbd5e1",
+            borderRadius: "12px",
+            overflow: "hidden",
+            boxShadow: "0 1px 3px rgba(15, 23, 42, 0.03)",
+          }}
+        >
+          {filteredItems.length === 0 ? (
+            <div
               style={{
-                width: "100%",
-                borderCollapse: "collapse",
-                fontSize: "13px",
+                padding: "48px 20px",
+                textAlign: "center",
+                color: "#64748b",
+                fontSize: "13.5px",
               }}
             >
-              <thead>
-                <tr
-                  style={{
-                    background: "#f8fafc",
-                    borderBottom: "1px solid #cbd5e1",
-                    color: "#334155",
-                    fontSize: "12px",
-                    fontWeight: 700,
-                    textAlign: "left",
-                  }}
-                >
-                  <th style={{ padding: "11px 10px", width: "48px", textAlign: "center" }}>STT</th>
-                  <th style={{ padding: "11px 10px", width: "100px", textAlign: "center" }}>
-                    Phân loại
-                  </th>
-                  <th style={{ padding: "11px 12px", minWidth: "200px" }}>
-                    Tên PR / Chứng từ (Click để xem)
-                  </th>
-                  <th style={{ padding: "11px 12px", minWidth: "150px" }}>
-                    Bộ phận / Nhà cung cấp
-                  </th>
-                  <th style={{ padding: "11px 10px", width: "115px", textAlign: "center" }}>
-                    Ngày
-                  </th>
-                  <th style={{ padding: "11px 12px", minWidth: "220px" }}>
-                    Nội dung / Ghi chú
-                  </th>
-                  <th style={{ padding: "11px 12px", width: "290px", textAlign: "center" }}>
-                    Thao tác
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredItems.map((item, idx) => (
+              <FolderOpen size={36} style={{ margin: "0 auto 10px", opacity: 0.4 }} />
+              <div style={{ fontWeight: 700, color: "#334155", marginBottom: "4px" }}>
+                Chưa có tài liệu nào trong mục này
+              </div>
+              <div>
+                Bạn có thể bấm vào mục <b>☁️ Cloud CamScanner</b> để truy cập kho scan và tạo PR,
+                ĐNTT, Biên bản bàn giao trực tiếp từ file scan.
+              </div>
+            </div>
+          ) : (
+            <div style={{ overflowX: "hidden" }}>
+              <table className="vault-table">
+                <thead>
                   <tr
-                    key={item.uid}
                     style={{
-                      borderBottom: "1px solid #e2e8f0",
-                      background: idx % 2 === 0 ? "#ffffff" : "#fcfdfe",
+                      background: "#f8fafc",
+                      borderBottom: "1px solid #cbd5e1",
+                      color: "#334155",
+                      fontSize: "12px",
+                      fontWeight: 700,
+                      textAlign: "left",
                     }}
                   >
-                    {/* STT */}
-                    <td
+                    <th style={{ width: "42px", textAlign: "center" }}>STT</th>
+                    <th style={{ width: "86px", textAlign: "center" }}>Phân loại</th>
+                    <th style={{ width: "200px" }}>Tên PR / Chứng từ</th>
+                    <th style={{ width: "245px", textAlign: "center" }}>
+                      Chức năng / Thao tác
+                    </th>
+                    <th style={{ width: "160px" }}>Bộ phận / Nhà cung cấp</th>
+                    <th style={{ width: "96px", textAlign: "center" }}>Ngày</th>
+                    <th>Nội dung / Ghi chú</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredItems.map((item, idx) => (
+                    <tr
+                      key={item.uid}
                       style={{
-                        padding: "10px",
-                        textAlign: "center",
-                        fontWeight: 600,
-                        color: "#64748b",
+                        borderBottom: "1px solid #e2e8f0",
+                        background: idx % 2 === 0 ? "#ffffff" : "#fcfdfe",
                       }}
                     >
-                      {idx + 1}
-                    </td>
-
-                    {/* Phân loại */}
-                    <td style={{ padding: "10px", textAlign: "center" }}>
-                      <span
+                      {/* 1. STT */}
+                      <td
                         style={{
-                          display: "inline-flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          padding: "3px 9px",
-                          borderRadius: "6px",
-                          fontSize: "11.5px",
-                          fontWeight: 700,
-                          border: "1px solid #cbd5e1",
-                          background: "#f8fafc",
-                          color: "#1e293b",
-                          whiteSpace: "nowrap",
+                          textAlign: "center",
+                          fontWeight: 600,
+                          color: "#64748b",
                         }}
                       >
-                        {item.categoryLabel}
-                      </span>
-                    </td>
+                        {idx + 1}
+                      </td>
 
-                    {/* Tên PR / Chứng từ (Click để xem trực tiếp) */}
-                    <td style={{ padding: "10px 12px" }}>
-                      <button
-                        type="button"
-                        className="vault-doc-link"
-                        onClick={() => setPreviewItem(item)}
-                        title="Bấm để mở xem trực tiếp bản scan / tài liệu này"
-                      >
-                        <FileText size={15} style={{ flexShrink: 0, color: "#0284c7" }} />
-                        <span style={{ wordBreak: "break-word" }}>{item.fileName}</span>
-                      </button>
-                      {(item.subLabel || item.sizeBytes) && (
-                        <div style={{ fontSize: "11px", color: "#64748b", marginTop: "2px", paddingLeft: "22px" }}>
-                          {item.subLabel ? `${item.subLabel}` : ""}
-                          {item.subLabel && item.sizeBytes ? " · " : ""}
-                          {item.sizeBytes ? formatFileSize(item.sizeBytes) : ""}
+                      {/* 2. Phân loại */}
+                      <td style={{ textAlign: "center" }}>
+                        <span
+                          style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            padding: "2px 7px",
+                            borderRadius: "6px",
+                            fontSize: "11px",
+                            fontWeight: 700,
+                            border: "1px solid #cbd5e1",
+                            background: "#f8fafc",
+                            color: "#1e293b",
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          {item.categoryLabel}
+                        </span>
+                      </td>
+
+                      {/* 3. Tên PR / Chứng từ (Thu gọn kích thước vừa vặn) */}
+                      <td title={item.fileName}>
+                        <button
+                          type="button"
+                          className="vault-doc-link"
+                          onClick={() => setPreviewItem(item)}
+                          title={`${item.fileName} — Bấm để xem trực tiếp bản scan`}
+                        >
+                          <FileText size={14} style={{ flexShrink: 0, color: "#0284c7" }} />
+                          <span
+                            style={{
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                              whiteSpace: "nowrap",
+                            }}
+                          >
+                            {item.fileName}
+                          </span>
+                        </button>
+                      </td>
+
+                      {/* 4. Cột các nút chức năng (Chuyển về ngay sau cột tên file!) */}
+                      <td style={{ textAlign: "center" }}>
+                        <div className="vault-actions-row">
+                          <button
+                            type="button"
+                            className="vault-action-btn btn-view btn"
+                            onClick={() => setPreviewItem(item)}
+                            title="Xem trực tiếp bản scan"
+                          >
+                            <Eye size={12} />
+                            <span>Xem</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            className="vault-action-btn btn"
+                            onClick={() => printScanFileUrl(item.fileUrl, item.fileName)}
+                            title="In tài liệu này"
+                          >
+                            <Printer size={12} />
+                            <span>In</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            className="vault-action-btn btn"
+                            onClick={() => void handleShareItem(item)}
+                            disabled={sharingUid === item.uid}
+                            title="Tạo link hoặc mã QR chia sẻ"
+                          >
+                            <Share2 size={12} />
+                            <span>{sharingUid === item.uid ? "..." : "Chia sẻ"}</span>
+                          </button>
+
+                          <a
+                            href={item.fileUrl}
+                            download={item.fileName}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="vault-action-btn btn"
+                            title="Tải file về máy"
+                          >
+                            <Download size={12} />
+                          </a>
+
+                          {item.route && (
+                            <button
+                              type="button"
+                              className="vault-action-btn btn-open-doc btn"
+                              onClick={() => navigateTo(item.route!)}
+                              title="Mở phiếu gốc trong hệ thống"
+                            >
+                              <ExternalLink size={11} />
+                              <span>Phiếu</span>
+                            </button>
+                          )}
+
+                          {item.r2FileId && !readOnly && (
+                            <button
+                              type="button"
+                              className="vault-action-btn btn"
+                              onClick={() => void handleDeleteR2File(item)}
+                              title="Xóa file khỏi kho dữ liệu"
+                            >
+                              <Trash2 size={12} />
+                            </button>
+                          )}
                         </div>
-                      )}
-                    </td>
+                      </td>
 
-                    {/* Bộ phận / Nhà cung cấp */}
-                    <td style={{ padding: "10px 12px", color: "#1e293b", fontWeight: 600 }}>
-                      {item.partyOrDept || "—"}
-                    </td>
+                      {/* 5. Bộ phận / Nhà cung cấp */}
+                      <td
+                        style={{ color: "#1e293b", fontWeight: 600 }}
+                        title={item.partyOrDept || "—"}
+                      >
+                        {item.partyOrDept || "—"}
+                      </td>
 
-                    {/* Ngày */}
-                    <td
-                      style={{
-                        padding: "10px",
-                        textAlign: "center",
-                        color: "#1e293b",
-                        fontWeight: 600,
-                        whiteSpace: "nowrap",
-                      }}
-                    >
-                      {formatDateDisplay(item.dateStr)}
-                    </td>
+                      {/* 6. Ngày */}
+                      <td
+                        style={{
+                          textAlign: "center",
+                          color: "#1e293b",
+                          fontWeight: 600,
+                        }}
+                      >
+                        {formatDateDisplay(item.dateStr)}
+                      </td>
 
-                    {/* Nội dung / Ghi chú */}
-                    <td style={{ padding: "10px 12px", color: "#475569" }}>
-                      <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                      {/* 7. Nội dung / Ghi chú */}
+                      <td
+                        style={{ color: "#475569" }}
+                        title={[item.relatedInfo, item.note].filter(Boolean).join(" · ")}
+                      >
                         {item.relatedInfo && (
-                          <span style={{ fontWeight: 600, color: "#1e293b", fontSize: "12px" }}>
+                          <span style={{ fontWeight: 600, color: "#1e293b", marginRight: "6px" }}>
                             {item.relatedInfo}
                           </span>
                         )}
                         {item.note && (
-                          <span style={{ fontSize: "12px", color: "#64748b" }}>{item.note}</span>
+                          <span style={{ color: "#64748b" }}>{item.note}</span>
                         )}
                         {!item.relatedInfo && !item.note && "—"}
-                      </div>
-                    </td>
-
-                    {/* Thao tác: Tất cả nút nằm gọn trên 1 dòng duy nhất */}
-                    <td style={{ padding: "10px 12px", textAlign: "center", whiteSpace: "nowrap" }}>
-                      <div className="vault-actions-row">
-                        <button
-                          type="button"
-                          className="vault-action-btn btn-view"
-                          onClick={() => setPreviewItem(item)}
-                          title="Xem trực tiếp bản scan"
-                        >
-                          <Eye size={13} />
-                          <span>Xem</span>
-                        </button>
-
-                        <button
-                          type="button"
-                          className="vault-action-btn"
-                          onClick={() => printScanFileUrl(item.fileUrl, item.fileName)}
-                          title="In tài liệu này"
-                        >
-                          <Printer size={13} />
-                          <span>In</span>
-                        </button>
-
-                        <button
-                          type="button"
-                          className="vault-action-btn"
-                          onClick={() => void handleShareItem(item)}
-                          disabled={sharingUid === item.uid}
-                          title="Tạo link hoặc mã QR chia sẻ"
-                        >
-                          <Share2 size={13} />
-                          <span>{sharingUid === item.uid ? "..." : "Chia sẻ"}</span>
-                        </button>
-
-                        <a
-                          href={item.fileUrl}
-                          download={item.fileName}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="vault-action-btn"
-                          title="Tải file về máy"
-                        >
-                          <Download size={13} />
-                        </a>
-
-                        {item.route && (
-                          <button
-                            type="button"
-                            className="vault-action-btn btn-open-doc"
-                            onClick={() => navigateTo(item.route!)}
-                            title="Mở phiếu gốc trong hệ thống"
-                          >
-                            <ExternalLink size={12} />
-                            <span>Mở phiếu</span>
-                          </button>
-                        )}
-
-                        {item.r2FileId && !readOnly && (
-                          <button
-                            type="button"
-                            className="vault-action-btn"
-                            onClick={() => void handleDeleteR2File(item)}
-                            title="Xóa file khỏi kho dữ liệu"
-                          >
-                            <Trash2 size={13} />
-                          </button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Modal Tải tài liệu mới lên Kho dữ liệu */}
       {uploadModalOpen &&
@@ -1348,7 +1434,9 @@ export function DataVault({
                   <select
                     value={uploadCategory}
                     onChange={(e) =>
-                      setUploadCategory(e.target.value as Exclude<VaultCategoryId, "all">)
+                      setUploadCategory(
+                        e.target.value as Exclude<VaultCategoryId, "all" | "camscanner">
+                      )
                     }
                     style={{
                       width: "100%",
@@ -1607,6 +1695,7 @@ export function DataVault({
           setUploadNote("");
           onStatus?.(`✓ Đã lấy "${fileName}" từ CamScanner Cloud vào Kho dữ liệu`);
         }}
+        onCreateFromScan={handleCreateFromCamScanner}
       />
     </section>
   );

@@ -90,7 +90,7 @@ export function CreatePRCatalog({
         (d.items && d.items[0] && (d.items[0].code || d.items[0].name))
       );
       // Nếu form hiện tại chưa nhập gì mà có bản nháp cũ -> gợi ý khôi phục
-      const currentEmpty = !draft.purpose && !draft.department && (!draft.items || draft.items.length <= 1);
+      const currentEmpty = !draft.purpose && !draft.department && !draft.scan_file_url && (!draft.items || draft.items.length <= 1);
       if (hasContent && currentEmpty) {
         setDraftPrompt({
           data: d,

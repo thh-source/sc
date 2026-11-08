@@ -3312,6 +3312,119 @@ function ProcurementAppInner({
               paymentHandovers={paymentHandovers}
               readOnly={reportMode}
               onStatus={setStorageStatus}
+              onCreatePRFromScan={(scanUrl, fileName, title) => {
+                const cleanTitle = (title || fileName || "")
+                  .replace(/\.(pdf|jpg|jpeg|png|webp)$/i, "")
+                  .trim();
+                const isCustomCode =
+                  cleanTitle &&
+                  !/^camscanner\s/i.test(cleanTitle) &&
+                  cleanTitle.length <= 36;
+                setDraft({
+                  number: isCustomCode
+                    ? cleanTitle
+                    : `PR-${new Date().getFullYear()}-${String(prs.length + 1).padStart(4, "0")}`,
+                  date: new Date().toISOString().slice(0, 10),
+                  department: "",
+                  purpose: "",
+                  note: "",
+                  scan_file_url: scanUrl,
+                  items: [emptyItem(0)],
+                });
+                void clearFormDraft("pr_draft_form");
+                setStorageStatus(`✓ Đã khởi tạo PR mới kèm bản scan "${cleanTitle || fileName}"`);
+                navigateTo({ view: "create" });
+              }}
+              onCreateDNTTFromScan={(scanUrl, fileName, title) => {
+                const cleanTitle = (title || fileName || "")
+                  .replace(/\.(pdf|jpg|jpeg|png|webp)$/i, "")
+                  .trim();
+                const maxId =
+                  Math.max(0, ...paymentRequests.map((r) => Number(r.id) || 0)) + 1;
+                const todayStr = localToday();
+                const newReq: PaymentRequestEntry = {
+                  id: maxId,
+                  legacy_stt: maxId,
+                  payee_name: "",
+                  group_code: "",
+                  description: cleanTitle ? `Thanh toán theo chứng từ ${cleanTitle}` : "",
+                  item_name: cleanTitle || "",
+                  invoice_no: "",
+                  invoice_date: todayStr,
+                  invoice_scan_url: scanUrl,
+                  invoice_scan_name: fileName || `${cleanTitle || "Scan"}.pdf`,
+                  amount: 0,
+                  currency: "VND",
+                  documents: ["Hóa đơn GTGT"],
+                  request_date: todayStr,
+                  payment_type: "Thanh toán công nợ",
+                  status: "Chờ duyệt",
+                  doc_supplement: "",
+                  address: "",
+                  account_no: "",
+                  bank: "",
+                  created_by_name:
+                    paymentTemplate?.default_requester_name || "Trần Hải Hà",
+                  due_date: todayStr,
+                  lines: [
+                    {
+                      description: cleanTitle
+                        ? `Thanh toán theo chứng từ ${cleanTitle}`
+                        : "",
+                      invoice_no: "",
+                      invoice_date: todayStr,
+                      invoice_scan_url: scanUrl,
+                      invoice_scan_name: fileName || `${cleanTitle || "Scan"}.pdf`,
+                      amount: 0,
+                      note: "",
+                    },
+                  ],
+                };
+                setPaymentRequests((prev) => [newReq, ...prev]);
+                setSpotlightPaymentActiveId(newReq.id);
+                setSpotlightPaymentSearch("");
+                setTimeout(() => void persistState(false), 50);
+                setStorageStatus(
+                  `✓ Đã tạo Đề nghị thanh toán #${maxId} kèm bản scan "${cleanTitle || fileName}"`
+                );
+                navigateTo({ view: "payment", id: newReq.id });
+              }}
+              onCreateHandoverFromScan={(scanUrl, fileName, title) => {
+                const cleanTitle = (title || fileName || "")
+                  .replace(/\.(pdf|jpg|jpeg|png|webp)$/i, "")
+                  .trim();
+                const maxId =
+                  Math.max(0, ...paymentHandovers.map((h) => Number(h.id) || 0)) + 1;
+                const todayStr = localToday();
+                const batchId = `BG-CS-${Date.now().toString().slice(-5)}`;
+                const newHandover: PaymentHandoverItem = {
+                  id: maxId,
+                  department: "Phòng Cung ứng",
+                  item_name: cleanTitle || "Vật tư bàn giao theo biên bản scan",
+                  unit: "Cái",
+                  quantity_doc: "1",
+                  quantity_pass: "1",
+                  quantity_fail: "",
+                  note: "",
+                  handover_date: todayStr,
+                  sender_name: "Trần Hải Hà",
+                  sender_dept: "Phòng Cung ứng",
+                  receiver_name: "",
+                  source_type: "Bàn giao",
+                  source_number: cleanTitle || batchId,
+                  batch_id: batchId,
+                  batch_number: 1,
+                  handover_scan_url: scanUrl,
+                  handover_scan_name: fileName || `${cleanTitle || "BienBan"}.pdf`,
+                };
+                setPaymentHandovers((prev) => [newHandover, ...prev]);
+                setSpotlightHandoverSearch(cleanTitle || batchId);
+                setTimeout(() => void persistState(false), 50);
+                setStorageStatus(
+                  `✓ Đã tạo Đợt bàn giao mới kèm biên bản scan "${cleanTitle || fileName}"`
+                );
+                navigateTo({ view: "handover" });
+              }}
             />
           </ErrorBoundary>
         )}

@@ -16,6 +16,10 @@ import {
   ShieldCheck,
   Sparkles,
   Eye,
+  Plus,
+  CreditCard,
+  Truck,
+  FolderPlus,
 } from "lucide-react";
 
 export interface CamScannerDocItem {
@@ -36,10 +40,17 @@ export interface CamScannerImportResult {
   title: string;
 }
 
+export type CamScannerCreateActionType = "pr" | "payment" | "handover" | "vault";
+
 export interface CamScannerCloudModalProps {
   isOpen: boolean;
   onClose: () => void;
   onImported: (result: CamScannerImportResult) => void;
+  onCreateFromScan?: (
+    actionType: CamScannerCreateActionType,
+    result: CamScannerImportResult
+  ) => void;
+  embedded?: boolean;
   targetLabel?: string;
   prCode?: string;
   prId?: number | string;
@@ -49,6 +60,13 @@ export interface CamScannerCloudModalProps {
   entityId?: string;
   documentType?: string;
   note?: string;
+  vaultOptions?: {
+    workspaceId?: string;
+    entityType?: string;
+    entityId?: string;
+    documentType?: string;
+    note?: string;
+  };
 }
 
 const LS_CS_TOKEN_KEY = "scmh_camscanner_token_v1";
@@ -83,13 +101,15 @@ function inferCsDocType(doc: CamScannerDocItem): string {
   if (id.endsWith("_exce1")) return "Excel";
   if (id.endsWith("_pptx1")) return "PPT";
   if (link.includes("/markdowndetail")) return "Markdown";
-  return "Bản Scan (PDF)";
+  return "Scan PDF";
 }
 
 export function CamScannerCloudModal({
   isOpen,
   onClose,
   onImported,
+  onCreateFromScan,
+  embedded = false,
   targetLabel = "Chứng từ",
   prCode = "CS",
   prId,
@@ -99,7 +119,14 @@ export function CamScannerCloudModal({
   entityId = "",
   documentType = "PR",
   note = "Đồng bộ từ CamScanner Cloud",
+  vaultOptions,
 }: CamScannerCloudModalProps) {
+  const effWorkspaceId = vaultOptions?.workspaceId || workspaceId;
+  const effEntityType = vaultOptions?.entityType || entityType;
+  const effEntityId = vaultOptions?.entityId || entityId;
+  const effDocType = vaultOptions?.documentType || documentType;
+  const effNote = vaultOptions?.note ?? note;
+
   const [checkingAuth, setCheckingAuth] = useState(true);
   const [authenticated, setAuthenticated] = useState(false);
   const [csUserId, setCsUserId] = useState("");
@@ -125,12 +152,15 @@ export function CamScannerCloudModal({
   const [loadingDocs, setLoadingDocs] = useState(false);
   const [syncingAllDocs, setSyncingAllDocs] = useState(false);
   const [docs, setDocs] = useState<CamScannerDocItem[]>([]);
-  const [cloudDirs, setCloudDirs] = useState<{ dir_id: string; title: string; doc_count?: number }[]>([]);
+  const [cloudDirs, setCloudDirs] = useState<
+    { dir_id: string; title: string; doc_count?: number }[]
+  >([]);
   const [totalDocs, setTotalDocs] = useState(0);
   const [searchError, setSearchError] = useState("");
 
   // Importing state
   const [importingDocId, setImportingDocId] = useState<string | null>(null);
+  const [importingAction, setImportingAction] = useState<string>("");
 
   // Hover / Click Preview popup state
   const [previewDoc, setPreviewDoc] = useState<CamScannerDocItem | null>(null);
@@ -196,12 +226,16 @@ export function CamScannerCloudModal({
   );
 
   const fetchCloudDocs = useCallback(
-    async (kw = keyword, typeF = docTypeFilter, scope = searchScope, tokenOverride?: string) => {
+    async (
+      kw = keyword,
+      typeF = docTypeFilter,
+      scope = searchScope,
+      tokenOverride?: string
+    ) => {
       setLoadingDocs(true);
       setSyncingAllDocs(false);
       setSearchError("");
       try {
-        // Bước 1: Tải nhanh 50 tài liệu mới nhất + danh sách thư mục (~0.3s)
         const res = await fetch("/api/camscanner", {
           method: "POST",
           headers: getHeaders(tokenOverride),
@@ -216,13 +250,20 @@ export function CamScannerCloudModal({
         const data: any = await res.json();
         if (res.status === 401) {
           setAuthenticated(false);
-          setSearchError("Phiên đăng nhập CamScanner đã hết hạn. Vui lòng kết nối lại.");
+          setSearchError(
+            "Phiên đăng nhập CamScanner đã hết hạn. Vui lòng kết nối lại."
+          );
           return;
         }
         if (!res.ok || !data.ok) {
-          throw new Error(data.error || "Không thể tải danh sách tài liệu từ CamScanner Cloud");
+          throw new Error(
+            data.error ||
+              "Không thể tải danh sách tài liệu từ CamScanner Cloud"
+          );
         }
-        const firstBatch: CamScannerDocItem[] = Array.isArray(data.docs) ? data.docs : [];
+        const firstBatch: CamScannerDocItem[] = Array.isArray(data.docs)
+          ? data.docs
+          : [];
         setDocs(firstBatch);
         if (Array.isArray(data.dirs)) {
           setCloudDirs(data.dirs);
@@ -230,7 +271,6 @@ export function CamScannerCloudModal({
         setTotalDocs(Number(data.total) || firstBatch.length);
         setLoadingDocs(false);
 
-        // Bước 2: Nếu kho còn nhiều hơn 50 file, tự động tải ngầm toàn bộ các trang còn lại (270+ file)
         if (data.hasMore && data.nextEndTime) {
           setSyncingAllDocs(true);
           try {
@@ -253,7 +293,7 @@ export function CamScannerCloudModal({
               setTotalDocs(Number(fullData.total) || fullData.docs.length);
             }
           } catch {
-            // Giữ nguyên batch đầu nếu mạng gián đoạn
+            // Keep first batch if network hiccups
           } finally {
             setSyncingAllDocs(false);
           }
@@ -272,7 +312,9 @@ export function CamScannerCloudModal({
     setLoginError("");
     try {
       const savedToken =
-        typeof window !== "undefined" ? localStorage.getItem(LS_CS_TOKEN_KEY) || "" : "";
+        typeof window !== "undefined"
+          ? localStorage.getItem(LS_CS_TOKEN_KEY) || ""
+          : "";
       if (savedToken) setLocalToken(savedToken);
 
       const res = await fetch("/api/camscanner?action=status", {
@@ -294,7 +336,7 @@ export function CamScannerCloudModal({
   }, [fetchCloudDocs]);
 
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen || embedded) {
       void checkAuthStatus();
     } else {
       if (pollTimerRef.current) {
@@ -302,6 +344,8 @@ export function CamScannerCloudModal({
         pollTimerRef.current = null;
       }
       setLoginWaiting(false);
+      setPreviewDoc(null);
+      setPreviewPinned(false);
     }
     return () => {
       if (pollTimerRef.current) {
@@ -309,7 +353,7 @@ export function CamScannerCloudModal({
         pollTimerRef.current = null;
       }
     };
-  }, [isOpen, checkAuthStatus]);
+  }, [isOpen, embedded, checkAuthStatus]);
 
   const handleStartLogin = async () => {
     setLoginError("");
@@ -322,12 +366,13 @@ export function CamScannerCloudModal({
       });
       const data: any = await res.json();
       if (!res.ok || !data.ok || !data.code || !data.loginUrl) {
-        throw new Error(data.error || "Không thể khởi tạo liên kết đăng nhập CamScanner");
+        throw new Error(
+          data.error || "Không thể khởi tạo liên kết đăng nhập CamScanner"
+        );
       }
 
       setLoginUrl(data.loginUrl);
 
-      // Mở cửa sổ đăng nhập CamScanner chính thức
       const w = 540;
       const h = 680;
       const left = Math.max(0, Math.round((window.screen.width - w) / 2));
@@ -338,7 +383,6 @@ export function CamScannerCloudModal({
         `width=${w},height=${h},left=${left},top=${top},resizable=yes,scrollbars=yes`
       );
 
-      // Poll trạng thái xác thực mỗi 2 giây
       if (pollTimerRef.current) clearInterval(pollTimerRef.current);
       const code = data.code;
       pollTimerRef.current = setInterval(async () => {
@@ -361,13 +405,18 @@ export function CamScannerCloudModal({
             setLoginWaiting(false);
             setAuthenticated(true);
             void fetchCloudDocs("", "all", "title", pollData.token);
-          } else if (pollData.status === "expired" || pollData.status === "rejected") {
+          } else if (
+            pollData.status === "expired" ||
+            pollData.status === "rejected"
+          ) {
             if (pollTimerRef.current) {
               clearInterval(pollTimerRef.current);
               pollTimerRef.current = null;
             }
             setLoginWaiting(false);
-            setLoginError("Phiên cấp quyền đã hết hạn hoặc bị từ chối. Vui lòng bấm kết nối lại.");
+            setLoginError(
+              "Phiên cấp quyền đã hết hạn hoặc bị từ chối. Vui lòng bấm kết nối lại."
+            );
           }
         } catch {}
       }, 2000);
@@ -378,7 +427,10 @@ export function CamScannerCloudModal({
   };
 
   const handleLogout = async () => {
-    if (!confirm("Bạn có muốn ngắt kết nối tài khoản CamScanner Pro hiện tại?")) return;
+    if (
+      !confirm("Bạn có muốn ngắt kết nối tài khoản CamScanner Pro hiện tại?")
+    )
+      return;
     try {
       await fetch("/api/camscanner", {
         method: "POST",
@@ -392,11 +444,17 @@ export function CamScannerCloudModal({
     setDocs([]);
   };
 
-  const handleImportDoc = async (doc: CamScannerDocItem) => {
+  const handleImportDoc = async (
+    doc: CamScannerDocItem,
+    createAction?: CamScannerCreateActionType
+  ) => {
     if (importingDocId) return;
     setImportingDocId(doc.cs_doc_id);
+    setImportingAction(createAction || "select");
     setSearchError("");
     try {
+      const isVaultSave =
+        createAction === "vault" || (!createAction && targetType === "vault");
       const res = await fetch("/api/camscanner", {
         method: "POST",
         headers: getHeaders(),
@@ -404,35 +462,50 @@ export function CamScannerCloudModal({
           action: "import",
           csDocId: doc.cs_doc_id,
           title: doc.title || prCode,
-          prCode,
-          prId,
-          targetType,
-          workspaceId,
-          entityType,
-          entityId: entityId || prCode,
-          documentType,
-          note,
+          prCode: doc.title || prCode,
+          prId: createAction ? undefined : prId,
+          targetType: isVaultSave ? "vault" : "scan",
+          workspaceId: effWorkspaceId,
+          entityType: isVaultSave ? effEntityType : "pr",
+          entityId: isVaultSave
+            ? effEntityId || doc.title || "KHO_DU_LIEU"
+            : prCode,
+          documentType: isVaultSave ? effDocType : "PR",
+          note: isVaultSave
+            ? effNote || "Đồng bộ từ CamScanner Cloud"
+            : note,
         }),
       });
       const data: any = await res.json();
       if (!res.ok || !data.ok || !data.scan_file_url) {
-        throw new Error(data.error || "Không thể tải tài liệu từ CamScanner Cloud");
+        throw new Error(
+          data.error || "Không thể tải tài liệu từ CamScanner Cloud"
+        );
       }
-      onImported({
+      const importResult: CamScannerImportResult = {
         url: data.scan_file_url,
         fileName: data.fileName || `${doc.title}.pdf`,
         csDocId: doc.cs_doc_id,
         title: doc.title,
-      });
-      onClose();
+      };
+      setPreviewDoc(null);
+      setPreviewPinned(false);
+      if (createAction && onCreateFromScan) {
+        onCreateFromScan(createAction, importResult);
+        if (!embedded) onClose();
+      } else {
+        onImported(importResult);
+        if (!embedded) onClose();
+      }
     } catch (err: any) {
       setSearchError(err?.message || "Lỗi khi lấy file từ CamScanner Cloud");
     } finally {
       setImportingDocId(null);
+      setImportingAction("");
     }
   };
 
-  if (!isOpen || typeof document === "undefined") return null;
+  if ((!isOpen && !embedded) || typeof document === "undefined") return null;
 
   // Tổng hợp danh sách thư mục từ dữ liệu thực tế + cloudDirs
   const folderStats = (() => {
@@ -454,7 +527,10 @@ export function CamScannerCloudModal({
     }
     return {
       rootCount,
-      folders: Array.from(map.entries()).map(([name, count]) => ({ name, count })),
+      folders: Array.from(map.entries()).map(([name, count]) => ({
+        name,
+        count,
+      })),
     };
   })();
 
@@ -473,111 +549,184 @@ export function CamScannerCloudModal({
     return true;
   });
 
-  return createPortal(
+  const isHubMode = Boolean(onCreateFromScan);
+
+  const mainContent = (
     <div
-      className="payment-modal-overlay"
-      style={{ zIndex: 2147483640 }}
+      className={embedded ? "cs-cloud-embedded-card" : "payment-modal-card cs-cloud-modal-card"}
+      style={{
+        maxWidth: embedded ? "100%" : isHubMode ? "1040px" : "920px",
+        width: embedded ? "100%" : "96vw",
+        maxHeight: embedded ? "none" : "88vh",
+        display: "flex",
+        flexDirection: "column",
+        padding: 0,
+        overflow: "hidden",
+        borderRadius: "12px",
+        border: "1px solid #cbd5e1",
+        background: "#ffffff",
+        boxShadow: embedded
+          ? "0 1px 3px rgba(15, 23, 42, 0.04)"
+          : "0 20px 40px rgba(15, 23, 42, 0.22)",
+      }}
       onClick={(e) => e.stopPropagation()}
     >
+      <style>{`
+        .cs-cloud-search-box input.cs-cloud-search-input {
+          border: none !important;
+          box-shadow: none !important;
+          background: transparent !important;
+          outline: none !important;
+          height: 32px !important;
+          padding: 0 4px !important;
+          font-size: 12.5px !important;
+          color: #0f172a !important;
+          width: 100% !important;
+        }
+        .cs-cloud-table {
+          width: 100% !important;
+          min-width: 0 !important;
+          table-layout: fixed !important;
+          border-collapse: collapse !important;
+        }
+        .cs-cloud-table th,
+        .cs-cloud-table td {
+          box-sizing: border-box !important;
+          overflow: hidden !important;
+          text-overflow: ellipsis !important;
+          white-space: nowrap !important;
+          padding: 7px 8px !important;
+          font-size: 12.5px !important;
+        }
+        .cs-cloud-act-btn {
+          display: inline-flex !important;
+          align-items: center !important;
+          justify-content: center !important;
+          gap: 3px !important;
+          height: 26px !important;
+          padding: 0 7px !important;
+          border-radius: 5px !important;
+          font-size: 11px !important;
+          font-weight: 700 !important;
+          cursor: pointer !important;
+          white-space: nowrap !important;
+          transition: all 0.12s ease !important;
+          line-height: 1 !important;
+        }
+        .cs-cloud-act-btn:disabled {
+          opacity: 0.6 !important;
+          cursor: wait !important;
+        }
+      `}</style>
+
+      {/* Header */}
       <div
-        className="payment-modal-card"
         style={{
-          maxWidth: "860px",
-          width: "95vw",
-          maxHeight: "88vh",
           display: "flex",
-          flexDirection: "column",
-          padding: 0,
-          overflow: "hidden",
-          borderRadius: "14px",
-          border: "1px solid #cbd5e1",
-          boxShadow: "0 20px 40px rgba(15, 23, 42, 0.22)",
+          alignItems: "center",
+          justifyContent: "space-between",
+          padding: "12px 18px",
+          background: "linear-gradient(135deg, #0f172a 0%, #1e293b 100%)",
+          color: "#ffffff",
         }}
-        onClick={(e) => e.stopPropagation()}
       >
-        {/* Header */}
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            padding: "14px 20px",
-            background: "#0f172a",
-            color: "#ffffff",
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+          <div
+            style={{
+              width: "34px",
+              height: "34px",
+              borderRadius: "8px",
+              background: "#0d9488",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              color: "#ffffff",
+              fontWeight: 800,
+              fontSize: "13px",
+              flexShrink: 0,
+            }}
+          >
+            CS
+          </div>
+          <div>
             <div
               style={{
-                width: "34px",
-                height: "34px",
-                borderRadius: "8px",
-                background: "#0d9488",
                 display: "flex",
                 alignItems: "center",
-                justifyContent: "center",
-                color: "#ffffff",
-                fontWeight: 800,
-                fontSize: "14px",
-                flexShrink: 0,
+                gap: "8px",
+                flexWrap: "wrap",
               }}
             >
-              CS
-            </div>
-            <div>
-              <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
-                <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 800, color: "#ffffff" }}>
-                  Kho dữ liệu Cloud CamScanner Pro
-                </h3>
-                {authenticated && (
-                  <span
-                    style={{
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: "4px",
-                      fontSize: "11px",
-                      fontWeight: 700,
-                      padding: "2px 8px",
-                      borderRadius: "999px",
-                      background: "rgba(16, 185, 129, 0.2)",
-                      color: "#6ee7b7",
-                      border: "1px solid rgba(110, 231, 183, 0.35)",
-                    }}
-                  >
-                    <ShieldCheck size={12} /> Đã kết nối Cloud
-                  </span>
-                )}
-              </div>
-              <div style={{ fontSize: "12px", color: "#94a3b8", marginTop: "2px" }}>
-                Chọn bản scan trực tiếp từ tài khoản CamScanner của bạn để gắn vào{" "}
-                <b style={{ color: "#e2e8f0" }}>{targetLabel}</b>
-              </div>
-            </div>
-          </div>
-
-          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-            {authenticated && (
-              <button
-                type="button"
-                onClick={handleLogout}
-                title="Đổi hoặc ngắt kết nối tài khoản CamScanner"
+              <h3
                 style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: "4px",
-                  padding: "5px 10px",
-                  fontSize: "11.5px",
-                  fontWeight: 600,
-                  borderRadius: "6px",
-                  border: "1px solid #334155",
-                  background: "#1e293b",
-                  color: "#cbd5e1",
-                  cursor: "pointer",
+                  margin: 0,
+                  fontSize: "15.5px",
+                  fontWeight: 800,
+                  color: "#ffffff",
                 }}
               >
-                <LogOut size={12} /> Đổi TK
-              </button>
-            )}
+                Kho dữ liệu Cloud CamScanner Pro
+              </h3>
+              {authenticated && (
+                <span
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "4px",
+                    fontSize: "11px",
+                    fontWeight: 700,
+                    padding: "2px 8px",
+                    borderRadius: "999px",
+                    background: "rgba(16, 185, 129, 0.2)",
+                    color: "#6ee7b7",
+                    border: "1px solid rgba(110, 231, 183, 0.35)",
+                  }}
+                >
+                  <ShieldCheck size={12} /> Đã kết nối Cloud ({docs.length} file)
+                </span>
+              )}
+            </div>
+            <div style={{ fontSize: "12px", color: "#cbd5e1", marginTop: "2px" }}>
+              {isHubMode ? (
+                <>
+                  Rê chuột vào dòng để xem trước nhanh · Chọn tạo{" "}
+                  <b style={{ color: "#5eead4" }}>PR, ĐNTT, Biên bản bàn giao</b>{" "}
+                  hoặc lưu kho trực tiếp từ bản scan
+                </>
+              ) : (
+                <>
+                  Chọn bản scan trực tiếp từ tài khoản CamScanner của bạn để gắn vào{" "}
+                  <b style={{ color: "#ffffff" }}>{targetLabel}</b>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+          {authenticated && (
+            <button
+              type="button"
+              onClick={handleLogout}
+              title="Đổi hoặc ngắt kết nối tài khoản CamScanner"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "4px",
+                padding: "5px 10px",
+                fontSize: "11.5px",
+                fontWeight: 600,
+                borderRadius: "6px",
+                border: "1px solid rgba(255,255,255,0.2)",
+                background: "rgba(255,255,255,0.1)",
+                color: "#ffffff",
+                cursor: "pointer",
+              }}
+            >
+              <LogOut size={12} /> Đổi TK
+            </button>
+          )}
+          {!embedded && (
             <button
               type="button"
               onClick={onClose}
@@ -585,8 +734,8 @@ export function CamScannerCloudModal({
                 width: "30px",
                 height: "30px",
                 borderRadius: "6px",
-                border: "1px solid #334155",
-                background: "#1e293b",
+                border: "1px solid rgba(255,255,255,0.2)",
+                background: "rgba(255,255,255,0.1)",
                 color: "#ffffff",
                 cursor: "pointer",
                 display: "inline-flex",
@@ -596,347 +745,436 @@ export function CamScannerCloudModal({
             >
               <X size={16} />
             </button>
-          </div>
+          )}
         </div>
+      </div>
 
-        {/* Body */}
-        <div
-          style={{
-            padding: "18px 20px",
-            overflowY: "auto",
-            flex: 1,
-            display: "flex",
-            flexDirection: "column",
-            gap: "14px",
-            background: "#f8fafc",
-          }}
-        >
-          {checkingAuth ? (
-            <div style={{ padding: "48px 20px", textAlign: "center", color: "#475569" }}>
-              <Loader2
-                size={28}
-                className="animate-spin"
-                style={{ margin: "0 auto 10px", color: "#0d9488" }}
-              />
-              <div style={{ fontWeight: 700, fontSize: "14px" }}>
-                Đang kiểm tra kết nối Cloud CamScanner...
-              </div>
+      {/* Body */}
+      <div
+        style={{
+          padding: "14px 16px",
+          overflowY: "auto",
+          flex: 1,
+          display: "flex",
+          flexDirection: "column",
+          gap: "10px",
+          background: "#f8fafc",
+        }}
+      >
+        {checkingAuth ? (
+          <div
+            style={{
+              padding: "48px 20px",
+              textAlign: "center",
+              color: "#475569",
+            }}
+          >
+            <Loader2
+              size={28}
+              className="animate-spin"
+              style={{ margin: "0 auto 10px", color: "#0d9488" }}
+            />
+            <div style={{ fontWeight: 700, fontSize: "14px" }}>
+              Đang kiểm tra kết nối Cloud CamScanner...
             </div>
-          ) : !authenticated ? (
-            /* Màn hình Đăng nhập / Kết nối tài khoản CamScanner Pro */
+          </div>
+        ) : !authenticated ? (
+          <div
+            style={{
+              background: "#ffffff",
+              border: "1px solid #cbd5e1",
+              borderRadius: "12px",
+              padding: "28px 24px",
+              textAlign: "center",
+              maxWidth: "560px",
+              margin: "12px auto",
+            }}
+          >
             <div
               style={{
-                background: "#ffffff",
-                border: "1px solid #cbd5e1",
-                borderRadius: "12px",
-                padding: "28px 24px",
-                textAlign: "center",
-                maxWidth: "560px",
-                margin: "12px auto",
+                width: "54px",
+                height: "54px",
+                borderRadius: "14px",
+                background: "#f0fdfa",
+                border: "1px solid #99f6e4",
+                color: "#0d9488",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                margin: "0 auto 14px",
               }}
             >
+              <Cloud size={28} />
+            </div>
+
+            <h4
+              style={{
+                margin: "0 0 8px",
+                fontSize: "17px",
+                fontWeight: 800,
+                color: "#0f172a",
+              }}
+            >
+              Kết nối trực tiếp với tài khoản CamScanner Pro
+            </h4>
+            <p
+              style={{
+                margin: "0 0 18px",
+                fontSize: "13px",
+                color: "#475569",
+                lineHeight: 1.55,
+              }}
+            >
+              Đăng nhập 1 lần duy nhất vào cổng uỷ quyền chính thức của{" "}
+              <b>CamScanner Cloud</b>. Toàn bộ bản scan trên điện thoại sẽ đồng
+              bộ trực tiếp tại đây để bạn xem trước và tạo PR, ĐNTT, Biên bản bàn
+              giao ngay lập tức.
+            </p>
+
+            {loginError && (
               <div
                 style={{
-                  width: "54px",
-                  height: "54px",
-                  borderRadius: "14px",
-                  background: "#f0fdfa",
-                  border: "1px solid #99f6e4",
-                  color: "#0d9488",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  margin: "0 auto 14px",
+                  padding: "10px 12px",
+                  marginBottom: "14px",
+                  borderRadius: "8px",
+                  background: "#fef2f2",
+                  border: "1px solid #fecaca",
+                  color: "#b91c1c",
+                  fontSize: "12.5px",
+                  fontWeight: 600,
                 }}
               >
-                <Cloud size={28} />
+                {loginError}
               </div>
+            )}
 
-              <h4 style={{ margin: "0 0 8px", fontSize: "17px", fontWeight: 800, color: "#0f172a" }}>
-                Kết nối trực tiếp với tài khoản CamScanner Pro
-              </h4>
-              <p style={{ margin: "0 0 18px", fontSize: "13px", color: "#475569", lineHeight: 1.55 }}>
-                Đăng nhập 1 lần duy nhất vào cổng uỷ quyền chính thức của <b>CamScanner Cloud</b>.
-                Sau khi kết nối, toàn bộ các bản scan bạn vừa chụp trên điện thoại sẽ hiển thị trực tiếp tại đây để bạn chọn gắn vào <b>{targetLabel}</b> mà không cần tải thủ công về máy.
-              </p>
-
-              {loginError && (
+            {!loginWaiting ? (
+              <button
+                type="button"
+                onClick={() => void handleStartLogin()}
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: "8px",
+                  padding: "11px 22px",
+                  fontSize: "14px",
+                  fontWeight: 700,
+                  borderRadius: "9px",
+                  border: "1px solid #0f766e",
+                  background: "#0d9488",
+                  color: "#ffffff",
+                  cursor: "pointer",
+                  boxShadow: "0 4px 12px rgba(13, 148, 136, 0.25)",
+                }}
+              >
+                <Sparkles size={16} />
+                <span>Đăng nhập & Kết nối Cloud CamScanner</span>
+              </button>
+            ) : (
+              <div
+                style={{
+                  padding: "16px",
+                  borderRadius: "10px",
+                  background: "#f0fdfa",
+                  border: "1px solid #99f6e4",
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  gap: "10px",
+                }}
+              >
                 <div
                   style={{
-                    padding: "10px 12px",
-                    marginBottom: "14px",
-                    borderRadius: "8px",
-                    background: "#fef2f2",
-                    border: "1px solid #fecaca",
-                    color: "#b91c1c",
-                    fontSize: "12.5px",
-                    fontWeight: 600,
-                  }}
-                >
-                  {loginError}
-                </div>
-              )}
-
-              {!loginWaiting ? (
-                <button
-                  type="button"
-                  onClick={() => void handleStartLogin()}
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    gap: "8px",
-                    padding: "11px 22px",
-                    fontSize: "14px",
-                    fontWeight: 700,
-                    borderRadius: "9px",
-                    border: "1px solid #0f766e",
-                    background: "#0d9488",
-                    color: "#ffffff",
-                    cursor: "pointer",
-                    boxShadow: "0 4px 12px rgba(13, 148, 136, 0.25)",
-                  }}
-                >
-                  <Sparkles size={16} />
-                  <span>Đăng nhập & Kết nối Cloud CamScanner</span>
-                </button>
-              ) : (
-                <div
-                  style={{
-                    padding: "16px",
-                    borderRadius: "10px",
-                    background: "#f0fdfa",
-                    border: "1px solid #99f6e4",
                     display: "flex",
-                    flexDirection: "column",
                     alignItems: "center",
-                    gap: "10px",
+                    gap: "8px",
+                    color: "#0f766e",
+                    fontWeight: 700,
+                    fontSize: "13.5px",
                   }}
                 >
+                  <Loader2 size={18} className="animate-spin" />
+                  <span>
+                    Đang chờ bạn xác nhận đăng nhập trên cửa sổ CamScanner...
+                  </span>
+                </div>
+                <div style={{ fontSize: "12px", color: "#475569" }}>
+                  Sau khi đăng nhập và bấm <b>Authorize / Cho phép</b>, hệ thống
+                  sẽ tự động mở kho tài liệu của bạn.
+                </div>
+                {loginUrl && (
                   <div
                     style={{
                       display: "flex",
-                      alignItems: "center",
                       gap: "8px",
-                      color: "#0f766e",
-                      fontWeight: 700,
-                      fontSize: "13.5px",
+                      marginTop: "4px",
+                      flexWrap: "wrap",
+                      justifyContent: "center",
                     }}
                   >
-                    <Loader2 size={18} className="animate-spin" />
-                    <span>Đang chờ bạn xác nhận đăng nhập trên cửa sổ CamScanner...</span>
+                    <a
+                      href={loginUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: "5px",
+                        padding: "6px 12px",
+                        borderRadius: "6px",
+                        background: "#0d9488",
+                        color: "#ffffff",
+                        fontSize: "12px",
+                        fontWeight: 700,
+                        textDecoration: "none",
+                      }}
+                    >
+                      <ExternalLink size={13} /> Mở lại trang đăng nhập
+                      CamScanner
+                    </a>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (pollTimerRef.current)
+                          clearInterval(pollTimerRef.current);
+                        setLoginWaiting(false);
+                      }}
+                      style={{
+                        padding: "6px 12px",
+                        borderRadius: "6px",
+                        border: "1px solid #cbd5e1",
+                        background: "#ffffff",
+                        color: "#475569",
+                        fontSize: "12px",
+                        fontWeight: 600,
+                        cursor: "pointer",
+                      }}
+                    >
+                      Hủy
+                    </button>
                   </div>
-                  <div style={{ fontSize: "12px", color: "#475569" }}>
-                    Sau khi đăng nhập và bấm <b>Authorize / Cho phép</b> trên trang CamScanner, hệ thống sẽ tự động mở kho tài liệu của bạn.
-                  </div>
-                  {loginUrl && (
-                    <div style={{ display: "flex", gap: "8px", marginTop: "4px", flexWrap: "wrap", justifyContent: "center" }}>
-                      <a
-                        href={loginUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        style={{
-                          display: "inline-flex",
-                          alignItems: "center",
-                          gap: "5px",
-                          padding: "6px 12px",
-                          borderRadius: "6px",
-                          background: "#0d9488",
-                          color: "#ffffff",
-                          fontSize: "12px",
-                          fontWeight: 700,
-                          textDecoration: "none",
-                        }}
-                      >
-                        <ExternalLink size={13} /> Mở lại trang đăng nhập CamScanner
-                      </a>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (pollTimerRef.current) clearInterval(pollTimerRef.current);
-                          setLoginWaiting(false);
-                        }}
-                        style={{
-                          padding: "6px 12px",
-                          borderRadius: "6px",
-                          border: "1px solid #cbd5e1",
-                          background: "#ffffff",
-                          color: "#475569",
-                          fontSize: "12px",
-                          fontWeight: 600,
-                          cursor: "pointer",
-                        }}
-                      >
-                        Hủy
-                      </button>
-                    </div>
-                  )}
-                </div>
-              )}
+                )}
+              </div>
+            )}
+          </div>
+        ) : (
+          <>
+            {/* Thanh tìm kiếm & lọc trên Cloud CamScanner */}
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+                flexWrap: "wrap",
+                background: "#ffffff",
+                padding: "8px 10px",
+                borderRadius: "9px",
+                border: "1px solid #cbd5e1",
+              }}
+            >
+              <div
+                className="cs-cloud-search-box"
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "6px",
+                  flex: "1 1 220px",
+                  background: "#f8fafc",
+                  border: "1px solid #cbd5e1",
+                  borderRadius: "7px",
+                  padding: "0 10px",
+                  height: "34px",
+                }}
+              >
+                <Search
+                  size={15}
+                  style={{ color: "#64748b", flexShrink: 0 }}
+                />
+                <input
+                  type="text"
+                  className="cs-cloud-search-input"
+                  value={keyword}
+                  onChange={(e) => setKeyword(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      void fetchCloudDocs(keyword, docTypeFilter, searchScope);
+                    }
+                  }}
+                  placeholder="Tìm tên bản scan trên CamScanner..."
+                />
+                {keyword && (
+                  <button
+                    type="button"
+                    onClick={() => setKeyword("")}
+                    style={{
+                      border: "none",
+                      background: "#e2e8f0",
+                      color: "#334155",
+                      borderRadius: "4px",
+                      padding: "1px 6px",
+                      fontSize: "11px",
+                      fontWeight: 600,
+                      cursor: "pointer",
+                    }}
+                  >
+                    Xóa
+                  </button>
+                )}
+              </div>
+
+              <select
+                value={docTypeFilter}
+                onChange={(e) => {
+                  const nextType = e.target.value;
+                  setDocTypeFilter(nextType);
+                  void fetchCloudDocs(keyword, nextType, searchScope);
+                }}
+                style={{
+                  height: "34px",
+                  borderRadius: "7px",
+                  border: "1px solid #cbd5e1",
+                  padding: "0 10px",
+                  fontSize: "12px",
+                  fontWeight: 600,
+                  color: "#334155",
+                  background: "#ffffff",
+                }}
+              >
+                <option value="all">Tất cả định dạng</option>
+                <option value="pdf">PDF / Bản scan</option>
+                <option value="image">Ảnh Scan</option>
+                <option value="word">Word</option>
+                <option value="excel">Excel</option>
+              </select>
+
+              <select
+                value={searchScope}
+                onChange={(e) => {
+                  const nextScope = e.target.value as "title" | "full";
+                  setSearchScope(nextScope);
+                  void fetchCloudDocs(keyword, docTypeFilter, nextScope);
+                }}
+                style={{
+                  height: "34px",
+                  borderRadius: "7px",
+                  border: "1px solid #cbd5e1",
+                  padding: "0 10px",
+                  fontSize: "12px",
+                  fontWeight: 600,
+                  color: "#334155",
+                  background: "#ffffff",
+                }}
+              >
+                <option value="title">Tìm theo tiêu đề</option>
+                <option value="full">Tìm cả chữ OCR trong trang</option>
+              </select>
+
+              <button
+                type="button"
+                onClick={() =>
+                  void fetchCloudDocs(keyword, docTypeFilter, searchScope)
+                }
+                disabled={loadingDocs || syncingAllDocs}
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "5px",
+                  height: "34px",
+                  padding: "0 12px",
+                  borderRadius: "7px",
+                  border: "1px solid #0d9488",
+                  background: "#0d9488",
+                  color: "#ffffff",
+                  fontSize: "12px",
+                  fontWeight: 700,
+                  cursor: "pointer",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                <RefreshCw
+                  size={13}
+                  className={
+                    loadingDocs || syncingAllDocs ? "animate-spin" : ""
+                  }
+                />
+                <span>
+                  {loadingDocs
+                    ? "Đang tải..."
+                    : syncingAllDocs
+                    ? `Đang đồng bộ (${docs.length}+)...`
+                    : "Tìm / Làm mới"}
+                </span>
+              </button>
             </div>
-          ) : (
-            /* Màn hình Danh sách Tài liệu trên Cloud CamScanner */
-            <>
-              {/* Thanh tìm kiếm & lọc trên Cloud CamScanner */}
+
+            {/* Thanh lọc nhanh theo Thư mục trên CamScanner Cloud */}
+            {docs.length > 0 && (
               <div
                 style={{
                   display: "flex",
                   alignItems: "center",
-                  gap: "8px",
+                  gap: "6px",
                   flexWrap: "wrap",
-                  background: "#ffffff",
-                  padding: "10px 12px",
-                  borderRadius: "10px",
-                  border: "1px solid #cbd5e1",
                 }}
               >
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "7px",
-                    flex: "1 1 240px",
-                    background: "#f8fafc",
-                    border: "1px solid #cbd5e1",
-                    borderRadius: "7px",
-                    padding: "0 10px",
-                    height: "34px",
-                  }}
-                >
-                  <Search size={15} style={{ color: "#64748b", flexShrink: 0 }} />
-                  <input
-                    type="text"
-                    value={keyword}
-                    onChange={(e) => setKeyword(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        e.preventDefault();
-                        void fetchCloudDocs(keyword, docTypeFilter, searchScope);
-                      }
-                    }}
-                    placeholder="Tìm tên bản scan trên CamScanner (bấm Enter để tìm, để trống để xem mới nhất)..."
-                    style={{
-                      width: "100%",
-                      border: "none",
-                      outline: "none",
-                      background: "transparent",
-                      fontSize: "12.5px",
-                      color: "#0f172a",
-                    }}
-                  />
-                </div>
-
-                <select
-                  value={docTypeFilter}
-                  onChange={(e) => {
-                    const nextType = e.target.value;
-                    setDocTypeFilter(nextType);
-                    void fetchCloudDocs(keyword, nextType, searchScope);
-                  }}
-                  style={{
-                    height: "34px",
-                    borderRadius: "7px",
-                    border: "1px solid #cbd5e1",
-                    padding: "0 10px",
-                    fontSize: "12px",
-                    fontWeight: 600,
-                    color: "#334155",
-                    background: "#ffffff",
-                  }}
-                >
-                  <option value="all">Tất cả định dạng</option>
-                  <option value="pdf">PDF / Bản scan</option>
-                  <option value="image">Ảnh Scan</option>
-                  <option value="word">Word</option>
-                  <option value="excel">Excel</option>
-                </select>
-
-                <select
-                  value={searchScope}
-                  onChange={(e) => {
-                    const nextScope = e.target.value as "title" | "full";
-                    setSearchScope(nextScope);
-                    void fetchCloudDocs(keyword, docTypeFilter, nextScope);
-                  }}
-                  style={{
-                    height: "34px",
-                    borderRadius: "7px",
-                    border: "1px solid #cbd5e1",
-                    padding: "0 10px",
-                    fontSize: "12px",
-                    fontWeight: 600,
-                    color: "#334155",
-                    background: "#ffffff",
-                  }}
-                >
-                  <option value="title">Tìm theo tiêu đề</option>
-                  <option value="full">Tìm cả chữ OCR trong trang</option>
-                </select>
-
                 <button
                   type="button"
-                  onClick={() => void fetchCloudDocs(keyword, docTypeFilter, searchScope)}
-                  disabled={loadingDocs || syncingAllDocs}
+                  onClick={() => setFolderFilter("__ALL__")}
                   style={{
                     display: "inline-flex",
                     alignItems: "center",
                     gap: "5px",
-                    height: "34px",
-                    padding: "0 12px",
-                    borderRadius: "7px",
-                    border: "1px solid #0d9488",
-                    background: "#0d9488",
-                    color: "#ffffff",
-                    fontSize: "12px",
+                    padding: "4px 10px",
+                    borderRadius: "999px",
+                    fontSize: "11.5px",
                     fontWeight: 700,
+                    border:
+                      folderFilter === "__ALL__"
+                        ? "1px solid #0d9488"
+                        : "1px solid #cbd5e1",
+                    background:
+                      folderFilter === "__ALL__" ? "#f0fdfa" : "#ffffff",
+                    color:
+                      folderFilter === "__ALL__" ? "#0f766e" : "#475569",
                     cursor: "pointer",
-                    whiteSpace: "nowrap",
                   }}
                 >
-                  <RefreshCw size={13} className={loadingDocs || syncingAllDocs ? "animate-spin" : ""} />
-                  <span>
-                    {loadingDocs
-                      ? "Đang tải..."
-                      : syncingAllDocs
-                      ? `Đang tải đủ kho (${docs.length}+)...`
-                      : "Tìm / Làm mới"}
-                  </span>
+                  <span>Tất cả tài liệu ({docs.length})</span>
                 </button>
-              </div>
 
-              {/* Thanh lọc nhanh theo Thư mục trên CamScanner Cloud */}
-              {docs.length > 0 && (
-                <div
+                <button
+                  type="button"
+                  onClick={() => setFolderFilter("__ROOT__")}
                   style={{
-                    display: "flex",
+                    display: "inline-flex",
                     alignItems: "center",
-                    gap: "6px",
-                    flexWrap: "wrap",
+                    gap: "5px",
+                    padding: "4px 10px",
+                    borderRadius: "999px",
+                    fontSize: "11.5px",
+                    fontWeight: 600,
+                    border:
+                      folderFilter === "__ROOT__"
+                        ? "1px solid #0d9488"
+                        : "1px solid #cbd5e1",
+                    background:
+                      folderFilter === "__ROOT__" ? "#f0fdfa" : "#ffffff",
+                    color:
+                      folderFilter === "__ROOT__" ? "#0f766e" : "#475569",
+                    cursor: "pointer",
                   }}
                 >
-                  <button
-                    type="button"
-                    onClick={() => setFolderFilter("__ALL__")}
-                    style={{
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: "5px",
-                      padding: "4px 10px",
-                      borderRadius: "999px",
-                      fontSize: "11.5px",
-                      fontWeight: 700,
-                      border: folderFilter === "__ALL__" ? "1px solid #0d9488" : "1px solid #cbd5e1",
-                      background: folderFilter === "__ALL__" ? "#f0fdfa" : "#ffffff",
-                      color: folderFilter === "__ALL__" ? "#0f766e" : "#475569",
-                      cursor: "pointer",
-                    }}
-                  >
-                    <span>Tất cả tài liệu ({docs.length})</span>
-                  </button>
+                  <Folder size={12} />
+                  <span>Thư mục gốc ({folderStats.rootCount})</span>
+                </button>
 
+                {folderStats.folders.map((f) => (
                   <button
+                    key={f.name}
                     type="button"
-                    onClick={() => setFolderFilter("__ROOT__")}
+                    onClick={() => setFolderFilter(f.name)}
                     style={{
                       display: "inline-flex",
                       alignItems: "center",
@@ -945,351 +1183,492 @@ export function CamScannerCloudModal({
                       borderRadius: "999px",
                       fontSize: "11.5px",
                       fontWeight: 600,
-                      border: folderFilter === "__ROOT__" ? "1px solid #0d9488" : "1px solid #cbd5e1",
-                      background: folderFilter === "__ROOT__" ? "#f0fdfa" : "#ffffff",
-                      color: folderFilter === "__ROOT__" ? "#0f766e" : "#475569",
+                      border:
+                        folderFilter === f.name
+                          ? "1px solid #0d9488"
+                          : "1px solid #cbd5e1",
+                      background:
+                        folderFilter === f.name ? "#f0fdfa" : "#ffffff",
+                      color:
+                        folderFilter === f.name ? "#0f766e" : "#475569",
                       cursor: "pointer",
                     }}
                   >
                     <Folder size={12} />
-                    <span>Thư mục gốc ({folderStats.rootCount})</span>
-                  </button>
-
-                  {folderStats.folders.map((f) => (
-                    <button
-                      key={f.name}
-                      type="button"
-                      onClick={() => setFolderFilter(f.name)}
-                      style={{
-                        display: "inline-flex",
-                        alignItems: "center",
-                        gap: "5px",
-                        padding: "4px 10px",
-                        borderRadius: "999px",
-                        fontSize: "11.5px",
-                        fontWeight: 600,
-                        border: folderFilter === f.name ? "1px solid #0d9488" : "1px solid #cbd5e1",
-                        background: folderFilter === f.name ? "#f0fdfa" : "#ffffff",
-                        color: folderFilter === f.name ? "#0f766e" : "#475569",
-                        cursor: "pointer",
-                      }}
-                    >
-                      <Folder size={12} />
-                      <span>
-                        {f.name} ({f.count})
-                      </span>
-                    </button>
-                  ))}
-
-                  {syncingAllDocs && (
-                    <span
-                      style={{
-                        marginLeft: "auto",
-                        display: "inline-flex",
-                        alignItems: "center",
-                        gap: "5px",
-                        fontSize: "11.5px",
-                        fontWeight: 600,
-                        color: "#0f766e",
-                      }}
-                    >
-                      <Loader2 size={12} className="animate-spin" />
-                      <span>Đang tải toàn bộ lịch sử kho CamScanner...</span>
+                    <span>
+                      {f.name} ({f.count})
                     </span>
-                  )}
-                </div>
-              )}
+                  </button>
+                ))}
 
-              {searchError && (
-                <div
-                  style={{
-                    padding: "10px 12px",
-                    borderRadius: "8px",
-                    background: "#fef2f2",
-                    border: "1px solid #fecaca",
-                    color: "#b91c1c",
-                    fontSize: "12.5px",
-                    fontWeight: 600,
-                  }}
-                >
-                  {searchError}
-                </div>
-              )}
+                {syncingAllDocs && (
+                  <span
+                    style={{
+                      marginLeft: "auto",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "5px",
+                      fontSize: "11.5px",
+                      fontWeight: 600,
+                      color: "#0f766e",
+                    }}
+                  >
+                    <Loader2 size={12} className="animate-spin" />
+                    <span>Đang tải toàn bộ lịch sử kho CamScanner...</span>
+                  </span>
+                )}
+              </div>
+            )}
 
-              {/* Bảng danh sách tài liệu trên CamScanner Cloud */}
+            {searchError && (
               <div
                 style={{
-                  background: "#ffffff",
-                  border: "1px solid #cbd5e1",
-                  borderRadius: "10px",
-                  overflow: "hidden",
+                  padding: "10px 12px",
+                  borderRadius: "8px",
+                  background: "#fef2f2",
+                  border: "1px solid #fecaca",
+                  color: "#b91c1c",
+                  fontSize: "12.5px",
+                  fontWeight: 600,
                 }}
               >
-                {loadingDocs ? (
-                  <div style={{ padding: "40px 20px", textAlign: "center", color: "#475569" }}>
-                    <Loader2
-                      size={24}
-                      className="animate-spin"
-                      style={{ margin: "0 auto 8px", color: "#0d9488" }}
-                    />
-                    <div style={{ fontWeight: 600, fontSize: "13px" }}>
-                      Đang đồng bộ danh sách bản scan từ CamScanner Cloud...
-                    </div>
+                {searchError}
+              </div>
+            )}
+
+            {/* Bảng danh sách tài liệu trên CamScanner Cloud — Cột tên file thu gọn & Nút chức năng nằm ngay sau cột tên file */}
+            <div
+              style={{
+                background: "#ffffff",
+                border: "1px solid #cbd5e1",
+                borderRadius: "10px",
+                overflow: "hidden",
+              }}
+            >
+              {loadingDocs ? (
+                <div
+                  style={{
+                    padding: "40px 20px",
+                    textAlign: "center",
+                    color: "#475569",
+                  }}
+                >
+                  <Loader2
+                    size={24}
+                    className="animate-spin"
+                    style={{ margin: "0 auto 8px", color: "#0d9488" }}
+                  />
+                  <div style={{ fontWeight: 600, fontSize: "13px" }}>
+                    Đang đồng bộ danh sách bản scan từ CamScanner Cloud...
                   </div>
-                ) : filteredDocs.length === 0 ? (
-                  <div style={{ padding: "36px 20px", textAlign: "center", color: "#64748b" }}>
-                    <div style={{ fontWeight: 700, color: "#334155", marginBottom: "4px" }}>
-                      Không tìm thấy bản scan nào khớp với bộ lọc
-                    </div>
-                    <div style={{ fontSize: "12.5px" }}>
-                      Hãy thử xóa từ khóa tìm kiếm, chọn tab <b>Tất cả tài liệu</b> hoặc bấm <b>Tìm / Làm mới</b>.
-                    </div>
+                </div>
+              ) : filteredDocs.length === 0 ? (
+                <div
+                  style={{
+                    padding: "36px 20px",
+                    textAlign: "center",
+                    color: "#64748b",
+                  }}
+                >
+                  <div
+                    style={{
+                      fontWeight: 700,
+                      color: "#334155",
+                      marginBottom: "4px",
+                    }}
+                  >
+                    Không tìm thấy bản scan nào khớp với bộ lọc
                   </div>
-                ) : (
-                  <div style={{ maxHeight: "420px", overflowY: "auto" }}>
-                    <table
-                      style={{
-                        width: "100%",
-                        borderCollapse: "collapse",
-                        fontSize: "12.5px",
-                      }}
-                    >
-                      <thead>
-                        <tr
+                  <div style={{ fontSize: "12.5px" }}>
+                    Hãy thử xóa từ khóa tìm kiếm, chọn tab{" "}
+                    <b>Tất cả tài liệu</b> hoặc bấm <b>Tìm / Làm mới</b>.
+                  </div>
+                </div>
+              ) : (
+                <div
+                  style={{
+                    maxHeight: embedded ? "600px" : "430px",
+                    overflowY: "auto",
+                    overflowX: "hidden",
+                  }}
+                >
+                  <table className="cs-cloud-table">
+                    <thead>
+                      <tr
+                        style={{
+                          background: "#f8fafc",
+                          borderBottom: "1px solid #cbd5e1",
+                          color: "#334155",
+                          textAlign: "left",
+                          position: "sticky",
+                          top: 0,
+                          zIndex: 2,
+                        }}
+                      >
+                        <th
                           style={{
-                            background: "#f8fafc",
-                            borderBottom: "1px solid #cbd5e1",
-                            color: "#334155",
-                            textAlign: "left",
-                            position: "sticky",
-                            top: 0,
-                            zIndex: 2,
+                            width: "40px",
+                            textAlign: "center",
                           }}
                         >
-                          <th style={{ padding: "9px 10px", width: "42px", textAlign: "center" }}>
-                            #
-                          </th>
-                          <th style={{ padding: "9px 10px" }}>Tên bản scan trên CamScanner</th>
-                          <th style={{ padding: "9px 10px", width: "130px" }}>Thư mục</th>
-                          <th style={{ padding: "9px 10px", width: "105px", textAlign: "center" }}>
-                            Định dạng
-                          </th>
-                          <th style={{ padding: "9px 10px", width: "135px", textAlign: "center" }}>
-                            Cập nhật
-                          </th>
-                          <th style={{ padding: "9px 12px", width: "165px", textAlign: "center" }}>
-                            Chọn lấy file
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {filteredDocs.map((doc, idx) => {
-                          const isImporting = importingDocId === doc.cs_doc_id;
-                          const isPreviewing = previewDoc?.cs_doc_id === doc.cs_doc_id;
-                          const docWebUrl = doc.doc_id || doc.display_key || "";
-                          return (
-                            <tr
-                              key={doc.cs_doc_id || idx}
-                              onMouseEnter={() => handleRowMouseEnter(doc)}
-                              onMouseLeave={handleRowMouseLeave}
+                          #
+                        </th>
+                        <th
+                          style={{
+                            width: isHubMode ? "220px" : "210px",
+                          }}
+                        >
+                          Tên bản scan
+                        </th>
+                        <th
+                          style={{
+                            width: isHubMode ? "350px" : "150px",
+                            textAlign: "center",
+                          }}
+                        >
+                          {isHubMode
+                            ? "Chức năng (Xem / Tạo phiếu từ file scan)"
+                            : "Chức năng"}
+                        </th>
+                        <th style={{ width: "120px" }}>Thư mục</th>
+                        <th
+                          style={{
+                            width: "90px",
+                            textAlign: "center",
+                          }}
+                        >
+                          Định dạng
+                        </th>
+                        <th
+                          style={{
+                            width: "122px",
+                            textAlign: "center",
+                          }}
+                        >
+                          Cập nhật
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredDocs.map((doc, idx) => {
+                        const isImporting = importingDocId === doc.cs_doc_id;
+                        const isPreviewing =
+                          previewDoc?.cs_doc_id === doc.cs_doc_id;
+                        return (
+                          <tr
+                            key={doc.cs_doc_id || idx}
+                            onMouseEnter={() => handleRowMouseEnter(doc)}
+                            onMouseLeave={handleRowMouseLeave}
+                            style={{
+                              borderBottom: "1px solid #f1f5f9",
+                              background: isPreviewing
+                                ? "#f0fdfa"
+                                : idx % 2 === 0
+                                ? "#ffffff"
+                                : "#fcfdfe",
+                              transition: "background 0.12s ease",
+                            }}
+                          >
+                            {/* 1. STT */}
+                            <td
                               style={{
-                                borderBottom: "1px solid #f1f5f9",
-                                background: isPreviewing
-                                  ? "#f0fdfa"
-                                  : idx % 2 === 0
-                                  ? "#ffffff"
-                                  : "#fcfdfe",
-                                transition: "background 0.12s ease",
+                                textAlign: "center",
+                                color: "#64748b",
+                                fontWeight: 600,
                               }}
                             >
-                              <td
+                              {idx + 1}
+                            </td>
+
+                            {/* 2. Tên bản scan (Thu gọn kích thước vừa vặn, cắt gọn nếu quá dài) */}
+                            <td>
+                              <div
                                 style={{
-                                  padding: "9px 10px",
-                                  textAlign: "center",
-                                  color: "#64748b",
-                                  fontWeight: 600,
+                                  display: "flex",
+                                  alignItems: "center",
+                                  gap: "6px",
+                                  cursor: "pointer",
+                                  overflow: "hidden",
+                                }}
+                                onClick={() => handlePinPreview(doc)}
+                                title={`${doc.title} — Rê chuột để xem trước nhanh, click để ghim xem trước`}
+                              >
+                                <FileText
+                                  size={14}
+                                  style={{ color: "#0d9488", flexShrink: 0 }}
+                                />
+                                <span
+                                  style={{
+                                    overflow: "hidden",
+                                    textOverflow: "ellipsis",
+                                    whiteSpace: "nowrap",
+                                    fontWeight: 600,
+                                    color: "#0f172a",
+                                  }}
+                                >
+                                  {doc.title}
+                                </span>
+                              </div>
+                            </td>
+
+                            {/* 3. Cột các nút chức năng (Nằm ngay sau cột tên file!) */}
+                            <td style={{ textAlign: "center" }}>
+                              <div
+                                style={{
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                  gap: "4px",
+                                  flexWrap: "nowrap",
                                 }}
                               >
-                                {idx + 1}
-                              </td>
-                              <td style={{ padding: "9px 10px" }}>
-                                <div
-                                  style={{
-                                    display: "flex",
-                                    alignItems: "center",
-                                    gap: "7px",
-                                    fontWeight: 700,
-                                    color: "#0f172a",
-                                    fontSize: "13px",
-                                    cursor: "pointer",
-                                  }}
+                                <button
+                                  type="button"
+                                  className="cs-cloud-act-btn btn"
                                   onClick={() => handlePinPreview(doc)}
-                                  title="Di chuột vào để xem trước nhanh, hoặc click để ghim cửa sổ xem trước"
+                                  title="Xem trước bản scan này"
+                                  style={{
+                                    border: isPreviewing
+                                      ? "1px solid #0d9488"
+                                      : "1px solid #cbd5e1",
+                                    background: isPreviewing
+                                      ? "#ccfbf1"
+                                      : "#f8fafc",
+                                    color: isPreviewing ? "#0f766e" : "#334155",
+                                  }}
                                 >
-                                  <FileText
-                                    size={15}
-                                    style={{ color: "#0d9488", flexShrink: 0 }}
-                                  />
-                                  <span style={{ wordBreak: "break-word" }}>{doc.title}</span>
-                                  {docWebUrl && docWebUrl.startsWith("http") && (
-                                    <a
-                                      href={docWebUrl}
-                                      target="_blank"
-                                      rel="noreferrer"
-                                      onClick={(e) => e.stopPropagation()}
-                                      title="Mở xem trên trang CamScanner"
+                                  <Eye size={12} />
+                                  <span>Xem</span>
+                                </button>
+
+                                {isHubMode ? (
+                                  <>
+                                    <button
+                                      type="button"
+                                      className="cs-cloud-act-btn btn"
+                                      disabled={!!importingDocId}
+                                      onClick={() =>
+                                        void handleImportDoc(doc, "pr")
+                                      }
+                                      title="Tạo Phiếu yêu cầu mua hàng (PR) mới kèm bản scan này"
                                       style={{
-                                        color: "#64748b",
-                                        display: "inline-flex",
-                                        alignItems: "center",
-                                        flexShrink: 0,
+                                        border: "1px solid #93c5fd",
+                                        background: "#eff6ff",
+                                        color: "#1d4ed8",
                                       }}
                                     >
-                                      <ExternalLink size={12} />
-                                    </a>
-                                  )}
-                                </div>
-                              </td>
-                              <td style={{ padding: "9px 10px", color: "#475569" }}>
-                                <span
-                                  style={{
-                                    display: "inline-flex",
-                                    alignItems: "center",
-                                    gap: "4px",
-                                    fontSize: "11.5px",
-                                  }}
-                                >
-                                  <Folder size={12} style={{ color: "#64748b" }} />
-                                  {doc.dir_title || "Thư mục gốc"}
-                                </span>
-                              </td>
-                              <td style={{ padding: "9px 10px", textAlign: "center" }}>
-                                <span
-                                  style={{
-                                    fontSize: "11px",
-                                    fontWeight: 700,
-                                    padding: "2px 7px",
-                                    borderRadius: "5px",
-                                    background: "#f0fdfa",
-                                    color: "#0f766e",
-                                    border: "1px solid #99f6e4",
-                                    whiteSpace: "nowrap",
-                                  }}
-                                >
-                                  {inferCsDocType(doc)}
-                                </span>
-                              </td>
-                              <td
-                                style={{
-                                  padding: "9px 10px",
-                                  textAlign: "center",
-                                  color: "#475569",
-                                  fontSize: "11.5px",
-                                  whiteSpace: "nowrap",
-                                }}
-                              >
-                                {formatCsTime(doc.modify_time || doc.create_time)}
-                              </td>
-                              <td
-                                style={{
-                                  padding: "9px 12px",
-                                  textAlign: "center",
-                                  whiteSpace: "nowrap",
-                                }}
-                              >
-                                <div style={{ display: "inline-flex", alignItems: "center", gap: "5px" }}>
-                                  <button
-                                    type="button"
-                                    onClick={() => handlePinPreview(doc)}
-                                    title="Xem trước bản scan này"
-                                    style={{
-                                      display: "inline-flex",
-                                      alignItems: "center",
-                                      justifyContent: "center",
-                                      gap: "4px",
-                                      height: "28px",
-                                      padding: "0 8px",
-                                      borderRadius: "6px",
-                                      border: isPreviewing ? "1px solid #0d9488" : "1px solid #cbd5e1",
-                                      background: isPreviewing ? "#ccfbf1" : "#ffffff",
-                                      color: isPreviewing ? "#0f766e" : "#334155",
-                                      fontSize: "11.5px",
-                                      fontWeight: 600,
-                                      cursor: "pointer",
-                                      whiteSpace: "nowrap",
-                                    }}
-                                  >
-                                    <Eye size={13} />
-                                    <span>Xem</span>
-                                  </button>
+                                      {isImporting &&
+                                      importingAction === "pr" ? (
+                                        <Loader2
+                                          size={11}
+                                          className="animate-spin"
+                                        />
+                                      ) : (
+                                        <Plus size={11} />
+                                      )}
+                                      <span>Tạo PR</span>
+                                    </button>
 
+                                    <button
+                                      type="button"
+                                      className="cs-cloud-act-btn btn"
+                                      disabled={!!importingDocId}
+                                      onClick={() =>
+                                        void handleImportDoc(doc, "payment")
+                                      }
+                                      title="Tạo Đề nghị thanh toán (ĐNTT) mới kèm bản scan này"
+                                      style={{
+                                        border: "1px solid #6ee7b7",
+                                        background: "#ecfdf5",
+                                        color: "#047857",
+                                      }}
+                                    >
+                                      {isImporting &&
+                                      importingAction === "payment" ? (
+                                        <Loader2
+                                          size={11}
+                                          className="animate-spin"
+                                        />
+                                      ) : (
+                                        <CreditCard size={11} />
+                                      )}
+                                      <span>ĐNTT</span>
+                                    </button>
+
+                                    <button
+                                      type="button"
+                                      className="cs-cloud-act-btn btn"
+                                      disabled={!!importingDocId}
+                                      onClick={() =>
+                                        void handleImportDoc(doc, "handover")
+                                      }
+                                      title="Tạo Đợt / Biên bản bàn giao mới kèm bản scan này"
+                                      style={{
+                                        border: "1px solid #fcd34d",
+                                        background: "#fffbeb",
+                                        color: "#b45309",
+                                      }}
+                                    >
+                                      {isImporting &&
+                                      importingAction === "handover" ? (
+                                        <Loader2
+                                          size={11}
+                                          className="animate-spin"
+                                        />
+                                      ) : (
+                                        <Truck size={11} />
+                                      )}
+                                      <span>BB bàn giao</span>
+                                    </button>
+
+                                    <button
+                                      type="button"
+                                      className="cs-cloud-act-btn btn"
+                                      disabled={!!importingDocId}
+                                      onClick={() =>
+                                        void handleImportDoc(doc, "vault")
+                                      }
+                                      title="Lưu bản scan này vào Kho dữ liệu chung"
+                                      style={{
+                                        border: "1px solid #cbd5e1",
+                                        background: "#ffffff",
+                                        color: "#334155",
+                                      }}
+                                    >
+                                      {isImporting &&
+                                      importingAction === "vault" ? (
+                                        <Loader2
+                                          size={11}
+                                          className="animate-spin"
+                                        />
+                                      ) : (
+                                        <FolderPlus size={11} />
+                                      )}
+                                      <span>Lưu kho</span>
+                                    </button>
+                                  </>
+                                ) : (
                                   <button
                                     type="button"
+                                    className="cs-cloud-act-btn btn"
                                     disabled={!!importingDocId}
                                     onClick={() => void handleImportDoc(doc)}
                                     style={{
-                                      display: "inline-flex",
-                                      alignItems: "center",
-                                      justifyContent: "center",
-                                      gap: "5px",
-                                      height: "28px",
-                                      padding: "0 11px",
-                                      borderRadius: "6px",
                                       border: "1px solid #0d9488",
-                                      background: isImporting ? "#0f766e" : "#0d9488",
+                                      background: isImporting
+                                        ? "#0f766e"
+                                        : "#0d9488",
                                       color: "#ffffff",
-                                      fontSize: "11.5px",
-                                      fontWeight: 700,
-                                      cursor: importingDocId ? "wait" : "pointer",
-                                      whiteSpace: "nowrap",
                                     }}
                                   >
                                     {isImporting ? (
                                       <>
-                                        <Loader2 size={12} className="animate-spin" />
+                                        <Loader2
+                                          size={11}
+                                          className="animate-spin"
+                                        />
                                         <span>Đang lấy...</span>
                                       </>
                                     ) : (
                                       <>
-                                        <Check size={13} />
+                                        <Check size={12} />
                                         <span>Chọn</span>
                                       </>
                                     )}
                                   </button>
-                                </div>
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </div>
-            </>
-          )}
-        </div>
+                                )}
+                              </div>
+                            </td>
 
-        {/* Footer */}
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            padding: "10px 20px",
-            background: "#ffffff",
-            borderTop: "1px solid #e2e8f0",
-            fontSize: "12px",
-            color: "#64748b",
-          }}
-        >
-          <div>
-            {authenticated
-              ? `Đang hiển thị ${filteredDocs.length} / ${docs.length} tài liệu trên Cloud CamScanner${
-                  syncingAllDocs ? " (Đang tải tiếp các trang cũ...)" : ""
-                }${csUserId ? ` · ID: ${csUserId}` : ""}`
-              : "Tích hợp trực tiếp qua giao thức CamScanner Cloud API"}
-          </div>
+                            {/* 4. Thư mục */}
+                            <td title={doc.dir_title || "Thư mục gốc"}>
+                              <span
+                                style={{
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  gap: "4px",
+                                  fontSize: "11.5px",
+                                  color: "#475569",
+                                }}
+                              >
+                                <Folder
+                                  size={12}
+                                  style={{ color: "#64748b", flexShrink: 0 }}
+                                />
+                                <span
+                                  style={{
+                                    overflow: "hidden",
+                                    textOverflow: "ellipsis",
+                                  }}
+                                >
+                                  {doc.dir_title || "Thư mục gốc"}
+                                </span>
+                              </span>
+                            </td>
+
+                            {/* 5. Định dạng */}
+                            <td style={{ textAlign: "center" }}>
+                              <span
+                                style={{
+                                  fontSize: "10.5px",
+                                  fontWeight: 700,
+                                  padding: "2px 6px",
+                                  borderRadius: "5px",
+                                  background: "#f0fdfa",
+                                  color: "#0f766e",
+                                  border: "1px solid #99f6e4",
+                                  whiteSpace: "nowrap",
+                                }}
+                              >
+                                {inferCsDocType(doc)}
+                              </span>
+                            </td>
+
+                            {/* 6. Cập nhật */}
+                            <td
+                              style={{
+                                textAlign: "center",
+                                color: "#475569",
+                                fontSize: "11.5px",
+                              }}
+                            >
+                              {formatCsTime(
+                                doc.modify_time || doc.create_time
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* Footer */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          padding: "10px 18px",
+          background: "#ffffff",
+          borderTop: "1px solid #e2e8f0",
+          fontSize: "12px",
+          color: "#64748b",
+        }}
+      >
+        <div>
+          {authenticated
+            ? `Đang hiển thị ${filteredDocs.length} / ${docs.length} tài liệu trên Cloud CamScanner${
+                syncingAllDocs ? " (Đang tải tiếp các trang cũ...)" : ""
+              }${csUserId ? ` · ID: ${csUserId}` : ""}`
+            : "Tích hợp trực tiếp qua giao thức CamScanner Cloud API"}
+        </div>
+        {!embedded && (
           <button
             type="button"
             onClick={onClose}
@@ -1306,7 +1685,7 @@ export function CamScannerCloudModal({
           >
             Đóng
           </button>
-        </div>
+        )}
       </div>
 
       {/* Popup Xem trước (Hover / Click Preview) trực tiếp bản scan từ CamScanner Cloud */}
@@ -1330,11 +1709,11 @@ export function CamScannerCloudModal({
           onClick={(e) => e.stopPropagation()}
           style={{
             position: "fixed",
-            right: "20px",
+            right: "18px",
             top: "50%",
             transform: "translateY(-50%)",
-            width: "min(480px, 92vw)",
-            height: "min(660px, 86vh)",
+            width: "min(490px, 92vw)",
+            height: "min(680px, 88vh)",
             background: "#ffffff",
             borderRadius: "14px",
             border: "2px solid #0d9488",
@@ -1352,61 +1731,44 @@ export function CamScannerCloudModal({
               background: "#0f172a",
               color: "#ffffff",
               display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
+              flexDirection: "column",
               gap: "8px",
             }}
           >
-            <div style={{ minWidth: 0, flex: 1 }}>
-              <div
-                style={{
-                  fontSize: "13px",
-                  fontWeight: 800,
-                  whiteSpace: "nowrap",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                }}
-                title={previewDoc.title}
-              >
-                👁 {previewDoc.title}
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: "8px",
+              }}
+            >
+              <div style={{ minWidth: 0, flex: 1 }}>
+                <div
+                  style={{
+                    fontSize: "13px",
+                    fontWeight: 800,
+                    whiteSpace: "nowrap",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                  }}
+                  title={previewDoc.title}
+                >
+                  👁 {previewDoc.title}
+                </div>
+                <div
+                  style={{
+                    fontSize: "11px",
+                    color: "#94a3b8",
+                    marginTop: "2px",
+                  }}
+                >
+                  📁 {previewDoc.dir_title || "Thư mục gốc"} ·{" "}
+                  {formatCsTime(
+                    previewDoc.modify_time || previewDoc.create_time
+                  )}
+                </div>
               </div>
-              <div style={{ fontSize: "11px", color: "#94a3b8", marginTop: "2px" }}>
-                📁 {previewDoc.dir_title || "Thư mục gốc"} · {formatCsTime(previewDoc.modify_time || previewDoc.create_time)}
-              </div>
-            </div>
-
-            <div style={{ display: "inline-flex", alignItems: "center", gap: "6px", flexShrink: 0 }}>
-              <button
-                type="button"
-                disabled={!!importingDocId}
-                onClick={() => void handleImportDoc(previewDoc)}
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: "4px",
-                  padding: "5px 10px",
-                  borderRadius: "6px",
-                  border: "1px solid #14b8a6",
-                  background: "#0d9488",
-                  color: "#ffffff",
-                  fontSize: "11.5px",
-                  fontWeight: 700,
-                  cursor: importingDocId ? "wait" : "pointer",
-                  whiteSpace: "nowrap",
-                }}
-              >
-                {importingDocId === previewDoc.cs_doc_id ? (
-                  <>
-                    <Loader2 size={12} className="animate-spin" />
-                    <span>Đang lấy...</span>
-                  </>
-                ) : (
-                  <>
-                    <Check size={13} />
-                    <span>Chọn bản scan này</span>
-                  </>
-                )}
-              </button>
 
               <button
                 type="button"
@@ -1426,15 +1788,144 @@ export function CamScannerCloudModal({
                   alignItems: "center",
                   justifyContent: "center",
                   cursor: "pointer",
+                  flexShrink: 0,
                 }}
               >
                 <X size={14} />
               </button>
             </div>
+
+            {/* Thanh nút hành động nhanh ngay trên Popup Xem trước */}
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "6px",
+                flexWrap: "wrap",
+              }}
+            >
+              {isHubMode ? (
+                <>
+                  <button
+                    type="button"
+                    disabled={!!importingDocId}
+                    onClick={() => void handleImportDoc(previewDoc, "pr")}
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "4px",
+                      padding: "5px 10px",
+                      borderRadius: "6px",
+                      border: "1px solid #3b82f6",
+                      background: "#2563eb",
+                      color: "#ffffff",
+                      fontSize: "11.5px",
+                      fontWeight: 700,
+                      cursor: importingDocId ? "wait" : "pointer",
+                    }}
+                  >
+                    <Plus size={12} /> Tạo PR
+                  </button>
+                  <button
+                    type="button"
+                    disabled={!!importingDocId}
+                    onClick={() => void handleImportDoc(previewDoc, "payment")}
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "4px",
+                      padding: "5px 10px",
+                      borderRadius: "6px",
+                      border: "1px solid #10b981",
+                      background: "#059669",
+                      color: "#ffffff",
+                      fontSize: "11.5px",
+                      fontWeight: 700,
+                      cursor: importingDocId ? "wait" : "pointer",
+                    }}
+                  >
+                    <CreditCard size={12} /> Tạo ĐNTT
+                  </button>
+                  <button
+                    type="button"
+                    disabled={!!importingDocId}
+                    onClick={() => void handleImportDoc(previewDoc, "handover")}
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "4px",
+                      padding: "5px 10px",
+                      borderRadius: "6px",
+                      border: "1px solid #f59e0b",
+                      background: "#d97706",
+                      color: "#ffffff",
+                      fontSize: "11.5px",
+                      fontWeight: 700,
+                      cursor: importingDocId ? "wait" : "pointer",
+                    }}
+                  >
+                    <Truck size={12} /> Tạo BB bàn giao
+                  </button>
+                  <button
+                    type="button"
+                    disabled={!!importingDocId}
+                    onClick={() => void handleImportDoc(previewDoc, "vault")}
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "4px",
+                      padding: "5px 10px",
+                      borderRadius: "6px",
+                      border: "1px solid #475569",
+                      background: "#334155",
+                      color: "#ffffff",
+                      fontSize: "11.5px",
+                      fontWeight: 700,
+                      cursor: importingDocId ? "wait" : "pointer",
+                    }}
+                  >
+                    <FolderPlus size={12} /> Lưu kho
+                  </button>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  disabled={!!importingDocId}
+                  onClick={() => void handleImportDoc(previewDoc)}
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "4px",
+                    padding: "5px 12px",
+                    borderRadius: "6px",
+                    border: "1px solid #14b8a6",
+                    background: "#0d9488",
+                    color: "#ffffff",
+                    fontSize: "11.5px",
+                    fontWeight: 700,
+                    cursor: importingDocId ? "wait" : "pointer",
+                  }}
+                >
+                  {importingDocId === previewDoc.cs_doc_id ? (
+                    <>
+                      <Loader2 size={12} className="animate-spin" />
+                      <span>Đang lấy...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Check size={13} />
+                      <span>Chọn bản scan này</span>
+                    </>
+                  )}
+                </button>
+              )}
+            </div>
           </div>
 
           {/* Nội dung file PDF xem trước */}
-          <div style={{ flex: 1, position: "relative", background: "#f1f5f9" }}>
+          <div
+            style={{ flex: 1, position: "relative", background: "#f1f5f9" }}
+          >
             {previewFrameLoading && (
               <div
                 style={{
@@ -1460,7 +1951,9 @@ export function CamScannerCloudModal({
               key={previewDoc.cs_doc_id}
               src={`/api/camscanner?action=preview&csDocId=${encodeURIComponent(
                 previewDoc.cs_doc_id
-              )}&token=${encodeURIComponent(localToken)}#toolbar=0&navpanes=0&view=FitH`}
+              )}&token=${encodeURIComponent(
+                localToken
+              )}#toolbar=0&navpanes=0&view=FitH`}
               title={`Xem trước ${previewDoc.title}`}
               onLoad={() => setPreviewFrameLoading(false)}
               style={{
@@ -1473,6 +1966,20 @@ export function CamScannerCloudModal({
           </div>
         </div>
       )}
+    </div>
+  );
+
+  if (embedded) {
+    return mainContent;
+  }
+
+  return createPortal(
+    <div
+      className="payment-modal-overlay"
+      style={{ zIndex: 2147483640 }}
+      onClick={(e) => e.stopPropagation()}
+    >
+      {mainContent}
     </div>,
     document.body
   );
