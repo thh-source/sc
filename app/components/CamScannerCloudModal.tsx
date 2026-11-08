@@ -144,8 +144,11 @@ export function CamScannerCloudModal({
   const pollTimerRef = useRef<any>(null);
   const authWindowRef = useRef<Window | null>(null);
 
-  // Cloud docs search state
+  // Cloud docs search state (debounced 1s after user stops typing)
   const [keyword, setKeyword] = useState("");
+  const [debouncedKeyword, setDebouncedKeyword] = useState("");
+  const [isWaitingDebounce, setIsWaitingDebounce] = useState(false);
+  const searchDebounceTimerRef = useRef<any>(null);
   const [docTypeFilter, setDocTypeFilter] = useState("all");
   const [folderFilter, setFolderFilter] = useState<string>("__ALL__");
   const [searchScope, setSearchScope] = useState<"title" | "full">("title");
@@ -157,6 +160,13 @@ export function CamScannerCloudModal({
   >([]);
   const [totalDocs, setTotalDocs] = useState(0);
   const [searchError, setSearchError] = useState("");
+
+  const keywordRef = useRef(keyword);
+  keywordRef.current = keyword;
+  const docTypeFilterRef = useRef(docTypeFilter);
+  docTypeFilterRef.current = docTypeFilter;
+  const searchScopeRef = useRef(searchScope);
+  searchScopeRef.current = searchScope;
 
   // Importing state
   const [importingDocId, setImportingDocId] = useState<string | null>(null);
@@ -227,9 +237,9 @@ export function CamScannerCloudModal({
 
   const fetchCloudDocs = useCallback(
     async (
-      kw = keyword,
-      typeF = docTypeFilter,
-      scope = searchScope,
+      kw = keywordRef.current,
+      typeF = docTypeFilterRef.current,
+      scope = searchScopeRef.current,
       tokenOverride?: string
     ) => {
       setLoadingDocs(true);
@@ -304,8 +314,41 @@ export function CamScannerCloudModal({
         setLoadingDocs(false);
       }
     },
-    [keyword, docTypeFilter, searchScope, getHeaders]
+    [getHeaders]
   );
+
+  // Tự động chờ 1 giây (1000ms) sau khi người dùng ngừng gõ phím mới bắt đầu tìm kiếm
+  useEffect(() => {
+    if (searchDebounceTimerRef.current) {
+      clearTimeout(searchDebounceTimerRef.current);
+      searchDebounceTimerRef.current = null;
+    }
+
+    if (keyword === debouncedKeyword) {
+      setIsWaitingDebounce(false);
+      return;
+    }
+
+    setIsWaitingDebounce(true);
+    searchDebounceTimerRef.current = setTimeout(() => {
+      setDebouncedKeyword(keyword);
+      setIsWaitingDebounce(false);
+      if (authenticated && searchScopeRef.current === "full") {
+        void fetchCloudDocs(
+          keyword,
+          docTypeFilterRef.current,
+          searchScopeRef.current
+        );
+      }
+    }, 1000);
+
+    return () => {
+      if (searchDebounceTimerRef.current) {
+        clearTimeout(searchDebounceTimerRef.current);
+        searchDebounceTimerRef.current = null;
+      }
+    };
+  }, [keyword, debouncedKeyword, authenticated, fetchCloudDocs]);
 
   const checkAuthStatus = useCallback(async () => {
     setCheckingAuth(true);
@@ -534,7 +577,7 @@ export function CamScannerCloudModal({
     };
   })();
 
-  const kwLower = keyword.trim().toLowerCase();
+  const kwLower = debouncedKeyword.trim().toLowerCase();
   const filteredDocs = docs.filter((d) => {
     if (folderFilter === "__ROOT__") {
       if ((d.dir_title || "").trim() !== "") return false;
@@ -999,15 +1042,49 @@ export function CamScannerCloudModal({
                   onKeyDown={(e) => {
                     if (e.key === "Enter") {
                       e.preventDefault();
+                      if (searchDebounceTimerRef.current) {
+                        clearTimeout(searchDebounceTimerRef.current);
+                        searchDebounceTimerRef.current = null;
+                      }
+                      setDebouncedKeyword(keyword);
+                      setIsWaitingDebounce(false);
                       void fetchCloudDocs(keyword, docTypeFilter, searchScope);
                     }
                   }}
-                  placeholder="Tìm tên bản scan trên CamScanner..."
+                  placeholder="Tìm tên bản scan trên CamScanner (tự tìm sau 1s ngừng gõ)..."
                 />
+                {isWaitingDebounce && (
+                  <span
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "4px",
+                      fontSize: "10.5px",
+                      fontWeight: 600,
+                      color: "#0d9488",
+                      whiteSpace: "nowrap",
+                      flexShrink: 0,
+                    }}
+                  >
+                    <Loader2 size={12} className="animate-spin" />
+                    Chờ 1s...
+                  </span>
+                )}
                 {keyword && (
                   <button
                     type="button"
-                    onClick={() => setKeyword("")}
+                    onClick={() => {
+                      if (searchDebounceTimerRef.current) {
+                        clearTimeout(searchDebounceTimerRef.current);
+                        searchDebounceTimerRef.current = null;
+                      }
+                      setKeyword("");
+                      setDebouncedKeyword("");
+                      setIsWaitingDebounce(false);
+                      if (searchScope === "full") {
+                        void fetchCloudDocs("", docTypeFilter, searchScope);
+                      }
+                    }}
                     style={{
                       border: "none",
                       background: "#e2e8f0",
@@ -1017,6 +1094,7 @@ export function CamScannerCloudModal({
                       fontSize: "11px",
                       fontWeight: 600,
                       cursor: "pointer",
+                      flexShrink: 0,
                     }}
                   >
                     Xóa
@@ -1029,6 +1107,8 @@ export function CamScannerCloudModal({
                 onChange={(e) => {
                   const nextType = e.target.value;
                   setDocTypeFilter(nextType);
+                  setDebouncedKeyword(keyword);
+                  setIsWaitingDebounce(false);
                   void fetchCloudDocs(keyword, nextType, searchScope);
                 }}
                 style={{
@@ -1054,6 +1134,8 @@ export function CamScannerCloudModal({
                 onChange={(e) => {
                   const nextScope = e.target.value as "title" | "full";
                   setSearchScope(nextScope);
+                  setDebouncedKeyword(keyword);
+                  setIsWaitingDebounce(false);
                   void fetchCloudDocs(keyword, docTypeFilter, nextScope);
                 }}
                 style={{
@@ -1073,9 +1155,15 @@ export function CamScannerCloudModal({
 
               <button
                 type="button"
-                onClick={() =>
-                  void fetchCloudDocs(keyword, docTypeFilter, searchScope)
-                }
+                onClick={() => {
+                  if (searchDebounceTimerRef.current) {
+                    clearTimeout(searchDebounceTimerRef.current);
+                    searchDebounceTimerRef.current = null;
+                  }
+                  setDebouncedKeyword(keyword);
+                  setIsWaitingDebounce(false);
+                  void fetchCloudDocs(keyword, docTypeFilter, searchScope);
+                }}
                 disabled={loadingDocs || syncingAllDocs}
                 style={{
                   display: "inline-flex",
