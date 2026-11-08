@@ -20,6 +20,8 @@ import {
   CreditCard,
   Truck,
   FolderPlus,
+  Maximize2,
+  Minimize2,
 } from "lucide-react";
 
 export interface CamScannerDocItem {
@@ -172,13 +174,182 @@ export function CamScannerCloudModal({
   const [importingDocId, setImportingDocId] = useState<string | null>(null);
   const [importingAction, setImportingAction] = useState<string>("");
 
-  // Hover / Click Preview popup state
+  // Hover / Click Preview popup state & Resizable/Draggable geometry
   const [previewDoc, setPreviewDoc] = useState<CamScannerDocItem | null>(null);
   const [previewPinned, setPreviewPinned] = useState(false);
   const [previewFrameLoading, setPreviewFrameLoading] = useState(false);
+  const [previewMaximized, setPreviewMaximized] = useState(false);
+  const [previewRect, setPreviewRect] = useState<{
+    width: number;
+    height: number;
+    right: number;
+    top: number | null;
+  }>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const saved = localStorage.getItem("scmh_cs_preview_size_v1");
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (parsed?.width && parsed?.height) {
+            return {
+              width: Math.max(360, Math.min(1400, Number(parsed.width))),
+              height: Math.max(380, Math.min(1000, Number(parsed.height))),
+              right: 18,
+              top: null,
+            };
+          }
+        }
+      } catch {
+        // ignore
+      }
+    }
+    return { width: 520, height: 680, right: 18, top: null };
+  });
+  const [isInteractingPreview, setIsInteractingPreview] = useState(false);
+  const previewCardRef = useRef<HTMLDivElement | null>(null);
   const hoverTimerRef = useRef<any>(null);
   const closePreviewTimerRef = useRef<any>(null);
   const isHoveringPopupRef = useRef(false);
+
+  const startResizePreview = (
+    e: React.MouseEvent,
+    dir: "w" | "e" | "n" | "s" | "nw" | "ne" | "sw" | "se"
+  ) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (previewMaximized) setPreviewMaximized(false);
+    setPreviewPinned(true);
+    setIsInteractingPreview(true);
+
+    const cardEl = previewCardRef.current;
+    const rect = cardEl?.getBoundingClientRect();
+    const startX = e.clientX;
+    const startY = e.clientY;
+    const startWidth = rect ? rect.width : previewRect.width;
+    const startHeight = rect ? rect.height : previewRect.height;
+    const startRight = rect
+      ? Math.max(8, window.innerWidth - rect.right)
+      : previewRect.right;
+    const startTop = rect
+      ? rect.top
+      : previewRect.top ?? Math.max(16, (window.innerHeight - startHeight) / 2);
+
+    let latestW = startWidth;
+    let latestH = startHeight;
+
+    const handleMouseMove = (moveEvent: MouseEvent) => {
+      const dx = moveEvent.clientX - startX;
+      const dy = moveEvent.clientY - startY;
+
+      let nextWidth = startWidth;
+      let nextHeight = startHeight;
+      let nextRight = startRight;
+      let nextTop = startTop;
+
+      const maxW = Math.max(400, window.innerWidth - 20);
+      const maxH = Math.max(400, window.innerHeight - 20);
+
+      if (dir.includes("w")) {
+        // Kéo cạnh trái sang trái -> tăng chiều rộng
+        nextWidth = Math.min(maxW, Math.max(360, startWidth - dx));
+      } else if (dir.includes("e")) {
+        // Kéo cạnh phải sang phải -> tăng chiều rộng và dịch mốc right
+        const proposedWidth = Math.min(maxW, Math.max(360, startWidth + dx));
+        const actualDeltaW = proposedWidth - startWidth;
+        nextWidth = proposedWidth;
+        nextRight = Math.max(8, startRight - actualDeltaW);
+      }
+
+      if (dir.includes("s")) {
+        // Kéo cạnh dưới xuống dưới -> tăng chiều cao
+        nextHeight = Math.min(maxH, Math.max(360, startHeight + dy));
+      } else if (dir.includes("n")) {
+        // Kéo cạnh trên lên trên -> tăng chiều cao và dịch mốc top
+        const proposedHeight = Math.min(maxH, Math.max(360, startHeight - dy));
+        const actualDeltaH = proposedHeight - startHeight;
+        nextHeight = proposedHeight;
+        nextTop = Math.max(8, startTop - actualDeltaH);
+      }
+
+      latestW = nextWidth;
+      latestH = nextHeight;
+
+      setPreviewRect({
+        width: Math.round(nextWidth),
+        height: Math.round(nextHeight),
+        right: Math.round(nextRight),
+        top: Math.round(nextTop),
+      });
+    };
+
+    const handleMouseUp = () => {
+      setIsInteractingPreview(false);
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", handleMouseUp);
+      try {
+        localStorage.setItem(
+          "scmh_cs_preview_size_v1",
+          JSON.stringify({
+            width: Math.round(latestW),
+            height: Math.round(latestH),
+          })
+        );
+      } catch {
+        // ignore
+      }
+    };
+
+    window.addEventListener("mousemove", handleMouseMove);
+    window.addEventListener("mouseup", handleMouseUp);
+  };
+
+  const startDragPreview = (e: React.MouseEvent) => {
+    if ((e.target as HTMLElement).closest("button")) return;
+    if (previewMaximized) return;
+    e.preventDefault();
+    e.stopPropagation();
+    setPreviewPinned(true);
+    setIsInteractingPreview(true);
+
+    const cardEl = previewCardRef.current;
+    const rect = cardEl?.getBoundingClientRect();
+    const startX = e.clientX;
+    const startY = e.clientY;
+    const startRight = rect
+      ? window.innerWidth - rect.right
+      : previewRect.right;
+    const startTop = rect
+      ? rect.top
+      : previewRect.top ??
+        Math.max(16, (window.innerHeight - previewRect.height) / 2);
+
+    const handleMouseMove = (moveEvent: MouseEvent) => {
+      const dx = moveEvent.clientX - startX;
+      const dy = moveEvent.clientY - startY;
+      const nextRight = Math.max(
+        6,
+        Math.min(window.innerWidth - 180, startRight - dx)
+      );
+      const nextTop = Math.max(
+        6,
+        Math.min(window.innerHeight - 120, startTop + dy)
+      );
+      setPreviewRect((prev) => ({
+        ...prev,
+        right: Math.round(nextRight),
+        top: Math.round(nextTop),
+      }));
+    };
+
+    const handleMouseUp = () => {
+      setIsInteractingPreview(false);
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", handleMouseUp);
+    };
+
+    window.addEventListener("mousemove", handleMouseMove);
+    window.addEventListener("mouseup", handleMouseUp);
+  };
 
   const handleRowMouseEnter = (doc: CamScannerDocItem) => {
     if (closePreviewTimerRef.current) {
@@ -1776,9 +1947,10 @@ export function CamScannerCloudModal({
         )}
       </div>
 
-      {/* Popup Xem trước (Hover / Click Preview) trực tiếp bản scan từ CamScanner Cloud */}
+      {/* Popup Xem trước (Hover / Click Preview) trực tiếp bản scan từ CamScanner Cloud (Có thể kéo mở rộng kích thước & di chuyển) */}
       {previewDoc && (
         <div
+          ref={previewCardRef}
           onMouseEnter={() => {
             isHoveringPopupRef.current = true;
             if (closePreviewTimerRef.current) {
@@ -1788,7 +1960,7 @@ export function CamScannerCloudModal({
           }}
           onMouseLeave={() => {
             isHoveringPopupRef.current = false;
-            if (!previewPinned) {
+            if (!previewPinned && !isInteractingPreview) {
               closePreviewTimerRef.current = setTimeout(() => {
                 setPreviewDoc(null);
               }, 280);
@@ -1797,11 +1969,22 @@ export function CamScannerCloudModal({
           onClick={(e) => e.stopPropagation()}
           style={{
             position: "fixed",
-            right: "18px",
-            top: "50%",
-            transform: "translateY(-50%)",
-            width: "min(490px, 92vw)",
-            height: "min(680px, 88vh)",
+            right: previewMaximized ? "2vw" : `${previewRect.right}px`,
+            top: previewMaximized
+              ? "3vh"
+              : previewRect.top !== null
+              ? `${previewRect.top}px`
+              : "50%",
+            transform:
+              previewMaximized || previewRect.top !== null
+                ? "none"
+                : "translateY(-50%)",
+            width: previewMaximized
+              ? "96vw"
+              : `min(${previewRect.width}px, 95vw)`,
+            height: previewMaximized
+              ? "94vh"
+              : `min(${previewRect.height}px, 94vh)`,
             background: "#ffffff",
             borderRadius: "14px",
             border: "2px solid #0d9488",
@@ -1810,10 +1993,190 @@ export function CamScannerCloudModal({
             flexDirection: "column",
             overflow: "hidden",
             zIndex: 2147483645,
+            userSelect: isInteractingPreview ? "none" : "auto",
           }}
         >
-          {/* Header của Popup Xem trước */}
+          {/* Các thanh kéo mở rộng kích thước (Resize Handles 8 hướng: 4 cạnh + 4 góc) */}
+          {!previewMaximized && (
+            <>
+              {/* Cạnh trái (Kéo sang trái để mở rộng popup) */}
+              <div
+                onMouseDown={(e) => startResizePreview(e, "w")}
+                title="Kéo sang trái để mở rộng khung xem trước"
+                style={{
+                  position: "absolute",
+                  left: 0,
+                  top: "14px",
+                  bottom: "14px",
+                  width: "10px",
+                  cursor: "ew-resize",
+                  zIndex: 25,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <div
+                  style={{
+                    width: "4px",
+                    height: "44px",
+                    borderRadius: "999px",
+                    background: "rgba(13, 148, 136, 0.55)",
+                    boxShadow: "0 0 4px rgba(255,255,255,0.8)",
+                  }}
+                />
+              </div>
+
+              {/* Cạnh phải */}
+              <div
+                onMouseDown={(e) => startResizePreview(e, "e")}
+                title="Kéo cạnh phải để thay đổi chiều rộng"
+                style={{
+                  position: "absolute",
+                  right: 0,
+                  top: "14px",
+                  bottom: "14px",
+                  width: "8px",
+                  cursor: "ew-resize",
+                  zIndex: 25,
+                }}
+              />
+
+              {/* Cạnh trên */}
+              <div
+                onMouseDown={(e) => startResizePreview(e, "n")}
+                title="Kéo cạnh trên để mở rộng chiều cao"
+                style={{
+                  position: "absolute",
+                  top: 0,
+                  left: "14px",
+                  right: "14px",
+                  height: "7px",
+                  cursor: "ns-resize",
+                  zIndex: 25,
+                }}
+              />
+
+              {/* Cạnh dưới */}
+              <div
+                onMouseDown={(e) => startResizePreview(e, "s")}
+                title="Kéo cạnh dưới để mở rộng chiều cao"
+                style={{
+                  position: "absolute",
+                  bottom: 0,
+                  left: "14px",
+                  right: "14px",
+                  height: "9px",
+                  cursor: "ns-resize",
+                  zIndex: 25,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <div
+                  style={{
+                    width: "44px",
+                    height: "4px",
+                    borderRadius: "999px",
+                    background: "rgba(13, 148, 136, 0.45)",
+                  }}
+                />
+              </div>
+
+              {/* Góc trên - trái */}
+              <div
+                onMouseDown={(e) => startResizePreview(e, "nw")}
+                title="Kéo góc để mở rộng"
+                style={{
+                  position: "absolute",
+                  top: 0,
+                  left: 0,
+                  width: "16px",
+                  height: "16px",
+                  cursor: "nwse-resize",
+                  zIndex: 26,
+                }}
+              />
+
+              {/* Góc trên - phải */}
+              <div
+                onMouseDown={(e) => startResizePreview(e, "ne")}
+                title="Kéo góc để mở rộng"
+                style={{
+                  position: "absolute",
+                  top: 0,
+                  right: 0,
+                  width: "16px",
+                  height: "16px",
+                  cursor: "nesw-resize",
+                  zIndex: 26,
+                }}
+              />
+
+              {/* Góc dưới - trái (Góc kéo mở rộng chính thuận tiện nhất) */}
+              <div
+                onMouseDown={(e) => startResizePreview(e, "sw")}
+                title="Kéo góc dưới trái để mở rộng cả chiều ngang và chiều dọc"
+                style={{
+                  position: "absolute",
+                  bottom: 0,
+                  left: 0,
+                  width: "20px",
+                  height: "20px",
+                  cursor: "nesw-resize",
+                  zIndex: 26,
+                  display: "flex",
+                  alignItems: "flex-end",
+                  justifyContent: "flex-start",
+                  padding: "3px",
+                }}
+              >
+                <div
+                  style={{
+                    width: "10px",
+                    height: "10px",
+                    borderLeft: "3px solid #0d9488",
+                    borderBottom: "3px solid #0d9488",
+                    borderBottomLeftRadius: "4px",
+                  }}
+                />
+              </div>
+
+              {/* Góc dưới - phải */}
+              <div
+                onMouseDown={(e) => startResizePreview(e, "se")}
+                title="Kéo góc dưới phải để mở rộng"
+                style={{
+                  position: "absolute",
+                  bottom: 0,
+                  right: 0,
+                  width: "20px",
+                  height: "20px",
+                  cursor: "nwse-resize",
+                  zIndex: 26,
+                  display: "flex",
+                  alignItems: "flex-end",
+                  justifyContent: "flex-end",
+                  padding: "3px",
+                }}
+              >
+                <div
+                  style={{
+                    width: "10px",
+                    height: "10px",
+                    borderRight: "3px solid #0d9488",
+                    borderBottom: "3px solid #0d9488",
+                    borderBottomRightRadius: "4px",
+                  }}
+                />
+              </div>
+            </>
+          )}
+
+          {/* Header của Popup Xem trước (Có thể kéo di chuyển vị trí) */}
           <div
+            onMouseDown={startDragPreview}
             style={{
               padding: "10px 14px",
               background: "#0f172a",
@@ -1821,6 +2184,7 @@ export function CamScannerCloudModal({
               display: "flex",
               flexDirection: "column",
               gap: "8px",
+              cursor: previewMaximized ? "default" : "move",
             }}
           >
             <div
@@ -1849,38 +2213,96 @@ export function CamScannerCloudModal({
                     fontSize: "11px",
                     color: "#94a3b8",
                     marginTop: "2px",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "6px",
+                    flexWrap: "wrap",
                   }}
                 >
-                  📁 {previewDoc.dir_title || "Thư mục gốc"} ·{" "}
-                  {formatCsTime(
-                    previewDoc.modify_time || previewDoc.create_time
-                  )}
+                  <span>
+                    📁 {previewDoc.dir_title || "Thư mục gốc"} ·{" "}
+                    {formatCsTime(
+                      previewDoc.modify_time || previewDoc.create_time
+                    )}
+                  </span>
+                  <span
+                    style={{
+                      fontSize: "10px",
+                      color: "#5eead4",
+                      background: "rgba(13, 148, 136, 0.22)",
+                      padding: "1px 6px",
+                      borderRadius: "4px",
+                      border: "1px solid rgba(94, 234, 212, 0.25)",
+                    }}
+                  >
+                    ↔ Kéo cạnh/góc để mở rộng
+                  </span>
                 </div>
               </div>
 
-              <button
-                type="button"
-                onClick={() => {
-                  setPreviewPinned(false);
-                  setPreviewDoc(null);
-                }}
-                title="Đóng xem trước"
+              <div
                 style={{
-                  width: "26px",
-                  height: "26px",
-                  borderRadius: "6px",
-                  border: "1px solid rgba(255,255,255,0.2)",
-                  background: "rgba(255,255,255,0.1)",
-                  color: "#ffffff",
-                  display: "inline-flex",
+                  display: "flex",
                   alignItems: "center",
-                  justifyContent: "center",
-                  cursor: "pointer",
+                  gap: "5px",
                   flexShrink: 0,
                 }}
               >
-                <X size={14} />
-              </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPreviewPinned(true);
+                    setPreviewMaximized((prev) => !prev);
+                  }}
+                  title={
+                    previewMaximized
+                      ? "Thu nhỏ về kích thước tùy chỉnh"
+                      : "Phóng to toàn màn hình"
+                  }
+                  style={{
+                    width: "26px",
+                    height: "26px",
+                    borderRadius: "6px",
+                    border: "1px solid rgba(255,255,255,0.2)",
+                    background: "rgba(255,255,255,0.1)",
+                    color: "#ffffff",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    cursor: "pointer",
+                  }}
+                >
+                  {previewMaximized ? (
+                    <Minimize2 size={13} />
+                  ) : (
+                    <Maximize2 size={13} />
+                  )}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPreviewPinned(false);
+                    setPreviewMaximized(false);
+                    setPreviewDoc(null);
+                  }}
+                  title="Đóng xem trước"
+                  style={{
+                    width: "26px",
+                    height: "26px",
+                    borderRadius: "6px",
+                    border: "1px solid rgba(255,255,255,0.2)",
+                    background: "rgba(255,255,255,0.1)",
+                    color: "#ffffff",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    cursor: "pointer",
+                  }}
+                >
+                  <X size={14} />
+                </button>
+              </div>
             </div>
 
             {/* Thanh nút hành động nhanh ngay trên Popup Xem trước */}
@@ -2014,6 +2436,17 @@ export function CamScannerCloudModal({
           <div
             style={{ flex: 1, position: "relative", background: "#f1f5f9" }}
           >
+            {/* Lớp chắn trong suốt khi đang kéo chuột mở rộng/di chuyển để iframe không nuốt sự kiện chuột */}
+            {isInteractingPreview && (
+              <div
+                style={{
+                  position: "absolute",
+                  inset: 0,
+                  zIndex: 15,
+                  background: "transparent",
+                }}
+              />
+            )}
             {previewFrameLoading && (
               <div
                 style={{
@@ -2049,6 +2482,7 @@ export function CamScannerCloudModal({
                 height: "100%",
                 border: "none",
                 display: "block",
+                pointerEvents: isInteractingPreview ? "none" : "auto",
               }}
             />
           </div>
