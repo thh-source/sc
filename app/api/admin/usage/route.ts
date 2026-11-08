@@ -43,7 +43,6 @@ export async function GET() {
     prScans: { count: 0, bytes: 0 },
     vault: { count: 0, bytes: 0 },
     snapshots: { count: 0, bytes: 0 },
-    cache: { count: 0, bytes: 0 },
     other: { count: 0, bytes: 0 },
   };
 
@@ -57,6 +56,15 @@ export async function GET() {
         const listResult: any = await bucket.list({ cursor, limit: 1000 });
         const objs = listResult?.objects || [];
         for (const obj of objs) {
+          const key = String(obj.key || "");
+          // Bản đệm xem trước CamScanner chỉ lưu trên máy client, tự động dọn dẹp khỏi R2 nếu có
+          if (key.startsWith("cs-preview-cache/")) {
+            try {
+              void bucket.delete(key);
+            } catch {}
+            continue;
+          }
+
           count++;
           const objSize = Number(obj.size || 0);
           totalB += objSize;
@@ -64,16 +72,12 @@ export async function GET() {
           if (upTime > latestTime) {
             latestTime = upTime;
           }
-          const key = String(obj.key || "");
           if (key.startsWith("pr-scans/")) {
             breakdown.prScans.count++;
             breakdown.prScans.bytes += objSize;
           } else if (key.startsWith("snapshots/")) {
             breakdown.snapshots.count++;
             breakdown.snapshots.bytes += objSize;
-          } else if (key.startsWith("cs-preview-cache/")) {
-            breakdown.cache.count++;
-            breakdown.cache.bytes += objSize;
           } else if (
             key.includes("/general/") ||
             key.includes("/pr/") ||

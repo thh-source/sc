@@ -154,7 +154,9 @@ export async function GET(request: Request) {
       });
     }
 
-    // Xem trước (Stream inline PDF) trực tiếp từ CamScanner Cloud (có bộ nhớ đệm R2 siêu tốc)
+    // Xem trước (Stream inline PDF) trực tiếp từ CamScanner Cloud
+    // KHÔNG lưu vào Cloudflare R2 để không chiếm dụng dung lượng Cloud.
+    // Dữ liệu đệm chỉ lưu trên máy cục bộ của người dùng (Trình duyệt Client Private Cache).
     if (action === "preview") {
       const csDocId = (url.searchParams.get("csDocId") || "").trim();
       const queryToken = (url.searchParams.get("token") || "").trim();
@@ -162,27 +164,7 @@ export async function GET(request: Request) {
         return new Response("Thiếu mã tài liệu csDocId", { status: 400 });
       }
 
-      const bucket = env.R2_BUCKET || env.BUCKET;
-      const cacheKey = `cs-preview-cache/${csDocId.replace(/[^a-zA-Z0-9_-]/g, "_")}`;
-
-      // 1. Kiểm tra bộ nhớ đệm trên R2 trước (nếu đã từng xem trước thì phản hồi tức thì ~30ms)
-      if (bucket) {
-        try {
-          const cachedObj = await bucket.get(cacheKey);
-          if (cachedObj) {
-            const ct = cachedObj.httpMetadata?.contentType || "application/pdf";
-            return new Response(cachedObj.body, {
-              headers: {
-                "Content-Type": ct,
-                "Content-Disposition": `inline; filename="${csDocId}.pdf"`,
-                "Cache-Control": "public, max-age=3600",
-              },
-            });
-          }
-        } catch {}
-      }
-
-      // 2. Lấy token CamScanner và tải bản xem trước
+      // Lấy token CamScanner và tải bản xem trước trực tiếp từ CamScanner Cloud
       const saved = await getSavedTokenRecord(env.DB, userKey);
       const rawToken = headerToken || queryToken || saved?.token || "";
       if (!rawToken) {
@@ -210,20 +192,13 @@ export async function GET(request: Request) {
       const fileBuffer = await dlRes.arrayBuffer();
       const contentType = dlRes.headers.get("content-type") || "application/pdf";
 
-      // Lưu vào R2 cache để lần di chuột sau hoặc khi bấm "Chọn bản scan này" dùng lại ngay lập tức
-      if (bucket && fileBuffer.byteLength > 0) {
-        try {
-          await bucket.put(cacheKey, fileBuffer, {
-            httpMetadata: { contentType },
-          });
-        } catch {}
-      }
-
+      // Trả về trực tiếp cho trình duyệt người dùng và lưu trên máy cục bộ (private cache)
+      // TUYỆT ĐỐI KHÔNG lưu vào Cloudflare R2 bucket
       return new Response(fileBuffer, {
         headers: {
           "Content-Type": contentType,
           "Content-Disposition": `inline; filename="${csDocId}.pdf"`,
-          "Cache-Control": "public, max-age=3600",
+          "Cache-Control": "private, max-age=86400, immutable",
         },
       });
     }
@@ -582,47 +557,35 @@ export async function POST(request: Request) {
         return Response.json({ error: "R2 Bucket chưa được cấu hình" }, { status: 500 });
       }
 
-      const cacheKey = `cs-preview-cache/${csDocId.replace(/[^a-zA-Z0-9_-]/g, "_")}`;
       let fileBuffer: ArrayBuffer | null = null;
       let rawContentType = "application/pdf";
 
-      // Tận dụng ngay bản đã lưu trong bộ nhớ đệm R2 khi người dùng di chuột xem trước (nhanh tức thì)
-      try {
-        const cachedObj = await bucket.get(cacheKey);
-        if (cachedObj) {
-          fileBuffer = await cachedObj.arrayBuffer();
-          rawContentType = cachedObj.httpMetadata?.contentType || "application/pdf";
+      const dlRes = await fetch(
+        `${CS_API_BASE}/v1/tools/download_cloud_doc/execute?channel=camscanner-cli&output_mode=raw`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${activeToken}`,
+            "Content-Type": "application/json",
+            "User-Agent": CS_USER_AGENT,
+            "X-IS-AGENT": CS_AGENT_HEADER,
+          },
+          body: JSON.stringify({ doc_id: csDocId }),
         }
-      } catch {}
+      );
 
-      if (!fileBuffer || fileBuffer.byteLength === 0) {
-        const dlRes = await fetch(
-          `${CS_API_BASE}/v1/tools/download_cloud_doc/execute?channel=camscanner-cli&output_mode=raw`,
+      if (!dlRes.ok) {
+        const errText = await dlRes.text().catch(() => "");
+        return Response.json(
           {
-            method: "POST",
-            headers: {
-              Authorization: `Bearer ${activeToken}`,
-              "Content-Type": "application/json",
-              "User-Agent": CS_USER_AGENT,
-              "X-IS-AGENT": CS_AGENT_HEADER,
-            },
-            body: JSON.stringify({ doc_id: csDocId }),
-          }
+            error: `Không thể tải tài liệu từ CamScanner Cloud (${dlRes.status}): ${errText.slice(0, 200)}`,
+          },
+          { status: 502 }
         );
-
-        if (!dlRes.ok) {
-          const errText = await dlRes.text().catch(() => "");
-          return Response.json(
-            {
-              error: `Không thể tải tài liệu từ CamScanner Cloud (${dlRes.status}): ${errText.slice(0, 200)}`,
-            },
-            { status: 502 }
-          );
-        }
-
-        fileBuffer = await dlRes.arrayBuffer();
-        rawContentType = dlRes.headers.get("content-type") || "application/pdf";
       }
+
+      fileBuffer = await dlRes.arrayBuffer();
+      rawContentType = dlRes.headers.get("content-type") || "application/pdf";
 
       const byteSize = fileBuffer.byteLength;
       if (byteSize === 0) {

@@ -33,7 +33,6 @@ export function AdminUsage({
         prScans: { count: number; bytes: number };
         vault: { count: number; bytes: number };
         snapshots: { count: number; bytes: number };
-        cache: { count: number; bytes: number };
         other: { count: number; bytes: number };
       };
     };
@@ -107,9 +106,6 @@ export function AdminUsage({
                   )}
                   {usage.r2.breakdown.snapshots.count > 0 && (
                     <span><b>{usage.r2.breakdown.snapshots.count}</b> bản sao lưu snapshot ({size(usage.r2.breakdown.snapshots.bytes)}) · </span>
-                  )}
-                  {usage.r2.breakdown.cache.count > 0 && (
-                    <span><b>{usage.r2.breakdown.cache.count}</b> đệm cache ({size(usage.r2.breakdown.cache.bytes)}) · </span>
                   )}
                   {usage.r2.breakdown.other.count > 0 && (
                     <span><b>{usage.r2.breakdown.other.count}</b> file khác ({size(usage.r2.breakdown.other.bytes)})</span>
