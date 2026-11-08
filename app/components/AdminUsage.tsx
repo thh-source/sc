@@ -52,6 +52,8 @@ export function AdminUsage({
   const [showFileList, setShowFileList] = useState(false);
   const [filterCategory, setFilterCategory] = useState<string>("all");
   const [searchKeyword, setSearchKeyword] = useState<string>("");
+  const [cleanLoading, setCleanLoading] = useState(false);
+  const [cleanMsg, setCleanMsg] = useState("");
 
   const size = (bytes: number) => {
     if (!bytes) return "0 KB";
@@ -60,6 +62,36 @@ export function AdminUsage({
     return `${(bytes / 1024 / 1024 / 1024).toFixed(2)} GB`;
   };
   const percent = (value = 0) => Math.min(100, Math.max(0, value));
+
+  const handleAutoClean = async () => {
+    if (
+      !window.confirm(
+        "Hệ thống sẽ tự động quét và xóa các tài liệu không cần lưu:\n- File đệm xem trước CamScanner tạm thời\n- Các gói nén OTA cũ (chỉ giữ lại bản mới nhất v1.1.3)\n- Các bản backup mã nguồn thủ công cũ\n- File tài liệu đặc tả tĩnh (đã có trong Git)\n\nBạn có chắc muốn tự động dọn dẹp ngay bây giờ?"
+      )
+    ) {
+      return;
+    }
+    setCleanLoading(true);
+    setCleanMsg("");
+    try {
+      const res = await fetch("/api/admin/cleanup", { method: "POST" });
+      const data: any = await res.json();
+      if (data.success) {
+        setCleanMsg(
+          `✓ Đã tự động dọn sạch ${data.deletedCount} file thừa, giải phóng ${size(
+            data.freedBytes
+          )}!`
+        );
+        onRefresh();
+      } else {
+        setCleanMsg(data.error || "Không thể dọn dẹp file");
+      }
+    } catch {
+      setCleanMsg("Lỗi kết nối khi dọn dẹp");
+    } finally {
+      setCleanLoading(false);
+    }
+  };
 
   const items = usage?.r2?.items || [];
   const filteredItems = items.filter((it) => {
@@ -76,8 +108,43 @@ export function AdminUsage({
           <span>☁</span>
           <h2>Lưu trữ & hạn mức Cloudflare</h2>
         </div>
-        <button onClick={onRefresh}>Cập nhật</button>
+        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+          <button
+            type="button"
+            onClick={() => void handleAutoClean()}
+            disabled={cleanLoading}
+            style={{
+              padding: "5px 12px",
+              fontSize: "12px",
+              fontWeight: 700,
+              borderRadius: "6px",
+              border: "1px solid #0f766e",
+              background: "#0d9488",
+              color: "#ffffff",
+              cursor: cleanLoading ? "wait" : "pointer",
+            }}
+          >
+            {cleanLoading ? "Đang dọn dẹp..." : "🧹 Dọn dẹp file thừa"}
+          </button>
+          <button onClick={onRefresh}>Cập nhật</button>
+        </div>
       </div>
+      {cleanMsg && (
+        <div
+          style={{
+            padding: "8px 12px",
+            marginBottom: "12px",
+            borderRadius: "7px",
+            background: "#f0fdf4",
+            border: "1px solid #86efac",
+            color: "#166534",
+            fontSize: "12px",
+            fontWeight: 700,
+          }}
+        >
+          {cleanMsg}
+        </div>
+      )}
       {usage ? (
         <>
           <div className="usage-grid">

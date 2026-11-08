@@ -1,4 +1,5 @@
 import { requireAdmin } from "../../../auth";
+import { runAutoClean } from "../cleanup/route";
 
 async function bindings() {
   return (await import("cloudflare:workers")).env;
@@ -35,6 +36,15 @@ export async function GET() {
 
   // Quét trực tiếp Cloudflare R2 Bucket để lấy số lượng file và dung lượng thực tế 100%
   const bucket = env.R2_BUCKET || env.BUCKET;
+
+  // Tự động dọn dẹp các tài liệu không cần lưu (cache tạm, bản OTA cũ, backup cũ)
+  let cleanResult: any = null;
+  if (bucket) {
+    try {
+      cleanResult = await runAutoClean(bucket, env.DB);
+    } catch {}
+  }
+
   let r2TotalBytes = 0;
   let r2FileCount = 0;
   let r2LatestUploaded: string | null = fileRows?.updatedAt || null;
@@ -177,6 +187,8 @@ export async function GET() {
       updatedAt: r2LatestUploaded,
       breakdown,
       items: fileItems,
+      cleanResult:
+        cleanResult && cleanResult.deletedCount > 0 ? cleanResult : undefined,
     },
   });
 }
