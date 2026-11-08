@@ -74,6 +74,15 @@ const worker = {
       headers: responseHeaders,
     });
   },
+
+  async scheduled(controller: any, env: Env, ctx: ExecutionContext): Promise<void> {
+    try {
+      const { runScheduledBriefing } = await import("../app/telegram");
+      ctx.waitUntil(runScheduledBriefing(env));
+    } catch (e) {
+      console.error("Lỗi chạy scheduled cron Telegram:", e);
+    }
+  },
 };
 
 export default worker;

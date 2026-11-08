@@ -5,7 +5,11 @@
   "compatibility_date": "2026-05-22",
   "compatibility_flags": ["nodejs_compat"],
   "vars": {
-    "MASTER_ADMIN_ID": "bosmile"
+    "MASTER_ADMIN_ID": "bosmile",
+    "TELEGRAM_BOT_TOKEN": "9070832704:AAG4_wVrNaKj87Z8iaM3kYg-Cnp_ClbPH50"
+  },
+  "triggers": {
+    "crons": ["30 1 * * *"]
   },
   "d1_databases": [
     {
