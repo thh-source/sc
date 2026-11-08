@@ -43,8 +43,19 @@ export async function GET() {
     prScans: { count: 0, bytes: 0 },
     vault: { count: 0, bytes: 0 },
     snapshots: { count: 0, bytes: 0 },
+    apk: { count: 0, bytes: 0 },
+    updates: { count: 0, bytes: 0 },
+    backups: { count: 0, bytes: 0 },
+    docs: { count: 0, bytes: 0 },
     other: { count: 0, bytes: 0 },
   };
+
+  const fileItems: {
+    key: string;
+    size: number;
+    category: string;
+    uploadedAt?: string;
+  }[] = [];
 
   if (bucket && typeof bucket.list === "function") {
     try {
@@ -57,7 +68,7 @@ export async function GET() {
         const objs = listResult?.objects || [];
         for (const obj of objs) {
           const key = String(obj.key || "");
-          // Bản đệm xem trước CamScanner chỉ lưu trên máy client, tự động dọn dẹp khỏi R2 nếu có
+          // Bản đệm xem trước CamScanner chỉ lưu trên máy client, tự động dọn dẹp khỏi R2 nếu còn sót
           if (key.startsWith("cs-preview-cache/")) {
             try {
               void bucket.delete(key);
@@ -72,24 +83,55 @@ export async function GET() {
           if (upTime > latestTime) {
             latestTime = upTime;
           }
+
+          let category = "Khác";
           if (key.startsWith("pr-scans/")) {
+            category = "Bản scan PR / chứng từ";
             breakdown.prScans.count++;
             breakdown.prScans.bytes += objSize;
           } else if (key.startsWith("snapshots/")) {
+            category = "Bản sao lưu snapshot";
             breakdown.snapshots.count++;
             breakdown.snapshots.bytes += objSize;
+          } else if (key.startsWith("apk/")) {
+            category = "Bộ cài đặt APK Android";
+            breakdown.apk.count++;
+            breakdown.apk.bytes += objSize;
+          } else if (key.startsWith("updates/")) {
+            category = "Gói cập nhật OTA (.zip)";
+            breakdown.updates.count++;
+            breakdown.updates.bytes += objSize;
+          } else if (key.startsWith("backups/")) {
+            category = "Sao lưu mã nguồn & CSDL";
+            breakdown.backups.count++;
+            breakdown.backups.bytes += objSize;
+          } else if (key.startsWith("docs/")) {
+            category = "Tài liệu kỹ thuật hệ thống";
+            breakdown.docs.count++;
+            breakdown.docs.bytes += objSize;
           } else if (
             key.includes("/general/") ||
             key.includes("/pr/") ||
             key.includes("/po/") ||
             key.includes("/payment/")
           ) {
+            category = "Kho dữ liệu (Data Vault)";
             breakdown.vault.count++;
             breakdown.vault.bytes += objSize;
           } else {
+            category = "File khác";
             breakdown.other.count++;
             breakdown.other.bytes += objSize;
           }
+
+          fileItems.push({
+            key,
+            size: objSize,
+            category,
+            uploadedAt: obj.uploaded
+              ? new Date(obj.uploaded).toISOString()
+              : undefined,
+          });
         }
         cursor = listResult?.truncated ? listResult?.cursor : undefined;
       } while (cursor);
@@ -134,6 +176,7 @@ export async function GET() {
       fileCount: r2FileCount,
       updatedAt: r2LatestUploaded,
       breakdown,
+      items: fileItems,
     },
   });
 }

@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { fmt } from "../utils";
 
 export function AdminUsage({
@@ -33,12 +33,26 @@ export function AdminUsage({
         prScans: { count: number; bytes: number };
         vault: { count: number; bytes: number };
         snapshots: { count: number; bytes: number };
+        apk?: { count: number; bytes: number };
+        updates?: { count: number; bytes: number };
+        backups?: { count: number; bytes: number };
+        docs?: { count: number; bytes: number };
         other: { count: number; bytes: number };
       };
+      items?: {
+        key: string;
+        size: number;
+        category: string;
+        uploadedAt?: string;
+      }[];
     };
   } | null;
   onRefresh: () => void;
 }) {
+  const [showFileList, setShowFileList] = useState(false);
+  const [filterCategory, setFilterCategory] = useState<string>("all");
+  const [searchKeyword, setSearchKeyword] = useState<string>("");
+
   const size = (bytes: number) => {
     if (!bytes) return "0 KB";
     if (bytes < 1024 * 1024) return `${Math.max(1, Math.ceil(bytes / 1024))} KB`;
@@ -46,6 +60,15 @@ export function AdminUsage({
     return `${(bytes / 1024 / 1024 / 1024).toFixed(2)} GB`;
   };
   const percent = (value = 0) => Math.min(100, Math.max(0, value));
+
+  const items = usage?.r2?.items || [];
+  const filteredItems = items.filter((it) => {
+    if (filterCategory !== "all" && it.category !== filterCategory) return false;
+    if (searchKeyword.trim() && !it.key.toLowerCase().includes(searchKeyword.toLowerCase().trim())) {
+      return false;
+    }
+    return true;
+  });
   return (
     <section className="admin-card usage-card">
       <div className="section-heading">
@@ -96,24 +119,189 @@ export function AdminUsage({
                 đọc/download miễn phí {fmt(usage.freeTier.r2ClassBOperationsPerMonth)} request/tháng
               </p>
               {usage.r2.breakdown && usage.r2.fileCount > 0 && (
-                <div style={{ fontSize: "11px", color: "#64748b", marginTop: "6px", lineHeight: "1.45", background: "#f8fafc", padding: "4px 8px", borderRadius: "6px", border: "1px solid #e2e8f0" }}>
-                  <b style={{ color: "#334155" }}>Chi tiết lưu trữ:</b>{" "}
-                  {usage.r2.breakdown.prScans.count > 0 && (
-                    <span><b>{usage.r2.breakdown.prScans.count}</b> bản scan PR ({size(usage.r2.breakdown.prScans.bytes)}) · </span>
-                  )}
-                  {usage.r2.breakdown.vault.count > 0 && (
-                    <span><b>{usage.r2.breakdown.vault.count}</b> file kho ({size(usage.r2.breakdown.vault.bytes)}) · </span>
-                  )}
-                  {usage.r2.breakdown.snapshots.count > 0 && (
-                    <span><b>{usage.r2.breakdown.snapshots.count}</b> bản sao lưu snapshot ({size(usage.r2.breakdown.snapshots.bytes)}) · </span>
-                  )}
-                  {usage.r2.breakdown.other.count > 0 && (
-                    <span><b>{usage.r2.breakdown.other.count}</b> file khác ({size(usage.r2.breakdown.other.bytes)})</span>
-                  )}
+                <div style={{ fontSize: "11.5px", color: "#64748b", marginTop: "6px", lineHeight: "1.5", background: "#f8fafc", padding: "6px 10px", borderRadius: "8px", border: "1px solid #e2e8f0" }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "6px" }}>
+                    <div>
+                      <b style={{ color: "#334155" }}>Phân loại R2:</b>{" "}
+                      {usage.r2.breakdown.prScans.count > 0 && (
+                        <span><b>{usage.r2.breakdown.prScans.count}</b> scan PR ({size(usage.r2.breakdown.prScans.bytes)}) · </span>
+                      )}
+                      {usage.r2.breakdown.apk && usage.r2.breakdown.apk.count > 0 && (
+                        <span><b style={{ color: "#0369a1" }}>{usage.r2.breakdown.apk.count}</b> bộ cài APK ({size(usage.r2.breakdown.apk.bytes)}) · </span>
+                      )}
+                      {usage.r2.breakdown.updates && usage.r2.breakdown.updates.count > 0 && (
+                        <span><b>{usage.r2.breakdown.updates.count}</b> gói OTA ({size(usage.r2.breakdown.updates.bytes)}) · </span>
+                      )}
+                      {usage.r2.breakdown.backups && usage.r2.breakdown.backups.count > 0 && (
+                        <span><b>{usage.r2.breakdown.backups.count}</b> sao lưu hệ thống ({size(usage.r2.breakdown.backups.bytes)}) · </span>
+                      )}
+                      {usage.r2.breakdown.snapshots.count > 0 && (
+                        <span><b>{usage.r2.breakdown.snapshots.count}</b> snapshot CSDL ({size(usage.r2.breakdown.snapshots.bytes)}) · </span>
+                      )}
+                      {usage.r2.breakdown.vault.count > 0 && (
+                        <span><b>{usage.r2.breakdown.vault.count}</b> kho ({size(usage.r2.breakdown.vault.bytes)}) · </span>
+                      )}
+                      {usage.r2.breakdown.docs && usage.r2.breakdown.docs.count > 0 && (
+                        <span><b>{usage.r2.breakdown.docs.count}</b> tài liệu kỹ thuật ({size(usage.r2.breakdown.docs.bytes)}) · </span>
+                      )}
+                      {usage.r2.breakdown.other && usage.r2.breakdown.other.count > 0 && (
+                        <span style={{ color: "#d97706" }}><b>{usage.r2.breakdown.other.count}</b> file khác ({size(usage.r2.breakdown.other.bytes)})</span>
+                      )}
+                    </div>
+
+                    {items.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setShowFileList((prev) => !prev)}
+                        style={{
+                          padding: "3px 8px",
+                          fontSize: "11px",
+                          fontWeight: 700,
+                          borderRadius: "5px",
+                          border: "1px solid #cbd5e1",
+                          background: showFileList ? "#e2e8f0" : "#ffffff",
+                          color: "#1e293b",
+                          cursor: "pointer",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        {showFileList ? "▲ Đóng danh sách" : `🔍 Xem chi tiết ${items.length} file`}
+                      </button>
+                    )}
+                  </div>
                 </div>
               )}
             </article>
           </div>
+
+          {/* Bảng danh sách chi tiết toàn bộ các file trên Cloudflare R2 */}
+          {showFileList && items.length > 0 && (
+            <div
+              style={{
+                marginTop: "12px",
+                background: "#ffffff",
+                border: "1px solid #cbd5e1",
+                borderRadius: "10px",
+                padding: "12px",
+                boxShadow: "0 2px 8px rgba(15,23,42,0.06)",
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  marginBottom: "10px",
+                  gap: "10px",
+                  flexWrap: "wrap",
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  <h4 style={{ margin: 0, fontSize: "13.5px", fontWeight: 800, color: "#0f172a" }}>
+                    Danh sách chi tiết toàn bộ {items.length} file trên Cloudflare R2
+                  </h4>
+                  <span style={{ fontSize: "11.5px", color: "#64748b" }}>
+                    (Tổng: {size(usage.r2.estimatedBytes)})
+                  </span>
+                </div>
+
+                <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                  <input
+                    type="text"
+                    value={searchKeyword}
+                    onChange={(e) => setSearchKeyword(e.target.value)}
+                    placeholder="Lọc tên file / đường dẫn..."
+                    style={{
+                      height: "28px",
+                      padding: "0 8px",
+                      fontSize: "11.5px",
+                      borderRadius: "6px",
+                      border: "1px solid #cbd5e1",
+                      outline: "none",
+                      width: "180px",
+                    }}
+                  />
+                  <select
+                    value={filterCategory}
+                    onChange={(e) => setFilterCategory(e.target.value)}
+                    style={{
+                      height: "28px",
+                      padding: "0 6px",
+                      fontSize: "11.5px",
+                      borderRadius: "6px",
+                      border: "1px solid #cbd5e1",
+                      color: "#334155",
+                    }}
+                  >
+                    <option value="all">Tất cả danh mục</option>
+                    <option value="Bản scan PR / chứng từ">Scan PR / chứng từ</option>
+                    <option value="Bộ cài đặt APK Android">Bộ cài APK Android</option>
+                    <option value="Gói cập nhật OTA (.zip)">Gói cập nhật OTA</option>
+                    <option value="Bản sao lưu snapshot">Bản sao lưu CSDL</option>
+                    <option value="Kho dữ liệu (Data Vault)">Kho dữ liệu</option>
+                    <option value="File khác">File khác</option>
+                  </select>
+                </div>
+              </div>
+
+              <div style={{ maxHeight: "360px", overflowY: "auto", border: "1px solid #e2e8f0", borderRadius: "8px" }}>
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "11.5px", textAlign: "left" }}>
+                  <thead>
+                    <tr style={{ background: "#f8fafc", borderBottom: "1px solid #e2e8f0", color: "#475569" }}>
+                      <th style={{ padding: "6px 8px", width: "36px", textAlign: "center" }}>#</th>
+                      <th style={{ padding: "6px 8px" }}>Tên file / Khóa lưu trữ (Key)</th>
+                      <th style={{ padding: "6px 8px", width: "150px" }}>Phân loại</th>
+                      <th style={{ padding: "6px 8px", width: "90px", textAlign: "right" }}>Dung lượng</th>
+                      <th style={{ padding: "6px 8px", width: "130px", textAlign: "center" }}>Ngày tải lên</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredItems.map((it, idx) => (
+                      <tr key={it.key} style={{ borderBottom: "1px solid #f1f5f9", background: idx % 2 === 0 ? "#ffffff" : "#fcfdfe" }}>
+                        <td style={{ padding: "5px 8px", textAlign: "center", color: "#94a3b8" }}>{idx + 1}</td>
+                        <td style={{ padding: "5px 8px", fontWeight: 600, color: "#0f172a", wordBreak: "break-all" }}>
+                          <code>{it.key}</code>
+                        </td>
+                        <td style={{ padding: "5px 8px", color: "#475569" }}>
+                          <span
+                            style={{
+                              display: "inline-block",
+                              padding: "1px 6px",
+                              borderRadius: "4px",
+                              fontSize: "10.5px",
+                              fontWeight: 700,
+                              background: it.category.includes("APK")
+                                ? "#e0f2fe"
+                                : it.category.includes("scan")
+                                ? "#f0fdfa"
+                                : it.category.includes("sao lưu")
+                                ? "#fef3c7"
+                                : "#f1f5f9",
+                              color: it.category.includes("APK")
+                                ? "#0369a1"
+                                : it.category.includes("scan")
+                                ? "#0f766e"
+                                : it.category.includes("sao lưu")
+                                ? "#b45309"
+                                : "#475569",
+                            }}
+                          >
+                            {it.category}
+                          </span>
+                        </td>
+                        <td style={{ padding: "5px 8px", textAlign: "right", fontWeight: 700, color: "#0f172a" }}>
+                          {size(it.size)}
+                        </td>
+                        <td style={{ padding: "5px 8px", textAlign: "center", color: "#64748b" }}>
+                          {it.uploadedAt ? new Date(it.uploadedAt).toLocaleString("vi-VN") : "—"}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
           <div className="usage-note">
             <b>Ước tính “đếm lùi”:</b> hệ thống đang còn xa ngưỡng phải trả tiền.
             Free tier của Cloudflare không hết theo ngày; Cloudflare chỉ bắt đầu tính phí khi vượt hạn mức hoặc chuyển sang gói paid.
