@@ -351,43 +351,14 @@ export function CamScannerCloudModal({
     window.addEventListener("mouseup", handleMouseUp);
   };
 
-  const handleRowMouseEnter = (doc: CamScannerDocItem) => {
-    if (closePreviewTimerRef.current) {
-      clearTimeout(closePreviewTimerRef.current);
-      closePreviewTimerRef.current = null;
-    }
-    if (previewPinned) return;
-    if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current);
-    hoverTimerRef.current = setTimeout(() => {
-      setPreviewDoc((prev) => {
-        if (prev?.cs_doc_id !== doc.cs_doc_id) {
-          setPreviewFrameLoading(true);
-        }
-        return doc;
-      });
-    }, 220);
-  };
-
-  const handleRowMouseLeave = () => {
-    if (hoverTimerRef.current) {
-      clearTimeout(hoverTimerRef.current);
-      hoverTimerRef.current = null;
-    }
-    if (previewPinned) return;
-    if (closePreviewTimerRef.current) clearTimeout(closePreviewTimerRef.current);
-    closePreviewTimerRef.current = setTimeout(() => {
-      if (!isHoveringPopupRef.current) {
-        setPreviewDoc(null);
-      }
-    }, 320);
-  };
-
   const handlePinPreview = (doc: CamScannerDocItem) => {
-    if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current);
-    if (closePreviewTimerRef.current) clearTimeout(closePreviewTimerRef.current);
-    if (previewDoc?.cs_doc_id !== doc.cs_doc_id) {
-      setPreviewFrameLoading(true);
+    if (previewDoc?.cs_doc_id === doc.cs_doc_id) {
+      // Nếu đang xem chính file này và bấm lại vào nút Xem / tên file -> đóng hoặc làm mới
+      setPreviewPinned(false);
+      setPreviewDoc(null);
+      return;
     }
+    setPreviewFrameLoading(true);
     setPreviewDoc(doc);
     setPreviewPinned(true);
   };
@@ -903,7 +874,7 @@ export function CamScannerCloudModal({
             <div style={{ fontSize: "12px", color: "#cbd5e1", marginTop: "2px" }}>
               {isHubMode ? (
                 <>
-                  Rê chuột vào dòng để xem trước nhanh · Chọn tạo{" "}
+                  Click vào tên file hoặc nút <b>Xem</b> để xem trước · Chọn tạo{" "}
                   <b style={{ color: "#5eead4" }}>PR, ĐNTT, Biên bản bàn giao</b>{" "}
                   hoặc lưu kho trực tiếp từ bản scan
                 </>
@@ -1616,8 +1587,6 @@ export function CamScannerCloudModal({
                         return (
                           <tr
                             key={doc.cs_doc_id || idx}
-                            onMouseEnter={() => handleRowMouseEnter(doc)}
-                            onMouseLeave={handleRowMouseLeave}
                             style={{
                               borderBottom: "1px solid #f1f5f9",
                               background: isPreviewing
@@ -1650,7 +1619,7 @@ export function CamScannerCloudModal({
                                   overflow: "hidden",
                                 }}
                                 onClick={() => handlePinPreview(doc)}
-                                title={`${doc.title} — Rê chuột để xem trước nhanh, click để ghim xem trước`}
+                                title={`${doc.title} — Click để xem trước bản scan`}
                               >
                                 <FileText
                                   size={14}
@@ -1947,25 +1916,10 @@ export function CamScannerCloudModal({
         )}
       </div>
 
-      {/* Popup Xem trước (Hover / Click Preview) trực tiếp bản scan từ CamScanner Cloud (Có thể kéo mở rộng kích thước & di chuyển) */}
+      {/* Popup Xem trước (Click Preview) trực tiếp bản scan từ CamScanner Cloud (Có thể kéo mở rộng kích thước & di chuyển) */}
       {previewDoc && (
         <div
           ref={previewCardRef}
-          onMouseEnter={() => {
-            isHoveringPopupRef.current = true;
-            if (closePreviewTimerRef.current) {
-              clearTimeout(closePreviewTimerRef.current);
-              closePreviewTimerRef.current = null;
-            }
-          }}
-          onMouseLeave={() => {
-            isHoveringPopupRef.current = false;
-            if (!previewPinned && !isInteractingPreview) {
-              closePreviewTimerRef.current = setTimeout(() => {
-                setPreviewDoc(null);
-              }, 280);
-            }
-          }}
           onClick={(e) => e.stopPropagation()}
           style={{
             position: "fixed",
