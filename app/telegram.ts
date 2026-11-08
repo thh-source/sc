@@ -1,6 +1,14 @@
 /**
- * Module Tích hợp Telegram Bot cho SCMH (Phenikaa)
- * Trợ lý mua hàng cá nhân 24/7 trên Telegram (@Pnksc_bot)
+ * Hệ thống Trợ lý Mua hàng Toàn diện trên Telegram (SCMH Assistant - @Pnksc_bot)
+ * Điều hành trọn vẹn 8 luồng nghiệp vụ mua sắm:
+ * 1. PR (Yêu cầu mua sắm)
+ * 2. PO (Đơn đặt hàng & Theo dõi trễ hẹn)
+ * 3. Chào giá & Lịch sử giá (777+ dữ liệu)
+ * 4. Nhà cung cấp & STK
+ * 5. Giao nhận nhập kho (BBBG)
+ * 6. Thanh toán ĐNTT & Công nợ
+ * 7. Sổ tay công việc cá nhân (Todo list D1)
+ * 8. Báo cáo tài chính & Nạp chứng từ R2
  */
 
 export const TELEGRAM_BOT_TOKEN_FALLBACK = "9070832704:AAG4_wVrNaKj87Z8iaM3kYg-Cnp_ClbPH50";
@@ -209,6 +217,17 @@ export async function ensureTelegramTables(db: any) {
       status TEXT,
       note TEXT
     );`,
+    `CREATE TABLE IF NOT EXISTS personal_todos (
+      id TEXT PRIMARY KEY,
+      user_id TEXT DEFAULT 'admin',
+      content TEXT NOT NULL,
+      is_completed INTEGER DEFAULT 0,
+      is_priority INTEGER DEFAULT 0,
+      tags TEXT,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      is_deleted INTEGER DEFAULT 0
+    );`,
   ];
   for (const q of queries) {
     try {
@@ -319,16 +338,23 @@ export function escapeHtml(str: string): string {
     .replace(/>/g, "&gt;");
 }
 
+function parseDateIso(dateStr?: string): Date | null {
+  if (!dateStr) return null;
+  const clean = dateStr.trim();
+  const isoMatch = clean.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (isoMatch) return new Date(`${isoMatch[1]}-${isoMatch[2]}-${isoMatch[3]}`);
+  const vnMatch = clean.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);
+  if (vnMatch) return new Date(`${vnMatch[3]}-${vnMatch[2].padStart(2, "0")}-${vnMatch[1].padStart(2, "0")}`);
+  return null;
+}
+
 // -------------------------------------------------------------
-// BUSINESS LOGIC: NHẮC VIỆC, TRA CỨU, UPLOAD
+// LUỒNG 1: BẢN TIN NHẮC VIỆC & ĐIỂM TIN SÁNG (08:30)
 // -------------------------------------------------------------
 
-/**
- * 1. BẢN TIN NHẮC VIỆC & HẠN THANH TOÁN (08:30 SÁNG HOẶC /nhacviec)
- */
 export function buildDailyBriefingMessage(data: any): { text: string; markup: any } {
   const today = new Date();
-  const todayStr = today.toISOString().slice(0, 10); // YYYY-MM-DD
+  const todayZero = new Date(today.getFullYear(), today.getMonth(), today.getDate());
   const vnDateStr = `${String(today.getDate()).padStart(2, "0")}/${String(today.getMonth() + 1).padStart(2, "0")}/${today.getFullYear()}`;
 
   const paymentRequests: any[] = Array.isArray(data?.paymentRequests) ? data.paymentRequests : [];
@@ -341,23 +367,27 @@ export function buildDailyBriefingMessage(data: any): { text: string; markup: an
     if (s.id) suppMap.set(Number(s.id), s.name || s.code || "");
   });
 
-  // 1. Quét ĐNTT
+  // 1. Quét ĐNTT chưa thanh toán
   const pendingPayments = paymentRequests.filter((p) => {
     const isCompleted = p.is_paid || p.status === "paid" || p.status === "completed";
     return !isCompleted;
   });
 
-  const dueSoonPayments = pendingPayments.slice(0, 4);
-
-  // 2. Quét PO giao hàng
+  // 2. Quét PO trễ hẹn giao & hẹn giao hôm nay
   const pendingPOs = pos.filter((po) => {
     const status = (po.status || "").toLowerCase();
     return !status.includes("hoàn thành") && !status.includes("đã giao") && !status.includes("hủy");
   });
 
-  const dueTodayPOs = pendingPOs.filter((po) => {
-    if (!po.expectedDate) return false;
-    return po.expectedDate.includes(todayStr) || po.expectedDate.includes(vnDateStr);
+  const overduePOs: any[] = [];
+  const dueTodayPOs: any[] = [];
+
+  pendingPOs.forEach((po) => {
+    const d = parseDateIso(po.expectedDate);
+    if (!d) return;
+    const diffDays = Math.round((d.getTime() - todayZero.getTime()) / (1000 * 3600 * 24));
+    if (diffDays < 0) overduePOs.push(po);
+    else if (diffDays === 0) dueTodayPOs.push(po);
   });
 
   // 3. PR chưa hoàn thành
@@ -366,29 +396,22 @@ export function buildDailyBriefingMessage(data: any): { text: string; markup: an
   let msg = `☕ <b>BẢN TIN MUA HÀNG HÔM NAY (${vnDateStr})</b>\n`;
   msg += `─────────────────────────\n\n`;
 
-  // Mục 1: Đề nghị thanh toán
-  msg += `💳 <b>HẠN THANH TOÁN ĐNTT:</b>\n`;
-  if (dueSoonPayments.length === 0) {
-    msg += `• <i>Hiện không có khoản thanh toán nào gấp.</i>\n\n`;
-  } else {
-    dueSoonPayments.forEach((p, idx) => {
-      const payee = escapeHtml(p.payee_name || "Nhà cung cấp");
-      const amount = formatVND(p.total_amount || p.amount);
-      const invoice = p.invoice_no ? ` (HĐ: ${escapeHtml(p.invoice_no)})` : "";
-      msg += `${idx + 1}. <b>${payee}</b>: <code>${amount}</code>${invoice}\n`;
+  // Cảnh báo trễ hạn PO nếu có (ưu tiên số 1)
+  if (overduePOs.length > 0) {
+    msg += `🚨 <b>CẢNH BÁO: CÓ ${overduePOs.length} ĐƠN PO TRỄ HẸN GIAO:</b>\n`;
+    overduePOs.slice(0, 3).forEach((po) => {
+      const sName = escapeHtml(suppMap.get(Number(po.supplierId)) || "NCC");
+      msg += `• <b>#${escapeHtml(po.number)}</b> (${sName}) - Hẹn ngày: <code>${po.expectedDate}</code>\n`;
     });
-    if (pendingPayments.length > dueSoonPayments.length) {
-      msg += `• <i>Và còn ${pendingPayments.length - dueSoonPayments.length} khoản ĐNTT khác cần thanh toán.</i>\n`;
-    }
-    msg += `\n`;
+    msg += `👉 <i>Gõ <code>/trehen</code> để kiểm tra và gọi nhắc nhà cung cấp.</i>\n\n`;
   }
 
-  // Mục 2: Hẹn giao hàng
+  // Đơn hàng hẹn giao hôm nay
   msg += `📦 <b>TIẾN ĐỘ HÀNG VỀ (PO):</b>\n`;
   if (dueTodayPOs.length === 0) {
-    msg += `• Hôm nay không có đơn nào hẹn giao.\n`;
+    msg += `• Hôm nay không có đơn hẹn giao.\n`;
     if (pendingPOs.length > 0) {
-      msg += `• Tổng cộng đang có <b>${pendingPOs.length} đơn PO</b> đang chờ nhà cung cấp giao hàng.\n\n`;
+      msg += `• Hiện có <b>${pendingPOs.length} đơn PO</b> đang trong tiến trình giao hàng.\n\n`;
     } else {
       msg += `\n`;
     }
@@ -400,17 +423,43 @@ export function buildDailyBriefingMessage(data: any): { text: string; markup: an
     msg += `\n`;
   }
 
-  // Mục 3: PR chờ mua
-  msg += `📋 <b>PHIẾU MUA HÀNG (PR):</b>\n`;
-  msg += `• Đang có <b>${pendingPRs.length} PR</b> đang xử lý / tìm báo giá.\n\n`;
+  // Đề nghị thanh toán (ĐNTT)
+  msg += `💳 <b>HẠN THANH TOÁN (ĐNTT):</b>\n`;
+  if (pendingPayments.length === 0) {
+    msg += `• <i>Hiện không có khoản ĐNTT nào tồn đọng.</i>\n\n`;
+  } else {
+    pendingPayments.slice(0, 3).forEach((p, idx) => {
+      const payee = escapeHtml(p.payee_name || "Nhà cung cấp");
+      const amount = formatVND(p.total_amount || p.amount);
+      const invoice = p.invoice_no ? ` (HĐ: ${escapeHtml(p.invoice_no)})` : "";
+      msg += `${idx + 1}. <b>${payee}</b>: <code>${amount}</code>${invoice}\n`;
+    });
+    if (pendingPayments.length > 3) {
+      msg += `• <i>Và còn ${pendingPayments.length - 3} khoản ĐNTT khác cần chi trả.</i>\n`;
+    }
+    msg += `👉 <i>Gõ <code>/dntt</code> để xem toàn bộ danh sách thanh toán.</i>\n\n`;
+  }
+
+  // Phiếu yêu cầu PR
+  msg += `📋 <b>PHIẾU YÊU CẦU PR:</b>\n`;
+  msg += `• Đang có <b>${pendingPRs.length} PR</b> đang chờ xử lý / tìm báo giá.\n\n`;
+
   msg += `─────────────────────────\n`;
-  msg += `💡 <i>Gõ <code>/pr &lt;mã&gt;</code> hoặc <code>/gia &lt;tên hàng&gt;</code> để tra cứu ngay!</i>`;
+  msg += `💡 <i>Bấm các nút bên dưới hoặc gõ lệnh để thao tác nhanh!</i>`;
 
   const markup = {
     inline_keyboard: [
       [
-        { text: "🔍 Xem PR mới nhất", callback_data: "act:latest_prs" },
-        { text: "💰 Giá mua gần đây", callback_data: "act:recent_prices" },
+        { text: "🚨 Đơn trễ hẹn", callback_data: "cmd:trehen" },
+        { text: "💳 Khoản cần TT", callback_data: "cmd:dntt" },
+      ],
+      [
+        { text: "📋 PR chờ mua", callback_data: "cmd:pr_cho" },
+        { text: "📦 Đơn chờ giao", callback_data: "cmd:po_chogiao" },
+      ],
+      [
+        { text: "📝 Việc cần làm", callback_data: "cmd:todos" },
+        { text: "📊 Báo cáo tháng", callback_data: "cmd:baocao" },
       ],
       [{ text: "🌐 Mở Web Quản Lý SCMH", url: BASE_WEB_URL }],
     ],
@@ -419,9 +468,276 @@ export function buildDailyBriefingMessage(data: any): { text: string; markup: an
   return { text: msg, markup };
 }
 
-/**
- * 2. TRA CỨU LỊCH SỬ GIÁ MUA (/gia hoặc 'giá Methanol')
- */
+// -------------------------------------------------------------
+// LUỒNG 2: QUẢN LÝ YÊU CẦU MUA HÀNG (PR)
+// -------------------------------------------------------------
+
+export function handlePrLookup(keyword: string, data: any): { text: string; markup?: any } {
+  const clean = keyword.trim().replace(/^(\/pr|pr|tiến độ|phiếu)\s*/i, "").trim().toLowerCase();
+  const prs: any[] = Array.isArray(data?.prs) ? data.prs : [];
+
+  if (!clean) {
+    const latest = prs.slice(-4).reverse();
+    let msg = `📋 <b>DANH SÁCH PR GẦN ĐÂY:</b>\n`;
+    msg += `─────────────────────────\n`;
+    latest.forEach((p, idx) => {
+      const status = p.isCompleted ? "✅ Hoàn thành" : `⏳ ${p.status || "Đang xử lý"}`;
+      msg += `${idx + 1}. <b>#${escapeHtml(p.number)}</b> (${escapeHtml(p.department || "---")}) - ${status}\n`;
+    });
+    msg += `\n💡 <i>Gõ <code>/pr &lt;mã PR&gt;</code> (vd: <code>/pr ${latest[0]?.number || "QC261106.2"}</code>) để xem chi tiết!</i>`;
+    return { text: msg };
+  }
+
+  const match = prs.find((p) => {
+    const num = (p.number || "").toLowerCase();
+    const id = String(p.id);
+    return num.includes(clean) || id === clean;
+  });
+
+  if (!match) {
+    return {
+      text: `🔍 <b>Không tìm thấy phiếu PR nào khớp với mã: "${escapeHtml(clean)}"</b>\n\n💡 <i>Gõ <code>/pr_cho</code> để xem danh sách các PR đang chờ xử lý.</i>`,
+    };
+  }
+
+  const items: any[] = Array.isArray(match.items) ? match.items : [];
+  const statusStr = match.isCompleted ? "✅ Hoàn thành" : `⏳ ${match.status || "Đang xử lý"}`;
+
+  let msg = `📋 <b>CHI TIẾT PHIẾU YÊU CẦU PR #${escapeHtml(match.number)}</b>\n`;
+  msg += `─────────────────────────\n`;
+  msg += `• <b>Bộ phận:</b> ${escapeHtml(match.department || "Chưa rõ")}\n`;
+  msg += `• <b>Ngày lập:</b> ${escapeHtml(match.date || "---")}\n`;
+  msg += `• <b>Mục đích:</b> ${escapeHtml(match.purpose || "---")}\n`;
+  msg += `• <b>Trạng thái:</b> <b>${statusStr}</b>\n`;
+  if (match.note) msg += `• <b>Ghi chú:</b> ${escapeHtml(match.note)}\n`;
+
+  if (items.length > 0) {
+    msg += `\n📦 <b>Danh sách mặt hàng (${items.length}):</b>\n`;
+    items.slice(0, 6).forEach((it, idx) => {
+      const q = it.qty ? ` - SL: <b>${it.qty} ${escapeHtml(it.unit || "")}</b>` : "";
+      msg += `${idx + 1}. ${escapeHtml(it.name)}${q}\n`;
+    });
+    if (items.length > 6) {
+      msg += `• <i>Và còn ${items.length - 6} mặt hàng khác...</i>\n`;
+    }
+  }
+
+  msg += `─────────────────────────\n`;
+
+  const buttons: any[] = [];
+  const row1: any[] = [{ text: "🌐 Mở trên Web", url: BASE_WEB_URL }];
+  if (match.scan_file_url) {
+    const scanFullUrl = match.scan_file_url.startsWith("http")
+      ? match.scan_file_url
+      : `${BASE_WEB_URL}${match.scan_file_url}`;
+    row1.push({ text: "📄 Xem bản scan PR", url: scanFullUrl });
+  }
+  buttons.push(row1);
+
+  return { text: msg, markup: { inline_keyboard: buttons } };
+}
+
+export function handlePendingPrs(data: any): { text: string; markup?: any } {
+  const prs: any[] = Array.isArray(data?.prs) ? data.prs : [];
+  const pending = prs.filter((p) => !p.isCompleted && (p.status || "") !== "Hoàn thành");
+
+  if (pending.length === 0) {
+    return {
+      text: `🎉 <b>Tuyệt vời! Hiện không có phiếu PR nào tồn đọng chờ mua.</b>\n\nTất cả các yêu cầu mua sắm đều đã hoàn thành.`,
+    };
+  }
+
+  let msg = `📋 <b>DANH SÁCH PR ĐANG CHỜ XỬ LÝ (${pending.length} phiếu):</b>\n`;
+  msg += `─────────────────────────\n`;
+
+  pending.slice(0, 8).forEach((p, idx) => {
+    const dept = escapeHtml(p.department || "Khối");
+    const count = Array.isArray(p.items) ? p.items.length : 0;
+    const purpose = p.purpose ? ` - <i>${escapeHtml(p.purpose)}</i>` : "";
+    msg += `${idx + 1}. <b>#${escapeHtml(p.number)}</b> (${dept}) [${count} món]${purpose}\n`;
+  });
+
+  if (pending.length > 8) {
+    msg += `\n• <i>Và còn ${pending.length - 8} phiếu PR khác...</i>\n`;
+  }
+
+  msg += `─────────────────────────\n`;
+  msg += `💡 <i>Gõ <code>/pr &lt;mã PR&gt;</code> để xem chi tiết từng phiếu.</i>`;
+
+  return {
+    text: msg,
+    markup: {
+      inline_keyboard: [[{ text: "🌐 Mở Web SCMH", url: BASE_WEB_URL }]],
+    },
+  };
+}
+
+// -------------------------------------------------------------
+// LUỒNG 3: QUẢN LÝ ĐƠN HÀNG (PO) & BÁO CÁO TRỄ HẸN GIAO
+// -------------------------------------------------------------
+
+export function handlePoLookup(keyword: string, data: any): { text: string; markup?: any } {
+  const clean = keyword.trim().replace(/^(\/po|po|đơn hàng)\s*/i, "").trim().toLowerCase();
+  const pos: any[] = Array.isArray(data?.pos) ? data.pos : [];
+  const suppliers: any[] = Array.isArray(data?.suppliers) ? data.suppliers : [];
+  const suppMap = new Map<number, string>();
+  suppliers.forEach((s) => {
+    if (s.id) suppMap.set(Number(s.id), s.name || s.code || "");
+  });
+
+  if (!clean) {
+    const latest = pos.slice(-4).reverse();
+    let msg = `📑 <b>DANH SÁCH ĐƠN HÀNG PO GẦN ĐÂY:</b>\n`;
+    msg += `─────────────────────────\n`;
+    latest.forEach((p, idx) => {
+      const sName = escapeHtml(suppMap.get(Number(p.supplierId)) || "NCC");
+      msg += `${idx + 1}. <b>#${escapeHtml(p.number)}</b> (${sName}) - <b>${escapeHtml(p.status || "Đang xử lý")}</b>\n`;
+    });
+    msg += `\n💡 <i>Gõ <code>/po &lt;mã PO&gt;</code> để xem chi tiết đơn hàng!</i>`;
+    return { text: msg };
+  }
+
+  const match = pos.find((p) => {
+    const num = (p.number || "").toLowerCase();
+    const id = String(p.id);
+    return num.includes(clean) || id === clean;
+  });
+
+  if (!match) {
+    return {
+      text: `🔍 <b>Không tìm thấy đơn hàng nào khớp với mã PO: "${escapeHtml(clean)}"</b>\n\n💡 <i>Gõ <code>/po_chogiao</code> để xem các đơn PO đang thực hiện.</i>`,
+    };
+  }
+
+  const sName = escapeHtml(suppMap.get(Number(match.supplierId)) || "Chưa chọn NCC");
+  const items: any[] = Array.isArray(match.items) ? match.items : [];
+
+  let totalAmount = 0;
+  items.forEach((it) => {
+    const sub = (Number(it.qty) || 0) * (Number(it.price) || 0);
+    const vat = Number(it.vatRate) || 0;
+    totalAmount += Math.round(sub * (1 + vat / 100));
+  });
+
+  let msg = `📑 <b>CHI TIẾT ĐƠN HÀNG PO #${escapeHtml(match.number)}</b>\n`;
+  msg += `─────────────────────────\n`;
+  msg += `• <b>Nhà cung cấp:</b> <b>${sName}</b>\n`;
+  msg += `• <b>Ngày đặt hàng:</b> ${escapeHtml(match.createdDate || "---")}\n`;
+  msg += `• <b>Hẹn giao hàng:</b> <b>${escapeHtml(match.expectedDate || "Chưa có")}</b>\n`;
+  msg += `• <b>Trạng thái:</b> <b>${escapeHtml(match.status || "Đang thực hiện")}</b>\n`;
+  msg += `• <b>Tổng giá trị đơn:</b> <code>${formatVND(totalAmount)}</code>\n`;
+  if (match.note) msg += `• <b>Ghi chú:</b> ${escapeHtml(match.note)}\n`;
+
+  if (items.length > 0) {
+    msg += `\n📦 <b>Mặt hàng (${items.length}):</b>\n`;
+    items.slice(0, 5).forEach((it, idx) => {
+      const delStatus = it.deliveryStatus ? ` [${escapeHtml(it.deliveryStatus)}]` : "";
+      msg += `${idx + 1}. ${escapeHtml(it.name)} - SL: ${it.qty} ${escapeHtml(it.unit || "")}${delStatus}\n`;
+    });
+    if (items.length > 5) {
+      msg += `• <i>Và còn ${items.length - 5} mặt hàng khác...</i>\n`;
+    }
+  }
+
+  msg += `─────────────────────────\n`;
+
+  return {
+    text: msg,
+    markup: {
+      inline_keyboard: [[{ text: "🌐 Mở Web SCMH", url: BASE_WEB_URL }]],
+    },
+  };
+}
+
+export function handlePendingPos(data: any): { text: string; markup?: any } {
+  const pos: any[] = Array.isArray(data?.pos) ? data.pos : [];
+  const suppliers: any[] = Array.isArray(data?.suppliers) ? data.suppliers : [];
+  const suppMap = new Map<number, string>();
+  suppliers.forEach((s) => {
+    if (s.id) suppMap.set(Number(s.id), s.name || s.code || "");
+  });
+
+  const pending = pos.filter((po) => {
+    const status = (po.status || "").toLowerCase();
+    return !status.includes("hoàn thành") && !status.includes("đã giao") && !status.includes("hủy");
+  });
+
+  if (pending.length === 0) {
+    return {
+      text: `🎉 <b>Hiện tại không có đơn hàng PO nào đang chờ giao.</b>`,
+    };
+  }
+
+  let msg = `📦 <b>DANH SÁCH ĐƠN PO ĐANG CHỜ GIAO HÀNG (${pending.length} đơn):</b>\n`;
+  msg += `─────────────────────────\n`;
+
+  pending.slice(0, 8).forEach((po, idx) => {
+    const sName = escapeHtml(suppMap.get(Number(po.supplierId)) || "NCC");
+    const exp = po.expectedDate ? ` (Hẹn: ${escapeHtml(po.expectedDate)})` : "";
+    msg += `${idx + 1}. <b>#${escapeHtml(po.number)}</b> - ${sName}${exp}\n`;
+  });
+
+  if (pending.length > 8) {
+    msg += `\n• <i>Và còn ${pending.length - 8} đơn khác...</i>\n`;
+  }
+
+  msg += `─────────────────────────\n`;
+  msg += `💡 <i>Gõ <code>/trehen</code> để kiểm tra đơn nào quá hạn giao!</i>`;
+
+  return { text: msg };
+}
+
+export function handleOverduePos(data: any): { text: string; markup?: any } {
+  const pos: any[] = Array.isArray(data?.pos) ? data.pos : [];
+  const suppliers: any[] = Array.isArray(data?.suppliers) ? data.suppliers : [];
+  const suppMap = new Map<number, string>();
+  suppliers.forEach((s) => {
+    if (s.id) suppMap.set(Number(s.id), s.name || s.code || "");
+  });
+
+  const today = new Date();
+  const todayZero = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+
+  const pendingPOs = pos.filter((po) => {
+    const status = (po.status || "").toLowerCase();
+    return !status.includes("hoàn thành") && !status.includes("đã giao") && !status.includes("hủy");
+  });
+
+  const overduePOs: any[] = [];
+  pendingPOs.forEach((po) => {
+    const d = parseDateIso(po.expectedDate);
+    if (!d) return;
+    const diff = Math.round((d.getTime() - todayZero.getTime()) / (1000 * 3600 * 24));
+    if (diff < 0) {
+      overduePOs.push({ ...po, lateDays: Math.abs(diff) });
+    }
+  });
+
+  if (overduePOs.length === 0) {
+    return {
+      text: `✅ <b>Tuyệt vời! Không có đơn PO nào bị trễ hạn giao hàng.</b>\n\nTất cả các đơn hàng đều đang đúng tiến độ cam kết.`,
+    };
+  }
+
+  let msg = `🚨 <b>DANH SÁCH ${overduePOs.length} ĐƠN PO QUÁ HẠN GIAO HÀNG:</b>\n`;
+  msg += `─────────────────────────\n`;
+
+  overduePOs.forEach((po, idx) => {
+    const sName = escapeHtml(suppMap.get(Number(po.supplierId)) || "NCC");
+    msg += `${idx + 1}. <b>#${escapeHtml(po.number)}</b> - ${sName}\n`;
+    msg += `   • Hẹn giao: <code>${po.expectedDate}</code> (<b>Đã trễ ${po.lateDays} ngày!</b>)\n`;
+  });
+
+  msg += `\n─────────────────────────\n`;
+  msg += `💡 <i>Khuyến nghị: Bạn hãy liên hệ ngay với Nhà cung cấp để giục tiến độ giao hàng!</i>`;
+
+  return { text: msg };
+}
+
+// -------------------------------------------------------------
+// LUỒNG 4: TRA CỨU GIÁ CŨ & DANH BẠ NHÀ CUNG CẤP
+// -------------------------------------------------------------
+
 export async function handlePriceLookup(
   keyword: string,
   db: any,
@@ -430,13 +746,12 @@ export async function handlePriceLookup(
   const cleanKeyword = keyword.trim().replace(/^(\/gia|giá|gia|lịch sử|lich su)\s*/i, "").trim();
   if (!cleanKeyword) {
     return {
-      text: "⚠️ <b>Vui lòng nhập tên hàng cần tra giá!</b>\n\nVí dụ: <code>/gia Methanol</code> hoặc gõ <i>giá Acetylcystein</i>",
+      text: "⚠️ <b>Vui lòng nhập tên hàng cần tra giá!</b>\n\nVí dụ: <code>/gia Methanol</code> hoặc gõ <i>giá Máy đo điểm chảy</i>",
     };
   }
 
   let results: any[] = [];
 
-  // Tìm trong D1 bảng purchase_history trước (có 777+ bản ghi lịch sử)
   if (db) {
     try {
       const sqlPattern = `%${cleanKeyword}%`;
@@ -456,7 +771,6 @@ export async function handlePriceLookup(
     }
   }
 
-  // Fallback tìm trong app_state nếu D1 chưa ra kết quả
   if (results.length === 0 && Array.isArray(data?.purchaseHistory)) {
     const lower = cleanKeyword.toLowerCase();
     results = data.purchaseHistory
@@ -495,7 +809,7 @@ export async function handlePriceLookup(
 
     msg += `\n${idx + 1}️⃣ <b>${name}</b>\n`;
     msg += `• <b>Đơn giá:</b> <code>${price} / ${unit}</code>\n`;
-    if (qty) msg += `• <b>Số lượng mua:</b> ${qty} (Ngày: ${date})\n`;
+    if (qty) msg += `• <b>Số lượng:</b> ${qty} (Ngày: ${date})\n`;
     msg += `• <b>NCC:</b> ${supp}${inv}\n`;
   });
 
@@ -507,9 +821,6 @@ export async function handlePriceLookup(
   return { text: msg };
 }
 
-/**
- * 3. TRA CỨU DANH BẠ & STK NHÀ CUNG CẤP (/ncc hoặc 'stk Tân Á')
- */
 export async function handleSupplierLookup(
   keyword: string,
   db: any,
@@ -518,7 +829,7 @@ export async function handleSupplierLookup(
   const cleanKeyword = keyword.trim().replace(/^(\/ncc|ncc|stk|sdt|nhà cung cấp)\s*/i, "").trim();
   if (!cleanKeyword) {
     return {
-      text: "⚠️ <b>Vui lòng nhập tên nhà cung cấp cần tra cứu!</b>\n\nVí dụ: <code>/ncc Đức Giang</code> hoặc gõ <i>stk Tân Á</i>",
+      text: "⚠️ <b>Vui lòng nhập tên nhà cung cấp cần tra cứu!</b>\n\nVí dụ: <code>/ncc Đức Giang</code> hoặc gõ <i>stk SATICUS</i>",
     };
   }
 
@@ -575,154 +886,297 @@ export async function handleSupplierLookup(
   return { text: msg };
 }
 
-/**
- * 4. TRA CỨU TIẾN ĐỘ PR (/pr hoặc 'tiến độ QC261106.2')
- */
-export function handlePrLookup(keyword: string, data: any): { text: string; markup?: any } {
-  const clean = keyword.trim().replace(/^(\/pr|pr|tiến độ|phiếu)\s*/i, "").trim().toLowerCase();
-  const prs: any[] = Array.isArray(data?.prs) ? data.prs : [];
+// -------------------------------------------------------------
+// LUỒNG 5: TIẾN ĐỘ GIAO NHẬN NHẬP KHO (BBBG)
+// -------------------------------------------------------------
 
-  if (!clean) {
-    // Show 4 latest PRs
-    const latest = prs.slice(-4).reverse();
-    let msg = `📋 <b>DANH SÁCH PR GẦN ĐÂY:</b>\n`;
-    msg += `─────────────────────────\n`;
-    latest.forEach((p, idx) => {
-      const status = p.isCompleted ? "✅ Hoàn thành" : `⏳ ${p.status || "Đang xử lý"}`;
-      msg += `${idx + 1}. <b>#${escapeHtml(p.number)}</b> (${escapeHtml(p.department || "---")}) - ${status}\n`;
-    });
-    msg += `\n💡 <i>Gõ <code>/pr &lt;mã PR&gt;</code> (vd: <code>/pr ${latest[0]?.number || "QC261106.2"}</code>) để xem chi tiết!</i>`;
-    return { text: msg };
-  }
+export function handleHandoverLookup(data: any): { text: string; markup?: any } {
+  const handovers: any[] = Array.isArray(data?.paymentHandovers) ? data.paymentHandovers : [];
 
-  const match = prs.find((p) => {
-    const num = (p.number || "").toLowerCase();
-    const id = String(p.id);
-    return num.includes(clean) || id === clean;
-  });
-
-  if (!match) {
+  if (handovers.length === 0) {
     return {
-      text: `🔍 <b>Không tìm thấy phiếu PR nào khớp với mã: "${escapeHtml(clean)}"</b>`,
+      text: `📦 <b>Chưa có biên bản giao nhận / bàn giao hàng hóa nào trong hệ thống.</b>`,
     };
   }
 
-  const items: any[] = Array.isArray(match.items) ? match.items : [];
-  const statusStr = match.isCompleted ? "✅ Hoàn thành" : `⏳ ${match.status || "Đang xử lý"}`;
-
-  let msg = `📋 <b>CHI TIẾT PHIẾU YÊU CẦU PR #${escapeHtml(match.number)}</b>\n`;
-  msg += `─────────────────────────\n`;
-  msg += `• <b>Bộ phận yêu cầu:</b> ${escapeHtml(match.department || "Chưa rõ")}\n`;
-  msg += `• <b>Ngày lập:</b> ${escapeHtml(match.date || "---")}\n`;
-  msg += `• <b>Mục đích mua:</b> ${escapeHtml(match.purpose || "---")}\n`;
-  msg += `• <b>Trạng thái:</b> <b>${statusStr}</b>\n`;
-  if (match.note) msg += `• <b>Ghi chú:</b> ${escapeHtml(match.note)}\n`;
-
-  if (items.length > 0) {
-    msg += `\n📦 <b>Danh sách mặt hàng (${items.length}):</b>\n`;
-    items.slice(0, 5).forEach((it, idx) => {
-      const q = it.qty ? ` - SL: <b>${it.qty} ${escapeHtml(it.unit || "")}</b>` : "";
-      msg += `${idx + 1}. ${escapeHtml(it.name)}${q}\n`;
-    });
-    if (items.length > 5) {
-      msg += `• <i>Và còn ${items.length - 5} mặt hàng khác...</i>\n`;
-    }
-  }
-
+  const latest = handovers.slice(-5).reverse();
+  let msg = `📦 <b>BIÊN BẢN GIAO NHẬN HÀNG HÓA GẦN ĐÂY (${handovers.length} bản ghi):</b>\n`;
   msg += `─────────────────────────\n`;
 
-  const buttons: any[] = [];
-  const row1: any[] = [{ text: "🌐 Mở trên Web", url: BASE_WEB_URL }];
-  if (match.scan_file_url) {
-    const scanFullUrl = match.scan_file_url.startsWith("http")
-      ? match.scan_file_url
-      : `${BASE_WEB_URL}${match.scan_file_url}`;
-    row1.push({ text: "📄 Xem bản scan PR", url: scanFullUrl });
-  }
-  buttons.push(row1);
+  latest.forEach((h, idx) => {
+    const item = escapeHtml(h.item_name || "Mặt hàng");
+    const dept = escapeHtml(h.department || "Kho");
+    const date = h.handover_date || "---";
+    const qtyDoc = h.quantity_doc || "0";
+    const qtyPass = h.quantity_pass || qtyDoc;
+    const unit = escapeHtml(h.unit || "");
+    const failNotice = Number(h.quantity_fail) > 0 ? ` (⚠️ Lỗi: ${h.quantity_fail})` : "";
 
-  return { text: msg, markup: { inline_keyboard: buttons } };
-}
-
-/**
- * 5. TRA CỨU TIẾN ĐỘ PO (/po hoặc 'PO-2611-01')
- */
-export function handlePoLookup(keyword: string, data: any): { text: string; markup?: any } {
-  const clean = keyword.trim().replace(/^(\/po|po|đơn hàng)\s*/i, "").trim().toLowerCase();
-  const pos: any[] = Array.isArray(data?.pos) ? data.pos : [];
-  const suppliers: any[] = Array.isArray(data?.suppliers) ? data.suppliers : [];
-  const suppMap = new Map<number, string>();
-  suppliers.forEach((s) => {
-    if (s.id) suppMap.set(Number(s.id), s.name || s.code || "");
+    msg += `\n${idx + 1}. <b>${item}</b> (${dept})\n`;
+    msg += `   • Ngày nhận: ${date}\n`;
+    msg += `   • Nghiệm thu: <b>${qtyPass}/${qtyDoc} ${unit}</b> đạt chuẩn${failNotice}\n`;
+    if (h.sender_name) msg += `   • Đơn vị giao: ${escapeHtml(h.sender_name)}\n`;
   });
 
-  if (!clean) {
-    const latest = pos.slice(-4).reverse();
-    let msg = `📑 <b>DANH SÁCH ĐƠN HÀNG PO GẦN ĐÂY:</b>\n`;
-    msg += `─────────────────────────\n`;
-    latest.forEach((p, idx) => {
-      const sName = escapeHtml(suppMap.get(Number(p.supplierId)) || "NCC");
-      msg += `${idx + 1}. <b>#${escapeHtml(p.number)}</b> (${sName}) - <b>${escapeHtml(p.status || "Đang xử lý")}</b>\n`;
-    });
-    msg += `\n💡 <i>Gõ <code>/po &lt;mã PO&gt;</code> để xem chi tiết đơn hàng!</i>`;
-    return { text: msg };
-  }
-
-  const match = pos.find((p) => {
-    const num = (p.number || "").toLowerCase();
-    const id = String(p.id);
-    return num.includes(clean) || id === clean;
-  });
-
-  if (!match) {
-    return {
-      text: `🔍 <b>Không tìm thấy đơn hàng nào khớp với mã PO: "${escapeHtml(clean)}"</b>`,
-    };
-  }
-
-  const sName = escapeHtml(suppMap.get(Number(match.supplierId)) || "Chưa chọn NCC");
-  const items: any[] = Array.isArray(match.items) ? match.items : [];
-
-  let totalAmount = 0;
-  items.forEach((it) => {
-    const sub = (Number(it.qty) || 0) * (Number(it.price) || 0);
-    const vat = Number(it.vatRate) || 0;
-    totalAmount += Math.round(sub * (1 + vat / 100));
-  });
-
-  let msg = `📑 <b>CHI TIẾT ĐƠN HÀNG PO #${escapeHtml(match.number)}</b>\n`;
-  msg += `─────────────────────────\n`;
-  msg += `• <b>Nhà cung cấp:</b> <b>${sName}</b>\n`;
-  msg += `• <b>Ngày đặt hàng:</b> ${escapeHtml(match.createdDate || "---")}\n`;
-  msg += `• <b>Hẹn giao hàng:</b> <b>${escapeHtml(match.expectedDate || "Chưa có")}</b>\n`;
-  msg += `• <b>Trạng thái:</b> <b>${escapeHtml(match.status || "Đang thực hiện")}</b>\n`;
-  msg += `• <b>Tổng giá trị đơn:</b> <code>${formatVND(totalAmount)}</code>\n`;
-  if (match.note) msg += `• <b>Ghi chú:</b> ${escapeHtml(match.note)}\n`;
-
-  if (items.length > 0) {
-    msg += `\n📦 <b>Mặt hàng (${items.length}):</b>\n`;
-    items.slice(0, 5).forEach((it, idx) => {
-      const delStatus = it.deliveryStatus ? ` [${escapeHtml(it.deliveryStatus)}]` : "";
-      msg += `${idx + 1}. ${escapeHtml(it.name)} - SL: ${it.qty} ${escapeHtml(it.unit || "")}${delStatus}\n`;
-    });
-    if (items.length > 5) {
-      msg += `• <i>Và còn ${items.length - 5} mặt hàng khác...</i>\n`;
-    }
-  }
-
-  msg += `─────────────────────────\n`;
+  msg += `\n─────────────────────────\n`;
+  msg += `🌐 <i>Mở Web mục 'Bàn giao' để xem và in phiếu BBBG hoàn chỉnh.</i>`;
 
   return {
     text: msg,
-    markup: {
-      inline_keyboard: [[{ text: "🌐 Mở Web SCMH", url: BASE_WEB_URL }]],
-    },
+    markup: { inline_keyboard: [[{ text: "🌐 Mở Web SCMH", url: BASE_WEB_URL }]] },
   };
 }
 
-/**
- * 6. XỬ LÝ KHI NGƯỜI DÙNG GỬI ẢNH HOẶC TÀI LIỆU (PDF/SCAN)
- */
+// -------------------------------------------------------------
+// LUỒNG 6: QUẢN LÝ THANH TOÁN (ĐNTT & CÔNG NỢ)
+// -------------------------------------------------------------
+
+export function handlePaymentRequests(data: any): { text: string; markup?: any } {
+  const paymentRequests: any[] = Array.isArray(data?.paymentRequests) ? data.paymentRequests : [];
+
+  const pending = paymentRequests.filter((p) => {
+    return !p.is_paid && p.status !== "paid" && p.status !== "completed";
+  });
+
+  if (pending.length === 0) {
+    return {
+      text: `🎉 <b>Tất cả các khoản Đề nghị thanh toán (ĐNTT) đều đã được thanh toán hoàn tất!</b>`,
+    };
+  }
+
+  let totalPending = 0;
+  pending.forEach((p) => {
+    totalPending += Number(p.total_amount || p.amount) || 0;
+  });
+
+  let msg = `💳 <b>DANH SÁCH ĐNTT CHỜ THANH TOÁN (${pending.length} khoản):</b>\n`;
+  msg += `💰 <b>Tổng số tiền cần chi:</b> <code>${formatVND(totalPending)}</code>\n`;
+  msg += `─────────────────────────\n`;
+
+  pending.slice(0, 6).forEach((p, idx) => {
+    const payee = escapeHtml(p.payee_name || "Nhà cung cấp");
+    const amount = formatVND(p.total_amount || p.amount);
+    const invoice = p.invoice_no ? ` - HĐ: <code>${escapeHtml(p.invoice_no)}</code>` : "";
+    const desc = p.description ? `\n   <i>${escapeHtml(p.description)}</i>` : "";
+    msg += `${idx + 1}. <b>${payee}</b>: <b>${amount}</b>${invoice}${desc}\n`;
+  });
+
+  if (pending.length > 6) {
+    msg += `\n• <i>Và còn ${pending.length - 6} khoản thanh toán khác...</i>\n`;
+  }
+
+  msg += `─────────────────────────\n`;
+  msg += `💡 <i>Gõ <code>/congno</code> để xem tổng quan công nợ mua hàng.</i>`;
+
+  return {
+    text: msg,
+    markup: { inline_keyboard: [[{ text: "🌐 Mở Web Quản lý Thanh toán", url: BASE_WEB_URL }]] },
+  };
+}
+
+export function handleDebtSummary(data: any): { text: string; markup?: any } {
+  const paymentRequests: any[] = Array.isArray(data?.paymentRequests) ? data.paymentRequests : [];
+  const pos: any[] = Array.isArray(data?.pos) ? data.pos : [];
+
+  let pendingPaymentAmount = 0;
+  let paidPaymentAmount = 0;
+  paymentRequests.forEach((p) => {
+    const amt = Number(p.total_amount || p.amount) || 0;
+    if (p.is_paid || p.status === "paid" || p.status === "completed") {
+      paidPaymentAmount += amt;
+    } else {
+      pendingPaymentAmount += amt;
+    }
+  });
+
+  let totalPOValue = 0;
+  pos.forEach((po) => {
+    const items: any[] = Array.isArray(po.items) ? po.items : [];
+    items.forEach((it) => {
+      const sub = (Number(it.qty) || 0) * (Number(it.price) || 0);
+      const vat = Number(it.vatRate) || 0;
+      totalPOValue += Math.round(sub * (1 + vat / 100));
+    });
+  });
+
+  let msg = `📊 <b>TỔNG QUAN TÀI CHÍNH & CÔNG NỢ MUA HÀNG</b>\n`;
+  msg += `─────────────────────────\n`;
+  msg += `• <b>Tổng giá trị các đơn PO:</b> <code>${formatVND(totalPOValue)}</code>\n`;
+  msg += `• <b>Tổng tiền đã chi trả (ĐNTT):</b> <code>${formatVND(paidPaymentAmount)}</code>\n`;
+  msg += `• 🔴 <b>Số tiền ĐNTT đang chờ chi:</b> <code>${formatVND(pendingPaymentAmount)}</code>\n`;
+  msg += `─────────────────────────\n`;
+  msg += `💡 <i>Gõ <code>/dntt</code> để xem danh sách chi tiết các khoản đang chờ chi.</i>`;
+
+  return { text: msg };
+}
+
+// -------------------------------------------------------------
+// LUỒNG 7: SỔ TAY CÔNG VIỆC CÁ NHÂN (TODOS D1)
+// -------------------------------------------------------------
+
+export async function handleTodoAdd(
+  rawText: string,
+  user: TelegramUser,
+  db: any
+): Promise<{ text: string }> {
+  if (!db) return { text: "❌ Lỗi hệ thống: Chưa kết nối D1 Database." };
+  await ensureTelegramTables(db);
+
+  const content = rawText.trim().replace(/^(\/todo|todo|việc|them viec)\s*/i, "").trim();
+  if (!content) {
+    return {
+      text: "⚠️ <b>Vui lòng nhập nội dung việc cần làm!</b>\n\nVí dụ: <code>/todo Gọi giục bên SATICUS gửi phụ kiện</code>",
+    };
+  }
+
+  const todoId = crypto.randomUUID();
+  const now = new Date().toISOString();
+
+  try {
+    await db
+      .prepare(
+        `INSERT INTO personal_todos (id, user_id, content, is_completed, is_priority, created_at, updated_at, is_deleted)
+         VALUES (?, ?, ?, 0, 0, ?, ?, 0)`
+      )
+      .bind(todoId, MASTER_WORKSPACE_ID, content, now, now)
+      .run();
+
+    return {
+      text: `✅ <b>Đã thêm việc vào Sổ tay công việc:</b>\n\n📌 <i>"${escapeHtml(content)}"</i>\n\n💡 <i>Gõ <code>/todos</code> để xem danh sách việc cần làm.</i>`,
+    };
+  } catch (e: any) {
+    return { text: `❌ Lỗi khi thêm việc: ${e?.message}` };
+  }
+}
+
+export async function handleTodoList(
+  user: TelegramUser,
+  db: any
+): Promise<{ text: string; markup?: any }> {
+  if (!db) return { text: "❌ Lỗi hệ thống: Chưa kết nối D1 Database." };
+  await ensureTelegramTables(db);
+
+  try {
+    const res = await db
+      .prepare(
+        `SELECT id, content, is_completed, is_priority, created_at
+         FROM personal_todos
+         WHERE is_deleted = 0 AND is_completed = 0
+         ORDER BY is_priority DESC, created_at DESC
+         LIMIT 6;`
+      )
+      .all();
+
+    const todos = res.results || [];
+    if (todos.length === 0) {
+      return {
+        text: `🎉 <b>Tuyệt vời! Bạn không còn việc nào tồn đọng trong sổ tay.</b>\n\n💡 <i>Gõ <code>/todo &lt;nội dung&gt;</code> để thêm việc mới bất cứ lúc nào!</i>`,
+      };
+    }
+
+    let msg = `📝 <b>SỔ TAY CÔNG VIỆC CẦN LÀM (${todos.length} việc):</b>\n`;
+    msg += `─────────────────────────\n`;
+
+    const keyboard: any[] = [];
+    todos.forEach((t: any, idx: number) => {
+      const priority = t.is_priority ? "⭐ " : "";
+      msg += `${idx + 1}. ${priority}<b>${escapeHtml(t.content)}</b>\n`;
+
+      const shortId = t.id.slice(0, 8);
+      keyboard.push([
+        {
+          text: `✅ Hoàn thành: ${t.content.slice(0, 25)}...`,
+          callback_data: `done:${shortId}`,
+        },
+      ]);
+    });
+
+    msg += `\n─────────────────────────\n`;
+    msg += `💡 <i>Bấm nút bên dưới để đánh dấu xong việc ngay lập tức!</i>`;
+
+    return { text: msg, markup: { inline_keyboard: keyboard } };
+  } catch (e: any) {
+    return { text: `❌ Lỗi đọc sổ tay công việc: ${e?.message}` };
+  }
+}
+
+export async function handleTodoDone(
+  shortId: string,
+  db: any,
+  token: string,
+  cbId?: string
+): Promise<{ text: string }> {
+  if (!db) return { text: "Lỗi kết nối CSDL" };
+
+  try {
+    const match = await db
+      .prepare(`SELECT id, content FROM personal_todos WHERE id LIKE ? AND is_deleted = 0 LIMIT 1`)
+      .bind(`${shortId}%`)
+      .first<any>();
+
+    if (!match) {
+      if (cbId) await answerCallbackQuery(cbId, "Không tìm thấy công việc này", false, token);
+      return { text: "⚠️ Công việc không tồn tại hoặc đã được hoàn thành." };
+    }
+
+    const now = new Date().toISOString();
+    await db
+      .prepare(`UPDATE personal_todos SET is_completed = 1, updated_at = ? WHERE id = ?`)
+      .bind(now, match.id)
+      .run();
+
+    if (cbId) await answerCallbackQuery(cbId, "Đã hoàn thành công việc!", false, token);
+    return {
+      text: `🎉 <b>Đã hoàn thành công việc:</b>\n\n✅ <s>${escapeHtml(match.content)}</s>`,
+    };
+  } catch (e: any) {
+    return { text: `Lỗi: ${e?.message}` };
+  }
+}
+
+// -------------------------------------------------------------
+// LUỒNG 8: BÁO CÁO TỔNG HỢP & NẠP CHỨNG TỪ TỨC THÌ
+// -------------------------------------------------------------
+
+export function handleReportSummary(data: any): { text: string; markup?: any } {
+  const prs: any[] = Array.isArray(data?.prs) ? data.prs : [];
+  const pos: any[] = Array.isArray(data?.pos) ? data.pos : [];
+  const paymentRequests: any[] = Array.isArray(data?.paymentRequests) ? data.paymentRequests : [];
+  const handovers: any[] = Array.isArray(data?.paymentHandovers) ? data.paymentHandovers : [];
+
+  let totalPO = 0;
+  pos.forEach((p) => {
+    const items = p.items || [];
+    items.forEach((it: any) => {
+      const sub = (Number(it.qty) || 0) * (Number(it.price) || 0);
+      const vat = Number(it.vatRate) || 0;
+      totalPO += Math.round(sub * (1 + vat / 100));
+    });
+  });
+
+  let totalDisbursed = 0;
+  paymentRequests.forEach((p) => {
+    if (p.is_paid || p.status === "paid" || p.status === "completed") {
+      totalDisbursed += Number(p.total_amount || p.amount) || 0;
+    }
+  });
+
+  let msg = `📊 <b>BÁO CÁO TỔNG HỢP HOẠT ĐỘNG MUA HÀNG (SCMH)</b>\n`;
+  msg += `─────────────────────────\n`;
+  msg += `📋 <b>Phiếu mua hàng (PR):</b> ${prs.length} phiếu (${prs.filter((p) => p.isCompleted).length} hoàn thành)\n`;
+  msg += `📦 <b>Đơn đặt hàng (PO):</b> ${pos.length} đơn hàng\n`;
+  msg += `💰 <b>Tổng giá trị đơn hàng:</b> <code>${formatVND(totalPO)}</code>\n`;
+  msg += `💳 <b>Tổng tiền đã thanh toán:</b> <code>${formatVND(totalDisbursed)}</code>\n`;
+  msg += `🚚 <b>Biên bản bàn giao nhập kho:</b> ${handovers.length} đợt giao nhận\n`;
+  msg += `─────────────────────────\n`;
+  msg += `🌐 <i>Xem dashboard chi tiết và biểu đồ trực quan tại Web SCMH!</i>`;
+
+  return {
+    text: msg,
+    markup: { inline_keyboard: [[{ text: "🌐 Mở Web SCMH", url: BASE_WEB_URL }]] },
+  };
+}
+
 export async function handleIncomingMedia(
   message: TelegramMessage,
   db: any,
@@ -752,7 +1206,6 @@ export async function handleIncomingMedia(
     return;
   }
 
-  // Lưu file tạm vào D1
   const tempId = crypto.randomUUID().slice(0, 8);
   const now = new Date().toISOString();
   try {
@@ -767,21 +1220,28 @@ export async function handleIncomingMedia(
     console.error("Lỗi lưu pending file:", e);
   }
 
-  // Lấy 2 PR gần nhất để tạo nút bấm
   const prs: any[] = Array.isArray(data?.prs) ? data.prs : [];
-  const latestPrs = prs.slice(-2).reverse();
+  const pos: any[] = Array.isArray(data?.pos) ? data.pos : [];
+  const latestPr = prs.slice(-1)[0];
+  const latestPo = pos.slice(-1)[0];
 
   const keyboard: any[] = [];
-  latestPrs.forEach((pr) => {
+  if (latestPr) {
     keyboard.push([
       {
-        text: `📎 Gắn vào PR #${pr.number} (${pr.department || "PR"})`,
-        callback_data: `up:pr:${pr.id}:${tempId}`,
+        text: `📎 Gắn vào PR #${latestPr.number} (${latestPr.department || "PR"})`,
+        callback_data: `up:pr:${latestPr.id}:${tempId}`,
       },
     ]);
-  });
-
-  // Tùy chọn lưu vào kho dữ liệu
+  }
+  if (latestPo) {
+    keyboard.push([
+      {
+        text: `📎 Gắn vào Đơn PO #${latestPo.number}`,
+        callback_data: `up:po:${latestPo.id}:${tempId}`,
+      },
+    ]);
+  }
   keyboard.push([
     {
       text: "📁 Lưu vào Kho chứng từ Cloud (Data Vault)",
@@ -789,18 +1249,15 @@ export async function handleIncomingMedia(
     },
   ]);
 
-  let msg = `📸 <b>ĐÃ TIẾP NHẬN BẢN SCAN / CHỨNG TỪ</b>\n`;
+  let msg = `📸 <b>ĐÃ TIẾP NHẬN BẢN SCAN / HÓA ĐƠN</b>\n`;
   msg += `─────────────────────────\n`;
   msg += `• <b>Tên tài liệu:</b> <i>${escapeHtml(fileName)}</i>\n`;
   msg += `• <b>Dung lượng:</b> ${formatFileSize(fileSize)}\n\n`;
-  msg += `👉 <b>Bạn muốn gắn chứng từ này vào đâu?</b>`;
+  msg += `👉 <b>Bạn muốn lưu chứng từ này vào đâu?</b>`;
 
   await sendTelegramMessage(chatId, msg, { replyMarkup: { inline_keyboard: keyboard } }, token);
 }
 
-/**
- * 7. XỬ LÝ KHI NGƯỜI DÙNG BẤM NÚT CALLBACK (INLINE BUTTONS)
- */
 export async function handleCallbackQuery(
   cb: TelegramCallbackQuery,
   env: any,
@@ -814,60 +1271,82 @@ export async function handleCallbackQuery(
   const db = env?.DB;
   const bucket = env?.R2_BUCKET || env?.BUCKET;
 
-  // Xử lý nút gắn file vào PR hoặc Kho
+  // Xử lý hoàn thành todo
+  if (dataStr.startsWith("done:")) {
+    const shortId = dataStr.split(":")[1];
+    const res = await handleTodoDone(shortId, db, token, cbId);
+    if (messageId) {
+      await editTelegramMessage(chatId, messageId, res.text, {}, token);
+    }
+    return;
+  }
+
+  // Xử lý các nút lệnh nhanh
+  if (dataStr.startsWith("cmd:")) {
+    const cmd = dataStr.replace("cmd:", "");
+    const masterData = await getMasterAppState(db);
+
+    if (cmd === "trehen") {
+      await answerCallbackQuery(cbId, "Đang kiểm tra đơn trễ hẹn...", false, token);
+      const res = handleOverduePos(masterData);
+      if (messageId) await editTelegramMessage(chatId, messageId, res.text, { replyMarkup: res.markup }, token);
+      return;
+    }
+    if (cmd === "dntt") {
+      await answerCallbackQuery(cbId, "Đang tra cứu ĐNTT...", false, token);
+      const res = handlePaymentRequests(masterData);
+      if (messageId) await editTelegramMessage(chatId, messageId, res.text, { replyMarkup: res.markup }, token);
+      return;
+    }
+    if (cmd === "pr_cho") {
+      await answerCallbackQuery(cbId, "Đang tải PR chờ mua...", false, token);
+      const res = handlePendingPrs(masterData);
+      if (messageId) await editTelegramMessage(chatId, messageId, res.text, { replyMarkup: res.markup }, token);
+      return;
+    }
+    if (cmd === "po_chogiao") {
+      await answerCallbackQuery(cbId, "Đang tải PO chờ giao...", false, token);
+      const res = handlePendingPos(masterData);
+      if (messageId) await editTelegramMessage(chatId, messageId, res.text, { replyMarkup: res.markup }, token);
+      return;
+    }
+    if (cmd === "todos") {
+      await answerCallbackQuery(cbId, "Đang tải sổ việc...", false, token);
+      const res = await handleTodoList(cb.from, db);
+      if (messageId) await editTelegramMessage(chatId, messageId, res.text, { replyMarkup: res.markup }, token);
+      return;
+    }
+    if (cmd === "baocao") {
+      await answerCallbackQuery(cbId, "Đang tổng hợp báo cáo...", false, token);
+      const res = handleReportSummary(masterData);
+      if (messageId) await editTelegramMessage(chatId, messageId, res.text, { replyMarkup: res.markup }, token);
+      return;
+    }
+  }
+
+  // Xử lý lưu file vào R2
   if (dataStr.startsWith("up:")) {
-    // Format: up:type:targetId:tempId
     const parts = dataStr.split(":");
-    const targetType = parts[1]; // "pr" hoặc "vault"
+    const targetType = parts[1];
     const targetId = parts[2];
     const tempId = parts[3];
 
     await answerCallbackQuery(cbId, "Đang tải và lưu lên Cloudflare R2...", false, token);
 
     if (!db || !bucket) {
-      if (messageId) {
-        await editTelegramMessage(
-          chatId,
-          messageId,
-          "❌ Lỗi hệ thống: Chưa cấu hình kết nối D1 / R2.",
-          {},
-          token
-        );
-      }
+      if (messageId) await editTelegramMessage(chatId, messageId, "❌ Lỗi hệ thống: Chưa cấu hình kết nối D1 / R2.", {}, token);
       return;
     }
 
-    // Đọc thông tin file tạm
-    const pendingRow = await db
-      .prepare("SELECT * FROM telegram_pending_files WHERE id = ?")
-      .bind(tempId)
-      .first<any>();
-
+    const pendingRow = await db.prepare("SELECT * FROM telegram_pending_files WHERE id = ?").bind(tempId).first<any>();
     if (!pendingRow) {
-      if (messageId) {
-        await editTelegramMessage(
-          chatId,
-          messageId,
-          "⚠️ Tài liệu này đã được xử lý hoặc đã hết hạn.",
-          {},
-          token
-        );
-      }
+      if (messageId) await editTelegramMessage(chatId, messageId, "⚠️ Tài liệu này đã được xử lý hoặc hết hạn.", {}, token);
       return;
     }
 
-    // Tải file từ Telegram CDN
     const dl = await downloadTelegramFile(pendingRow.file_id, token);
     if (!dl) {
-      if (messageId) {
-        await editTelegramMessage(
-          chatId,
-          messageId,
-          "❌ Lỗi khi tải dữ liệu từ Telegram CDN. Vui lòng gửi lại ảnh.",
-          {},
-          token
-        );
-      }
+      if (messageId) await editTelegramMessage(chatId, messageId, "❌ Lỗi khi tải dữ liệu từ Telegram CDN.", {}, token);
       return;
     }
 
@@ -887,26 +1366,25 @@ export async function handleCallbackQuery(
       destinationLabel = `Phiếu PR #${prNumber}`;
 
       const scanUrl = `/api/upload-scan?key=${encodeURIComponent(key)}`;
-
-      // Cập nhật PR trong app_state
       if (pr) {
         pr.scan_file_url = scanUrl;
         await saveMasterAppState(db, masterData);
       }
-
-      // Cập nhật D1 prs table
       try {
-        await db
-          .prepare("UPDATE prs SET scan_file_url = ? WHERE id = ?")
-          .bind(scanUrl, Number(targetId))
-          .run();
+        await db.prepare("UPDATE prs SET scan_file_url = ? WHERE id = ?").bind(scanUrl, Number(targetId)).run();
       } catch {}
+    } else if (targetType === "po") {
+      const pos: any[] = Array.isArray(masterData?.pos) ? masterData.pos : [];
+      const po = pos.find((p) => String(p.id) === String(targetId));
+      const poNum = po?.number || `PO${targetId}`;
+      const safePoCode = poNum.replace(/[^a-zA-Z0-9_-]/g, "_");
+      key = `po-docs/${safePoCode}_${Date.now()}.${ext}`;
+      destinationLabel = `Đơn PO #${poNum}`;
     } else {
       key = `vault/${Date.now()}_${pendingRow.file_name}`;
       destinationLabel = "Kho chứng từ Cloud (Data Vault)";
     }
 
-    // Lưu vào Cloudflare R2
     await bucket.put(key, dl.buffer, {
       httpMetadata: { contentType: pendingRow.mime_type },
       customMetadata: {
@@ -916,7 +1394,6 @@ export async function handleCallbackQuery(
       },
     });
 
-    // Thêm bản ghi vào bảng files
     const fileRecordId = crypto.randomUUID();
     const nowIso = new Date().toISOString();
     try {
@@ -927,15 +1404,15 @@ export async function handleCallbackQuery(
         )
         .bind(
           fileRecordId,
-          targetType === "pr" ? "pr" : "vault",
-          targetType === "pr" ? prNumber : "vault",
+          targetType,
+          targetId,
           pendingRow.file_name,
           key,
           pendingRow.mime_type,
           pendingRow.file_size,
           nowIso,
           cb.from.username || "telegram_bot",
-          targetType === "pr" ? "Bản scan PR" : "Chứng từ",
+          "Bản scan chứng từ",
           "Đã lưu",
           `Tải lên từ Telegram bởi @${cb.from.username || cb.from.first_name}`
         )
@@ -944,7 +1421,6 @@ export async function handleCallbackQuery(
       console.warn("Lỗi ghi files table:", e);
     }
 
-    // Xóa record pending
     try {
       await db.prepare("DELETE FROM telegram_pending_files WHERE id = ?").bind(tempId).run();
     } catch {}
@@ -953,8 +1429,7 @@ export async function handleCallbackQuery(
     let successMsg = `✅ <b>ĐÃ LƯU CHỨNG TỪ THÀNH CÔNG!</b>\n`;
     successMsg += `─────────────────────────\n`;
     successMsg += `• <b>Điểm lưu:</b> <b>${destinationLabel}</b>\n`;
-    successMsg += `• <b>File:</b> <i>${escapeHtml(pendingRow.file_name)}</i>\n`;
-    successMsg += `• <b>Dung lượng:</b> ${formatFileSize(pendingRow.file_size)}\n`;
+    successMsg += `• <b>File:</b> <i>${escapeHtml(pendingRow.file_name)}</i> (${formatFileSize(pendingRow.file_size)})\n`;
     successMsg += `• <b>Lưu trữ:</b> Cloudflare R2 (An toàn & vĩnh viễn)\n`;
     successMsg += `─────────────────────────\n`;
     successMsg += `🌐 <i>Mở Web để thấy chứng từ đã tự động cập nhật!</i>`;
@@ -967,7 +1442,7 @@ export async function handleCallbackQuery(
         {
           replyMarkup: {
             inline_keyboard: [
-              [{ text: "📄 Xem trực tiếp file đã lưu", url: fileViewUrl }],
+              [{ text: "📄 Xem file trên Web", url: fileViewUrl }],
               [{ text: "🌐 Mở Web SCMH", url: BASE_WEB_URL }],
             ],
           },
@@ -978,48 +1453,17 @@ export async function handleCallbackQuery(
     return;
   }
 
-  // Nút hành động nhanh
-  if (dataStr === "act:briefing") {
-    await answerCallbackQuery(cbId, "Đang tải bản tin...", false, token);
-    const masterData = await getMasterAppState(db);
-    const briefing = buildDailyBriefingMessage(masterData);
-    if (messageId) {
-      await editTelegramMessage(chatId, messageId, briefing.text, { replyMarkup: briefing.markup }, token);
-    }
-    return;
-  }
-
-  if (dataStr === "act:latest_prs") {
-    await answerCallbackQuery(cbId, "Đang tra cứu PR...", false, token);
-    const masterData = await getMasterAppState(db);
-    const prRes = handlePrLookup("", masterData);
-    if (messageId) {
-      await editTelegramMessage(chatId, messageId, prRes.text, { replyMarkup: prRes.markup }, token);
-    }
-    return;
-  }
-
-  if (dataStr === "act:recent_prices") {
-    await answerCallbackQuery(cbId, "Đang tra cứu giá...", false, token);
-    const masterData = await getMasterAppState(db);
-    const priceRes = await handlePriceLookup("Methanol", db, masterData);
-    if (messageId) {
-      await editTelegramMessage(chatId, messageId, priceRes.text, { replyMarkup: priceRes.markup }, token);
-    }
-    return;
-  }
-
   await answerCallbackQuery(cbId, "", false, token);
 }
 
-/**
- * 8. ROUTER CHÍNH TIẾP NHẬN MỌI UPDATE TỪ TELEGRAM
- */
+// -------------------------------------------------------------
+// ROUTER ĐIỀU PHỐI TẤT CẢ UPDATE TỪ TELEGRAM
+// -------------------------------------------------------------
+
 export async function processTelegramUpdate(update: TelegramUpdate, env: any) {
   const token = getBotToken(env);
   const db = env?.DB;
 
-  // 1. Xử lý Callback Query (Bấm nút trên tin nhắn)
   if (update.callback_query) {
     await handleCallbackQuery(update.callback_query, env, token);
     return;
@@ -1031,10 +1475,8 @@ export async function processTelegramUpdate(update: TelegramUpdate, env: any) {
   const chatId = message.chat.id;
   const user = message.from || { id: chatId, first_name: "Người dùng" };
 
-  // Tự động lưu người dùng vào danh bạ nhận tin nhắn tự động
   await saveSubscriber(db, user, chatId);
 
-  // 2. Xử lý khi người dùng gửi file ảnh hoặc PDF
   if (message.photo || message.document) {
     const masterData = await getMasterAppState(db);
     await handleIncomingMedia(message, db, masterData, token);
@@ -1046,30 +1488,53 @@ export async function processTelegramUpdate(update: TelegramUpdate, env: any) {
 
   const textLower = rawText.toLowerCase();
 
-  // /start hoặc /help hoặc 'menu'
+  // Menu / Trợ giúp
   if (textLower === "/start" || textLower === "/help" || textLower === "menu" || textLower === "trợ giúp") {
-    let welcome = `👋 <b>Xin chào ${escapeHtml(user.first_name)}!</b>\n`;
-    welcome += `Tôi là <b>Trợ lý Mua hàng SCMH (Phenikaa)</b>.\n\n`;
-    welcome += `Tôi sẵn sàng hỗ trợ bạn tác nghiệp mua hàng 24/7:\n\n`;
-    welcome += `🔍 <b>TRA CỨU NHANH:</b>\n`;
-    welcome += `• <b>Giá cũ:</b> <code>/gia &lt;tên hàng&gt;</code> <i>(vd: /gia Methanol)</i>\n`;
-    welcome += `• <b>Tiến độ PR:</b> <code>/pr &lt;mã PR&gt;</code> <i>(vd: /pr QC261106.2)</i>\n`;
-    welcome += `• <b>Tiến độ PO:</b> <code>/po &lt;mã PO&gt;</code> <i>(vd: /po PO-2611-01)</i>\n`;
-    welcome += `• <b>STK & NCC:</b> <code>/ncc &lt;tên&gt;</code> <i>(vd: /ncc Đức Giang hoặc stk Tân Á)</i>\n\n`;
-    welcome += `⏰ <b>NHẮC VIỆC & ĐIỂM TIN:</b>\n`;
-    welcome += `• Gõ <code>/nhacviec</code> để xem hạn thanh toán và hàng hẹn giao hôm nay.\n`;
-    welcome += `• Tự động gửi tin tổng hợp vào <b>08:30 sáng mỗi ngày</b>.\n\n`;
-    welcome += `📸 <b>LƯU CHỨNG TỪ:</b>\n`;
-    welcome += `• Gửi ảnh hóa đơn/biên bản vào đây ➔ Bấm chọn PR ➔ Tự động lưu lên Cloud R2 và gắn vào Web!`;
+    let welcome = `👋 <b>Chào bạn ${escapeHtml(user.first_name)}!</b>\n`;
+    welcome += `Tôi là <b>Trợ lý Mua hàng Toàn diện SCMH (Phenikaa)</b>.\n\n`;
+    welcome += `Tôi hỗ trợ bạn điều hành toàn bộ 8 luồng nghiệp vụ mua sắm:\n\n`;
+
+    welcome += `📋 <b>YÊU CẦU MUA HÀNG (PR):</b>\n`;
+    welcome += `• <code>/pr &lt;mã&gt;</code>: Xem chi tiết PR (vd: <code>/pr QC261106.2</code>)\n`;
+    welcome += `• <code>/pr_cho</code>: Xem danh sách PR đang chờ mua sắm\n\n`;
+
+    welcome += `📦 <b>ĐƠN HÀNG (PO) & GIAO NHẬN:</b>\n`;
+    welcome += `• <code>/po &lt;mã&gt;</code>: Xem tiến độ PO (vd: <code>/po PO-2611-01</code>)\n`;
+    welcome += `• <code>/po_chogiao</code>: Xem các đơn PO đang chờ giao\n`;
+    welcome += `• <code>/trehen</code>: Cảnh báo các đơn PO quá hạn giao hàng\n`;
+    welcome += `• <code>/giaonhan</code>: Xem biên bản bàn giao (BBBG) nhập kho\n\n`;
+
+    welcome += `💰 <b>GIÁ CẢ & NHÀ CUNG CẤP:</b>\n`;
+    welcome += `• <code>/gia &lt;tên hàng&gt;</code>: Tra cứu giá cũ từ 777+ hóa đơn\n`;
+    welcome += `• <code>/ncc &lt;tên NCC&gt;</code>: Tra STK, SĐT, người liên hệ NCC\n\n`;
+
+    welcome += `💳 <b>THANH TOÁN & CÔNG NỢ:</b>\n`;
+    welcome += `• <code>/dntt</code>: Danh sách ĐNTT đang chờ thanh toán\n`;
+    welcome += `• <code>/congno</code>: Tổng hợp công nợ & giá trị đơn hàng\n\n`;
+
+    welcome += `📝 <b>SỔ TAY CÔNG VIỆC:</b>\n`;
+    welcome += `• <code>/todo &lt;nội dung&gt;</code>: Thêm việc cần làm nhanh\n`;
+    welcome += `• <code>/todos</code>: Xem danh sách việc cần làm\n\n`;
+
+    welcome += `📊 <b>BÁO CÁO & THỐNG KÊ:</b>\n`;
+    welcome += `• <code>/nhacviec</code>: Bản tin mua hàng hôm nay (tự động 08:30 sáng)\n`;
+    welcome += `• <code>/baocao</code>: Báo cáo tài chính mua sắm tháng\n\n`;
+
+    welcome += `📸 <b>NẠP CHỨNG TỪ:</b> Gửi trực tiếp ảnh/PDF để lưu thẳng lên Web!`;
 
     const markup = {
       inline_keyboard: [
         [
-          { text: "☕ Điểm tin & Nhắc việc hôm nay", callback_data: "act:briefing" },
+          { text: "☕ Nhắc việc hôm nay", callback_data: "cmd:nhacviec" },
+          { text: "🚨 Đơn trễ hẹn", callback_data: "cmd:trehen" },
         ],
         [
-          { text: "🔍 Tra PR mới nhất", callback_data: "act:latest_prs" },
-          { text: "💰 Giá mua gần đây", callback_data: "act:recent_prices" },
+          { text: "💳 Khoản cần TT", callback_data: "cmd:dntt" },
+          { text: "📋 PR chờ mua", callback_data: "cmd:pr_cho" },
+        ],
+        [
+          { text: "📝 Việc cần làm", callback_data: "cmd:todos" },
+          { text: "📊 Báo cáo tháng", callback_data: "cmd:baocao" },
         ],
         [{ text: "🌐 Mở Web Quản Lý SCMH", url: BASE_WEB_URL }],
       ],
@@ -1079,20 +1544,93 @@ export async function processTelegramUpdate(update: TelegramUpdate, env: any) {
     return;
   }
 
-  // /nhacviec hoặc /diemtin hoặc 'hôm nay có gì'
-  if (
-    textLower.startsWith("/nhacviec") ||
-    textLower.startsWith("/diemtin") ||
-    textLower.includes("hôm nay") ||
-    textLower.includes("nhắc việc")
-  ) {
+  // Nhắc việc
+  if (textLower.startsWith("/nhacviec") || textLower.startsWith("/diemtin") || textLower.includes("hôm nay") || textLower.includes("nhắc việc")) {
     const masterData = await getMasterAppState(db);
     const briefing = buildDailyBriefingMessage(masterData);
     await sendTelegramMessage(chatId, briefing.text, { replyMarkup: briefing.markup }, token);
     return;
   }
 
-  // Tra cứu giá cũ (/gia hoặc 'giá ...' hoặc 'lịch sử ...')
+  // Đơn trễ hẹn
+  if (textLower === "/trehen" || textLower === "trễ hẹn" || textLower === "quá hạn") {
+    const masterData = await getMasterAppState(db);
+    const res = handleOverduePos(masterData);
+    await sendTelegramMessage(chatId, res.text, {}, token);
+    return;
+  }
+
+  // PR chờ mua
+  if (textLower === "/pr_cho" || textLower === "pr chờ" || textLower === "chờ mua") {
+    const masterData = await getMasterAppState(db);
+    const res = handlePendingPrs(masterData);
+    await sendTelegramMessage(chatId, res.text, { replyMarkup: res.markup }, token);
+    return;
+  }
+
+  // PO chờ giao
+  if (textLower === "/po_chogiao" || textLower === "po chờ" || textLower === "chờ giao") {
+    const masterData = await getMasterAppState(db);
+    const res = handlePendingPos(masterData);
+    await sendTelegramMessage(chatId, res.text, {}, token);
+    return;
+  }
+
+  // Biên bản bàn giao / giao nhận
+  if (textLower === "/giaonhan" || textLower === "/bbbg" || textLower.includes("bàn giao") || textLower.includes("giao nhận")) {
+    const masterData = await getMasterAppState(db);
+    const res = handleHandoverLookup(masterData);
+    await sendTelegramMessage(chatId, res.text, { replyMarkup: res.markup }, token);
+    return;
+  }
+
+  // Đề nghị thanh toán (ĐNTT)
+  if (textLower === "/dntt" || textLower === "/thanhtoan" || textLower.startsWith("thanh toán")) {
+    const masterData = await getMasterAppState(db);
+    const res = handlePaymentRequests(masterData);
+    await sendTelegramMessage(chatId, res.text, { replyMarkup: res.markup }, token);
+    return;
+  }
+
+  // Công nợ
+  if (textLower === "/congno" || textLower.includes("công nợ")) {
+    const masterData = await getMasterAppState(db);
+    const res = handleDebtSummary(masterData);
+    await sendTelegramMessage(chatId, res.text, {}, token);
+    return;
+  }
+
+  // Báo cáo tháng
+  if (textLower === "/baocao" || textLower.includes("báo cáo")) {
+    const masterData = await getMasterAppState(db);
+    const res = handleReportSummary(masterData);
+    await sendTelegramMessage(chatId, res.text, { replyMarkup: res.markup }, token);
+    return;
+  }
+
+  // Sổ tay công việc: thêm việc
+  if (textLower.startsWith("/todo ") || textLower.startsWith("todo ") || textLower.startsWith("thêm việc ")) {
+    const res = await handleTodoAdd(rawText, user, db);
+    await sendTelegramMessage(chatId, res.text, {}, token);
+    return;
+  }
+
+  // Sổ tay công việc: xem danh sách
+  if (textLower === "/todos" || textLower === "/todo" || textLower === "/viec" || textLower === "việc cần làm") {
+    const res = await handleTodoList(user, db);
+    await sendTelegramMessage(chatId, res.text, { replyMarkup: res.markup }, token);
+    return;
+  }
+
+  // Hoàn thành việc qua lệnh /done <id>
+  if (textLower.startsWith("/done ")) {
+    const shortId = rawText.replace(/^\/done\s+/i, "").trim();
+    const res = await handleTodoDone(shortId, db, token);
+    await sendTelegramMessage(chatId, res.text, {}, token);
+    return;
+  }
+
+  // Tra giá
   if (textLower.startsWith("/gia") || textLower.startsWith("giá ") || textLower.startsWith("lịch sử ")) {
     const masterData = await getMasterAppState(db);
     const res = await handlePriceLookup(rawText, db, masterData);
@@ -1100,7 +1638,7 @@ export async function processTelegramUpdate(update: TelegramUpdate, env: any) {
     return;
   }
 
-  // Tra cứu Nhà cung cấp & STK (/ncc hoặc 'stk ...' hoặc 'ncc ...')
+  // Tra NCC
   if (textLower.startsWith("/ncc") || textLower.startsWith("stk ") || textLower.startsWith("ncc ") || textLower.startsWith("sdt ")) {
     const masterData = await getMasterAppState(db);
     const res = await handleSupplierLookup(rawText, db, masterData);
@@ -1108,7 +1646,7 @@ export async function processTelegramUpdate(update: TelegramUpdate, env: any) {
     return;
   }
 
-  // Tra cứu PO (/po hoặc có dạng PO-...)
+  // Tra PO
   if (textLower.startsWith("/po") || textLower.startsWith("po-")) {
     const masterData = await getMasterAppState(db);
     const res = handlePoLookup(rawText, masterData);
@@ -1116,7 +1654,7 @@ export async function processTelegramUpdate(update: TelegramUpdate, env: any) {
     return;
   }
 
-  // Tra cứu PR (/pr hoặc có dạng QC...)
+  // Tra PR
   if (textLower.startsWith("/pr") || textLower.startsWith("qc") || textLower.includes("pr")) {
     const masterData = await getMasterAppState(db);
     const res = handlePrLookup(rawText, masterData);
@@ -1124,7 +1662,7 @@ export async function processTelegramUpdate(update: TelegramUpdate, env: any) {
     return;
   }
 
-  // Nếu người dùng gõ từ khóa thông thường, thử tìm giá hoặc PR
+  // Tìm kiếm thông minh tự động: Thử tìm giá hoặc NCC hoặc PR
   const masterData = await getMasterAppState(db);
   const priceRes = await handlePriceLookup(rawText, db, masterData);
   if (!priceRes.text.includes("Không tìm thấy")) {
@@ -1132,21 +1670,19 @@ export async function processTelegramUpdate(update: TelegramUpdate, env: any) {
     return;
   }
 
-  // Phản hồi hướng dẫn nếu không hiểu
-  let fallback = `🤖 <b>Trợ lý chưa hiểu yêu cầu: "${escapeHtml(rawText)}"</b>\n\n`;
-  fallback += `💡 Bạn có thể thử các lệnh sau:\n`;
-  fallback += `• <code>/gia Methanol</code> (Tra lịch sử giá mua)\n`;
-  fallback += `• <code>/pr QC261106.2</code> (Xem tiến độ PR)\n`;
-  fallback += `• <code>/ncc Đức Giang</code> (Xem STK và SĐT nhà cung cấp)\n`;
-  fallback += `• <code>/nhacviec</code> (Xem hạn thanh toán & hàng về hôm nay)\n`;
-  fallback += `• Hoặc gửi trực tiếp ảnh hóa đơn/chứng từ vào đây để lưu lên Web!`;
+  let fallback = `🤖 <b>Trợ lý chưa hiểu lệnh: "${escapeHtml(rawText)}"</b>\n\n`;
+  fallback += `💡 Bạn có thể dùng các lệnh sau:\n`;
+  fallback += `• <code>/nhacviec</code>: Bản tin mua hàng hôm nay\n`;
+  fallback += `• <code>/trehen</code>: Xem đơn PO bị trễ hạn\n`;
+  fallback += `• <code>/gia Methanol</code>: Tra lịch sử giá mua\n`;
+  fallback += `• <code>/dntt</code>: Xem các khoản cần thanh toán\n`;
+  fallback += `• <code>/pr_cho</code>: Xem PR đang chờ mua sắm\n`;
+  fallback += `• <code>/todo Gọi NCC</code>: Ghi chú việc cần làm\n`;
+  fallback += `• Hoặc gõ <code>/help</code> để mở Menu đầy đủ!`;
 
   await sendTelegramMessage(chatId, fallback, {}, token);
 }
 
-/**
- * 9. HÀM CHẠY CRON ĐỊNH KỲ (08:30 SÁNG HÀNG NGÀY)
- */
 export async function runScheduledBriefing(env: any) {
   const token = getBotToken(env);
   const db = env?.DB;
