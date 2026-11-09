@@ -21,6 +21,8 @@ import {
   ClipboardPaste,
   Eye,
   EyeOff,
+  Lock,
+  Unlock,
 } from "lucide-react";
 import {
   PO,
@@ -534,6 +536,20 @@ export function PaymentManagement({
     });
     onUpdateState?.({ paymentRequests: next });
     setCheckedIds(new Set());
+  };
+
+  const [unlockedReqIds, setUnlockedReqIds] = useState<Set<number>>(new Set());
+
+  const toggleUnlockReq = (id: number) => {
+    setUnlockedReqIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
   };
 
   const handleToggleComplete = (r: PaymentRequestEntry) => {
@@ -2264,12 +2280,16 @@ export function PaymentManagement({
             const lines = (r.lines || []).filter((l) => l.description || l.amount);
 
             const isFlashing = highlightedRowId === r.id;
+            const isUnlocked = unlockedReqIds.has(r.id);
             return (
               <div
                 key={r.id}
                 id={`payment-row-${r.id}`}
-                className={`m-card ${isDone ? "m-card-done row-completed" : ""} ${isFlashing ? "row-highlight-flash" : ""} ${isItemHidden(r) ? "m-card-hidden" : ""}`}
-                style={isItemHidden(r) ? { opacity: 0.8, border: "1px dashed #f59e0b", background: "#fffdfa" } : undefined}
+                className={`m-card ${isDone ? "m-card-done row-completed" : ""} ${isFlashing ? "row-highlight-flash" : ""} ${isItemHidden(r) ? "m-card-hidden" : ""} ${isUnlocked ? "m-card-unlocked" : ""}`}
+                style={{
+                  ...(isItemHidden(r) ? { opacity: 0.8, border: "1px dashed #f59e0b", background: "#fffdfa" } : {}),
+                  ...(isUnlocked ? { border: "2px solid #0284c7", boxShadow: "0 0 0 3px rgba(2, 132, 199, 0.15), 0 6px 20px rgba(15, 23, 42, 0.08)", background: "#ffffff" } : {}),
+                }}
                 onClick={() => setActiveRequestId(r.id)}
               >
                 <div className="m-card-header">
@@ -2337,6 +2357,32 @@ export function PaymentManagement({
                       type="button"
                       onClick={(e) => {
                         e.stopPropagation();
+                        toggleUnlockReq(r.id);
+                      }}
+                      title={isUnlocked ? "Khóa lại & hoàn tất sửa trực tiếp" : "Mở khóa để sửa trực tiếp trên thẻ này"}
+                      style={{
+                        background: isUnlocked ? "#ecfdf5" : "#f1f5f9",
+                        color: isUnlocked ? "#047857" : "#475569",
+                        border: isUnlocked ? "1.5px solid #10b981" : "1px solid #cbd5e1",
+                        borderRadius: "6px",
+                        padding: "3px 8px",
+                        fontSize: "11px",
+                        fontWeight: 700,
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: "4px",
+                        cursor: "pointer",
+                        boxShadow: isUnlocked ? "0 0 0 2px rgba(16, 185, 129, 0.25)" : undefined,
+                      }}
+                    >
+                      {isUnlocked ? <Lock size={12} className="text-emerald-600" /> : <Unlock size={12} />}
+                      <span>{isUnlocked ? "Khóa lại" : "Sửa"}</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
                         handleToggleHideRequest(r.id, isItemHidden(r));
                       }}
                       title={isItemHidden(r) ? "Hiện lại thẻ thanh toán này" : "Ẩn thẻ thanh toán này khỏi danh sách"}
@@ -2370,73 +2416,236 @@ export function PaymentManagement({
                     )}
                   </div>
                 </div>
-                <div
-                  className="m-card-payee"
-                  onClick={() => !isPhoneScreen && setEditModalReqId(r.id)}
-                  style={{ cursor: !isPhoneScreen ? "pointer" : "default" }}
-                  title={!isPhoneScreen ? "Nhấp để chỉnh sửa đề nghị này" : undefined}
-                >
-                  {payee}
-                </div>
-                <div className="m-card-amount">
-                  {fmtMoney(r.amount)} <small>{r.currency || "VND"}</small>
-                </div>
-                <div className="m-card-desc">
-                  {r.description || r.item_name || "Không có mô tả"}
-                </div>
 
-                <div className="m-card-meta">
-                  {r.request_date && <div>📅 Ngày: <b>{r.request_date}</b></div>}
-                  {grp && <div>📁 Nhóm HĐ: <b>{grp.code}</b></div>}
-                  {(() => {
-                    const matchedPO = pos.find(
-                      (p) => normName(p.number) === normName(r.group_code || "")
-                    );
-                    const totalDocVal = matchedPO
-                      ? matchedPO.items.reduce((s, it) => s + it.qty * it.price, 0)
-                      : Number(grp?.total_amount) || 0;
-                    if (totalDocVal > 0) {
-                      return (
-                        <div style={{ color: "#0369a1", fontSize: "11.5px", fontWeight: 600 }}>
-                          🔗 Giá trị HĐ/PO: <b>{fmtMoney(totalDocVal)} ₫</b>
-                        </div>
-                      );
-                    }
-                    return null;
-                  })()}
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "6px", flexWrap: "wrap", marginTop: "2px" }}>
-                    <div>
-                      🧾 HĐ: <b>{r.invoice_no || "Chưa nhập số HĐ"}</b>{" "}
-                      {r.invoice_date && <span style={{ color: "#64748b" }}>({r.invoice_date})</span>}
-                    </div>
-                    <InvoiceScanControl
-                      compact
-                      readOnly={readOnly}
-                      scanUrl={r.invoice_scan_url || r.lines?.find((l) => l.invoice_scan_url)?.invoice_scan_url}
-                      scanName={r.invoice_scan_name || r.lines?.find((l) => l.invoice_scan_url)?.invoice_scan_name}
-                      invoiceNo={r.invoice_no}
-                      invoiceDate={r.invoice_date}
-                      entityCode={r.group_code || `DNTT-${r.legacy_stt || r.id}`}
-                      supplierName={r.payee_name}
-                      onUpdate={(scanUrl, scanName) => {
-                        const patch: Partial<PaymentRequestEntry> = {
-                          invoice_scan_url: scanUrl,
-                          invoice_scan_name: scanName,
-                        };
-                        if (r.lines && r.lines.length === 1) {
-                          const nextLines = [...r.lines];
-                          nextLines[0] = {
-                            ...nextLines[0],
-                            invoice_scan_url: scanUrl,
-                            invoice_scan_name: scanName,
-                          };
-                          patch.lines = nextLines;
-                        }
-                        handleEditRequest(r.id, patch);
+                {isUnlocked && (
+                  <div
+                    style={{
+                      fontSize: "11px",
+                      fontWeight: 700,
+                      color: "#0369a1",
+                      background: "#f0f9ff",
+                      border: "1px solid #bae6fd",
+                      borderRadius: "6px",
+                      padding: "4px 8px",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      gap: "6px",
+                      marginTop: "6px",
+                    }}
+                  >
+                    <span>🔓 Đang sửa trực tiếp · Nhập nội dung rồi bấm "Khóa lại"</span>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleUnlockReq(r.id);
+                      }}
+                      style={{
+                        background: "#0284c7",
+                        color: "#ffffff",
+                        border: "none",
+                        borderRadius: "4px",
+                        padding: "2px 8px",
+                        fontSize: "11px",
+                        fontWeight: 700,
+                        cursor: "pointer",
+                      }}
+                    >
+                      ✓ Khóa lại
+                    </button>
+                  </div>
+                )}
+
+                {/* Payee Name */}
+                {isUnlocked ? (
+                  <div style={{ marginTop: "8px" }} onClick={(e) => e.stopPropagation()}>
+                    <label style={{ fontSize: "11px", fontWeight: 700, color: "#475569" }}>🏢 Nhà cung cấp / Đơn vị thụ hưởng:</label>
+                    <input
+                      type="text"
+                      className="inline-card-input"
+                      value={r.payee_name || ""}
+                      onChange={(e) => handleEditRequest(r.id, "payee_name", e.target.value)}
+                      list="nccDataList"
+                      placeholder="Nhập tên nhà cung cấp..."
+                      style={{
+                        width: "100%",
+                        padding: "6px 8px",
+                        fontSize: "13.5px",
+                        fontWeight: 700,
+                        color: "#0f172a",
+                        border: "1.5px solid #0284c7",
+                        borderRadius: "6px",
+                        background: "#ffffff",
+                        boxSizing: "border-box",
+                        marginTop: "2px",
                       }}
                     />
                   </div>
-                </div>
+                ) : (
+                  <div
+                    className="m-card-payee"
+                    onClick={() => !isPhoneScreen && setEditModalReqId(r.id)}
+                    style={{ cursor: !isPhoneScreen ? "pointer" : "default" }}
+                    title={!isPhoneScreen ? "Nhấp để chỉnh sửa đề nghị này" : undefined}
+                  >
+                    {payee}
+                  </div>
+                )}
+
+                {/* Amount */}
+                {isUnlocked && (!r.lines || r.lines.length === 0) ? (
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px", marginTop: "8px" }} onClick={(e) => e.stopPropagation()}>
+                    <label style={{ fontSize: "11px", fontWeight: 700, color: "#475569" }}>Số tiền:</label>
+                    <input
+                      type="text"
+                      value={fmtMoney(r.amount)}
+                      onChange={(e) => handleEditRequest(r.id, "amount", parseMoney(e.target.value))}
+                      style={{
+                        width: "180px",
+                        padding: "5px 8px",
+                        fontSize: "15px",
+                        fontWeight: 800,
+                        color: "#047857",
+                        border: "1.5px solid #0284c7",
+                        borderRadius: "6px",
+                        textAlign: "right",
+                        boxSizing: "border-box",
+                      }}
+                    />
+                    <span style={{ fontSize: "12px", fontWeight: 700, color: "#64748b" }}>{r.currency || "VND"}</span>
+                  </div>
+                ) : (
+                  <div className="m-card-amount">
+                    {fmtMoney(r.amount)} <small>{r.currency || "VND"}</small>
+                  </div>
+                )}
+
+                {/* Description */}
+                {isUnlocked ? (
+                  <div style={{ marginTop: "6px" }} onClick={(e) => e.stopPropagation()}>
+                    <label style={{ fontSize: "11px", fontWeight: 700, color: "#475569" }}>Nội dung thanh toán:</label>
+                    <input
+                      type="text"
+                      value={r.description || ""}
+                      onChange={(e) => handleEditRequest(r.id, "description", e.target.value)}
+                      placeholder="Nội dung thanh toán..."
+                      style={{
+                        width: "100%",
+                        padding: "6px 8px",
+                        fontSize: "12.5px",
+                        border: "1.5px solid #0284c7",
+                        borderRadius: "6px",
+                        background: "#ffffff",
+                        boxSizing: "border-box",
+                        marginTop: "2px",
+                      }}
+                    />
+                  </div>
+                ) : (
+                  <div className="m-card-desc">
+                    {r.description || r.item_name || "Không có mô tả"}
+                  </div>
+                )}
+
+                {/* Meta details */}
+                {isUnlocked ? (
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", marginTop: "8px" }} onClick={(e) => e.stopPropagation()}>
+                    <div>
+                      <label style={{ fontSize: "11px", fontWeight: 700, color: "#64748b" }}>📅 Ngày đề nghị:</label>
+                      <input
+                        type="date"
+                        value={r.request_date || ""}
+                        onChange={(e) => handleEditRequest(r.id, "request_date", e.target.value)}
+                        style={{
+                          width: "100%",
+                          padding: "4px 6px",
+                          fontSize: "12px",
+                          border: "1px solid #cbd5e1",
+                          borderRadius: "6px",
+                          boxSizing: "border-box",
+                          marginTop: "2px",
+                        }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: "11px", fontWeight: 700, color: "#64748b" }}>🧾 Số hóa đơn:</label>
+                      <input
+                        type="text"
+                        value={r.invoice_no || ""}
+                        onChange={(e) => {
+                          const inv = e.target.value;
+                          const nextLines = [...(r.lines || [])];
+                          if (nextLines.length === 1) nextLines[0] = { ...nextLines[0], invoice_no: inv };
+                          handleEditRequest(r.id, { invoice_no: inv, ...(nextLines.length === 1 ? { lines: nextLines } : {}) });
+                        }}
+                        placeholder="Số HĐ..."
+                        style={{
+                          width: "100%",
+                          padding: "4px 6px",
+                          fontSize: "12px",
+                          border: "1px solid #cbd5e1",
+                          borderRadius: "6px",
+                          boxSizing: "border-box",
+                          marginTop: "2px",
+                        }}
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  <div className="m-card-meta">
+                    {r.request_date && <div>📅 Ngày: <b>{r.request_date}</b></div>}
+                    {grp && <div>📁 Nhóm HĐ: <b>{grp.code}</b></div>}
+                    {(() => {
+                      const matchedPO = pos.find(
+                        (p) => normName(p.number) === normName(r.group_code || "")
+                      );
+                      const totalDocVal = matchedPO
+                        ? matchedPO.items.reduce((s, it) => s + it.qty * it.price, 0)
+                        : Number(grp?.total_amount) || 0;
+                      if (totalDocVal > 0) {
+                        return (
+                          <div style={{ color: "#0369a1", fontSize: "11.5px", fontWeight: 600 }}>
+                            🔗 Giá trị HĐ/PO: <b>{fmtMoney(totalDocVal)} ₫</b>
+                          </div>
+                        );
+                      }
+                      return null;
+                    })()}
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "6px", flexWrap: "wrap", marginTop: "2px" }}>
+                      <div>
+                        🧾 HĐ: <b>{r.invoice_no || "Chưa nhập số HĐ"}</b>{" "}
+                        {r.invoice_date && <span style={{ color: "#64748b" }}>({r.invoice_date})</span>}
+                      </div>
+                      <InvoiceScanControl
+                        compact
+                        readOnly={readOnly}
+                        scanUrl={r.invoice_scan_url || r.lines?.find((l) => l.invoice_scan_url)?.invoice_scan_url}
+                        scanName={r.invoice_scan_name || r.lines?.find((l) => l.invoice_scan_url)?.invoice_scan_name}
+                        invoiceNo={r.invoice_no}
+                        invoiceDate={r.invoice_date}
+                        entityCode={r.group_code || `DNTT-${r.legacy_stt || r.id}`}
+                        supplierName={r.payee_name}
+                        onUpdate={(scanUrl, scanName) => {
+                          const patch: Partial<PaymentRequestEntry> = {
+                            invoice_scan_url: scanUrl,
+                            invoice_scan_name: scanName,
+                          };
+                          if (r.lines && r.lines.length === 1) {
+                            const nextLines = [...r.lines];
+                            nextLines[0] = {
+                              ...nextLines[0],
+                              invoice_scan_url: scanUrl,
+                              invoice_scan_name: scanName,
+                            };
+                            patch.lines = nextLines;
+                          }
+                          handleEditRequest(r.id, patch);
+                        }}
+                      />
+                    </div>
+                  </div>
+                )}
 
                 {docs.length > 0 && (
                   <div className="m-card-docs">

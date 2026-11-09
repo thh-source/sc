@@ -20,6 +20,8 @@ import {
   Package,
   Eye,
   EyeOff,
+  Lock,
+  Unlock,
 } from "lucide-react";
 import { PaymentHandoverItem, PR, PO, Supplier, PaymentRequestEntry, isItemHidden } from "../types";
 import { calcPODeliveryStats } from "../utils/paymentSync";
@@ -158,8 +160,21 @@ export function HandoverManagement({
   const [userMobileToggle, setUserMobileToggle] = useState<boolean | null>(true);
   const showMobileCards = userMobileToggle !== null ? userMobileToggle : true;
   const [expandedBatchKeys, setExpandedBatchKeys] = useState<Set<string>>(new Set());
+  const [unlockedBatchKeys, setUnlockedBatchKeys] = useState<Set<string>>(new Set());
   const [editingBatchKey, setEditingBatchKey] = useState<string | null>(null);
   const [editingBatchItemIds, setEditingBatchItemIds] = useState<number[] | null>(null);
+
+  const toggleUnlockBatch = (batchKey: string) => {
+    setUnlockedBatchKeys((prev) => {
+      const next = new Set(prev);
+      if (next.has(batchKey)) {
+        next.delete(batchKey);
+      } else {
+        next.add(batchKey);
+      }
+      return next;
+    });
+  };
 
   // Column customization modal state & persistence
   const [showColumnConfigModal, setShowColumnConfigModal] = useState(false);
@@ -1567,27 +1582,34 @@ export function HandoverManagement({
             };
 
             const isBatchHidden = batch.items.length > 0 && batch.items.every((it) => isItemHidden(it));
+            const isUnlocked = unlockedBatchKeys.has(batch.batchKey);
 
             return (
               <div
                 key={batch.batchKey}
-                className={`m-card handover-batch-card ${allChecked ? "m-card-checked" : ""} ${isBatchHidden ? "handover-batch-hidden" : ""}`}
+                className={`m-card handover-batch-card ${allChecked ? "m-card-checked" : ""} ${isBatchHidden ? "handover-batch-hidden" : ""} ${isUnlocked ? "handover-batch-unlocked" : ""}`}
                 style={{
                   background: isBatchHidden ? "#fffdfa" : "#ffffff",
                   opacity: isBatchHidden ? 0.82 : 1,
-                  border: isBatchHidden
+                  border: isUnlocked
+                    ? "2px solid #0284c7"
+                    : isBatchHidden
                     ? "1px dashed #f59e0b"
                     : allChecked
                     ? "2px solid #0284c7"
                     : "1px solid #cbd5e1",
-                  borderLeft: isBatchHidden
+                  borderLeft: isUnlocked
+                    ? "5px solid #0284c7"
+                    : isBatchHidden
                     ? "5px solid #d97706"
                     : allChecked
                     ? "5px solid #0284c7"
                     : "5px solid #2B6DF8",
                   borderRadius: "14px",
                   padding: "16px 18px",
-                  boxShadow: "0 4px 14px rgba(15, 23, 42, 0.05)",
+                  boxShadow: isUnlocked
+                    ? "0 0 0 3px rgba(2, 132, 199, 0.15), 0 6px 20px rgba(15, 23, 42, 0.08)"
+                    : "0 4px 14px rgba(15, 23, 42, 0.05)",
                   display: "flex",
                   flexDirection: "column",
                   gap: "12px",
@@ -1703,26 +1725,148 @@ export function HandoverManagement({
                     </div>
                   </div>
 
-                  <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "4px", flexShrink: 0 }}>
-                    <span
-                      style={{
-                        fontSize: "11.5px",
-                        fontWeight: 700,
-                        color: "#047857",
-                        background: "#ecfdf5",
-                        border: "1px solid #a7f3d0",
-                        padding: "3px 9px",
-                        borderRadius: "999px",
-                        whiteSpace: "nowrap",
-                      }}
-                    >
-                      🏢 {batch.department}
-                    </span>
-                    <span style={{ fontSize: "11.5px", fontWeight: 600, color: "#64748b", whiteSpace: "nowrap" }}>
-                      📅 {batch.date || "Chưa ghi ngày"}
-                    </span>
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "6px", flexShrink: 0 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleUnlockBatch(batch.batchKey);
+                        }}
+                        title={isUnlocked ? "Khóa lại & hoàn tất sửa trực tiếp" : "Mở khóa để sửa trực tiếp trên thẻ này"}
+                        style={{
+                          background: isUnlocked ? "#ecfdf5" : "#f1f5f9",
+                          color: isUnlocked ? "#047857" : "#475569",
+                          border: isUnlocked ? "1.5px solid #10b981" : "1px solid #cbd5e1",
+                          borderRadius: "6px",
+                          padding: "3px 8px",
+                          fontSize: "11px",
+                          fontWeight: 700,
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: "4px",
+                          cursor: "pointer",
+                          boxShadow: isUnlocked ? "0 0 0 2px rgba(16, 185, 129, 0.25)" : undefined,
+                        }}
+                      >
+                        {isUnlocked ? <Lock size={12} className="text-emerald-600" /> : <Unlock size={12} />}
+                        <span>{isUnlocked ? "Khóa lại" : "Mở khóa sửa"}</span>
+                      </button>
+                    </div>
+
+                    {isUnlocked ? (
+                      <div style={{ display: "flex", flexDirection: "column", gap: "4px", alignItems: "flex-end" }}>
+                        <input
+                          list="deptSuggestions"
+                          value={batch.department || ""}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            const batchIdSet = new Set(batch.items.map((it) => it.id));
+                            const next = paymentHandovers.map((h) =>
+                              batchIdSet.has(h.id) ? { ...h, department: val } : h
+                            );
+                            triggerUpdateHandovers(next);
+                          }}
+                          placeholder="Bộ phận nhận..."
+                          title="Sửa bộ phận tiếp nhận"
+                          style={{
+                            fontSize: "11.5px",
+                            fontWeight: 700,
+                            color: "#047857",
+                            background: "#ffffff",
+                            border: "1.5px solid #0284c7",
+                            padding: "2px 8px",
+                            borderRadius: "6px",
+                            width: "135px",
+                            textAlign: "right",
+                          }}
+                        />
+                        <input
+                          type="date"
+                          value={batch.date || ""}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            const batchIdSet = new Set(batch.items.map((it) => it.id));
+                            const next = paymentHandovers.map((h) =>
+                              batchIdSet.has(h.id) ? { ...h, handover_date: val } : h
+                            );
+                            triggerUpdateHandovers(next);
+                          }}
+                          title="Sửa ngày bàn giao"
+                          style={{
+                            fontSize: "11px",
+                            fontWeight: 600,
+                            color: "#0f172a",
+                            background: "#ffffff",
+                            border: "1.5px solid #0284c7",
+                            padding: "2px 6px",
+                            borderRadius: "6px",
+                            width: "135px",
+                          }}
+                        />
+                      </div>
+                    ) : (
+                      <>
+                        <span
+                          style={{
+                            fontSize: "11.5px",
+                            fontWeight: 700,
+                            color: "#047857",
+                            background: "#ecfdf5",
+                            border: "1px solid #a7f3d0",
+                            padding: "3px 9px",
+                            borderRadius: "999px",
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          🏢 {batch.department}
+                        </span>
+                        <span style={{ fontSize: "11.5px", fontWeight: 600, color: "#64748b", whiteSpace: "nowrap" }}>
+                          📅 {batch.date || "Chưa ghi ngày"}
+                        </span>
+                      </>
+                    )}
                   </div>
                 </div>
+
+                {isUnlocked && (
+                  <div
+                    style={{
+                      fontSize: "11px",
+                      fontWeight: 700,
+                      color: "#0369a1",
+                      background: "#f0f9ff",
+                      border: "1px solid #bae6fd",
+                      borderRadius: "6px",
+                      padding: "5px 10px",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      gap: "6px",
+                    }}
+                  >
+                    <span>🔓 Đang mở khóa sửa trực tiếp đợt bàn giao · Dữ liệu tự động lưu tức thì</span>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleUnlockBatch(batch.batchKey);
+                      }}
+                      style={{
+                        background: "#0284c7",
+                        color: "#ffffff",
+                        border: "none",
+                        borderRadius: "4px",
+                        padding: "2px 8px",
+                        fontSize: "11px",
+                        fontWeight: 700,
+                        cursor: "pointer",
+                      }}
+                    >
+                      ✓ Khóa lại
+                    </button>
+                  </div>
+                )}
 
                 {/* 3 Ô Tổng hợp Số lượng của cả Đợt Bàn Giao */}
                 <div
@@ -1765,7 +1909,7 @@ export function HandoverManagement({
                 {/* Bảng danh sách các sản phẩm nằm trong Đợt Bàn Giao này */}
                 <div
                   style={{
-                    border: "1px solid #e2e8f0",
+                    border: isUnlocked ? "1.5px solid #0284c7" : "1px solid #e2e8f0",
                     borderRadius: "9px",
                     overflow: "hidden",
                     background: "#ffffff",
@@ -1773,38 +1917,217 @@ export function HandoverManagement({
                 >
                   <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12px" }}>
                     <thead>
-                      <tr style={{ background: "#f1f5f9", color: "#334155", borderBottom: "1px solid #cbd5e1" }}>
-                        <th style={{ width: "34px", padding: "6px 4px", textAlign: "center", fontWeight: 700 }}>#</th>
+                      <tr style={{ background: isUnlocked ? "#f0f9ff" : "#f1f5f9", color: "#334155", borderBottom: "1px solid #cbd5e1" }}>
+                        <th style={{ width: "28px", padding: "6px 2px", textAlign: "center", fontWeight: 700 }}>#</th>
                         <th style={{ padding: "6px 8px", textAlign: "left", fontWeight: 700 }}>Danh mục vật tư trong đợt</th>
-                        <th style={{ width: "54px", padding: "6px 4px", textAlign: "center", fontWeight: 700 }}>ĐVT</th>
-                        <th style={{ width: "64px", padding: "6px 6px", textAlign: "right", fontWeight: 700 }}>Đạt</th>
+                        <th style={{ width: isUnlocked ? "65px" : "54px", padding: "6px 4px", textAlign: "center", fontWeight: 700 }}>ĐVT</th>
+                        <th style={{ width: isUnlocked ? "65px" : "64px", padding: "6px 4px", textAlign: "right", fontWeight: 700 }}>Đạt</th>
+                        {isUnlocked && <th style={{ width: "55px", padding: "6px 4px", textAlign: "center", fontWeight: 700, color: "#dc2626" }}>Lỗi</th>}
+                        {isUnlocked && !readOnly && <th style={{ width: "32px", padding: "6px 2px", textAlign: "center", fontWeight: 700 }}>✕</th>}
                       </tr>
                     </thead>
                     <tbody>
-                      {previewItems.map((it, idx) => (
+                      {(isUnlocked ? batch.items : previewItems).map((it, idx) => (
                         <tr key={it.id} style={{ borderBottom: "1px solid #f1f5f9" }}>
-                          <td style={{ padding: "6px 4px", textAlign: "center", color: "#64748b", fontWeight: 600 }}>
+                          <td style={{ padding: "6px 2px", textAlign: "center", color: "#64748b", fontWeight: 600 }}>
                             {idx + 1}
                           </td>
                           <td style={{ padding: "6px 8px", color: "#0f172a", fontWeight: 600 }}>
-                            <div style={{ lineHeight: 1.3 }}>{it.item_name || "(Chưa nhập tên vật tư)"}</div>
-                            {it.note && (
-                              <div style={{ fontSize: "10.5px", color: "#64748b", fontWeight: 500, marginTop: "1px" }}>
-                                Ghi chú: {it.note}
+                            {isUnlocked ? (
+                              <div>
+                                <input
+                                  list="handoverItemSuggestions"
+                                  value={it.item_name || ""}
+                                  onChange={(e) => handleEditHandover(it.id, "item_name", e.target.value)}
+                                  placeholder="Tên hàng hóa..."
+                                  style={{
+                                    width: "100%",
+                                    padding: "4px 6px",
+                                    fontSize: "12px",
+                                    fontWeight: 600,
+                                    border: "1px solid #cbd5e1",
+                                    borderRadius: "4px",
+                                    boxSizing: "border-box",
+                                  }}
+                                />
+                                <input
+                                  list="handoverNoteSuggestions"
+                                  value={it.note || ""}
+                                  onChange={(e) => handleEditHandover(it.id, "note", e.target.value)}
+                                  placeholder="Ghi chú thêm..."
+                                  style={{
+                                    width: "100%",
+                                    padding: "3px 6px",
+                                    fontSize: "11px",
+                                    border: "1px dashed #cbd5e1",
+                                    borderRadius: "4px",
+                                    marginTop: "3px",
+                                    color: "#475569",
+                                    boxSizing: "border-box",
+                                  }}
+                                />
                               </div>
+                            ) : (
+                              <>
+                                <div style={{ lineHeight: 1.3 }}>{it.item_name || "(Chưa nhập tên vật tư)"}</div>
+                                {it.note && (
+                                  <div style={{ fontSize: "10.5px", color: "#64748b", fontWeight: 500, marginTop: "1px" }}>
+                                    Ghi chú: {it.note}
+                                  </div>
+                                )}
+                              </>
                             )}
                           </td>
                           <td style={{ padding: "6px 4px", textAlign: "center", color: "#475569" }}>
-                            {it.unit || "Cái"}
+                            {isUnlocked ? (
+                              <input
+                                list="unitSuggestions"
+                                value={it.unit || ""}
+                                onChange={(e) => handleEditHandover(it.id, "unit", e.target.value)}
+                                placeholder="ĐVT"
+                                style={{
+                                  width: "100%",
+                                  padding: "4px 2px",
+                                  fontSize: "12px",
+                                  textAlign: "center",
+                                  border: "1px solid #cbd5e1",
+                                  borderRadius: "4px",
+                                  boxSizing: "border-box",
+                                }}
+                              />
+                            ) : (
+                              it.unit || "Cái"
+                            )}
                           </td>
-                          <td style={{ padding: "6px 6px", textAlign: "right", fontWeight: 800, color: "#059669" }}>
-                            {it.quantity_pass || it.quantity_doc || 0}
+                          <td style={{ padding: "6px 4px", textAlign: "right", fontWeight: 800, color: "#059669" }}>
+                            {isUnlocked ? (
+                              <input
+                                type="number"
+                                step="any"
+                                value={it.quantity_pass ?? it.quantity_doc ?? 0}
+                                onChange={(e) => handleEditHandover(it.id, "quantity_pass", Number(e.target.value))}
+                                style={{
+                                  width: "100%",
+                                  padding: "4px 2px",
+                                  fontSize: "12px",
+                                  textAlign: "right",
+                                  fontWeight: 800,
+                                  color: "#059669",
+                                  background: "#f0fdf4",
+                                  border: "1px solid #86efac",
+                                  borderRadius: "4px",
+                                  boxSizing: "border-box",
+                                }}
+                              />
+                            ) : (
+                              it.quantity_pass || it.quantity_doc || 0
+                            )}
                           </td>
+                          {isUnlocked && (
+                            <td style={{ padding: "6px 4px", textAlign: "center" }}>
+                              <input
+                                type="number"
+                                step="any"
+                                value={it.quantity_fail || 0}
+                                onChange={(e) => handleEditHandover(it.id, "quantity_fail", Number(e.target.value))}
+                                style={{
+                                  width: "100%",
+                                  padding: "4px 2px",
+                                  fontSize: "12px",
+                                  textAlign: "center",
+                                  fontWeight: 700,
+                                  color: "#dc2626",
+                                  background: "#fff5f5",
+                                  border: "1px solid #fecaca",
+                                  borderRadius: "4px",
+                                  boxSizing: "border-box",
+                                }}
+                              />
+                            </td>
+                          )}
+                          {isUnlocked && !readOnly && (
+                            <td style={{ padding: "6px 2px", textAlign: "center" }}>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (batch.items.length <= 1) {
+                                    handleDeleteBatch();
+                                    return;
+                                  }
+                                  if (!confirm(`Bạn có chắc muốn xóa "${it.item_name || 'vật tư này'}" khỏi đợt?`)) return;
+                                  const next = paymentHandovers.filter((h) => h.id !== it.id);
+                                  triggerUpdateHandovers(next);
+                                  setCheckedHandovers((prev) => {
+                                    const s = new Set(prev);
+                                    s.delete(it.id);
+                                    return s;
+                                  });
+                                }}
+                                style={{
+                                  border: "none",
+                                  background: "transparent",
+                                  color: "#ef4444",
+                                  cursor: "pointer",
+                                  padding: "2px",
+                                  fontWeight: 700,
+                                  fontSize: "13px",
+                                }}
+                                title="Xóa dòng vật tư này"
+                              >
+                                ✕
+                              </button>
+                            </td>
+                          )}
                         </tr>
                       ))}
                     </tbody>
                   </table>
-                  {batch.items.length > 4 && (
+
+                  {isUnlocked && !readOnly && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const newId = Date.now() + Math.floor(Math.random() * 1000);
+                        const newItem: PaymentHandoverItem = {
+                          id: newId,
+                          batch_id: batch.items.find((i) => i.batch_id)?.batch_id || (batch.sourceNumber ? `${batch.sourceNumber}_${batch.date || localToday()}` : `BATCH_${Date.now()}`),
+                          handover_date: batch.date || localToday(),
+                          department: batch.department || "Kho",
+                          sender_name: batch.senderName || "Trần Hải Hà",
+                          receiver_name: batch.receiverName || "",
+                          source_type: batch.sourceType || (batch.sourceNumber ? "PO" : undefined),
+                          source_number: batch.sourceNumber,
+                          item_name: "",
+                          unit: "Cái",
+                          quantity_doc: 1,
+                          quantity_pass: 1,
+                          quantity_fail: 0,
+                          note: "",
+                          status: "Đã bàn giao",
+                        };
+                        triggerUpdateHandovers([...paymentHandovers, newItem]);
+                      }}
+                      style={{
+                        width: "100%",
+                        padding: "7px 10px",
+                        background: "#f0fdf4",
+                        border: "none",
+                        borderTop: "1px dashed #86efac",
+                        color: "#047857",
+                        fontSize: "11.5px",
+                        fontWeight: 700,
+                        cursor: "pointer",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        gap: "4px",
+                      }}
+                    >
+                      <Plus size={13} /> Thêm mặt hàng mới vào đợt này
+                    </button>
+                  )}
+
+                  {!isUnlocked && batch.items.length > 4 && (
                     <button
                       type="button"
                       onClick={toggleExpand}
@@ -1829,10 +2152,61 @@ export function HandoverManagement({
 
                 {/* Thông tin Người giao - Người nhận & File biên bản */}
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "11.5px", color: "#475569", flexWrap: "wrap", gap: "6px" }}>
-                  <span>
-                    👤 Bên giao: <b style={{ color: "#0f172a" }}>{batch.senderName || "Trần Hải Hà"}</b> · Bên nhận:{" "}
-                    <b style={{ color: "#0f172a" }}>{batch.receiverName || "Chưa ghi tên"}</b>
-                  </span>
+                  {isUnlocked ? (
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                        <span style={{ color: "#64748b", fontWeight: 700 }}>👤 Bên giao:</span>
+                        <input
+                          list="handoverSenderSuggestions"
+                          value={batch.senderName || ""}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            const batchIdSet = new Set(batch.items.map((it) => it.id));
+                            const next = paymentHandovers.map((h) =>
+                              batchIdSet.has(h.id) ? { ...h, sender_name: val } : h
+                            );
+                            triggerUpdateHandovers(next);
+                          }}
+                          placeholder="Họ tên người giao..."
+                          style={{
+                            padding: "3px 6px",
+                            fontSize: "11.5px",
+                            border: "1px solid #cbd5e1",
+                            borderRadius: "5px",
+                            width: "120px",
+                          }}
+                        />
+                      </div>
+                      <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                        <span style={{ color: "#64748b", fontWeight: 700 }}>Bên nhận:</span>
+                        <input
+                          list="handoverReceiverSuggestions"
+                          value={batch.receiverName || ""}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            const batchIdSet = new Set(batch.items.map((it) => it.id));
+                            const next = paymentHandovers.map((h) =>
+                              batchIdSet.has(h.id) ? { ...h, receiver_name: val } : h
+                            );
+                            triggerUpdateHandovers(next);
+                          }}
+                          placeholder="Họ tên người nhận..."
+                          style={{
+                            padding: "3px 6px",
+                            fontSize: "11.5px",
+                            border: "1px solid #cbd5e1",
+                            borderRadius: "5px",
+                            width: "120px",
+                          }}
+                        />
+                      </div>
+                    </div>
+                  ) : (
+                    <span>
+                      👤 Bên giao: <b style={{ color: "#0f172a" }}>{batch.senderName || "Trần Hải Hà"}</b> · Bên nhận:{" "}
+                      <b style={{ color: "#0f172a" }}>{batch.receiverName || "Chưa ghi tên"}</b>
+                    </span>
+                  )}
                   <HandoverScanControl
                     compact
                     readOnly={readOnly}
@@ -1874,6 +2248,38 @@ export function HandoverManagement({
                     flexWrap: "wrap",
                   }}
                 >
+                  {isUnlocked ? (
+                    <button
+                      type="button"
+                      className="stitch-action-pill pill-emerald"
+                      onClick={() => toggleUnlockBatch(batch.batchKey)}
+                      title="Khóa lại và hoàn tất chỉnh sửa"
+                      style={{ fontWeight: 800 }}
+                    >
+                      <Lock size={13} />
+                      <span>✓ Khóa lại</span>
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      className="stitch-action-pill"
+                      onClick={() => toggleUnlockBatch(batch.batchKey)}
+                      title="Mở khóa để sửa trực tiếp trên thẻ này"
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: "4px",
+                        background: "#f0f9ff",
+                        color: "#0369a1",
+                        border: "1px solid #bae6fd",
+                        fontWeight: 700,
+                      }}
+                    >
+                      <Unlock size={13} />
+                      <span>Sửa trên thẻ</span>
+                    </button>
+                  )}
+
                   <button
                     type="button"
                     className="stitch-action-pill pill-navy"
@@ -1881,7 +2287,7 @@ export function HandoverManagement({
                       setEditingBatchKey(batch.batchKey);
                       setEditingBatchItemIds(batch.items.map((it) => it.id));
                     }}
-                    title="Mở xem & chỉnh sửa chi tiết đợt bàn giao này"
+                    title="Mở xem & chỉnh sửa chi tiết đợt bàn giao này trong cửa sổ lớn"
                   >
                     <span>✎ Chi tiết / Sửa đợt</span>
                   </button>
