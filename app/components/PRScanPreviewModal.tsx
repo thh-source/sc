@@ -21,6 +21,8 @@ export function printScanFileUrl(scanUrl: string, title = "Bản scan chứng t�
   if (!scanUrl) return;
   const isPdf =
     scanUrl.toLowerCase().includes(".pdf") ||
+    title.toLowerCase().endsWith(".pdf") ||
+    title.toLowerCase().includes(".pdf") ||
     (scanUrl.toLowerCase().includes("key=") && scanUrl.toLowerCase().includes(".pdf"));
 
   if (isPdf) {
@@ -78,6 +80,8 @@ export async function createScanShareUrl(params: {
 }): Promise<string> {
   const isPdf =
     params.scanUrl.toLowerCase().includes(".pdf") ||
+    params.fileName.toLowerCase().endsWith(".pdf") ||
+    params.fileName.toLowerCase().includes(".pdf") ||
     (params.scanUrl.toLowerCase().includes("key=") && params.scanUrl.toLowerCase().includes(".pdf"));
   const res = await fetch("/api/share-file", {
     method: "POST",
@@ -102,16 +106,29 @@ export function PRScanPreviewModal({ pr, onClose }: PRScanPreviewModalProps) {
   const [zoom, setZoom] = useState(1);
   const [rotation, setRotation] = useState(0);
   const [shareData, setShareData] = useState<{ isOpen: boolean; shareUrl: string } | null>(null);
+  const [forceIframe, setForceIframe] = useState(false);
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
   const scanUrl = pr.scan_file_url || "";
-  const isPdf =
-    scanUrl.toLowerCase().includes(".pdf") ||
-    (scanUrl.toLowerCase().includes("key=") && scanUrl.toLowerCase().includes(".pdf"));
-
   const displayTitle = (pr as any).customTitle || `Bản scan PR #${pr.number}`;
   const displaySubtitle = (pr as any).customSubtitle || (pr.department ? `Đơn vị: ${pr.department}` : "");
   const entityType = (pr as any).entityType || "pr";
+
+  const rawFileName = ((pr as any).fileName || "").toLowerCase();
+  const rawTitle = (displayTitle || "").toLowerCase();
+  const rawNumber = (pr.number || "").toLowerCase();
+  const rawUrl = (scanUrl || "").toLowerCase();
+  const rawContentType = ((pr as any).contentType || "").toLowerCase();
+
+  const isPdf =
+    forceIframe ||
+    Boolean((pr as any).isPdf) ||
+    rawContentType.includes("pdf") ||
+    rawFileName.endsWith(".pdf") ||
+    rawTitle.includes(".pdf") ||
+    rawNumber.endsWith(".pdf") ||
+    rawUrl.includes(".pdf") ||
+    (rawUrl.includes("key=") && rawUrl.includes(".pdf"));
 
   const handleCreateShareLink = async () => {
     if (!scanUrl) return;
@@ -473,7 +490,11 @@ export function PRScanPreviewModal({ pr, onClose }: PRScanPreviewModalProps) {
             >
               <img
                 src={scanUrl}
-                alt={`Bản scan PR #${pr.number}`}
+                alt={displayTitle || `Bản scan PR #${pr.number}`}
+                onError={() => {
+                  // Nếu ảnh load lỗi (do là file PDF hoặc URL không phải ảnh thuần), tự động chuyển sang iframe
+                  setForceIframe(true);
+                }}
                 style={{
                   maxWidth: "100%",
                   maxHeight: "75vh",

@@ -477,7 +477,12 @@ export function DataVault({
 
     // 5. Các hồ sơ tải lên qua DocumentManager & Kho dữ liệu (/api/files)
     r2Files.forEach((f) => {
-      const fileUrl = `/api/files/${encodeURIComponent(f.id)}`;
+      const isPdfFile =
+        (f.fileName || "").toLowerCase().endsWith(".pdf") ||
+        (f.contentType || "").toLowerCase().includes("pdf");
+      const fileUrl = `/api/files/${encodeURIComponent(f.id)}${
+        isPdfFile ? `?filename=${encodeURIComponent(f.fileName || "document.pdf")}` : ""
+      }`;
       if (seenUrls.has(fileUrl)) return;
 
       const docType = (f.documentType || "").trim();
@@ -1638,6 +1643,7 @@ export function DataVault({
             pr={{
               number: previewItem.docCode || previewItem.fileName,
               scan_file_url: previewItem.fileUrl,
+              fileName: previewItem.fileName,
               customTitle: `${previewItem.categoryLabel} · ${previewItem.fileName}`,
               customSubtitle: [
                 previewItem.partyOrDept && previewItem.partyOrDept !== "—"
@@ -1648,6 +1654,9 @@ export function DataVault({
                 .filter(Boolean)
                 .join(" · "),
               entityType: previewItem.category,
+              isPdf:
+                previewItem.fileName.toLowerCase().endsWith(".pdf") ||
+                previewItem.fileUrl.toLowerCase().includes(".pdf"),
             }}
             onClose={() => setPreviewItem(null)}
           />,
