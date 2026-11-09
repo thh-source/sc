@@ -909,19 +909,13 @@ export function HandoverManagement({
       const qty = Number(c.quantity_pass) || Number(c.quantity_doc) || 1;
       const unitPrice = poItem ? Number(poItem.price) || 0 : 0;
       const amount = unitPrice > 0 ? unitPrice * qty : 0;
-      const noteParts = [
-        `ĐVT: ${c.unit || "Cái"}`,
-        `SL giao: ${qty}`,
-        c.handover_date ? `Ngày BG: ${c.handover_date}` : "",
-        c.department ? `Bộ phận: ${c.department}` : "",
-      ].filter(Boolean);
 
       return {
         description: `${c.item_name}${c.unit ? ` (${qty} ${c.unit})` : ""}`,
         invoice_no: "",
         invoice_date: "",
         amount: amount,
-        note: noteParts.join(" · "),
+        note: "", // Người dùng yêu cầu: luôn để trống ghi chú
       };
     });
 
@@ -955,6 +949,7 @@ export function HandoverManagement({
       beneficiary_id: matchedSupplier?.id,
       created_by_name: chosen[0]?.sender_name || "Trần Hải Hà",
       lines: lines,
+      note: "",
     };
 
     if (onNavigateToPayment) {
