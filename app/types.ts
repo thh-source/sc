@@ -65,6 +65,8 @@ export type PR = {
   items: Item[];
   status: string;
   isCompleted?: boolean;
+  is_hidden?: boolean;
+  isHidden?: boolean;
   note?: string;
   quoteCustomColumns?: string[];
   scan_file_url?: string;
@@ -324,6 +326,8 @@ export type PO = {
   expectedDate: string;
   status: string;
   isCompleted?: boolean;
+  is_hidden?: boolean;
+  isHidden?: boolean;
   items: POItem[];
   docs: PODoc[];
   payments: Payment[];
@@ -518,6 +522,8 @@ export type PaymentRequestEntry = {
   payment_type: string;
   status: string;
   isCompleted?: boolean;
+  is_hidden?: boolean;
+  isHidden?: boolean;
   paidAt?: string;
   doc_supplement?: string;
   address?: string;
@@ -564,6 +570,8 @@ export type PaymentHandoverItem = {
   source_number?: string;
   specification?: string;
   isCompleted?: boolean;
+  is_hidden?: boolean;
+  isHidden?: boolean;
   po_item_id?: number;
   batch_id?: string;
   batch_number?: number;
@@ -684,8 +692,17 @@ export type ApprovalRequest = {
   customSigners?: ApprovalCustomSigner[];
   status: "Nháp" | "Chờ phê duyệt" | "Đã phê duyệt" | "Đã tạo PO";
   isCompleted?: boolean;
+  is_hidden?: boolean;
+  isHidden?: boolean;
   linkedPoId?: number;
   linkedPoNumber?: string;
+};
+
+export const isItemHidden = (
+  item: { is_hidden?: boolean; isHidden?: boolean } | null | undefined
+): boolean => {
+  if (!item) return false;
+  return Boolean(item.is_hidden || item.isHidden);
 };
 
 export type StoredState = {

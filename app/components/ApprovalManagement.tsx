@@ -19,6 +19,7 @@ import {
   CheckCircle2,
   Circle,
   Eye,
+  EyeOff,
   PackageCheck,
   Sliders,
   MoveHorizontal,
@@ -33,6 +34,9 @@ import {
   PO,
   Quote,
   Supplier,
+  TrashItem,
+  PaymentHandoverItem,
+  isItemHidden,
   TrashItem,
   generatePOCode,
   isPONumberExists,
@@ -816,6 +820,33 @@ export default function ApprovalManagement({
   }, [autoOpenCreate]);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
+  const [showHidden, setShowHidden] = useState<boolean>(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("scmh_approval_show_hidden") === "true";
+    }
+    return false;
+  });
+
+  const toggleShowHidden = () => {
+    setShowHidden((prev) => {
+      const next = !prev;
+      if (typeof window !== "undefined") {
+        localStorage.setItem("scmh_approval_show_hidden", String(next));
+      }
+      return next;
+    });
+  };
+
+  const hiddenApprovalCount = useMemo(() => {
+    return approvalRequests.filter((r) => isItemHidden(r)).length;
+  }, [approvalRequests]);
+
+  const handleToggleHideApproval = (id: number) => {
+    const target = approvalRequests.find((r) => r.id === id);
+    if (!target) return;
+    const nextHidden = !isItemHidden(target);
+    onSaveApproval({ ...target, isHidden: nextHidden, is_hidden: nextHidden });
+  };
   const [sourceModalMode, setSourceModalMode] = useState<"compare" | "pr" | null>(
     null,
   );
@@ -932,6 +963,7 @@ export default function ApprovalManagement({
   const filteredRequests = useMemo(() => {
     return approvalRequests
       .filter((req) => {
+        if (!showHidden && isItemHidden(req)) return false;
         if (statusFilter !== "ALL" && req.status !== statusFilter) return false;
         if (!searchQuery.trim()) return true;
         const q = searchQuery.toLowerCase();
@@ -950,7 +982,7 @@ export default function ApprovalManagement({
         if (dateB !== dateA) return dateB - dateA;
         return (Number(b.id) || 0) - (Number(a.id) || 0);
       });
-  }, [approvalRequests, searchQuery, statusFilter]);
+  }, [approvalRequests, searchQuery, statusFilter, showHidden]);
 
   // Chỉ mở giao diện làm việc khi activeApprovalId khác null và tìm thấy phiếu
   const activeRequest = useMemo(() => {
@@ -2209,6 +2241,20 @@ export default function ApprovalManagement({
               >
                 Đã tạo PO <b>{poCreatedCount}</b>
               </button>
+              <button
+                type="button"
+                className={`stitch-seg-btn ${showHidden ? "active" : ""}`}
+                onClick={toggleShowHidden}
+                title={showHidden ? "Đang hiển thị cả ĐNPD đã ẩn. Bấm để ẩn lại" : "Bấm để xem các ĐNPD đã ẩn"}
+                style={{
+                  background: showHidden ? "#fef3c7" : undefined,
+                  color: showHidden ? "#92400e" : undefined,
+                  borderColor: showHidden ? "#f59e0b" : undefined,
+                  fontWeight: showHidden ? 700 : undefined,
+                }}
+              >
+                {showHidden ? <Eye size={14} /> : <EyeOff size={14} />} Đã ẩn <b>{hiddenApprovalCount}</b>
+              </button>
             </div>
 
             <div style={{ display: "flex", gap: 10, alignItems: "center", flex: 1, justifyContent: "flex-end", flexWrap: "wrap" }}>
@@ -2260,7 +2306,7 @@ export default function ApprovalManagement({
                 const ctxStatus = getApprovalContextualStatus(req, pos, paymentHandovers);
 
                 return (
-                  <article key={req.id} className={isDone ? "row-completed" : ""}>
+                  <article key={req.id} className={`${isDone ? "row-completed" : ""} ${isItemHidden(req) ? "row-hidden" : ""}`} style={isItemHidden(req) ? { opacity: 0.8, border: "1px dashed #f59e0b", background: "#fffdfa" } : undefined}>
                     <header>
                       <div style={{ display: "inline-flex", alignItems: "center", gap: "8px" }}>
                         {onToggleComplete && (
@@ -2287,6 +2333,22 @@ export default function ApprovalManagement({
                         >
                           {req.prNumber || req.requestNumber}
                         </button>
+                        {isItemHidden(req) && (
+                          <span
+                            style={{
+                              fontSize: "11px",
+                              fontWeight: 700,
+                              color: "#b45309",
+                              background: "#fef3c7",
+                              border: "1px solid #fde68a",
+                              padding: "1px 6px",
+                              borderRadius: "4px",
+                              whiteSpace: "nowrap",
+                            }}
+                          >
+                            Đã ẩn
+                          </span>
+                        )}
                       </div>
                       <span className={`status ${ctxStatus.badgeClass}`} style={ctxStatus.style}>
                         {ctxStatus.text}
@@ -2366,6 +2428,22 @@ export default function ApprovalManagement({
                           <span>Tạo PO</span>
                         </button>
                       ) : null}
+
+                      {!isReportMode && (
+                        <button
+                          type="button"
+                          className="m-action-btn"
+                          onClick={() => handleToggleHideApproval(req.id)}
+                          title={isItemHidden(req) ? "Hiện lại phiếu ĐNPD này" : "Ẩn phiếu ĐNPD này khỏi danh sách"}
+                          style={{
+                            color: isItemHidden(req) ? "#b45309" : "#64748b",
+                            background: isItemHidden(req) ? "#fef3c7" : undefined,
+                          }}
+                        >
+                          {isItemHidden(req) ? <Eye size={17} /> : <EyeOff size={17} />}
+                          <span>{isItemHidden(req) ? "Hiện lại" : "Ẩn"}</span>
+                        </button>
+                      )}
 
                       {!isReportMode && (
                         <button
@@ -2471,6 +2549,22 @@ export default function ApprovalManagement({
                             >
                               {req.prNumber || req.requestNumber}
                             </button>
+                            {isItemHidden(req) && (
+                              <span
+                                style={{
+                                  fontSize: "11px",
+                                  fontWeight: 700,
+                                  color: "#b45309",
+                                  background: "#fef3c7",
+                                  border: "1px solid #fde68a",
+                                  padding: "1px 6px",
+                                  borderRadius: "4px",
+                                  whiteSpace: "nowrap",
+                                }}
+                              >
+                                Đã ẩn
+                              </span>
+                            )}
                           </div>
                         </td>
                         <td>{getApprovalDisplayDate(req.createdDate, req.id)}</td>
@@ -2536,6 +2630,17 @@ export default function ApprovalManagement({
                                   <span>Tạo PO</span>
                                 </button>
                               )}
+                            {!isReportMode && (
+                              <button
+                                type="button"
+                                className="btn-icon"
+                                onClick={() => handleToggleHideApproval(req.id)}
+                                title={isItemHidden(req) ? "Hiện lại phiếu ĐNPD này" : "Ẩn phiếu ĐNPD này khỏi bảng"}
+                                style={{ color: isItemHidden(req) ? "#d97706" : "#64748b" }}
+                              >
+                                {isItemHidden(req) ? <Eye size={15} /> : <EyeOff size={15} />}
+                              </button>
+                            )}
                             {!isReportMode && (
                               <button
                                 type="button"

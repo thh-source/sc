@@ -18,7 +18,7 @@ import "./vat-quote.css";
 
 import { PaymentManagement } from "./components/PaymentManagement";
 import { BANK_SUGGESTIONS, DEFAULT_PAYMENT_TEMPLATE, localToday } from "./payment-utils";
-import { Item, Supplier, PurchaseHistory, QuoteMode, QuoteEntry, Quote, PR, POItem, POCartLine, ApprovalRow, ApprovalDraft, ApprovalRequest, PODoc, Payment, PO, TrashItem, View, ColumnKey, SortState, PaymentDetailLine, PaymentRequestEntry, PaymentGroup, PaymentBeneficiary, PaymentHandoverItem, PaymentPrintTemplate, StoredState, isContractPO, buildPOPaymentDescription, formatPONumber, generatePOCode, isPONumberExists, calcPOTotal, PODeliveryLog } from "./types";
+import { Item, Supplier, PurchaseHistory, QuoteMode, QuoteEntry, Quote, PR, POItem, POCartLine, ApprovalRow, ApprovalDraft, ApprovalRequest, PODoc, Payment, PO, TrashItem, View, ColumnKey, SortState, PaymentDetailLine, PaymentRequestEntry, PaymentGroup, PaymentBeneficiary, PaymentHandoverItem, PaymentPrintTemplate, StoredState, isContractPO, buildPOPaymentDescription, formatPONumber, generatePOCode, isPONumberExists, calcPOTotal, PODeliveryLog, isItemHidden } from "./types";
 import { BASE_COLUMNS, reorder, applyTools, makeId, emptyItem, fmt, dateVN, DEFAULT_VAT_RATE, quoteDefaults, quoteBeforeVat, quoteAfterVat, quoteComparePrice, mergeHistorySeed, PurchaseHistorySeed, excelNumber, emptyPR, emptyPO, generateShortName } from "./utils";
 import { items0, suppliers0, purchaseHistory0, quotes0, prs0, pos0, HISTORY_SEED_ID } from "./seed";
 import { AdvancedItemsTable } from "./components/AdvancedItemsTable";
@@ -2075,12 +2075,27 @@ function ProcurementAppInner({
     setStorageStatus(`Đã cập nhật PR ${pr.number} sang ${willComplete ? "Hoàn thành" : "Chưa hoàn thành"}`);
   }, []);
 
+  const handleToggleHidePR = useCallback((pr: PR) => {
+    const nextHidden = !isItemHidden(pr);
+    setPrs((list) =>
+      list.map((p) => (p.id === pr.id ? { ...p, isHidden: nextHidden, is_hidden: nextHidden } : p))
+    );
+    setStorageStatus(`Đã ${nextHidden ? "ẩn" : "bỏ ẩn"} PR ${pr.number}`);
+  }, []);
+
   const handleToggleCompletePO = useCallback((po: PO) => {
     const willComplete = !isPOCompleted(po);
     const nextStatus = willComplete ? "Đã hoàn thành" : "Đang thực hiện";
     const updated = { ...po, isCompleted: willComplete, status: nextStatus };
     updatePO(updated);
     setStorageStatus(`Đã cập nhật PO ${po.number} sang ${willComplete ? "Hoàn thành" : "Đang thực hiện"}`);
+  }, []);
+
+  const handleToggleHidePO = useCallback((po: PO) => {
+    const nextHidden = !isItemHidden(po);
+    const updated = { ...po, isHidden: nextHidden, is_hidden: nextHidden };
+    updatePO(updated);
+    setStorageStatus(`Đã ${nextHidden ? "ẩn" : "bỏ ẩn"} PO ${po.number}`);
   }, []);
 
   const handleToggleCompleteApproval = useCallback((appr: ApprovalRequest) => {
@@ -3215,6 +3230,7 @@ function ProcurementAppInner({
             onDelete={reportMode ? undefined : (pr) => requestDelete("PR", pr)}
             onNavigate={(route) => navigateTo(route)}
             onToggleComplete={handleToggleCompletePR}
+            onToggleHide={handleToggleHidePR}
             onUpdateScanUrl={handleUpdatePRScan}
             onCreateHandover={handleCreateHandoverFromPR}
           />
@@ -3257,6 +3273,7 @@ function ProcurementAppInner({
               paymentHandovers={paymentHandovers}
               onNavigate={(route) => navigateTo(route)}
               onToggleComplete={handleToggleCompletePO}
+              onToggleHidePO={handleToggleHidePO}
               onAddSupplier={handleAddSupplier}
               onAddProduct={handleAddProduct}
               onUpdatePO={handleUpdatePONumber}

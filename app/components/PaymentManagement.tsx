@@ -19,6 +19,8 @@ import {
   Circle,
   CheckCircle2,
   ClipboardPaste,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import {
   PO,
@@ -32,6 +34,7 @@ import {
   PR,
   getPOContractInfo,
   buildPOPaymentDescription,
+  isItemHidden,
 } from "../types";
 import { dateVN } from "../utils";
 import { useTranslation } from "../i18n";
@@ -496,6 +499,42 @@ export function PaymentManagement({
   const [statusFilter, setStatusFilter] = useState("");
   const [groupFilter, setGroupFilter] = useState("");
   const [isWorkspaceExpanded, setIsWorkspaceExpanded] = useState(false);
+  const [showHidden, setShowHidden] = useState<boolean>(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("scmh_payment_show_hidden") === "true";
+    }
+    return false;
+  });
+
+  const toggleShowHidden = () => {
+    setShowHidden((prev) => {
+      const next = !prev;
+      if (typeof window !== "undefined") {
+        localStorage.setItem("scmh_payment_show_hidden", String(next));
+      }
+      return next;
+    });
+  };
+
+  const hiddenCount = useMemo(() => {
+    return paymentRequests.filter((r) => isItemHidden(r)).length;
+  }, [paymentRequests]);
+
+  const handleToggleHideRequest = (id: number, currentHidden: boolean) => {
+    if (readOnly) return;
+    const nextHidden = !currentHidden;
+    handleEditRequest(id, { isHidden: nextHidden, is_hidden: nextHidden });
+  };
+
+  const handleHideSelectedRequests = (hide: boolean) => {
+    if (readOnly || checkedIds.size === 0) return;
+    const next = paymentRequests.map((r) => {
+      if (!checkedIds.has(r.id)) return r;
+      return { ...r, isHidden: hide, is_hidden: hide };
+    });
+    onUpdateState?.({ paymentRequests: next });
+    setCheckedIds(new Set());
+  };
 
   const handleToggleComplete = (r: PaymentRequestEntry) => {
     if (readOnly) return;
@@ -561,6 +600,9 @@ export function PaymentManagement({
     const tokens = rawQ ? normName(rawQ).split(/\s+/).filter(Boolean) : [];
 
     const list = paymentRequests.filter((r) => {
+      // 0. Ẩn/Hiện thẻ tùy thích: nếu không bật showHidden thì bỏ qua thẻ đã ẩn
+      if (!showHidden && isItemHidden(r)) return false;
+
       // 1. Bộ lọc trạng thái (chỉ 2 trạng thái: Đã thanh toán hoặc Chưa thanh toán)
       if (statusFilter) {
         const isPaid = isPaymentCompleted(r);
@@ -670,7 +712,7 @@ export function PaymentManagement({
       if (nb !== na) return nb - na;
       return (Number(b.id) || 0) - (Number(a.id) || 0);
     });
-  }, [paymentRequests, searchQuery, statusFilter, groupFilter, paymentGroups, suppliers, paymentTemplate]);
+  }, [paymentRequests, searchQuery, statusFilter, groupFilter, showHidden, paymentGroups, suppliers, paymentTemplate]);
 
   // Cập nhật activeRequestId hiển thị mục đầu tiên khi kết quả tìm kiếm thay đổi
   useEffect(() => {
@@ -2082,6 +2124,38 @@ export function PaymentManagement({
           ))}
         </select>
 
+        <button
+          type="button"
+          className={`btn btn-secondary btn-md ${showHidden ? "active" : ""}`}
+          onClick={toggleShowHidden}
+          title={showHidden ? "Đang hiển thị cả các thẻ đã ẩn. Bấm để ẩn lại" : "Bấm để xem các thẻ thanh toán đã ẩn"}
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: "5px",
+            background: showHidden ? "#fef3c7" : undefined,
+            color: showHidden ? "#92400e" : undefined,
+            borderColor: showHidden ? "#f59e0b" : undefined,
+            fontWeight: showHidden ? 700 : 500,
+          }}
+        >
+          {showHidden ? <Eye size={15} /> : <EyeOff size={15} />}
+          <span>{showHidden ? `Đang hiện đã ẩn (${hiddenCount})` : `Hiện đã ẩn (${hiddenCount})`}</span>
+        </button>
+
+        {checkedIds.size > 0 && !isPhoneScreen && (
+          <button
+            type="button"
+            className="btn btn-secondary btn-md"
+            onClick={() => handleHideSelectedRequests(!showHidden)}
+            title={showHidden ? "Hiện lại các phiếu đang chọn" : "Ẩn các phiếu đang chọn khỏi danh sách"}
+            style={{ display: "inline-flex", alignItems: "center", gap: "5px" }}
+          >
+            {showHidden ? <Eye size={15} /> : <EyeOff size={15} />}
+            <span>{showHidden ? "Hiện lại đã chọn" : "Ẩn đã chọn"} ({checkedIds.size})</span>
+          </button>
+        )}
+
         {!isPhoneScreen && !isCardView && (
           <button
             type="button"
@@ -2194,7 +2268,8 @@ export function PaymentManagement({
               <div
                 key={r.id}
                 id={`payment-row-${r.id}`}
-                className={`m-card ${isDone ? "m-card-done row-completed" : ""} ${isFlashing ? "row-highlight-flash" : ""}`}
+                className={`m-card ${isDone ? "m-card-done row-completed" : ""} ${isFlashing ? "row-highlight-flash" : ""} ${isItemHidden(r) ? "m-card-hidden" : ""}`}
+                style={isItemHidden(r) ? { opacity: 0.8, border: "1px dashed #f59e0b", background: "#fffdfa" } : undefined}
                 onClick={() => setActiveRequestId(r.id)}
               >
                 <div className="m-card-header">
@@ -2224,6 +2299,22 @@ export function PaymentManagement({
                       {isDone ? <CheckCircle2 size={18} className="text-emerald-600" /> : <Circle size={18} className="text-slate-400" />}
                     </button>
                     <span>STT {r.legacy_stt || r.id}</span>
+                    {isItemHidden(r) && (
+                      <span
+                        style={{
+                          fontSize: "11px",
+                          fontWeight: 700,
+                          color: "#b45309",
+                          background: "#fef3c7",
+                          border: "1px solid #fde68a",
+                          padding: "1px 6px",
+                          borderRadius: "4px",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        Đã ẩn
+                      </span>
+                    )}
                     {r.group_code && (
                       <span
                         style={{
@@ -2241,22 +2332,43 @@ export function PaymentManagement({
                       </span>
                     )}
                   </div>
-                  {isPhoneScreen ? (
-                    <span className={`m-badge ${stClass}`}>{currentStatus}</span>
-                  ) : (
-                    <select
-                      className={`m-badge-select ${stClass}`}
-                      value={currentStatus}
-                      onChange={(e) => handleTogglePaid(r.id, e.target.value === "Đã thanh toán")}
-                      title="Chuyển nhanh trạng thái"
+                  <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleToggleHideRequest(r.id, isItemHidden(r));
+                      }}
+                      title={isItemHidden(r) ? "Hiện lại thẻ thanh toán này" : "Ẩn thẻ thanh toán này khỏi danh sách"}
+                      style={{
+                        background: "transparent",
+                        border: "none",
+                        cursor: "pointer",
+                        padding: "2px 4px",
+                        color: isItemHidden(r) ? "#d97706" : "#94a3b8",
+                        display: "inline-flex",
+                        alignItems: "center",
+                      }}
                     >
-                      {PAYMENT_STATUSES.map((st) => (
-                        <option key={st} value={st}>
-                          {st}
-                        </option>
-                      ))}
-                    </select>
-                  )}
+                      {isItemHidden(r) ? <Eye size={17} /> : <EyeOff size={17} />}
+                    </button>
+                    {isPhoneScreen ? (
+                      <span className={`m-badge ${stClass}`}>{currentStatus}</span>
+                    ) : (
+                      <select
+                        className={`m-badge-select ${stClass}`}
+                        value={currentStatus}
+                        onChange={(e) => handleTogglePaid(r.id, e.target.value === "Đã thanh toán")}
+                        title="Chuyển nhanh trạng thái"
+                      >
+                        {PAYMENT_STATUSES.map((st) => (
+                          <option key={st} value={st}>
+                            {st}
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                  </div>
                 </div>
                 <div
                   className="m-card-payee"
@@ -2396,7 +2508,7 @@ export function PaymentManagement({
                   </div>
                 ) : (
                   /* Desktop Card Actions: Đầy đủ tính năng sửa, in, hồ sơ, xóa trên máy tính */
-                  <div className="m-card-desktop-tools" style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: "4px", width: "100%", marginTop: "8px" }}>
+                  <div className="m-card-desktop-tools" style={{ display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: "4px", width: "100%", marginTop: "8px" }}>
                     <button
                       type="button"
                       className="m-btn-edit-card"
@@ -2432,6 +2544,27 @@ export function PaymentManagement({
                       style={{ width: "100%", height: "29px", padding: "0 2px", fontSize: "11px", fontWeight: 700, display: "inline-flex", alignItems: "center", justifyContent: "center", gap: "3px" }}
                     >
                       <Printer size={12} /> In
+                    </button>
+                    <button
+                      type="button"
+                      className="m-btn-icon-action"
+                      onClick={() => handleToggleHideRequest(r.id, isItemHidden(r))}
+                      title={isItemHidden(r) ? "Hiện lại thẻ thanh toán này" : "Ẩn thẻ thanh toán này khỏi danh sách"}
+                      style={{
+                        width: "100%",
+                        height: "29px",
+                        padding: "0 2px",
+                        fontSize: "11px",
+                        fontWeight: 700,
+                        display: "inline-flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        gap: "3px",
+                        color: isItemHidden(r) ? "#b45309" : undefined,
+                        background: isItemHidden(r) ? "#fef3c7" : undefined,
+                      }}
+                    >
+                      {isItemHidden(r) ? <Eye size={12} /> : <EyeOff size={12} />} {isItemHidden(r) ? "Hiện" : "Ẩn"}
                     </button>
                     <button
                       type="button"
@@ -2596,9 +2729,9 @@ export function PaymentManagement({
 
                   <th
                     style={{
-                      width: "42px",
-                      minWidth: "42px",
-                      maxWidth: "42px",
+                      width: "68px",
+                      minWidth: "68px",
+                      maxWidth: "68px",
                       textAlign: "center",
                       padding: "6px 2px",
                       position: "sticky",
@@ -2609,7 +2742,7 @@ export function PaymentManagement({
                       boxSizing: "border-box",
                     }}
                   >
-                    Xóa
+                    Thao tác
                   </th>
                 </tr>
               </thead>
@@ -2714,30 +2847,49 @@ export function PaymentManagement({
                         );
                       })}
 
-                      {/* Delete action only */}
+                      {/* Actions: Hide/Unhide & Delete */}
                       <td
                         style={{
                           textAlign: "center",
-                          width: "42px",
-                          minWidth: "42px",
-                          maxWidth: "42px",
+                          width: "68px",
+                          minWidth: "68px",
+                          maxWidth: "68px",
                           padding: "4px 2px 2px",
                           boxSizing: "border-box",
                           verticalAlign: "top",
                         }}
                       >
-                        <button
-                          type="button"
-                          className="payment-btn btn-danger"
-                          style={{ padding: "2px 6px", fontSize: "11px" }}
-                          title="Xóa đề nghị này"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDeleteRequest(r.id);
-                          }}
-                        >
-                          ✕
-                        </button>
+                        <div style={{ display: "inline-flex", alignItems: "center", gap: "3px", justifyContent: "center" }}>
+                          <button
+                            type="button"
+                            className="payment-btn"
+                            style={{
+                              padding: "2px 5px",
+                              fontSize: "11px",
+                              color: isItemHidden(r) ? "#d97706" : "#64748b",
+                              background: isItemHidden(r) ? "#fef3c7" : undefined,
+                            }}
+                            title={isItemHidden(r) ? "Hiện lại đề nghị này" : "Ẩn đề nghị này khỏi bảng"}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleToggleHideRequest(r.id, isItemHidden(r));
+                            }}
+                          >
+                            {isItemHidden(r) ? <Eye size={13} /> : <EyeOff size={13} />}
+                          </button>
+                          <button
+                            type="button"
+                            className="payment-btn btn-danger"
+                            style={{ padding: "2px 6px", fontSize: "11px" }}
+                            title="Xóa đề nghị này"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteRequest(r.id);
+                            }}
+                          >
+                            ✕
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );

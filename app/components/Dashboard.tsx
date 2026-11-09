@@ -22,7 +22,7 @@ import {
   X,
   Pencil,
 } from "lucide-react";
-import { PR, PO, Supplier, PurchaseHistory, ApprovalRequest, PaymentRequestEntry, calcPOTotal } from "../types";
+import { PR, PO, Supplier, PurchaseHistory, ApprovalRequest, PaymentRequestEntry, calcPOTotal, isItemHidden } from "../types";
 import { fmt } from "../utils";
 import { fmtMoney } from "../payment-utils";
 import {
@@ -126,6 +126,7 @@ export function Dashboard({
   const pendingPRs = useMemo(() => {
     return prs.filter(
       (p) =>
+        !isItemHidden(p) &&
         !isPRCompleted(p) &&
         (p.status === "Chờ xử lý" ||
           p.status === "Đang lấy báo giá" ||
@@ -138,6 +139,7 @@ export function Dashboard({
   const pendingApprovals = useMemo(() => {
     return approvalRequests.filter(
       (a) =>
+        !isItemHidden(a) &&
         !isApprovalCompleted(a) &&
         (a.status === "Chờ phê duyệt" ||
           a.status === "Nháp" ||
@@ -148,7 +150,7 @@ export function Dashboard({
   // Tab 3: POs undelivered / partially delivered
   const pendingDeliveryPOs = useMemo(() => {
     return pos.filter((po) => {
-      if (isPOCompleted(po) || po.status === "Hoàn thành" || po.status === "Đã hủy") return false;
+      if (isItemHidden(po) || isPOCompleted(po) || po.status === "Hoàn thành" || po.status === "Đã hủy") return false;
       const items = po.items || [];
       const hasUndelivered = items.some(
         (i) => (i.deliveredQty || 0) < i.qty || i.deliveryStatus !== "Đã giao",
@@ -282,6 +284,7 @@ export function Dashboard({
   const pendingPayments = useMemo(() => {
     return (paymentRequests || [])
       .filter((r) => {
+        if (isItemHidden(r)) return false;
         const completed = isPaymentCompleted(r);
         if (!completed) return true;
         // Nếu đã hoàn thành, chỉ giữ lại trên Dashboard nếu ngày thanh toán là ngày hôm nay

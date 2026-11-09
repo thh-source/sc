@@ -1,9 +1,9 @@
 import React, { useState } from "react";
-import { Plus, Trash2, Search, CheckCircle2, Circle, Scale, Eye, Printer, Paperclip, Loader2, Truck, Cloud } from "lucide-react";
+import { Plus, Trash2, Search, CheckCircle2, Circle, Scale, Eye, EyeOff, Printer, Paperclip, Loader2, Truck, Cloud } from "lucide-react";
 import { compressUploadFile } from "../utils/compressUploadFile";
 import { PRScanPreviewModal } from "./PRScanPreviewModal";
 import { CamScannerCloudModal } from "./CamScannerCloudModal";
-import { PR, PO, ApprovalRequest, PaymentRequestEntry, PaymentHandoverItem } from "../types";
+import { PR, PO, ApprovalRequest, PaymentRequestEntry, PaymentHandoverItem, isItemHidden } from "../types";
 import { fmt, dateVN } from "../utils";
 import { useTranslation } from "../i18n";
 import { DocFlowLinks } from "./DocFlowLinks";
@@ -21,6 +21,7 @@ export function PRList({
   onDelete,
   onNavigate,
   onToggleComplete,
+  onToggleHide,
   onUpdateScanUrl,
   onCreateHandover,
 }: {
@@ -34,6 +35,7 @@ export function PRList({
   onDelete?: (pr: PR) => void;
   onNavigate?: (route: any) => void;
   onToggleComplete?: (pr: PR) => void;
+  onToggleHide?: (pr: PR) => void;
   onUpdateScanUrl?: (prId: number, scanUrl: string) => void;
   onCreateHandover?: (pr: PR) => void;
 }) {
@@ -41,6 +43,22 @@ export function PRList({
   const [q, setQ] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "done">("all");
   const [deptFilter, setDeptFilter] = useState<string>("");
+  const [showHidden, setShowHidden] = useState<boolean>(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("scmh_pr_show_hidden") === "true";
+    }
+    return false;
+  });
+
+  const toggleShowHidden = () => {
+    setShowHidden((prev) => {
+      const next = !prev;
+      if (typeof window !== "undefined") {
+        localStorage.setItem("scmh_pr_show_hidden", String(next));
+      }
+      return next;
+    });
+  };
   const [previewScanPR, setPreviewScanPR] = useState<PR | null>(null);
   const [uploadingPrId, setUploadingPrId] = useState<number | null>(null);
   const [targetUploadPR, setTargetUploadPR] = useState<PR | null>(null);
@@ -148,9 +166,11 @@ export function PRList({
   );
   const completedPrCount = prs.filter((p) => isPRCompleted(p)).length;
   const activePrCount = prs.length - completedPrCount;
+  const hiddenPrCount = prs.filter((p) => isItemHidden(p)).length;
 
   const shown = prs
     .filter((p) => {
+      if (!showHidden && isItemHidden(p)) return false;
       const isDone = isPRCompleted(p);
       if (statusFilter === "active" && isDone) return false;
       if (statusFilter === "done" && !isDone) return false;
@@ -252,6 +272,20 @@ export function PRList({
             >
               Đã hoàn thành ({completedPrCount})
             </button>
+            <button
+              type="button"
+              className={`stitch-seg-btn ${showHidden ? "active" : ""}`}
+              onClick={toggleShowHidden}
+              title={showHidden ? "Đang hiển thị cả PR đã ẩn. Bấm để ẩn lại" : "Bấm để xem các PR đã ẩn"}
+              style={{
+                background: showHidden ? "#fef3c7" : undefined,
+                color: showHidden ? "#92400e" : undefined,
+                borderColor: showHidden ? "#f59e0b" : undefined,
+                fontWeight: showHidden ? 700 : undefined,
+              }}
+            >
+              {showHidden ? <Eye size={14} /> : <EyeOff size={14} />} Đã ẩn ({hiddenPrCount})
+            </button>
           </div>
 
           <div style={{ display: "flex", alignItems: "center", gap: "10px", flex: 1, justifyContent: "flex-end", flexWrap: "wrap" }}>
@@ -295,7 +329,7 @@ export function PRList({
             const flow = resolveDocFlow({ pr }, { prs, pos, approvalRequests, paymentRequests, paymentHandovers });
             const isDone = isPRCompleted(pr);
             return (
-              <article key={pr.id} className={isDone ? "row-completed" : ""}>
+              <article key={pr.id} className={`${isDone ? "row-completed" : ""} ${isItemHidden(pr) ? "row-hidden" : ""}`} style={isItemHidden(pr) ? { opacity: 0.8, border: "1px dashed #f59e0b", background: "#fffdfa" } : undefined}>
                 <header>
                   <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                     {onToggleComplete && (
@@ -310,6 +344,22 @@ export function PRList({
                       </button>
                     )}
                     <button onClick={() => onOpen(pr)} style={{ fontSize: "15px", fontWeight: 800 }}>{pr.number}</button>
+                    {isItemHidden(pr) && (
+                      <span
+                        style={{
+                          fontSize: "11px",
+                          fontWeight: 700,
+                          color: "#b45309",
+                          background: "#fef3c7",
+                          border: "1px solid #fde68a",
+                          padding: "1px 6px",
+                          borderRadius: "4px",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        Đã ẩn
+                      </span>
+                    )}
                   </div>
                   <span className={`status ${isDone ? "done" : pr.status?.includes("PO") || pr.status === "Đang lấy báo giá" ? "progress" : "waiting"}`}>{pr.status || "Chờ duyệt"}</span>
                 </header>
@@ -436,6 +486,21 @@ export function PRList({
                         <span>CamScanner</span>
                       </button>
                     </>
+                  )}
+
+                  {onToggleHide && (
+                    <button
+                      type="button"
+                      className="m-action-btn"
+                      onClick={() => onToggleHide(pr)}
+                      title={isItemHidden(pr) ? "Hiện lại PR này" : "Ẩn PR này khỏi danh sách"}
+                      style={{
+                        color: isItemHidden(pr) ? "#b45309" : "#64748b",
+                        background: isItemHidden(pr) ? "#fef3c7" : undefined,
+                      }}
+                    >
+                      {isItemHidden(pr) ? <Eye size={18} /> : <EyeOff size={18} />}
+                    </button>
                   )}
 
                   {onDelete && (
@@ -706,6 +771,16 @@ export function PRList({
                             title="Tạo biên bản bàn giao từ PR này"
                           >
                             <Truck size={13} /> Bàn giao
+                          </button>
+                        )}
+                        {onToggleHide && (
+                          <button
+                            className="btn-icon"
+                            onClick={() => onToggleHide(pr)}
+                            title={isItemHidden(pr) ? "Hiện lại PR này" : "Ẩn PR này khỏi bảng"}
+                            style={{ color: isItemHidden(pr) ? "#d97706" : "#64748b" }}
+                          >
+                            {isItemHidden(pr) ? <Eye size={15} /> : <EyeOff size={15} />}
                           </button>
                         )}
                         {onDelete && (

@@ -18,8 +18,10 @@ import {
   X,
   Check,
   Package,
+  Eye,
+  EyeOff,
 } from "lucide-react";
-import { PaymentHandoverItem, PR, PO, Supplier, PaymentRequestEntry } from "../types";
+import { PaymentHandoverItem, PR, PO, Supplier, PaymentRequestEntry, isItemHidden } from "../types";
 import { calcPODeliveryStats } from "../utils/paymentSync";
 import { navigateTo } from "../utils/navigation";
 import {
@@ -299,6 +301,46 @@ export function HandoverManagement({
   const [checkedHandovers, setCheckedHandovers] = useState<Set<number>>(new Set());
   const [handoverDeptFilter, setHandoverDeptFilter] = useState("");
   const [handoverSearch, setHandoverSearch] = useState(() => initialSearchQuery || "");
+  const [showHidden, setShowHidden] = useState<boolean>(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("scmh_handover_show_hidden") === "true";
+    }
+    return false;
+  });
+
+  const toggleShowHidden = () => {
+    setShowHidden((prev) => {
+      const next = !prev;
+      if (typeof window !== "undefined") {
+        localStorage.setItem("scmh_handover_show_hidden", String(next));
+      }
+      return next;
+    });
+  };
+
+  const hiddenHandoverCount = useMemo(() => {
+    return paymentHandovers.filter((h) => isItemHidden(h)).length;
+  }, [paymentHandovers]);
+
+  const handleHideSelectedHandovers = (hide: boolean) => {
+    if (readOnly || checkedHandovers.size === 0) return;
+    const next = paymentHandovers.map((h) =>
+      checkedHandovers.has(h.id) ? { ...h, isHidden: hide, is_hidden: hide } : h
+    );
+    triggerUpdateHandovers(next);
+    setCheckedHandovers(new Set());
+  };
+
+  const handleToggleHideHandoverItem = (id: number) => {
+    if (readOnly) return;
+    const target = paymentHandovers.find((h) => h.id === id);
+    if (!target) return;
+    const nextHidden = !isItemHidden(target);
+    const next = paymentHandovers.map((h) =>
+      h.id === id ? { ...h, isHidden: nextHidden, is_hidden: nextHidden } : h
+    );
+    triggerUpdateHandovers(next);
+  };
 
   useEffect(() => {
     if (initialSearchQuery !== undefined) {
@@ -397,6 +439,9 @@ export function HandoverManagement({
   const filteredHandovers = useMemo(() => {
     const q = normName(handoverSearch);
     const list = paymentHandovers.filter((h) => {
+      if (!showHidden && isItemHidden(h)) {
+        return false;
+      }
       if (handoverDeptFilter && String(h.department || "").trim() !== handoverDeptFilter) {
         return false;
       }
@@ -407,7 +452,7 @@ export function HandoverManagement({
       return true;
     });
     return list.sort((a, b) => (Number(b.id) || 0) - (Number(a.id) || 0));
-  }, [paymentHandovers, handoverDeptFilter, handoverSearch]);
+  }, [paymentHandovers, handoverDeptFilter, handoverSearch, showHidden]);
 
   // Nhóm danh sách vật tư bàn giao thành các ĐỢT BÀN GIAO (Handover Batches)
   const handoverBatches = useMemo(() => {
@@ -1382,6 +1427,38 @@ export function HandoverManagement({
           ))}
         </select>
 
+        <button
+          type="button"
+          className={`btn btn-secondary btn-md ${showHidden ? "active" : ""}`}
+          onClick={toggleShowHidden}
+          title={showHidden ? "Đang hiển thị cả các đợt bàn giao đã ẩn. Bấm để ẩn lại" : "Bấm để xem các đợt bàn giao đã ẩn"}
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: "5px",
+            background: showHidden ? "#fef3c7" : undefined,
+            color: showHidden ? "#92400e" : undefined,
+            borderColor: showHidden ? "#f59e0b" : undefined,
+            fontWeight: showHidden ? 700 : 500,
+          }}
+        >
+          {showHidden ? <Eye size={15} /> : <EyeOff size={15} />}
+          <span>{showHidden ? `Đang hiện đã ẩn (${hiddenHandoverCount})` : `Hiện đã ẩn (${hiddenHandoverCount})`}</span>
+        </button>
+
+        {checkedHandovers.size > 0 && !showMobileCards && (
+          <button
+            type="button"
+            className="btn btn-secondary btn-md"
+            onClick={() => handleHideSelectedHandovers(!showHidden)}
+            title={showHidden ? "Hiện lại các vật tư đang chọn" : "Ẩn các vật tư đang chọn khỏi danh sách"}
+            style={{ display: "inline-flex", alignItems: "center", gap: "5px" }}
+          >
+            {showHidden ? <Eye size={15} /> : <EyeOff size={15} />}
+            <span>{showHidden ? "Hiện lại đã chọn" : "Ẩn đã chọn"} ({checkedHandovers.size})</span>
+          </button>
+        )}
+
         <input
           placeholder="Tìm vật tư, ĐVT, ghi chú, phòng ban..."
           value={handoverSearch}
@@ -1489,14 +1566,25 @@ export function HandoverManagement({
               });
             };
 
+            const isBatchHidden = batch.items.length > 0 && batch.items.every((it) => isItemHidden(it));
+
             return (
               <div
                 key={batch.batchKey}
-                className={`m-card handover-batch-card ${allChecked ? "m-card-checked" : ""}`}
+                className={`m-card handover-batch-card ${allChecked ? "m-card-checked" : ""} ${isBatchHidden ? "handover-batch-hidden" : ""}`}
                 style={{
-                  background: "#ffffff",
-                  border: allChecked ? "2px solid #0284c7" : "1px solid #cbd5e1",
-                  borderLeft: allChecked ? "5px solid #0284c7" : "5px solid #2B6DF8",
+                  background: isBatchHidden ? "#fffdfa" : "#ffffff",
+                  opacity: isBatchHidden ? 0.82 : 1,
+                  border: isBatchHidden
+                    ? "1px dashed #f59e0b"
+                    : allChecked
+                    ? "2px solid #0284c7"
+                    : "1px solid #cbd5e1",
+                  borderLeft: isBatchHidden
+                    ? "5px solid #d97706"
+                    : allChecked
+                    ? "5px solid #0284c7"
+                    : "5px solid #2B6DF8",
                   borderRadius: "14px",
                   padding: "16px 18px",
                   boxShadow: "0 4px 14px rgba(15, 23, 42, 0.05)",
@@ -1532,6 +1620,21 @@ export function HandoverManagement({
                         >
                           ĐỢT BÀN GIAO #{handoverBatches.length - bIdx}
                         </span>
+                        {isBatchHidden && (
+                          <span
+                            style={{
+                              fontSize: "11px",
+                              fontWeight: 700,
+                              color: "#b45309",
+                              background: "#fef3c7",
+                              border: "1px solid #fde68a",
+                              padding: "1px 6px",
+                              borderRadius: "6px",
+                            }}
+                          >
+                            Đã ẩn
+                          </span>
+                        )}
                         {batch.sourceNumber ? (
                           <button
                             type="button"
@@ -1806,6 +1909,33 @@ export function HandoverManagement({
                   {!readOnly && (
                     <button
                       type="button"
+                      className="stitch-action-pill"
+                      onClick={() => {
+                        const nextHidden = !isBatchHidden;
+                        const batchIdSet = new Set(batch.items.map((it) => it.id));
+                        const next = paymentHandovers.map((h) =>
+                          batchIdSet.has(h.id) ? { ...h, isHidden: nextHidden, is_hidden: nextHidden } : h
+                        );
+                        triggerUpdateHandovers(next);
+                      }}
+                      title={isBatchHidden ? "Hiện lại đợt bàn giao này" : "Ẩn đợt bàn giao này khỏi danh sách"}
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: "4px",
+                        background: isBatchHidden ? "#fef3c7" : "#f1f5f9",
+                        color: isBatchHidden ? "#b45309" : "#475569",
+                        border: isBatchHidden ? "1px solid #fde68a" : "1px solid #cbd5e1",
+                      }}
+                    >
+                      {isBatchHidden ? <Eye size={13} /> : <EyeOff size={13} />}
+                      <span>{isBatchHidden ? "Hiện lại đợt" : "Ẩn đợt"}</span>
+                    </button>
+                  )}
+
+                  {!readOnly && (
+                    <button
+                      type="button"
                       className="btn-icon danger-ghost"
                       style={{ marginLeft: "auto" }}
                       onClick={handleDeleteBatch}
@@ -1930,12 +2060,12 @@ export function HandoverManagement({
                   );
                 })}
 
-                {/* Fixed Delete Column */}
+                {/* Fixed Actions Column */}
                 <th
                   style={{
-                    width: "44px",
-                    minWidth: "44px",
-                    maxWidth: "44px",
+                    width: "68px",
+                    minWidth: "68px",
+                    maxWidth: "68px",
                     textAlign: "center",
                     position: "sticky",
                     top: 0,
@@ -1945,7 +2075,7 @@ export function HandoverManagement({
                     boxSizing: "border-box",
                   }}
                 >
-                  Xóa
+                  Thao tác
                 </th>
               </tr>
             </thead>
@@ -2019,27 +2149,43 @@ export function HandoverManagement({
                       );
                     })}
 
-                    {/* Fixed Delete Action */}
+                    {/* Fixed Actions: Hide/Unhide & Delete */}
                     <td
                       style={{
-                        width: "44px",
-                        minWidth: "44px",
-                        maxWidth: "44px",
+                        width: "68px",
+                        minWidth: "68px",
+                        maxWidth: "68px",
                         textAlign: "center",
                         padding: "4px 2px 2px",
                         verticalAlign: "top",
                         boxSizing: "border-box",
                       }}
                     >
-                      <button
-                        type="button"
-                        className="payment-btn btn-danger"
-                        style={{ padding: "2px 6px" }}
-                        onClick={() => handleDeleteHandover(h.id)}
-                        title="Xóa dòng vật tư này"
-                      >
-                        ×
-                      </button>
+                      <div style={{ display: "inline-flex", alignItems: "center", gap: "3px", justifyContent: "center" }}>
+                        <button
+                          type="button"
+                          className="payment-btn"
+                          style={{
+                            padding: "2px 5px",
+                            fontSize: "11px",
+                            color: isItemHidden(h) ? "#d97706" : "#64748b",
+                            background: isItemHidden(h) ? "#fef3c7" : undefined,
+                          }}
+                          title={isItemHidden(h) ? "Hiện lại vật tư này" : "Ẩn vật tư này khỏi bảng"}
+                          onClick={() => handleToggleHideHandoverItem(h.id)}
+                        >
+                          {isItemHidden(h) ? <Eye size={13} /> : <EyeOff size={13} />}
+                        </button>
+                        <button
+                          type="button"
+                          className="payment-btn btn-danger"
+                          style={{ padding: "2px 6px" }}
+                          onClick={() => handleDeleteHandover(h.id)}
+                          title="Xóa dòng vật tư này"
+                        >
+                          ×
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 );

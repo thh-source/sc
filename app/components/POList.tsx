@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from "react";
-import { Plus, ArrowRight, Trash2, Truck, Search, CheckCircle2, Circle, Pencil, RotateCcw, CreditCard, Eye, ClipboardCheck } from "lucide-react";
-import { Supplier, PO, PR, Item, ApprovalRequest, PaymentRequestEntry, PaymentHandoverItem, getPOContractInfo, formatPONumber, generatePOCode, isPONumberExists, TrashItem, calcPOTotal } from "../types";
+import { Plus, ArrowRight, Trash2, Truck, Search, CheckCircle2, Circle, Pencil, RotateCcw, CreditCard, Eye, EyeOff, ClipboardCheck } from "lucide-react";
+import { Supplier, PO, PR, Item, ApprovalRequest, PaymentRequestEntry, PaymentHandoverItem, getPOContractInfo, formatPONumber, generatePOCode, isPONumberExists, TrashItem, calcPOTotal, isItemHidden } from "../types";
 import { fmt, dateVN, makeId } from "../utils";
 import { SupplierSearchCombobox } from "./SupplierSearchCombobox";
 import { TreeProductPickerModal, SelectedItemData } from "./TreeProductPickerModal";
@@ -42,6 +42,7 @@ export function POList({
   onCreatePaymentRequest,
   onNavigate,
   onToggleComplete,
+  onToggleHidePO,
   onUpdatePO,
   trash = [],
   readOnly = false,
@@ -64,6 +65,7 @@ export function POList({
   onCreatePaymentRequest?: (po: PO) => void;
   onNavigate?: (route: any) => void;
   onToggleComplete?: (po: PO) => void;
+  onToggleHidePO?: (po: PO) => void;
   onUpdatePO?: (po: PO, oldNumber?: string) => void;
   trash?: TrashItem[];
   readOnly?: boolean;
@@ -475,6 +477,26 @@ export function POList({
   };
 
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "done">("all");
+  const [showHidden, setShowHidden] = useState<boolean>(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("scmh_po_show_hidden") === "true";
+    }
+    return false;
+  });
+
+  const toggleShowHidden = () => {
+    setShowHidden((prev) => {
+      const next = !prev;
+      if (typeof window !== "undefined") {
+        localStorage.setItem("scmh_po_show_hidden", String(next));
+      }
+      return next;
+    });
+  };
+
+  const hiddenPoCount = useMemo(() => {
+    return (pos || []).filter((p) => isItemHidden(p)).length;
+  }, [pos]);
 
   const poKpiStats = useMemo(() => {
     const allPos = (pos || []).filter(Boolean);
@@ -503,6 +525,7 @@ export function POList({
   const shown = (pos || [])
     .filter((po) => {
       if (!po) return false;
+      if (!showHidden && isItemHidden(po)) return false;
       const isDone = isPOCompleted(po, paymentHandovers);
       if (statusFilter === "active" && isDone) return false;
       if (statusFilter === "done" && !isDone) return false;
@@ -619,6 +642,20 @@ export function POList({
             >
               Đã hoàn thành <b>{poKpiStats.doneCount}</b>
             </button>
+            <button
+              type="button"
+              className={`stitch-seg-btn ${showHidden ? "active" : ""}`}
+              onClick={toggleShowHidden}
+              title={showHidden ? "Đang hiển thị cả PO đã ẩn. Bấm để ẩn lại" : "Bấm để xem các đơn PO đã ẩn"}
+              style={{
+                background: showHidden ? "#fef3c7" : undefined,
+                color: showHidden ? "#92400e" : undefined,
+                borderColor: showHidden ? "#f59e0b" : undefined,
+                fontWeight: showHidden ? 700 : undefined,
+              }}
+            >
+              {showHidden ? <Eye size={14} /> : <EyeOff size={14} />} Đã ẩn <b>{hiddenPoCount}</b>
+            </button>
           </div>
 
           <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap", flex: 1, justifyContent: "flex-end" }}>
@@ -651,7 +688,7 @@ export function POList({
             const flow = resolveDocFlow({ po }, { prs, pos, approvalRequests, paymentRequests, paymentHandovers });
             const isDone = isPOCompleted(po, paymentHandovers);
             return (
-              <article key={po.id} className={isDone ? "row-completed" : ""}>
+              <article key={po.id} className={`${isDone ? "row-completed" : ""} ${isItemHidden(po) ? "row-hidden" : ""}`} style={isItemHidden(po) ? { opacity: 0.8, border: "1px dashed #f59e0b", background: "#fffdfa" } : undefined}>
                 <header>
                   <div style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
                     {onToggleComplete && (
@@ -672,6 +709,22 @@ export function POList({
                       </button>
                     )}
                     <button onClick={() => onOpen(po)}>{po.number}</button>
+                    {isItemHidden(po) && (
+                      <span
+                        style={{
+                          fontSize: "11px",
+                          fontWeight: 700,
+                          color: "#b45309",
+                          background: "#fef3c7",
+                          border: "1px solid #fde68a",
+                          padding: "1px 6px",
+                          borderRadius: "4px",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        Đã ẩn
+                      </span>
+                    )}
                     {!readOnly && onUpdatePO && (
                       <button
                         type="button"
@@ -846,6 +899,21 @@ export function POList({
                       <span>ĐNTT</span>
                     </button>
                   )}
+                  {onToggleHidePO && (
+                    <button
+                      type="button"
+                      className="m-action-btn"
+                      onClick={() => onToggleHidePO(po)}
+                      title={isItemHidden(po) ? "Hiện lại đơn PO này" : "Ẩn đơn PO này khỏi danh sách"}
+                      style={{
+                        color: isItemHidden(po) ? "#b45309" : "#64748b",
+                        background: isItemHidden(po) ? "#fef3c7" : undefined,
+                      }}
+                    >
+                      {isItemHidden(po) ? <Eye size={17} /> : <EyeOff size={17} />}
+                      <span>{isItemHidden(po) ? "Hiện lại" : "Ẩn"}</span>
+                    </button>
+                  )}
                   {onDelete && (
                     <button
                       type="button"
@@ -973,6 +1041,22 @@ export function POList({
                         <button className="pr-link" onClick={() => onOpen(po)}>
                           {po.number}
                         </button>
+                        {isItemHidden(po) && (
+                          <span
+                            style={{
+                              fontSize: "11px",
+                              fontWeight: 700,
+                              color: "#b45309",
+                              background: "#fef3c7",
+                              border: "1px solid #fde68a",
+                              padding: "1px 6px",
+                              borderRadius: "4px",
+                              whiteSpace: "nowrap",
+                            }}
+                          >
+                            Đã ẩn
+                          </span>
+                        )}
                         {!readOnly && onUpdatePO && (
                           <button
                             type="button"
@@ -1135,6 +1219,16 @@ export function POList({
                           >
                             <CreditCard size={13} />
                             <span>ĐNTT</span>
+                          </button>
+                        )}
+                        {onToggleHidePO && (
+                          <button
+                            className="btn-icon"
+                            onClick={() => onToggleHidePO(po)}
+                            title={isItemHidden(po) ? "Hiện lại PO này" : "Ẩn PO này khỏi bảng"}
+                            style={{ color: isItemHidden(po) ? "#d97706" : "#64748b" }}
+                          >
+                            {isItemHidden(po) ? <Eye size={15} /> : <EyeOff size={15} />}
                           </button>
                         )}
                         {onDelete && (
