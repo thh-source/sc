@@ -2955,11 +2955,12 @@ export default function ApprovalManagement({
                 placeholder="Đơn vị lập biểu mẫu..."
               />
             </div>
-            <div className="phenikaa-meta-line">
-              <span className="meta-lbl">Ghi chú: Căn cứ theo PR số:</span>
+            <div className="phenikaa-meta-line" style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+              <span className="meta-lbl">Căn cứ theo PR số:</span>
               <input
                 type="text"
                 className="sheet-inline-input meta-inline-input"
+                style={{ flex: 1 }}
                 value={
                   activeRequest.noteRef !== undefined
                     ? activeRequest.noteRef
@@ -2972,8 +2973,87 @@ export default function ApprovalManagement({
                     noteRef: e.target.value,
                   }))
                 }
-                placeholder="Căn cứ theo PR số..."
+                placeholder="Nhập hoặc chọn PR bên cạnh..."
               />
+              {!isReportMode && prs && prs.length > 0 && (
+                <select
+                  className="no-print"
+                  style={{
+                    fontSize: "11px",
+                    fontWeight: 600,
+                    color: "#0369a1",
+                    backgroundColor: "#f0f9ff",
+                    border: "1px solid #bae6fd",
+                    borderRadius: "4px",
+                    padding: "2px 6px",
+                    cursor: "pointer",
+                    maxWidth: "240px",
+                  }}
+                  value=""
+                  onChange={(e) => {
+                    const prNum = e.target.value;
+                    if (!prNum) return;
+                    const targetPR = prs.find((p) => p.number === prNum);
+                    if (!targetPR) return;
+
+                    updateActive((prev) => {
+                      let nextRows = prev.rows;
+                      if (targetPR.items && targetPR.items.length > 0) {
+                        nextRows = targetPR.items.map((it, idx) => {
+                          const rowId = `row_${Date.now()}_${idx + 1}`;
+                          const supplierQuotes: Record<string, ApprovalSupplierQuoteLine[]> = {};
+                          prev.supplierColumns.forEach((col) => {
+                            supplierQuotes[col.colId] = [
+                              {
+                                lineId: `line_${rowId}_${col.colId}_1`,
+                                quotedProduct: it.name || "",
+                                origin: "",
+                                unitPrice: 0,
+                                qty: Number(it.qty) || 1,
+                                amount: 0,
+                              },
+                            ];
+                          });
+                          return {
+                            rowId,
+                            stt: idx + 1,
+                            itemName: it.name || "",
+                            qty: Number(it.qty) || 1,
+                            unit: it.unit || "Cái",
+                            supplierQuotes,
+                          };
+                        });
+                      }
+
+                      const dept = targetPR.department || prev.department || "RD";
+                      const newSectionTitle = `Theo yêu cầu mua hàng phục vụ công việc của phòng ${dept} . Phòng Cung Ứng đã tìm kiếm, đánh giá và đề xuất phương án như sau:`;
+
+                      return {
+                        ...prev,
+                        prNumber: prev.prNumber || targetPR.number,
+                        noteRef: targetPR.number,
+                        prId: targetPR.id,
+                        department: targetPR.department || prev.department,
+                        requestingDepartment: targetPR.department || prev.requestingDepartment,
+                        section1Title: newSectionTitle,
+                        rows: nextRows,
+                      };
+                    });
+
+                    showToast(
+                      `✨ Đã tự động nạp ${targetPR.items?.length || 0} mặt hàng & phòng ban từ PR ${targetPR.number}!`
+                    );
+                  }}
+                  title="Chọn PR để tự động nạp danh sách hàng hóa và phòng ban"
+                >
+                  <option value="">▼ Chọn từ danh sách PR ({prs.length})</option>
+                  {prs.map((p) => (
+                    <option key={p.id} value={p.number}>
+                      {p.number} {p.department ? `(${p.department})` : ""} - {p.items?.length || 0} mục
+                    </option>
+                  ))}
+                </select>
+              )}
             </div>
           </div>
 
@@ -2982,11 +3062,11 @@ export default function ApprovalManagement({
             <div className="phenikaa-section-heading">
               I. Nội dung đề nghị phê duyệt:
             </div>
-            <div className="phenikaa-section-subline">
+            <div className="phenikaa-section-subline" style={{ display: "flex", alignItems: "center", gap: "6px" }}>
               <input
                 type="text"
                 className="sheet-inline-input"
-                style={{ fontWeight: 400 }}
+                style={{ fontWeight: 400, flex: 1 }}
                 value={activeRequest.section1Title || ""}
                 readOnly={isReportMode}
                 onChange={(e) =>
@@ -2997,6 +3077,40 @@ export default function ApprovalManagement({
                 }
                 placeholder="Theo yêu cầu mua hàng..."
               />
+              {!isReportMode && (
+                <select
+                  className="no-print"
+                  style={{
+                    fontSize: "11px",
+                    fontWeight: 600,
+                    color: "#475569",
+                    backgroundColor: "#f8fafc",
+                    border: "1px solid #cbd5e1",
+                    borderRadius: "4px",
+                    padding: "2px 6px",
+                    cursor: "pointer",
+                    whiteSpace: "nowrap",
+                  }}
+                  value=""
+                  onChange={(e) => {
+                    const dept = e.target.value;
+                    if (!dept) return;
+                    updateActive((prev) => ({
+                      ...prev,
+                      requestingDepartment: dept,
+                      section1Title: `Theo yêu cầu mua hàng phục vụ công việc của phòng ${dept} . Phòng Cung Ứng đã tìm kiếm, đánh giá và đề xuất phương án như sau:`,
+                    }));
+                  }}
+                  title="Chọn phòng ban để tự động cập nhật câu đề nghị"
+                >
+                  <option value="">▼ Đổi phòng ban</option>
+                  {["RD", "Cơ điện", "QA", "QC", "Sản xuất", "Kế hoạch", "Kho vận", "Hành chính", "IT", "Cung ứng"].map((d) => (
+                    <option key={d} value={d}>
+                      Phòng {d}
+                    </option>
+                  ))}
+                </select>
+              )}
             </div>
 
             <table className="phenikaa-print-grid">
@@ -3656,67 +3770,9 @@ export default function ApprovalManagement({
 
           {/* 4. Phần II: Đánh giá và đề xuất lựa chọn nhà cung cấp */}
           <div className="phenikaa-section-block">
-            <div className="phenikaa-section-heading">
-              II. Đánh giá và đề xuất lựa chọn nhà cung cấp:
-            </div>
-            <div className="eval-row">
-              <span className="eval-label">1. Nhà cung cấp đề xuất:</span>
-              <strong
-                style={{
-                  flex: 1,
-                  textTransform: "uppercase",
-                  fontSize: "10pt",
-                  color: "#0f172a",
-                }}
-              >
-                {effectiveRecommendedSupplier}
-              </strong>
-            </div>
-            <div className="eval-row">
-              <span className="eval-label">2. Điều kiện giao hàng:</span>
-              <input
-                type="text"
-                className="sheet-inline-input"
-                value={activeRequest.deliveryTerms || ""}
-                readOnly={isReportMode}
-                onChange={(e) =>
-                  updateActive((prev) => ({
-                    ...prev,
-                    deliveryTerms: e.target.value,
-                  }))
-                }
-                placeholder="Nhập điều kiện giao hàng..."
-              />
-            </div>
-            <div className="eval-row">
-              <span className="eval-label">3. Điều khoản thanh toán:</span>
-              <input
-                type="text"
-                className="sheet-inline-input"
-                value={activeRequest.paymentTerms || ""}
-                readOnly={isReportMode}
-                onChange={(e) =>
-                  updateActive((prev) => ({
-                    ...prev,
-                    paymentTerms: e.target.value,
-                  }))
-                }
-                placeholder="Nhập điều khoản thanh toán..."
-              />
-            </div>
-          </div>
-
-          {/* 5. Phần III: Lý do lựa chọn */}
-          <div className="phenikaa-section-block">
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-              }}
-            >
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
               <div className="phenikaa-section-heading">
-                III. Lý do lựa chọn:
+                II. Đánh giá và đề xuất lựa chọn nhà cung cấp:
               </div>
               {!isReportMode && (
                 <button
@@ -3732,14 +3788,367 @@ export default function ApprovalManagement({
                     cursor: "pointer",
                   }}
                   onClick={() =>
-                    updateActive((prev) => ({
-                      ...prev,
-                      reasons: [...prev.reasons, ""],
-                    }))
+                    updateActive((prev) => {
+                      const currentRows = prev.customEvaluationRows || [];
+                      const nextIdx = currentRows.length + 4;
+                      return {
+                        ...prev,
+                        customEvaluationRows: [
+                          ...currentRows,
+                          {
+                            id: `eval_${Date.now()}`,
+                            label: `${nextIdx}. Điều kiện bổ sung:`,
+                            value: "",
+                          },
+                        ],
+                      };
+                    })
                   }
                 >
-                  ＋ Thêm lý do
+                  ＋ Thêm dòng điều kiện
                 </button>
+              )}
+            </div>
+
+            {/* 1. Nhà cung cấp đề xuất (Tên đầy đủ) */}
+            <div className="eval-row" style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+              <span className="eval-label">1. Nhà cung cấp đề xuất:</span>
+              <input
+                type="text"
+                className="sheet-inline-input uppercase bold-input"
+                style={{
+                  flex: 1,
+                  fontWeight: 700,
+                  fontSize: "10pt",
+                  color: "#0f172a",
+                }}
+                value={
+                  activeRequest.recommendedSupplierName !== undefined
+                    ? activeRequest.recommendedSupplierName
+                    : effectiveRecommendedSupplier
+                }
+                readOnly={isReportMode}
+                onChange={(e) =>
+                  updateActive((prev) => ({
+                    ...prev,
+                    recommendedSupplierName: e.target.value,
+                  }))
+                }
+                placeholder="Tên đầy đủ nhà cung cấp đề xuất..."
+              />
+              {!isReportMode && (
+                <select
+                  className="no-print"
+                  style={{
+                    fontSize: "11px",
+                    fontWeight: 600,
+                    color: "#0369a1",
+                    backgroundColor: "#f0f9ff",
+                    border: "1px solid #bae6fd",
+                    borderRadius: "4px",
+                    padding: "2px 6px",
+                    cursor: "pointer",
+                    maxWidth: "200px",
+                  }}
+                  value=""
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (!val) return;
+                    updateActive((prev) => ({
+                      ...prev,
+                      recommendedSupplierName: val,
+                    }));
+                  }}
+                  title="Chọn nhanh tên đầy đủ từ danh mục NCC"
+                >
+                  <option value="">▼ Đổi NCC</option>
+                  {activeRequest.supplierColumns.map((sc) => {
+                    const matched = suppliers.find(
+                      (s) =>
+                        s.name.trim().toLowerCase() === (sc.supplierName || "").trim().toLowerCase() ||
+                        (s.shortName && sc.shortName && s.shortName.trim().toLowerCase() === sc.shortName.trim().toLowerCase()) ||
+                        s.id === sc.supplierId
+                    );
+                    const fullName = matched?.name || sc.supplierName || sc.shortName;
+                    return (
+                      <option key={sc.colId} value={fullName}>
+                        {fullName}
+                      </option>
+                    );
+                  })}
+                </select>
+              )}
+            </div>
+
+            {/* 2. Điều kiện giao hàng */}
+            <div className="eval-row" style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+              <span className="eval-label">2. Điều kiện giao hàng:</span>
+              <input
+                type="text"
+                className="sheet-inline-input"
+                style={{ flex: 1 }}
+                value={activeRequest.deliveryTerms || ""}
+                readOnly={isReportMode}
+                onChange={(e) =>
+                  updateActive((prev) => ({
+                    ...prev,
+                    deliveryTerms: e.target.value,
+                  }))
+                }
+                placeholder="Nhập hoặc chọn điều kiện giao hàng..."
+              />
+              {!isReportMode && (
+                <select
+                  className="no-print"
+                  style={{
+                    fontSize: "11px",
+                    fontWeight: 600,
+                    color: "#475569",
+                    backgroundColor: "#f8fafc",
+                    border: "1px solid #cbd5e1",
+                    borderRadius: "4px",
+                    padding: "2px 6px",
+                    cursor: "pointer",
+                    maxWidth: "180px",
+                  }}
+                  value=""
+                  onChange={(e) => {
+                    if (!e.target.value) return;
+                    updateActive((prev) => ({
+                      ...prev,
+                      deliveryTerms: e.target.value,
+                    }));
+                  }}
+                  title="Chọn gợi ý điều kiện giao hàng"
+                >
+                  <option value="">▼ Gợi ý giao hàng</option>
+                  <option value="Đã bao gồm chi phí vận chuyển đến kho bên mua">
+                    Đã bao gồm chi phí vận chuyển đến kho bên mua
+                  </option>
+                  <option value="Giao hàng tại kho bên bán (Bên mua tự vận chuyển)">
+                    Giao hàng tại kho bên bán
+                  </option>
+                  <option value="Giao hàng tại kho Phenikaa Pharma">
+                    Giao hàng tại kho Phenikaa Pharma
+                  </option>
+                  <option value="Giao hàng trong vòng 3-5 ngày từ ngày đặt hàng">
+                    Giao trong vòng 3-5 ngày
+                  </option>
+                  <option value="Giao hàng theo từng đợt theo yêu cầu">
+                    Giao theo từng đợt theo yêu cầu
+                  </option>
+                  <option value="Bên bán chịu mọi chi phí vận chuyển và bốc dỡ">
+                    Bên bán chịu phí vận chuyển & bốc dỡ
+                  </option>
+                </select>
+              )}
+            </div>
+
+            {/* 3. Điều khoản thanh toán */}
+            <div className="eval-row" style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+              <span className="eval-label">3. Điều khoản thanh toán:</span>
+              <input
+                type="text"
+                className="sheet-inline-input"
+                style={{ flex: 1 }}
+                value={activeRequest.paymentTerms || ""}
+                readOnly={isReportMode}
+                onChange={(e) =>
+                  updateActive((prev) => ({
+                    ...prev,
+                    paymentTerms: e.target.value,
+                  }))
+                }
+                placeholder="Nhập hoặc chọn điều khoản thanh toán..."
+              />
+              {!isReportMode && (
+                <select
+                  className="no-print"
+                  style={{
+                    fontSize: "11px",
+                    fontWeight: 600,
+                    color: "#475569",
+                    backgroundColor: "#f8fafc",
+                    border: "1px solid #cbd5e1",
+                    borderRadius: "4px",
+                    padding: "2px 6px",
+                    cursor: "pointer",
+                    maxWidth: "180px",
+                  }}
+                  value=""
+                  onChange={(e) => {
+                    if (!e.target.value) return;
+                    updateActive((prev) => ({
+                      ...prev,
+                      paymentTerms: e.target.value,
+                    }));
+                  }}
+                  title="Chọn gợi ý điều khoản thanh toán"
+                >
+                  <option value="">▼ Gợi ý thanh toán</option>
+                  <option value="Thanh toán 100% trước khi giao hàng.">
+                    Thanh toán 100% trước khi giao hàng
+                  </option>
+                  <option value="Thanh toán sau khi nhận hàng và hóa đơn GTGT hợp lệ trong vòng 30 ngày.">
+                    Thanh toán sau khi nhận hàng & hóa đơn (30 ngày)
+                  </option>
+                  <option value="Tạm ứng 50%, thanh toán 50% còn lại sau khi nghiệm thu và nhận hóa đơn.">
+                    Tạm ứng 50%, thanh toán 50% sau nghiệm thu
+                  </option>
+                  <option value="Thanh toán trong vòng 15 ngày kể từ ngày ký biên bản bàn giao.">
+                    Thanh toán 15 ngày sau ký biên bản bàn giao
+                  </option>
+                  <option value="Thanh toán theo tiến độ từng đợt giao hàng.">
+                    Thanh toán theo tiến độ từng đợt
+                  </option>
+                </select>
+              )}
+            </div>
+
+            {/* Các dòng điều kiện bổ sung nếu có */}
+            {(activeRequest.customEvaluationRows || []).map((row, idx) => (
+              <div key={row.id} className="eval-row" style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                <input
+                  type="text"
+                  className="sheet-inline-input bold-input eval-label"
+                  style={{ width: "180px", fontWeight: 700 }}
+                  value={row.label}
+                  readOnly={isReportMode}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    updateActive((prev) => ({
+                      ...prev,
+                      customEvaluationRows: (prev.customEvaluationRows || []).map((r, i) =>
+                        i === idx ? { ...r, label: val } : r
+                      ),
+                    }));
+                  }}
+                  placeholder="Tiêu đề..."
+                />
+                <input
+                  type="text"
+                  className="sheet-inline-input"
+                  style={{ flex: 1 }}
+                  value={row.value}
+                  readOnly={isReportMode}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    updateActive((prev) => ({
+                      ...prev,
+                      customEvaluationRows: (prev.customEvaluationRows || []).map((r, i) =>
+                        i === idx ? { ...r, value: val } : r
+                      ),
+                    }));
+                  }}
+                  placeholder="Nội dung điều kiện..."
+                />
+                {!isReportMode && (
+                  <button
+                    type="button"
+                    className="no-print"
+                    style={{
+                      border: "none",
+                      background: "transparent",
+                      color: "#94a3b8",
+                      cursor: "pointer",
+                      fontSize: "12px",
+                      padding: "0 4px",
+                    }}
+                    title="Xóa dòng này"
+                    onClick={() =>
+                      updateActive((prev) => ({
+                        ...prev,
+                        customEvaluationRows: (prev.customEvaluationRows || []).filter(
+                          (_, i) => i !== idx
+                        ),
+                      }))
+                    }
+                  >
+                    ×
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+
+          {/* 5. Phần III: Lý do lựa chọn */}
+          <div className="phenikaa-section-block">
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+              }}
+            >
+              <div className="phenikaa-section-heading">
+                III. Lý do lựa chọn:
+              </div>
+              {!isReportMode && (
+                <div style={{ display: "flex", alignItems: "center", gap: "6px" }} className="no-print">
+                  <select
+                    style={{
+                      fontSize: "11px",
+                      fontWeight: 600,
+                      color: "#0369a1",
+                      backgroundColor: "#f0f9ff",
+                      border: "1px solid #bae6fd",
+                      borderRadius: "4px",
+                      padding: "1px 6px",
+                      cursor: "pointer",
+                    }}
+                    value=""
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (!val) return;
+                      updateActive((prev) => ({
+                        ...prev,
+                        reasons: [...prev.reasons, val],
+                      }));
+                    }}
+                    title="Chọn lý do mẫu để thêm vào danh sách"
+                  >
+                    <option value="">▼ Thêm từ lý do mẫu</option>
+                    <option value="Hàng hóa đạt yêu cầu về chất lượng, thông số kỹ thuật. Đơn giá rẻ nhất.">
+                      Đạt chất lượng & đơn giá rẻ nhất
+                    </option>
+                    <option value="Thời gian giao hàng nhanh nhất, đáp ứng tiến độ.">
+                      Thời gian giao hàng nhanh nhất
+                    </option>
+                    <option value="Nhà phân phối độc quyền chính hãng, đầy đủ CO/CQ.">
+                      Nhà phân phối chính hãng / độc quyền
+                    </option>
+                    <option value="Đã từng hợp tác, chất lượng sản phẩm và dịch vụ uy tín.">
+                      Đã từng hợp tác uy tín
+                    </option>
+                    <option value="Đơn giá cạnh tranh, điều kiện thanh toán và bảo hành tốt.">
+                      Đơn giá cạnh tranh & bảo hành tốt
+                    </option>
+                    <option value="Đáp ứng đầy đủ hồ sơ năng lực và tiêu chuẩn kỹ thuật nhà máy.">
+                      Đạt hồ sơ năng lực & tiêu chuẩn kỹ thuật
+                    </option>
+                  </select>
+
+                  <button
+                    type="button"
+                    style={{
+                      border: "1px dashed #94a3b8",
+                      background: "#f8fafc",
+                      fontSize: "11px",
+                      color: "#0369a1",
+                      borderRadius: "4px",
+                      padding: "1px 6px",
+                      cursor: "pointer",
+                    }}
+                    onClick={() =>
+                      updateActive((prev) => ({
+                        ...prev,
+                        reasons: [...prev.reasons, ""],
+                      }))
+                    }
+                  >
+                    ＋ Thêm dòng trống
+                  </button>
+                </div>
               )}
             </div>
             {activeRequest.reasons.map((reason, idx) => (
@@ -3747,7 +4156,7 @@ export default function ApprovalManagement({
                 key={`w_reason_${idx}`}
                 style={{
                   display: "flex",
-                  alignItems: "baseline",
+                  alignItems: "center",
                   gap: "4px",
                   marginBottom: "1px",
                   lineHeight: 1.2,
@@ -3759,6 +4168,7 @@ export default function ApprovalManagement({
                 <input
                   type="text"
                   className="sheet-inline-input"
+                  style={{ flex: 1 }}
                   value={reason}
                   readOnly={isReportMode}
                   onChange={(e) => {
@@ -3771,6 +4181,49 @@ export default function ApprovalManagement({
                   }}
                   placeholder={`Lý do thứ ${idx + 1}...`}
                 />
+                {!isReportMode && (
+                  <select
+                    className="no-print"
+                    style={{
+                      fontSize: "10px",
+                      color: "#64748b",
+                      background: "#f1f5f9",
+                      border: "1px solid #cbd5e1",
+                      borderRadius: "3px",
+                      padding: "1px 4px",
+                      cursor: "pointer",
+                      maxWidth: "140px",
+                    }}
+                    value=""
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (!val) return;
+                      updateActive((prev) => {
+                        const nextReasons = [...prev.reasons];
+                        nextReasons[idx] = val;
+                        return { ...prev, reasons: nextReasons };
+                      });
+                    }}
+                    title="Chọn gợi ý thay thế cho dòng lý do này"
+                  >
+                    <option value="">Gợi ý...</option>
+                    <option value="Hàng hóa đạt yêu cầu về chất lượng, thông số kỹ thuật. Đơn giá rẻ nhất.">
+                      Đạt chất lượng & giá rẻ nhất
+                    </option>
+                    <option value="Thời gian giao hàng nhanh nhất, đáp ứng tiến độ.">
+                      Giao hàng nhanh nhất
+                    </option>
+                    <option value="Nhà phân phối độc quyền chính hãng, đầy đủ CO/CQ.">
+                      Phân phối độc quyền
+                    </option>
+                    <option value="Đã từng hợp tác, chất lượng sản phẩm và dịch vụ uy tín.">
+                      Hợp tác uy tín
+                    </option>
+                    <option value="Đơn giá cạnh tranh, điều kiện thanh toán và bảo hành tốt.">
+                      Giá cạnh tranh & bảo hành tốt
+                    </option>
+                  </select>
+                )}
                 {!isReportMode && activeRequest.reasons.length > 1 && (
                   <button
                     type="button"
@@ -6487,7 +6940,7 @@ export default function ApprovalManagement({
                   <span>{activeRequest.department || ""}</span>
                 </div>
                 <div className="phenikaa-meta-line">
-                  <span className="meta-lbl">Ghi chú: Căn cứ theo PR số:</span>{" "}
+                  <span className="meta-lbl">Căn cứ theo PR số:</span>{" "}
                   <span>
                     {activeRequest.noteRef ||
                       (activeRequest.prNumber ? activeRequest.prNumber : "")}
@@ -6844,7 +7297,7 @@ export default function ApprovalManagement({
                 <div className="eval-row">
                   <span className="eval-label">1. Nhà cung cấp đề xuất:</span>
                   <strong style={{ flex: 1, textTransform: "uppercase" }}>
-                    {effectiveRecommendedSupplier}
+                    {activeRequest.recommendedSupplierName || effectiveRecommendedSupplier}
                   </strong>
                 </div>
                 <div className="eval-row">
@@ -6855,6 +7308,12 @@ export default function ApprovalManagement({
                   <span className="eval-label">3. Điều khoản thanh toán:</span>
                   <span style={{ flex: 1 }}>{activeRequest.paymentTerms}</span>
                 </div>
+                {(activeRequest.customEvaluationRows || []).map((row) => (
+                  <div key={row.id} className="eval-row">
+                    <span className="eval-label">{row.label}</span>
+                    <span style={{ flex: 1 }}>{row.value}</span>
+                  </div>
+                ))}
               </div>
 
               {/* 5. Phần III */}

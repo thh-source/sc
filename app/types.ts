@@ -685,6 +685,7 @@ export type ApprovalRequest = {
   recommendedSupplierName: string;
   deliveryTerms: string;
   paymentTerms: string;
+  customEvaluationRows?: { id: string; label: string; value: string }[];
   reasons: string[];
   approverLeader: string;
   approverDeptHead: string;
