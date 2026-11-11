@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
   Scale,
@@ -42,7 +42,7 @@ import {
 } from "../types";
 import { fmt as formatVND, generateShortName } from "../utils/format";
 import { dateVN } from "../utils/date";
-import { PHENIKAA_PHARMA_LOGO_BASE64, localToday } from "../payment-utils";
+import { PHENIKAA_PHARMA_LOGO_BASE64, localToday, parsePrintDate } from "../payment-utils";
 import {
   cleanExcelNumber,
   createApprovalFromCompare,
@@ -547,32 +547,37 @@ function SheetCellTextarea({
   const autoResize = () => {
     if (textareaRef.current) {
       textareaRef.current.style.height = "auto";
-      textareaRef.current.style.height = `${Math.max(20, textareaRef.current.scrollHeight)}px`;
+      textareaRef.current.style.height = `${Math.max(22, textareaRef.current.scrollHeight)}px`;
     }
   };
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     autoResize();
   }, [value]);
+
+  const textVal = value || "";
+  const lineCount = (textVal.match(/\n/g) || []).length + 1;
+  const estimatedRows = Math.max(1, lineCount, Math.ceil(textVal.length / 24));
 
   return (
     <textarea
       ref={textareaRef}
-      rows={1}
-      value={value || ""}
+      rows={estimatedRows}
+      value={textVal}
       readOnly={readOnly}
       placeholder={placeholder}
       className={`sheet-textarea ${className || ""}`}
       style={{
         width: "100%",
-        minHeight: "20px",
+        minHeight: "22px",
         resize: "none",
-        overflow: "hidden",
+        overflow: "visible",
+        fieldSizing: "content" as any,
         boxSizing: "border-box",
         whiteSpace: "pre-wrap",
         wordBreak: "break-word",
         display: "block",
-        lineHeight: "1.3",
+        lineHeight: "1.35",
         padding: "2px 3px",
         margin: 0,
         background: "transparent",
@@ -582,6 +587,11 @@ function SheetCellTextarea({
         fontSize: "inherit",
         color: "inherit",
         ...style,
+      }}
+      onInput={(e) => {
+        const el = e.currentTarget;
+        el.style.height = "auto";
+        el.style.height = `${Math.max(22, el.scrollHeight)}px`;
       }}
       onChange={(e) => {
         onChange(e.target.value);
@@ -1289,11 +1299,27 @@ export default function ApprovalManagement({
       });
   }, [approvalRequests, searchQuery, statusFilter, showHidden]);
 
-  // Chỉ mở giao diện làm việc khi activeApprovalId khác null và tìm thấy phiếu
-  const activeRequest = useMemo(() => {
-    if (activeApprovalId === null) return null;
-    return approvalRequests.find((r) => r.id === activeApprovalId) || null;
-  }, [approvalRequests, activeApprovalId]);
+  // Bản nháp cục bộ: KHÔNG tự động lưu khi chỉnh sửa, chỉ lưu khi người dùng bấm nút "Lưu ĐNPD"
+  const [localDraft, setLocalDraft] = useState<ApprovalRequest | null>(null);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (activeApprovalId === null) {
+      setLocalDraft(null);
+      setHasUnsavedChanges(false);
+      return;
+    }
+    const found = approvalRequests.find((r) => r.id === activeApprovalId);
+    if (found) {
+      setLocalDraft(JSON.parse(JSON.stringify(found)));
+      setHasUnsavedChanges(false);
+    } else {
+      setLocalDraft(null);
+      setHasUnsavedChanges(false);
+    }
+  }, [activeApprovalId]);
+
+  const activeRequest = localDraft;
 
   useEffect(() => {
     if (autoPrint && activeRequest) {
@@ -1365,10 +1391,48 @@ export default function ApprovalManagement({
     });
   };
 
+  // Cập nhật dữ liệu vào bản nháp cục bộ (KHÔNG gọi API lưu tự động)
   const updateActive = (updater: (prev: ApprovalRequest) => ApprovalRequest) => {
-    if (!activeRequest || isReportMode) return;
-    const next = updater(activeRequest);
-    onSaveApproval(next);
+    if (!localDraft || isReportMode) return;
+    setLocalDraft((current) => {
+      if (!current) return current;
+      const next = updater(current);
+      setHasUnsavedChanges(true);
+      return next;
+    });
+  };
+
+  // Lưu tường minh khi người dùng bấm nút Lưu hoặc Ctrl+S
+  const handleExplicitSave = () => {
+    if (!localDraft) return;
+    onSaveApproval(localDraft);
+    setHasUnsavedChanges(false);
+    showToast("💾 Đã lưu thành công Đề nghị phê duyệt!");
+  };
+
+  // Phím tắt Ctrl+S để lưu nhanh
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") {
+        e.preventDefault();
+        if (localDraft && !isReportMode) {
+          handleExplicitSave();
+        }
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [localDraft, isReportMode]);
+
+  // Xử lý khi bấm nút "Danh sách" quay lại
+  const handleBackToList = () => {
+    if (hasUnsavedChanges) {
+      const confirmLeave = window.confirm(
+        "Bạn có thay đổi chưa lưu trên Đề nghị phê duyệt này.\nBạn có chắc chắn muốn thoát mà KHÔNG lưu không?"
+      );
+      if (!confirmLeave) return;
+    }
+    setActiveApprovalId(null);
   };
 
   // PR tương ứng được liên kết với phiếu Đề nghị phê duyệt
@@ -1658,12 +1722,71 @@ export default function ApprovalManagement({
 
   // Xóa dòng hàng hóa
   const handleRemoveRow = (rowId: string) => {
-    if (!activeRequest || activeRequest.rows.length <= 1) return;
+    if (!activeRequest) return;
     updateActive((prev) => {
+      if (prev.rows.length <= 1) {
+        // Nếu chỉ còn 1 dòng, xóa sạch để người dùng gõ mới chứ không xóa mất bảng
+        const resetRow: ApprovalRequestRow = {
+          rowId: `row_${Date.now()}_1`,
+          stt: 1,
+          itemName: "",
+          qty: 1,
+          unit: "Cái",
+          supplierQuotes: prev.supplierColumns.reduce((acc, col) => {
+            acc[col.colId] = [
+              {
+                lineId: `line_init_${col.colId}_1`,
+                quotedProduct: "",
+                origin: "",
+                unitPrice: 0,
+                qty: 1,
+                amount: 0,
+              },
+            ];
+            return acc;
+          }, {} as Record<string, ApprovalSupplierQuoteLine[]>),
+        };
+        return { ...prev, rows: [resetRow] };
+      }
       const filtered = prev.rows
         .filter((r) => r.rowId !== rowId)
         .map((r, idx) => ({ ...r, stt: idx + 1 }));
       return { ...prev, rows: filtered };
+    });
+  };
+
+  // Chèn thêm 1 dòng hàng hóa ngay dưới vị trí chỉ định
+  const handleInsertRowAfter = (targetIndex: number) => {
+    if (!activeRequest) return;
+    updateActive((prev) => {
+      const rowId = `row_${Date.now()}`;
+      const supplierQuotes: Record<string, ApprovalSupplierQuoteLine[]> = {};
+      prev.supplierColumns.forEach((col) => {
+        supplierQuotes[col.colId] = [
+          {
+            lineId: `line_${rowId}_${col.colId}_1`,
+            quotedProduct: "",
+            origin: "",
+            unitPrice: 0,
+            qty: 1,
+            amount: 0,
+          },
+        ];
+      });
+      const newRow: ApprovalRequestRow = {
+        rowId,
+        stt: targetIndex + 2,
+        itemName: "",
+        qty: 1,
+        unit: "Cái",
+        supplierQuotes,
+      };
+      const newRows = [...prev.rows];
+      newRows.splice(targetIndex + 1, 0, newRow);
+      return {
+        ...prev,
+        rows: newRows.map((r, idx) => ({ ...r, stt: idx + 1 })),
+      };
     });
   };
 
@@ -2114,7 +2237,8 @@ export default function ApprovalManagement({
   }, [activeRequest?.supplierColumns.length, hasQuotedProduct, hasSupplierQty]);
 
   /**
-   * 2. Kích thước cột thực tế: Kết hợp giữa mặc định chuẩn và tùy chỉnh co kéo của người dùng (Lưu tự động toàn hệ thống)
+   * 2. Kích thước cột thực tế: Chuẩn hóa tự động về đúng 100% bề rộng trang in A4.
+   * Dù có 1 NCC, 2 NCC hay 4 NCC, bảng LUÔN LUÔN tự căn khít 100% khổ giấy (không thụt vào, không chìa ra ngoài).
    */
   const colWidths = useMemo(() => {
     let savedGlobal: any = null;
@@ -2122,36 +2246,46 @@ export default function ApprovalManagement({
       try {
         const s = localStorage.getItem("scm_approval_col_widths");
         if (s) {
-          const parsed = JSON.parse(s);
-          if (parsed && (parsed.price < 9.5 || parsed.amt < 9.5)) {
-            parsed.price = Math.max(parsed.price || 0, 10.0);
-            parsed.amt = Math.max(parsed.amt || 0, 10.0);
-            parsed.qty = Math.min(parsed.qty || 6.5, 4.5);
-            parsed.unit = Math.min(parsed.unit || 7.0, 4.5);
-            localStorage.setItem("scm_approval_col_widths", JSON.stringify(parsed));
-          }
-          savedGlobal = parsed;
+          savedGlobal = JSON.parse(s);
         }
       } catch {}
     }
     const custom = activeRequest?.customColWidths || savedGlobal;
     const base = defaultColWidths;
-
     const numSups = Math.max(1, activeRequest?.supplierColumns.length || 1);
-    const minPrice = numSups >= 3 ? 8.2 : (numSups === 2 ? 10.0 : 14.0);
-    const minAmt = numSups >= 3 ? 8.2 : (numSups === 2 ? 10.0 : 14.0);
 
-    const stt = custom?.stt ?? base.stt;
-    const item = custom?.item ?? base.item;
-    const qty = custom?.qty ?? base.qty;
-    const unit = custom?.unit ?? base.unit;
-    const spec = custom?.spec ?? base.spec;
-    const price = Math.max(minPrice, custom?.price ?? base.price);
-    const supQty = custom?.supQty ?? base.supQty;
-    const amt = Math.max(minAmt, custom?.amt ?? base.amt);
+    // Trọng số thô từ tùy biến hoặc mặc định
+    let rawStt = custom?.stt ?? base.stt;
+    let rawItem = custom?.item ?? base.item;
+    let rawQty = custom?.qty ?? base.qty;
+    let rawUnit = custom?.unit ?? base.unit;
+    let rawSpec = hasQuotedProduct ? (custom?.spec ?? base.spec) : 0;
+    let rawPrice = custom?.price ?? base.price;
+    let rawSupQty = hasSupplierQty ? (custom?.supQty ?? base.supQty) : 0;
+    let rawAmt = custom?.amt ?? base.amt;
 
-    const subColSum = (hasQuotedProduct ? spec : 0) + price + (hasSupplierQty ? supQty : 0) + amt;
-    const perSup = Number(subColSum.toFixed(2));
+    // Tổng độ rộng thô của toàn bộ bảng
+    const perSupRaw = rawSpec + rawPrice + rawSupQty + rawAmt;
+    const totalRaw = rawStt + rawItem + rawQty + rawUnit + numSups * perSupRaw;
+
+    // Chuẩn hóa về đúng 100% chính xác
+    const scale = totalRaw > 0 ? 100 / totalRaw : 1;
+    let stt = Number((rawStt * scale).toFixed(2));
+    let item = Number((rawItem * scale).toFixed(2));
+    let qty = Number((rawQty * scale).toFixed(2));
+    let unit = Number((rawUnit * scale).toFixed(2));
+    let spec = Number((rawSpec * scale).toFixed(2));
+    let price = Number((rawPrice * scale).toFixed(2));
+    let supQty = Number((rawSupQty * scale).toFixed(2));
+    let amt = Number((rawAmt * scale).toFixed(2));
+
+    // Khép kín tổng chính xác 100.00%
+    const perSupSum = (hasQuotedProduct ? spec : 0) + price + (hasSupplierQty ? supQty : 0) + amt;
+    const computedTotal = Number((stt + item + qty + unit + numSups * perSupSum).toFixed(2));
+    const roundingDiff = Number((100 - computedTotal).toFixed(2));
+    item = Number((item + roundingDiff).toFixed(2));
+
+    const perSup = Number(perSupSum.toFixed(2));
 
     return {
       stt: `${stt}%`,
@@ -3193,6 +3327,53 @@ export default function ApprovalManagement({
 
     return (
       <div className="a4-paper-workspace-wrapper no-print">
+        {hasUnsavedChanges && (
+          <div
+            className="no-print"
+            style={{
+              maxWidth: activeRequest.printOrientation === "landscape" ? "297mm" : "210mm",
+              margin: "0 auto 12px auto",
+              padding: "10px 16px",
+              backgroundColor: "#fff7ed",
+              border: "1.5px solid #fb923c",
+              borderRadius: "8px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              boxShadow: "0 4px 14px rgba(234, 88, 12, 0.15)",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: "10px", fontSize: "13px", color: "#9a3412" }}>
+              <span style={{ fontSize: "18px" }}>💾</span>
+              <div>
+                <strong>Có thay đổi chưa lưu trên ĐNPD này!</strong>
+                <div style={{ fontSize: "11px", color: "#c2410c", marginTop: "1px" }}>
+                  Hệ thống không tự động lưu dữ liệu đang gõ. Hãy bấm nút &quot;Lưu ĐNPD&quot; hoặc ấn phím <strong>Ctrl + S</strong> để lưu lại.
+                </div>
+              </div>
+            </div>
+            <button
+              type="button"
+              style={{
+                backgroundColor: "#ea580c",
+                color: "#ffffff",
+                border: "none",
+                borderRadius: "5px",
+                padding: "7px 16px",
+                fontWeight: 700,
+                fontSize: "13px",
+                cursor: "pointer",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "6px",
+                boxShadow: "0 2px 6px rgba(234, 88, 12, 0.4)",
+              }}
+              onClick={handleExplicitSave}
+            >
+              <Save size={15} /> Lưu ĐNPD ngay
+            </button>
+          </div>
+        )}
         <div
           className={`a4-paper-canvas ${
             activeRequest.printOrientation === "landscape"
@@ -3372,8 +3553,52 @@ export default function ApprovalManagement({
 
           {/* 3. Phần I & Bảng So Sánh Báo Giá */}
           <div className="phenikaa-section-block">
-            <div className="phenikaa-section-heading">
-              I. Nội dung đề nghị phê duyệt:
+            <div className="phenikaa-section-heading" style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <span>I. Nội dung đề nghị phê duyệt:</span>
+              {!isReportMode && (
+                <div className="no-print" style={{ display: "flex", gap: "6px", alignItems: "center" }}>
+                  <button
+                    type="button"
+                    style={{
+                      border: "1px dashed #2563eb",
+                      background: "#eff6ff",
+                      color: "#1d4ed8",
+                      borderRadius: "4px",
+                      padding: "2px 8px",
+                      fontSize: "11px",
+                      fontWeight: 700,
+                      cursor: "pointer",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "3px",
+                    }}
+                    onClick={handleAddSupplierColumn}
+                    title="Thêm cột Nhà cung cấp mới để so sánh giá"
+                  >
+                    ＋ Thêm cột NCC ({activeRequest.supplierColumns.length})
+                  </button>
+                  <button
+                    type="button"
+                    style={{
+                      border: "1px dashed #16a34a",
+                      background: "#f0fdf4",
+                      color: "#15803d",
+                      borderRadius: "4px",
+                      padding: "2px 8px",
+                      fontSize: "11px",
+                      fontWeight: 700,
+                      cursor: "pointer",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "3px",
+                    }}
+                    onClick={handleAddRow}
+                    title="Thêm dòng vật tư mới"
+                  >
+                    ＋ Thêm dòng vật tư ({activeRequest.rows.length})
+                  </button>
+                </div>
+              )}
             </div>
             <div className="phenikaa-section-subline" style={{ display: "flex", alignItems: "center", gap: "6px" }}>
               <input
@@ -3555,47 +3780,6 @@ export default function ApprovalManagement({
                       </div>
                     </th>
                   ))}
-                  {!isReportMode && (
-                    <th
-                      rowSpan={2}
-                      className="no-print"
-                      style={{
-                        width: "36px",
-                        minWidth: "36px",
-                        maxWidth: "36px",
-                        padding: "2px",
-                        background: "#f8fafc",
-                        borderLeft: "1px dashed #cbd5e1",
-                        verticalAlign: "middle",
-                        textAlign: "center",
-                      }}
-                    >
-                      <button
-                        type="button"
-                        onClick={handleAddSupplierColumn}
-                        title="Thêm cột Nhà cung cấp mới để so sánh giá"
-                        style={{
-                          border: "1px dashed #3b82f6",
-                          background: "#eff6ff",
-                          color: "#2563eb",
-                          borderRadius: "4px",
-                          cursor: "pointer",
-                          padding: "4px 2px",
-                          fontSize: "11px",
-                          fontWeight: 700,
-                          display: "flex",
-                          flexDirection: "column",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          width: "100%",
-                          lineHeight: 1.1,
-                        }}
-                      >
-                        <span style={{ fontSize: "13px" }}>＋</span>
-                        <span style={{ fontSize: "9px" }}>NCC</span>
-                      </button>
-                    </th>
-                  )}
                 </tr>
                 <tr>
                   {activeRequest.supplierColumns.map((sc) => (
@@ -3666,37 +3850,59 @@ export default function ApprovalManagement({
                           <td
                             rowSpan={maxSubLines}
                             className="cell-center cell-stt"
-                            style={{ position: "relative" }}
+                            style={{ position: "relative", verticalAlign: "top", paddingTop: "5px" }}
                           >
-                            <span>{row.stt}</span>
-                            {!isReportMode && activeRequest.rows.length > 1 && (
-                              <button
-                                type="button"
-                                className="no-print"
-                                style={{
-                                  position: "absolute",
-                                  left: "2px",
-                                  top: "50%",
-                                  transform: "translateY(-50%)",
-                                  border: "none",
-                                  background: "#fee2e2",
-                                  color: "#dc2626",
-                                  borderRadius: "2px",
-                                  fontSize: "10px",
-                                  width: "14px",
-                                  height: "14px",
-                                  cursor: "pointer",
-                                  lineHeight: "12px",
-                                  opacity: 0.6,
-                                }}
-                                onMouseEnter={(e) => (e.currentTarget.style.opacity = "1")}
-                                onMouseLeave={(e) => (e.currentTarget.style.opacity = "0.6")}
-                                onClick={() => handleRemoveRow(row.rowId)}
-                                title="Xóa dòng này"
-                              >
-                                ×
-                              </button>
-                            )}
+                            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "2px" }}>
+                              <span style={{ fontWeight: 700, fontSize: "9pt" }}>{row.stt}</span>
+                              {!isReportMode && (
+                                <div className="no-print" style={{ display: "flex", gap: "2px", marginTop: "2px" }}>
+                                  <button
+                                    type="button"
+                                    style={{
+                                      border: "none",
+                                      background: "#fee2e2",
+                                      color: "#dc2626",
+                                      borderRadius: "2px",
+                                      fontSize: "10px",
+                                      width: "16px",
+                                      height: "16px",
+                                      cursor: "pointer",
+                                      lineHeight: "14px",
+                                      display: "flex",
+                                      alignItems: "center",
+                                      justifyContent: "center",
+                                      fontWeight: 700,
+                                    }}
+                                    onClick={() => handleRemoveRow(row.rowId)}
+                                    title={activeRequest.rows.length <= 1 ? "Xóa sạch dữ liệu dòng này" : "Xóa dòng này"}
+                                  >
+                                    ×
+                                  </button>
+                                  <button
+                                    type="button"
+                                    style={{
+                                      border: "none",
+                                      background: "#eff6ff",
+                                      color: "#2563eb",
+                                      borderRadius: "2px",
+                                      fontSize: "10px",
+                                      width: "16px",
+                                      height: "16px",
+                                      cursor: "pointer",
+                                      lineHeight: "14px",
+                                      display: "flex",
+                                      alignItems: "center",
+                                      justifyContent: "center",
+                                      fontWeight: 700,
+                                    }}
+                                    onClick={() => handleInsertRowAfter(rIdx)}
+                                    title="Chèn thêm dòng ngay bên dưới"
+                                  >
+                                    ＋
+                                  </button>
+                                </div>
+                              )}
+                            </div>
                           </td>
                           <td
                             rowSpan={maxSubLines}
@@ -3993,32 +4199,49 @@ export default function ApprovalManagement({
                       }
                       style={{
                         textAlign: "left",
-                        padding: "4px 8px",
+                        padding: "6px 10px",
                         background: "#f8fafc",
+                        borderTop: "1px dashed #cbd5e1",
                       }}
                     >
-                      <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                      <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
                         <button
                           type="button"
                           style={{
-                            border: "1px dashed #3b82f6",
+                            border: "1px dashed #2563eb",
                             background: "#eff6ff",
                             color: "#1d4ed8",
                             borderRadius: "4px",
-                            padding: "3px 10px",
+                            padding: "4px 12px",
                             fontSize: "12px",
                             fontWeight: 700,
                             cursor: "pointer",
                             display: "inline-flex",
                             alignItems: "center",
-                            gap: "4px",
+                            gap: "5px",
                           }}
                           onClick={handleAddRow}
                         >
                           ＋ Thêm dòng vật tư / hàng hóa
                         </button>
-                        <span style={{ fontSize: "11px", color: "#64748b" }}>
-                          (Tổng cộng: {activeRequest.rows.length} mặt hàng)
+                        <button
+                          type="button"
+                          style={{
+                            border: "1px dashed #64748b",
+                            background: "#ffffff",
+                            color: "#334155",
+                            borderRadius: "4px",
+                            padding: "4px 10px",
+                            fontSize: "12px",
+                            fontWeight: 600,
+                            cursor: "pointer",
+                          }}
+                          onClick={handleAddSupplierColumn}
+                        >
+                          ＋ Thêm cột NCC
+                        </button>
+                        <span style={{ fontSize: "11px", color: "#64748b", marginLeft: "auto" }}>
+                          (Tổng cộng: <strong>{activeRequest.rows.length}</strong> mặt hàng | <strong>{activeRequest.supplierColumns.length}</strong> NCC)
                         </span>
                       </div>
                     </td>
@@ -4612,6 +4835,30 @@ export default function ApprovalManagement({
             ))}
           </div>
 
+          {/* 5.5 Dòng ngày tháng & Kính trình Ban Lãnh đạo (Chuẩn mẫu Phenikaa) */}
+          {(() => {
+            const dp = parsePrintDate(activeRequest.createdDate);
+            return (
+              <div
+                style={{
+                  textAlign: "right",
+                  marginTop: "14px",
+                  marginBottom: "8px",
+                  fontStyle: "italic",
+                  fontSize: "10pt",
+                  lineHeight: 1.45,
+                }}
+              >
+                <div>
+                  Hà Nội, ngày {dp.d} tháng {dp.m} năm {dp.y}
+                </div>
+                <div style={{ fontWeight: 700 }}>
+                  Kính trình Ban Lãnh đạo xem xét và phê duyệt!
+                </div>
+              </div>
+            );
+          })()}
+
           {/* 6. Chữ ký đa cột */}
           {(() => {
             const totalCols = 3 + (activeRequest.customSigners?.length || 0);
@@ -4745,7 +4992,7 @@ export default function ApprovalManagement({
           <button
             type="button"
             className="btn btn-back-list"
-            onClick={() => setActiveApprovalId(null)}
+            onClick={handleBackToList}
           >
             <ArrowLeft size={16} /> Danh sách
           </button>
@@ -4776,6 +5023,11 @@ export default function ApprovalManagement({
             >
               {activeRequest.status}
             </span>
+            {hasUnsavedChanges && (
+              <span className="unsaved-change-pill" title="Dữ liệu chưa được lưu vào hệ thống">
+                ● Có thay đổi chưa lưu
+              </span>
+            )}
           </div>
           <DocFlowLinks
             flow={resolveDocFlow({ approval: activeRequest }, { prs, pos, approvalRequests })}
@@ -4920,13 +5172,26 @@ export default function ApprovalManagement({
 
               <button
                 type="button"
-                className="btn"
-                onClick={() => {
-                  onSaveApproval(activeRequest);
-                  showToast("💾 Đã lưu phiếu Đề nghị phê duyệt!");
-                }}
+                className={`btn ${hasUnsavedChanges ? "btn-primary" : ""}`}
+                style={
+                  hasUnsavedChanges
+                    ? {
+                        background: "#2563eb",
+                        color: "#ffffff",
+                        borderColor: "#1d4ed8",
+                        fontWeight: 700,
+                        boxShadow: "0 2px 4px rgba(37,99,235,0.25)",
+                      }
+                    : undefined
+                }
+                onClick={handleExplicitSave}
+                title={
+                  hasUnsavedChanges
+                    ? "Lưu các thay đổi trên phiếu vào hệ thống (Ctrl + S)"
+                    : "Đã lưu bản mới nhất"
+                }
               >
-                <Save size={16} /> Lưu
+                <Save size={16} /> {hasUnsavedChanges ? "Lưu ngay (Ctrl+S)" : "Lưu"}
               </button>
 
               {confirmDeleteId === activeRequest.id ? (
@@ -7692,7 +7957,31 @@ export default function ApprovalManagement({
                 ))}
               </div>
 
-              {/* 6. Chữ ký đa cột */}
+              {/* 5.5 Dòng ngày tháng & Kính trình Ban Lãnh đạo (Chuẩn mẫu Phenikaa) */}
+          {(() => {
+            const dp = parsePrintDate(activeRequest.createdDate);
+            return (
+              <div
+                style={{
+                  textAlign: "right",
+                  marginTop: "14px",
+                  marginBottom: "8px",
+                  fontStyle: "italic",
+                  fontSize: "10pt",
+                  lineHeight: 1.45,
+                }}
+              >
+                <div>
+                  Hà Nội, ngày {dp.d} tháng {dp.m} năm {dp.y}
+                </div>
+                <div style={{ fontWeight: 700 }}>
+                  Kính trình Ban Lãnh đạo xem xét và phê duyệt!
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* 6. Chữ ký đa cột */}
               {(() => {
                 const totalCols = 3 + (activeRequest.customSigners?.length || 0);
                 const colWidth = `${(100 / totalCols).toFixed(2)}%`;
