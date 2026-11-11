@@ -1425,10 +1425,12 @@
 
 .phenikaa-print-grid {
   width: 100% !important;
+  table-layout: fixed !important;
+  border-collapse: collapse !important;
+  box-sizing: border-box !important;
+  margin: 0 !important;
   min-width: 0 !important;
   max-width: 100% !important;
-  border-collapse: collapse !important;
-  table-layout: fixed !important;
 }
 
 .phenikaa-print-grid th,
@@ -1437,13 +1439,20 @@
   padding: 3px 4px !important;
   height: auto !important;
   min-width: 0 !important;
-  position: static !important;
   vertical-align: top !important;
   color: #000000;
   white-space: pre-wrap !important;
   word-break: break-word !important;
   overflow-wrap: break-word !important;
-  box-sizing: border-box;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  box-sizing: border-box !important;
+}
+
+.phenikaa-print-grid input,
+.phenikaa-print-grid textarea {
+  width: 100% !important;
+  box-sizing: border-box !important;
 }
 
 .phenikaa-print-grid thead th {
@@ -1452,6 +1461,25 @@
   text-align: center;
   vertical-align: middle !important;
   background: #ffffff;
+}
+
+.col-resizer-handle {
+  position: absolute !important;
+  top: 0 !important;
+  right: 0 !important;
+  width: 6px !important;
+  height: 100% !important;
+  cursor: col-resize !important;
+  z-index: 10 !important;
+  user-select: none !important;
+  transition: background-color 0.15s ease;
+}
+.col-resizer-handle:hover {
+  background-color: #3b82f6 !important;
+}
+.col-resizer-handle.active,
+.col-resizer-handle:active {
+  background-color: #1d4ed8 !important;
 }
 
 /* Auto-expanding wrapping textarea for WYSIWYG paper table cells */
@@ -1526,6 +1554,21 @@
     display: none !important;
     visibility: hidden !important;
     opacity: 0 !important;
+  }
+
+  table {
+    width: 100% !important;
+    table-layout: fixed !important;
+  }
+
+  th, td, col {
+    box-sizing: border-box !important;
+  }
+
+  input, textarea {
+    border: none !important;
+    background: transparent !important;
+    padding: 0 !important;
   }
 
   #approvalPrintPortal {

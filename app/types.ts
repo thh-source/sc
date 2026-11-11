@@ -680,6 +680,7 @@ export type ApprovalRequest = {
   printOrientation: "portrait" | "landscape";
   signSpaceHeight?: number;
   customColWidths?: Record<string, number>;
+  columnWidths?: number[];
   supplierColumns: ApprovalSupplierColumn[];
   rows: ApprovalItemRow[];
   recommendedSupplierName: string;
