@@ -1447,9 +1447,44 @@
 }
 
 .phenikaa-print-grid thead th {
+  position: relative !important;
   font-weight: 700;
   text-align: center;
   background: #ffffff;
+}
+
+/* Auto-expanding wrapping textarea for WYSIWYG paper table cells */
+.sheet-textarea {
+  width: 100% !important;
+  min-height: 22px !important;
+  box-sizing: border-box !important;
+  resize: none !important;
+  overflow: hidden !important;
+  white-space: pre-wrap !important;
+  word-break: break-word !important;
+  display: block !important;
+  line-height: 1.35 !important;
+  padding: 2px 3px !important;
+  margin: 0 !important;
+  background: transparent !important;
+  border: 1px solid transparent !important;
+  outline: none !important;
+  font-family: inherit !important;
+  font-size: inherit !important;
+  color: inherit !important;
+  border-radius: 2px !important;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.sheet-textarea:hover:not(:read-only) {
+  background-color: rgba(239, 246, 255, 0.7) !important;
+  border-color: #bfdbfe !important;
+}
+
+.sheet-textarea:focus:not(:read-only) {
+  background-color: #ffffff !important;
+  border-color: #3b82f6 !important;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2) !important;
 }
 
 @media screen {

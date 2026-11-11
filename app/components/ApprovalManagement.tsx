@@ -37,7 +37,6 @@ import {
   TrashItem,
   PaymentHandoverItem,
   isItemHidden,
-  TrashItem,
   generatePOCode,
   isPONumberExists,
 } from "../types";
@@ -58,7 +57,7 @@ import { addNewDepartment, getUnifiedDepartments } from "../utils/departments";
 import { DocFlowLinks } from "./DocFlowLinks";
 import { resolveDocFlow } from "../utils/docFlow";
 import { isApprovalCompleted, calcPODeliveryStats } from "../utils/paymentSync";
-import { calcPOTotal, PaymentHandoverItem } from "../types";
+import { calcPOTotal } from "../types";
 import { useIsMobile } from "../useIsMobile";
 
 export function getApprovalContextualStatus(
@@ -514,6 +513,311 @@ function SupplierColumnSearchCombobox({
                 </div>
               );
             })
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Textarea tự động co giãn độ cao và tự xuống dòng theo nội dung trong ô bảng A4 WYSIWYG
+ */
+interface SheetCellTextareaProps {
+  value: string;
+  readOnly?: boolean;
+  placeholder?: string;
+  className?: string;
+  style?: React.CSSProperties;
+  onChange: (val: string) => void;
+  onPaste?: (e: React.ClipboardEvent<HTMLTextAreaElement>) => void;
+}
+
+function SheetCellTextarea({
+  value,
+  readOnly,
+  placeholder,
+  className,
+  style,
+  onChange,
+  onPaste,
+}: SheetCellTextareaProps) {
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const autoResize = () => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = "auto";
+      textareaRef.current.style.height = `${Math.max(20, textareaRef.current.scrollHeight)}px`;
+    }
+  };
+
+  useEffect(() => {
+    autoResize();
+  }, [value]);
+
+  return (
+    <textarea
+      ref={textareaRef}
+      rows={1}
+      value={value || ""}
+      readOnly={readOnly}
+      placeholder={placeholder}
+      className={`sheet-textarea ${className || ""}`}
+      style={{
+        width: "100%",
+        minHeight: "20px",
+        resize: "none",
+        overflow: "hidden",
+        boxSizing: "border-box",
+        whiteSpace: "pre-wrap",
+        wordBreak: "break-word",
+        display: "block",
+        lineHeight: "1.3",
+        padding: "2px 3px",
+        margin: 0,
+        background: "transparent",
+        border: "1px solid transparent",
+        outline: "none",
+        fontFamily: "inherit",
+        fontSize: "inherit",
+        color: "inherit",
+        ...style,
+      }}
+      onChange={(e) => {
+        onChange(e.target.value);
+        autoResize();
+      }}
+      onPaste={onPaste}
+    />
+  );
+}
+
+/**
+ * Header Combobox cho Nhà cung cấp trên bản in WYSIWYG
+ * - Cho phép gõ tìm kiếm và chọn NCC từ danh mục
+ * - Hiển thị tên viết tắt trên bảng, tự động lưu tên pháp nhân đầy đủ vào supplierName
+ * - Tự động đồng bộ với NCC đề xuất trúng thầu
+ */
+interface PaperSupplierHeaderComboboxProps {
+  column: ApprovalSupplierColumn;
+  suppliers: Supplier[];
+  isReportMode: boolean;
+  onUpdate: (updates: { shortName: string; supplierName: string; supplierId?: number }) => void;
+}
+
+function PaperSupplierHeaderCombobox({
+  column,
+  suppliers,
+  isReportMode,
+  onUpdate,
+}: PaperSupplierHeaderComboboxProps) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const filteredSuppliers = useMemo(() => {
+    const q = (query || "").trim().toLowerCase();
+    if (!q) return suppliers;
+    return suppliers.filter(
+      (s) =>
+        s.name.toLowerCase().includes(q) ||
+        (s.shortName && s.shortName.toLowerCase().includes(q)) ||
+        (s.code && s.code.toLowerCase().includes(q))
+    );
+  }, [query, suppliers]);
+
+  const handleSelect = (s: Supplier) => {
+    const short = s.shortName || generateShortName(s.name);
+    onUpdate({
+      shortName: short,
+      supplierName: s.name,
+      supplierId: s.id,
+    });
+    setIsOpen(false);
+    setQuery("");
+  };
+
+  const handleInputChange = (val: string) => {
+    setQuery(val);
+    if (!isOpen) setIsOpen(true);
+    const matched = suppliers.find(
+      (s) =>
+        (s.shortName && s.shortName.trim().toLowerCase() === val.trim().toLowerCase()) ||
+        s.name.trim().toLowerCase() === val.trim().toLowerCase() ||
+        (s.code && s.code.trim().toLowerCase() === val.trim().toLowerCase())
+    );
+
+    if (matched) {
+      onUpdate({
+        shortName: val,
+        supplierName: matched.name,
+        supplierId: matched.id,
+      });
+    } else {
+      onUpdate({
+        shortName: val,
+        supplierName:
+          column.supplierName && column.supplierName !== column.shortName
+            ? column.supplierName
+            : val,
+        supplierId: column.supplierId,
+      });
+    }
+  };
+
+  return (
+    <div ref={wrapRef} style={{ position: "relative", width: "100%" }}>
+      <div style={{ display: "flex", alignItems: "center", position: "relative", width: "100%" }}>
+        <input
+          ref={inputRef}
+          type="text"
+          className="sheet-inline-input center bold-input uppercase"
+          style={{
+            fontSize: "9pt",
+            fontWeight: 700,
+            paddingRight: !isReportMode ? "16px" : "2px",
+            width: "100%",
+          }}
+          value={column.shortName || column.supplierName || ""}
+          readOnly={isReportMode}
+          placeholder="Tên NCC..."
+          list={`sup-list-${column.colId}`}
+          onFocus={() => {
+            if (!isReportMode) {
+              setQuery("");
+            }
+          }}
+          onChange={(e) => handleInputChange(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === "Escape") {
+              setIsOpen(false);
+            }
+          }}
+        />
+        {!isReportMode && (
+          <button
+            type="button"
+            className="no-print"
+            title="Chọn NCC từ danh mục"
+            onClick={(e) => {
+              e.stopPropagation();
+              setQuery("");
+              setIsOpen((prev) => !prev);
+              if (!isOpen) inputRef.current?.focus();
+            }}
+            style={{
+              position: "absolute",
+              right: "2px",
+              background: "none",
+              border: "none",
+              cursor: "pointer",
+              color: "#64748b",
+              fontSize: "11px",
+              padding: "1px 3px",
+              lineHeight: 1,
+            }}
+          >
+            ▾
+          </button>
+        )}
+      </div>
+
+      <datalist id={`sup-list-${column.colId}`}>
+        {suppliers.map((s) => (
+          <option key={s.id} value={s.shortName || generateShortName(s.name) || s.name}>
+            {s.name} {s.code ? `(${s.code})` : ""}
+          </option>
+        ))}
+      </datalist>
+
+      {isOpen && !isReportMode && (
+        <div
+          className="no-print"
+          style={{
+            position: "absolute",
+            top: "100%",
+            left: "50%",
+            transform: "translateX(-50%)",
+            minWidth: "260px",
+            maxWidth: "340px",
+            maxHeight: "240px",
+            overflowY: "auto",
+            backgroundColor: "#ffffff",
+            border: "1px solid #cbd5e1",
+            borderRadius: "6px",
+            boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.25)",
+            zIndex: 100,
+            textAlign: "left",
+          }}
+        >
+          <div
+            style={{
+              padding: "5px 8px",
+              background: "#f1f5f9",
+              borderBottom: "1px solid #e2e8f0",
+              fontSize: "11px",
+              fontWeight: 700,
+              color: "#334155",
+            }}
+          >
+            🔍 Gõ tìm hoặc chọn NCC ({filteredSuppliers.length}):
+          </div>
+          {filteredSuppliers.length === 0 ? (
+            <div style={{ padding: "8px 10px", fontSize: "11px", color: "#94a3b8", textAlign: "center" }}>
+              Không tìm thấy NCC khớp &quot;{query}&quot;
+            </div>
+          ) : (
+            filteredSuppliers.map((s) => (
+              <div
+                key={s.id}
+                style={{
+                  padding: "5px 8px",
+                  borderBottom: "1px solid #f8fafc",
+                  cursor: "pointer",
+                  transition: "background 0.15s",
+                }}
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  handleSelect(s);
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                  <span
+                    style={{
+                      background: "#dbeafe",
+                      color: "#1e40af",
+                      fontSize: "10px",
+                      fontWeight: 700,
+                      padding: "1px 5px",
+                      borderRadius: "3px",
+                      textTransform: "uppercase",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {s.shortName || generateShortName(s.name)}
+                  </span>
+                  {s.code && (
+                    <span style={{ fontSize: "10px", color: "#64748b" }}>
+                      ({s.code})
+                    </span>
+                  )}
+                </div>
+                <div style={{ fontSize: "11px", color: "#1e293b", marginTop: "2px", lineHeight: "1.25" }}>
+                  {s.name}
+                </div>
+              </div>
+            ))
           )}
         </div>
       )}
@@ -2068,7 +2372,11 @@ export default function ApprovalManagement({
         (s) =>
           s.name.trim().toLowerCase() === rawName.toLowerCase() ||
           (s.shortName &&
-            s.shortName.trim().toLowerCase() === rawName.toLowerCase()),
+            s.shortName.trim().toLowerCase() === rawName.toLowerCase()) ||
+          (s.code && s.code.trim().toLowerCase() === rawName.toLowerCase()) ||
+          (s.shortName &&
+            s.shortName.trim().toLowerCase().includes(rawName.toLowerCase())) ||
+          s.name.trim().toLowerCase().includes(rawName.toLowerCase())
       );
       if (matched) return matched.name;
       return rawName;
@@ -2086,7 +2394,12 @@ export default function ApprovalManagement({
           s.name.trim().toLowerCase() === (sel.supplierName || "").trim().toLowerCase() ||
           (s.shortName &&
             sel.shortName &&
-            s.shortName.trim().toLowerCase() === sel.shortName.trim().toLowerCase()),
+            s.shortName.trim().toLowerCase() === sel.shortName.trim().toLowerCase()) ||
+          (sel.shortName &&
+            s.shortName &&
+            s.shortName.trim().toLowerCase().includes(sel.shortName.trim().toLowerCase())) ||
+          (sel.shortName &&
+            s.name.trim().toLowerCase().includes(sel.shortName.trim().toLowerCase()))
       );
       if (matched) return matched.name;
       return sel.supplierName || sel.shortName || "";
@@ -3118,16 +3431,44 @@ export default function ApprovalManagement({
               <thead>
                 <tr>
                   <th rowSpan={2} className="col-stt">
-                    STT
+                    <span>STT</span>
+                    {!isReportMode && (
+                      <div
+                        className={`col-resizer-handle no-print ${resizingColKey === "stt" ? "active" : ""}`}
+                        onMouseDown={(e) => startColumnDrag("stt", e)}
+                        title="Kéo sang trái/phải để co giãn độ rộng cột STT"
+                      />
+                    )}
                   </th>
                   <th rowSpan={2} className="col-item-name">
-                    Hàng hóa
+                    <span>Hàng hóa</span>
+                    {!isReportMode && (
+                      <div
+                        className={`col-resizer-handle no-print ${resizingColKey === "item" ? "active" : ""}`}
+                        onMouseDown={(e) => startColumnDrag("item", e)}
+                        title="Kéo sang trái/phải để co giãn độ rộng cột Hàng hóa"
+                      />
+                    )}
                   </th>
                   <th rowSpan={2} className="col-qty">
-                    Số<br />lượng
+                    <span>Số<br />lượng</span>
+                    {!isReportMode && (
+                      <div
+                        className={`col-resizer-handle no-print ${resizingColKey === "qty" ? "active" : ""}`}
+                        onMouseDown={(e) => startColumnDrag("qty", e)}
+                        title="Kéo sang trái/phải để co giãn độ rộng cột Số lượng"
+                      />
+                    )}
                   </th>
                   <th rowSpan={2} className="col-unit">
-                    ĐVT
+                    <span>ĐVT</span>
+                    {!isReportMode && (
+                      <div
+                        className={`col-resizer-handle no-print ${resizingColKey === "unit" ? "active" : ""}`}
+                        onMouseDown={(e) => startColumnDrag("unit", e)}
+                        title="Kéo sang trái/phải để co giãn độ rộng cột ĐVT"
+                      />
+                    )}
                   </th>
                   {activeRequest.supplierColumns.map((sc) => (
                     <th
@@ -3161,7 +3502,7 @@ export default function ApprovalManagement({
                               }}
                               onClick={(e) => {
                                 e.stopPropagation();
-                                handleSelectWinningSupplier(sc.colId);
+                                handleSelectSupplierCol(sc.colId);
                               }}
                               title="Chọn nhà cung cấp này trúng thầu"
                             >
@@ -3194,46 +3535,114 @@ export default function ApprovalManagement({
                             </button>
                           )}
                         </div>
-                        <input
-                          type="text"
-                          className="sheet-inline-input center bold-input uppercase"
-                          style={{ fontSize: "9pt", fontWeight: 700 }}
-                          value={sc.shortName || sc.supplierName}
-                          readOnly={isReportMode}
-                          onChange={(e) => {
-                            const val = e.target.value;
+                        <PaperSupplierHeaderCombobox
+                          column={sc}
+                          suppliers={suppliers}
+                          isReportMode={isReportMode}
+                          onUpdate={({ shortName, supplierName, supplierId }) => {
                             updateActive((prev) => ({
                               ...prev,
                               supplierColumns: prev.supplierColumns.map((c) =>
                                 c.colId === sc.colId
-                                  ? { ...c, shortName: val, supplierName: c.supplierName || val }
+                                  ? { ...c, shortName, supplierName, supplierId }
                                   : c
                               ),
-                              recommendedSupplierName: sc.isSelected ? val : prev.recommendedSupplierName,
+                              recommendedSupplierName:
+                                sc.isSelected && supplierName ? supplierName : prev.recommendedSupplierName,
                             }));
                           }}
-                          placeholder="Tên NCC..."
                         />
                       </div>
                     </th>
                   ))}
+                  {!isReportMode && (
+                    <th
+                      rowSpan={2}
+                      className="no-print"
+                      style={{
+                        width: "36px",
+                        minWidth: "36px",
+                        maxWidth: "36px",
+                        padding: "2px",
+                        background: "#f8fafc",
+                        borderLeft: "1px dashed #cbd5e1",
+                        verticalAlign: "middle",
+                        textAlign: "center",
+                      }}
+                    >
+                      <button
+                        type="button"
+                        onClick={handleAddSupplierColumn}
+                        title="Thêm cột Nhà cung cấp mới để so sánh giá"
+                        style={{
+                          border: "1px dashed #3b82f6",
+                          background: "#eff6ff",
+                          color: "#2563eb",
+                          borderRadius: "4px",
+                          cursor: "pointer",
+                          padding: "4px 2px",
+                          fontSize: "11px",
+                          fontWeight: 700,
+                          display: "flex",
+                          flexDirection: "column",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          width: "100%",
+                          lineHeight: 1.1,
+                        }}
+                      >
+                        <span style={{ fontSize: "13px" }}>＋</span>
+                        <span style={{ fontSize: "9px" }}>NCC</span>
+                      </button>
+                    </th>
+                  )}
                 </tr>
                 <tr>
                   {activeRequest.supplierColumns.map((sc) => (
                     <React.Fragment key={`w_sub_${sc.colId}`}>
                       {hasQuotedProduct && (
-                        <th className="col-sub-spec">{quotedProductTitle}</th>
+                        <th className="col-sub-spec">
+                          <span>{quotedProductTitle}</span>
+                          {!isReportMode && (
+                            <div
+                              className={`col-resizer-handle no-print ${resizingColKey === "spec" ? "active" : ""}`}
+                              onMouseDown={(e) => startColumnDrag("spec", e)}
+                              title="Kéo sang trái/phải để co giãn độ rộng cột Mặt hàng NCC báo"
+                            />
+                          )}
+                        </th>
                       )}
                       <th className="col-sub-price">
-                        Đơn giá<br />(VNĐ)
+                        <span>Đơn giá<br />(VNĐ)</span>
+                        {!isReportMode && (
+                          <div
+                            className={`col-resizer-handle no-print ${resizingColKey === "price" ? "active" : ""}`}
+                            onMouseDown={(e) => startColumnDrag("price", e)}
+                            title="Kéo sang trái/phải để co giãn độ rộng cột Đơn giá"
+                          />
+                        )}
                       </th>
                       {hasSupplierQty && (
                         <th className="col-sub-qty">
-                          Số<br />lượng
+                          <span>Số<br />lượng</span>
+                          {!isReportMode && (
+                            <div
+                              className={`col-resizer-handle no-print ${resizingColKey === "supQty" ? "active" : ""}`}
+                              onMouseDown={(e) => startColumnDrag("supQty", e)}
+                              title="Kéo sang trái/phải để co giãn độ rộng cột Số lượng của NCC"
+                            />
+                          )}
                         </th>
                       )}
                       <th className="col-sub-amount">
-                        Thành<br />tiền
+                        <span>Thành<br />tiền</span>
+                        {!isReportMode && (
+                          <div
+                            className={`col-resizer-handle no-print ${resizingColKey === "amt" ? "active" : ""}`}
+                            onMouseDown={(e) => startColumnDrag("amt", e)}
+                            title="Kéo sang trái/phải để co giãn độ rộng cột Thành tiền"
+                          />
+                        )}
                       </th>
                     </React.Fragment>
                   ))}
@@ -3293,16 +3702,14 @@ export default function ApprovalManagement({
                             rowSpan={maxSubLines}
                             className="cell-left cell-item-name"
                           >
-                            <input
-                              type="text"
-                              className="sheet-inline-input"
+                            <SheetCellTextarea
                               value={row.itemName}
                               readOnly={isReportMode}
-                              onChange={(e) =>
-                                handleUpdateFixedRow(rIdx, "itemName", e.target.value)
+                              placeholder="Tên hàng hóa / vật tư..."
+                              onChange={(val) =>
+                                handleUpdateFixedRow(rIdx, "itemName", val)
                               }
                               onPaste={(e) => handleCellPaste(e, rIdx, 1)}
-                              placeholder="Tên hàng hóa / vật tư..."
                             />
                           </td>
                           <td
@@ -3367,18 +3774,17 @@ export default function ApprovalManagement({
                                   rowSpan={maxSubLines}
                                   className="cell-left cell-sub-spec"
                                 >
-                                  <input
-                                    type="text"
-                                    className="sheet-inline-input"
+                                  <SheetCellTextarea
                                     value={line.quotedProduct || line.origin || ""}
                                     readOnly={isReportMode}
-                                    onChange={(e) =>
+                                    placeholder="Quy cách/hãng..."
+                                    onChange={(val) =>
                                       handleUpdateSupplierLine(
                                         rIdx,
                                         sc.colId,
                                         0,
                                         "quotedProduct",
-                                        e.target.value
+                                        val
                                       )
                                     }
                                     onPaste={(e) =>
@@ -3389,7 +3795,6 @@ export default function ApprovalManagement({
                                         0
                                       )
                                     }
-                                    placeholder="Quy cách/hãng..."
                                   />
                                 </td>
                               )}
@@ -3486,18 +3891,17 @@ export default function ApprovalManagement({
                           <React.Fragment key={`w_cell_${row.rowId}_${sc.colId}_${subIdx}`}>
                             {hasQuotedProduct && (
                               <td className="cell-left cell-sub-spec">
-                                <input
-                                  type="text"
-                                  className="sheet-inline-input"
+                                <SheetCellTextarea
                                   value={line.quotedProduct || line.origin || ""}
                                   readOnly={isReportMode}
-                                  onChange={(e) =>
+                                  placeholder="Quy cách/hãng..."
+                                  onChange={(val) =>
                                     handleUpdateSupplierLine(
                                       rIdx,
                                       sc.colId,
                                       subIdx,
                                       "quotedProduct",
-                                      e.target.value
+                                      val
                                     )
                                   }
                                   onPaste={(e) =>
@@ -3508,7 +3912,6 @@ export default function ApprovalManagement({
                                       subIdx
                                     )
                                   }
-                                  placeholder="Quy cách/hãng..."
                                 />
                               </td>
                             )}
@@ -3811,8 +4214,8 @@ export default function ApprovalManagement({
             </div>
 
             {/* 1. Nhà cung cấp đề xuất (Tên đầy đủ) */}
-            <div className="eval-row" style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-              <span className="eval-label">1. Nhà cung cấp đề xuất:</span>
+            <div className="eval-row" style={{ display: "flex", alignItems: "baseline", gap: "6px" }}>
+              <span className="eval-label" style={{ whiteSpace: "nowrap" }}>1. Nhà cung cấp đề xuất:</span>
               <input
                 type="text"
                 className="sheet-inline-input uppercase bold-input"
@@ -3836,48 +4239,6 @@ export default function ApprovalManagement({
                 }
                 placeholder="Tên đầy đủ nhà cung cấp đề xuất..."
               />
-              {!isReportMode && (
-                <select
-                  className="no-print"
-                  style={{
-                    fontSize: "11px",
-                    fontWeight: 600,
-                    color: "#0369a1",
-                    backgroundColor: "#f0f9ff",
-                    border: "1px solid #bae6fd",
-                    borderRadius: "4px",
-                    padding: "2px 6px",
-                    cursor: "pointer",
-                    maxWidth: "200px",
-                  }}
-                  value=""
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    if (!val) return;
-                    updateActive((prev) => ({
-                      ...prev,
-                      recommendedSupplierName: val,
-                    }));
-                  }}
-                  title="Chọn nhanh tên đầy đủ từ danh mục NCC"
-                >
-                  <option value="">▼ Đổi NCC</option>
-                  {activeRequest.supplierColumns.map((sc) => {
-                    const matched = suppliers.find(
-                      (s) =>
-                        s.name.trim().toLowerCase() === (sc.supplierName || "").trim().toLowerCase() ||
-                        (s.shortName && sc.shortName && s.shortName.trim().toLowerCase() === sc.shortName.trim().toLowerCase()) ||
-                        s.id === sc.supplierId
-                    );
-                    const fullName = matched?.name || sc.supplierName || sc.shortName;
-                    return (
-                      <option key={sc.colId} value={fullName}>
-                        {fullName}
-                      </option>
-                    );
-                  })}
-                </select>
-              )}
             </div>
 
             {/* 2. Điều kiện giao hàng */}
