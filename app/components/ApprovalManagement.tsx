@@ -861,6 +861,7 @@ export default function ApprovalManagement({
   const [poCreateNumberManual, setPoCreateNumberManual] = useState<boolean>(false);
   const [isSubmittingPO, setIsSubmittingPO] = useState<boolean>(false);
   const [showColWidthAdjuster, setShowColWidthAdjuster] = useState(false);
+  const [workspaceViewMode, setWorkspaceViewMode] = useState<"wysiwyg" | "cards">("wysiwyg");
   const [resizingColKey, setResizingColKey] = useState<string | null>(null);
   const resizeRef = useRef<{
     colKey: string;
@@ -2872,6 +2873,1052 @@ export default function ApprovalManagement({
   }
 
   // =========================================================================
+  // BẢN IN A4 WYSIWYG TRỰC QUAN (GIỐNG 100% PHIẾU IN, CHỈNH SỬA TRỰC TIẾP TRÊN TRANG)
+  // =========================================================================
+  const renderWYSIWYGPaperWorkspace = () => {
+    if (!activeRequest) return null;
+
+    return (
+      <div className="a4-paper-workspace-wrapper no-print">
+        <div
+          className={`a4-paper-canvas ${
+            activeRequest.printOrientation === "landscape"
+              ? "a4-landscape"
+              : "a4-portrait"
+          }`}
+        >
+          {/* 1. Header Công ty + Tiêu đề Biểu mẫu */}
+          <table className="phenikaa-header-table" style={{ display: "table" }}>
+            <tbody>
+              <tr>
+                <td className="phenikaa-logo-box">
+                  <img
+                    src={PHENIKAA_PHARMA_LOGO_BASE64}
+                    alt="PHENIKAA PHARMA"
+                    className="phenikaa-logo-img"
+                  />
+                </td>
+                <td className="phenikaa-title-box">
+                  ĐỀ NGHỊ PHÊ DUYỆT LỰA CHỌN NCC
+                </td>
+              </tr>
+            </tbody>
+          </table>
+
+          {/* 2. Khung Thông tin căn cứ 4 dòng dọc */}
+          <div className="phenikaa-meta-lines">
+            <div className="phenikaa-meta-line">
+              <span className="meta-lbl">Số PR:</span>
+              <input
+                type="text"
+                className="sheet-inline-input meta-inline-input"
+                value={activeRequest.prNumber || ""}
+                readOnly={isReportMode}
+                onChange={(e) =>
+                  updateActive((prev) => ({
+                    ...prev,
+                    prNumber: e.target.value,
+                  }))
+                }
+                placeholder="Số PR..."
+              />
+            </div>
+            <div className="phenikaa-meta-line">
+              <span className="meta-lbl">Ngày:</span>
+              <input
+                type="text"
+                className="sheet-inline-input meta-inline-input"
+                value={activeRequest.createdDate || ""}
+                readOnly={isReportMode}
+                onChange={(e) =>
+                  updateActive((prev) => ({
+                    ...prev,
+                    createdDate: e.target.value,
+                  }))
+                }
+                placeholder="DD/MM/YYYY"
+              />
+            </div>
+            <div className="phenikaa-meta-line">
+              <span className="meta-lbl">Đơn vị lập biểu mẫu:</span>
+              <input
+                type="text"
+                className="sheet-inline-input meta-inline-input"
+                value={activeRequest.department || ""}
+                readOnly={isReportMode}
+                onChange={(e) =>
+                  updateActive((prev) => ({
+                    ...prev,
+                    department: e.target.value,
+                  }))
+                }
+                placeholder="Đơn vị lập biểu mẫu..."
+              />
+            </div>
+            <div className="phenikaa-meta-line">
+              <span className="meta-lbl">Ghi chú: Căn cứ theo PR số:</span>
+              <input
+                type="text"
+                className="sheet-inline-input meta-inline-input"
+                value={
+                  activeRequest.noteRef !== undefined
+                    ? activeRequest.noteRef
+                    : activeRequest.prNumber || ""
+                }
+                readOnly={isReportMode}
+                onChange={(e) =>
+                  updateActive((prev) => ({
+                    ...prev,
+                    noteRef: e.target.value,
+                  }))
+                }
+                placeholder="Căn cứ theo PR số..."
+              />
+            </div>
+          </div>
+
+          {/* 3. Phần I & Bảng So Sánh Báo Giá */}
+          <div className="phenikaa-section-block">
+            <div className="phenikaa-section-heading">
+              I. Nội dung đề nghị phê duyệt:
+            </div>
+            <div className="phenikaa-section-subline">
+              <input
+                type="text"
+                className="sheet-inline-input"
+                style={{ fontWeight: 400 }}
+                value={activeRequest.section1Title || ""}
+                readOnly={isReportMode}
+                onChange={(e) =>
+                  updateActive((prev) => ({
+                    ...prev,
+                    section1Title: e.target.value,
+                  }))
+                }
+                placeholder="Theo yêu cầu mua hàng..."
+              />
+            </div>
+
+            <table className="phenikaa-print-grid">
+              {renderTableColGroup()}
+              <thead>
+                <tr>
+                  <th rowSpan={2} className="col-stt">
+                    STT
+                  </th>
+                  <th rowSpan={2} className="col-item-name">
+                    Hàng hóa
+                  </th>
+                  <th rowSpan={2} className="col-qty">
+                    Số<br />lượng
+                  </th>
+                  <th rowSpan={2} className="col-unit">
+                    ĐVT
+                  </th>
+                  {activeRequest.supplierColumns.map((sc) => (
+                    <th
+                      key={`w_head_${sc.colId}`}
+                      colSpan={subColCountPerSupplier}
+                      className={`col-supplier-group ${sc.isSelected ? "selected-supplier-th" : ""}`}
+                      style={{
+                        backgroundColor: sc.isSelected ? "#f0fdf4" : undefined,
+                        borderTop: sc.isSelected ? "2.5px solid #16a34a" : undefined,
+                      }}
+                    >
+                      <div style={{ display: "flex", flexDirection: "column", gap: "2px", alignItems: "center" }}>
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", gap: "4px" }}>
+                          {sc.isSelected ? (
+                            <span style={{ fontSize: "10px", color: "#16a34a", fontWeight: 800 }}>
+                              ★ NCC lựa chọn
+                            </span>
+                          ) : (
+                            <button
+                              type="button"
+                              className="no-print"
+                              style={{
+                                fontSize: "10px",
+                                color: "#2563eb",
+                                background: "#eff6ff",
+                                border: "1px solid #bfdbfe",
+                                borderRadius: "3px",
+                                padding: "1px 5px",
+                                cursor: "pointer",
+                                fontWeight: 600,
+                              }}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleSelectWinningSupplier(sc.colId);
+                              }}
+                              title="Chọn nhà cung cấp này trúng thầu"
+                            >
+                              Chọn NCC này
+                            </button>
+                          )}
+                          {!isReportMode && activeRequest.supplierColumns.length > 1 && (
+                            <button
+                              type="button"
+                              className="no-print"
+                              style={{
+                                border: "none",
+                                background: "#fee2e2",
+                                color: "#dc2626",
+                                borderRadius: "3px",
+                                fontSize: "11px",
+                                width: "16px",
+                                height: "16px",
+                                cursor: "pointer",
+                                lineHeight: "14px",
+                                marginLeft: "auto",
+                              }}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleRemoveSupplierColumn(sc.colId);
+                              }}
+                              title="Xóa cột NCC này"
+                            >
+                              ×
+                            </button>
+                          )}
+                        </div>
+                        <input
+                          type="text"
+                          className="sheet-inline-input center bold-input uppercase"
+                          style={{ fontSize: "9pt", fontWeight: 700 }}
+                          value={sc.shortName || sc.supplierName}
+                          readOnly={isReportMode}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            updateActive((prev) => ({
+                              ...prev,
+                              supplierColumns: prev.supplierColumns.map((c) =>
+                                c.colId === sc.colId
+                                  ? { ...c, shortName: val, supplierName: c.supplierName || val }
+                                  : c
+                              ),
+                              recommendedSupplierName: sc.isSelected ? val : prev.recommendedSupplierName,
+                            }));
+                          }}
+                          placeholder="Tên NCC..."
+                        />
+                      </div>
+                    </th>
+                  ))}
+                </tr>
+                <tr>
+                  {activeRequest.supplierColumns.map((sc) => (
+                    <React.Fragment key={`w_sub_${sc.colId}`}>
+                      {hasQuotedProduct && (
+                        <th className="col-sub-spec">{quotedProductTitle}</th>
+                      )}
+                      <th className="col-sub-price">
+                        Đơn giá<br />(VNĐ)
+                      </th>
+                      {hasSupplierQty && (
+                        <th className="col-sub-qty">
+                          Số<br />lượng
+                        </th>
+                      )}
+                      <th className="col-sub-amount">
+                        Thành<br />tiền
+                      </th>
+                    </React.Fragment>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {activeRequest.rows.map((row, rIdx) => {
+                  const maxSubLines = hasSupplierQty
+                    ? Math.max(
+                        1,
+                        ...activeRequest.supplierColumns.map(
+                          (sc) => (row.supplierQuotes[sc.colId] || []).length
+                        )
+                      )
+                    : 1;
+
+                  return Array.from({ length: maxSubLines }, (_, subIdx) => (
+                    <tr key={`w_row_${row.rowId}_${subIdx}`}>
+                      {subIdx === 0 && (
+                        <>
+                          <td
+                            rowSpan={maxSubLines}
+                            className="cell-center cell-stt"
+                            style={{ position: "relative" }}
+                          >
+                            <span>{row.stt}</span>
+                            {!isReportMode && activeRequest.rows.length > 1 && (
+                              <button
+                                type="button"
+                                className="no-print"
+                                style={{
+                                  position: "absolute",
+                                  left: "2px",
+                                  top: "50%",
+                                  transform: "translateY(-50%)",
+                                  border: "none",
+                                  background: "#fee2e2",
+                                  color: "#dc2626",
+                                  borderRadius: "2px",
+                                  fontSize: "10px",
+                                  width: "14px",
+                                  height: "14px",
+                                  cursor: "pointer",
+                                  lineHeight: "12px",
+                                  opacity: 0.6,
+                                }}
+                                onMouseEnter={(e) => (e.currentTarget.style.opacity = "1")}
+                                onMouseLeave={(e) => (e.currentTarget.style.opacity = "0.6")}
+                                onClick={() => handleRemoveRow(row.rowId)}
+                                title="Xóa dòng này"
+                              >
+                                ×
+                              </button>
+                            )}
+                          </td>
+                          <td
+                            rowSpan={maxSubLines}
+                            className="cell-left cell-item-name"
+                          >
+                            <input
+                              type="text"
+                              className="sheet-inline-input"
+                              value={row.itemName}
+                              readOnly={isReportMode}
+                              onChange={(e) =>
+                                handleUpdateFixedRow(rIdx, "itemName", e.target.value)
+                              }
+                              onPaste={(e) => handleCellPaste(e, rIdx, 1)}
+                              placeholder="Tên hàng hóa / vật tư..."
+                            />
+                          </td>
+                          <td
+                            rowSpan={maxSubLines}
+                            className="cell-center cell-qty"
+                          >
+                            <input
+                              type="text"
+                              className="sheet-inline-input center"
+                              value={row.qty || ""}
+                              readOnly={isReportMode}
+                              onChange={(e) =>
+                                handleUpdateFixedRow(rIdx, "qty", e.target.value)
+                              }
+                              onPaste={(e) => handleCellPaste(e, rIdx, 2)}
+                              placeholder="1"
+                            />
+                          </td>
+                          <td
+                            rowSpan={maxSubLines}
+                            className="cell-center cell-unit"
+                          >
+                            <input
+                              type="text"
+                              className="sheet-inline-input center"
+                              value={row.unit}
+                              readOnly={isReportMode}
+                              onChange={(e) =>
+                                handleUpdateFixedRow(rIdx, "unit", e.target.value)
+                              }
+                              onPaste={(e) => handleCellPaste(e, rIdx, 3)}
+                              placeholder="ĐVT"
+                            />
+                          </td>
+                        </>
+                      )}
+
+                      {activeRequest.supplierColumns.map((sc) => {
+                        const lines = row.supplierQuotes[sc.colId] || [
+                          {
+                            lineId: `d_${row.rowId}_${sc.colId}`,
+                            quotedProduct: "",
+                            origin: "",
+                            unitPrice: 0,
+                            qty: row.qty,
+                            amount: 0,
+                          },
+                        ];
+
+                        if (lines.length === 1 && maxSubLines > 1) {
+                          if (subIdx > 0) return null;
+                          const line = lines[0];
+                          const effQty = hasSupplierQty
+                            ? Number(line.qty) || 0
+                            : Number(row.qty) || 0;
+                          const amt = (Number(line.unitPrice) || 0) * effQty;
+
+                          return (
+                            <React.Fragment key={`w_span_${row.rowId}_${sc.colId}`}>
+                              {hasQuotedProduct && (
+                                <td
+                                  rowSpan={maxSubLines}
+                                  className="cell-left cell-sub-spec"
+                                >
+                                  <input
+                                    type="text"
+                                    className="sheet-inline-input"
+                                    value={line.quotedProduct || line.origin || ""}
+                                    readOnly={isReportMode}
+                                    onChange={(e) =>
+                                      handleUpdateSupplierLine(
+                                        rIdx,
+                                        sc.colId,
+                                        0,
+                                        "quotedProduct",
+                                        e.target.value
+                                      )
+                                    }
+                                    onPaste={(e) =>
+                                      handleCellPaste(
+                                        e,
+                                        rIdx,
+                                        getSupplierFlatColIndex(sc.colId, "quotedProduct"),
+                                        0
+                                      )
+                                    }
+                                    placeholder="Quy cách/hãng..."
+                                  />
+                                </td>
+                              )}
+                              <td
+                                rowSpan={maxSubLines}
+                                className="cell-right cell-sub-price"
+                              >
+                                <input
+                                  type="text"
+                                  className="sheet-inline-input right"
+                                  style={{ fontWeight: 600 }}
+                                  value={line.unitPrice ? formatVND(line.unitPrice) : ""}
+                                  readOnly={isReportMode}
+                                  placeholder="0"
+                                  onChange={(e) =>
+                                    handleUpdateSupplierLine(
+                                      rIdx,
+                                      sc.colId,
+                                      0,
+                                      "unitPrice",
+                                      e.target.value
+                                    )
+                                  }
+                                  onPaste={(e) =>
+                                    handleCellPaste(
+                                      e,
+                                      rIdx,
+                                      getSupplierFlatColIndex(sc.colId, "unitPrice"),
+                                      0
+                                    )
+                                  }
+                                />
+                              </td>
+                              {hasSupplierQty && (
+                                <td
+                                  rowSpan={maxSubLines}
+                                  className="cell-center cell-sub-qty"
+                                >
+                                  <input
+                                    type="text"
+                                    className="sheet-inline-input center"
+                                    value={line.qty || ""}
+                                    readOnly={isReportMode}
+                                    placeholder="1"
+                                    onChange={(e) =>
+                                      handleUpdateSupplierLine(
+                                        rIdx,
+                                        sc.colId,
+                                        0,
+                                        "qty",
+                                        e.target.value
+                                      )
+                                    }
+                                    onPaste={(e) =>
+                                      handleCellPaste(
+                                        e,
+                                        rIdx,
+                                        getSupplierFlatColIndex(sc.colId, "qty"),
+                                        0
+                                      )
+                                    }
+                                  />
+                                </td>
+                              )}
+                              <td
+                                rowSpan={maxSubLines}
+                                className="cell-right cell-sub-amount"
+                                style={{ fontWeight: 600 }}
+                              >
+                                {amt ? formatVND(amt) : "-"}
+                              </td>
+                            </React.Fragment>
+                          );
+                        }
+
+                        const line = lines[subIdx];
+                        if (!line) {
+                          return (
+                            <React.Fragment key={`w_empty_${row.rowId}_${sc.colId}_${subIdx}`}>
+                              {hasQuotedProduct && <td />}
+                              <td />
+                              {hasSupplierQty && <td />}
+                              <td />
+                            </React.Fragment>
+                          );
+                        }
+
+                        const effQty = hasSupplierQty
+                          ? Number(line.qty) || 0
+                          : Number(row.qty) || 0;
+                        const amt = (Number(line.unitPrice) || 0) * effQty;
+
+                        return (
+                          <React.Fragment key={`w_cell_${row.rowId}_${sc.colId}_${subIdx}`}>
+                            {hasQuotedProduct && (
+                              <td className="cell-left cell-sub-spec">
+                                <input
+                                  type="text"
+                                  className="sheet-inline-input"
+                                  value={line.quotedProduct || line.origin || ""}
+                                  readOnly={isReportMode}
+                                  onChange={(e) =>
+                                    handleUpdateSupplierLine(
+                                      rIdx,
+                                      sc.colId,
+                                      subIdx,
+                                      "quotedProduct",
+                                      e.target.value
+                                    )
+                                  }
+                                  onPaste={(e) =>
+                                    handleCellPaste(
+                                      e,
+                                      rIdx,
+                                      getSupplierFlatColIndex(sc.colId, "quotedProduct"),
+                                      subIdx
+                                    )
+                                  }
+                                  placeholder="Quy cách/hãng..."
+                                />
+                              </td>
+                            )}
+                            <td className="cell-right cell-sub-price">
+                              <input
+                                type="text"
+                                className="sheet-inline-input right"
+                                style={{ fontWeight: 600 }}
+                                value={line.unitPrice ? formatVND(line.unitPrice) : ""}
+                                readOnly={isReportMode}
+                                placeholder="0"
+                                onChange={(e) =>
+                                  handleUpdateSupplierLine(
+                                    rIdx,
+                                    sc.colId,
+                                    subIdx,
+                                    "unitPrice",
+                                    e.target.value
+                                  )
+                                }
+                                onPaste={(e) =>
+                                  handleCellPaste(
+                                    e,
+                                    rIdx,
+                                    getSupplierFlatColIndex(sc.colId, "unitPrice"),
+                                    subIdx
+                                  )
+                                }
+                              />
+                            </td>
+                            {hasSupplierQty && (
+                              <td className="cell-center cell-sub-qty">
+                                <input
+                                  type="text"
+                                  className="sheet-inline-input center"
+                                  value={line.qty || ""}
+                                  readOnly={isReportMode}
+                                  placeholder="1"
+                                  onChange={(e) =>
+                                    handleUpdateSupplierLine(
+                                      rIdx,
+                                      sc.colId,
+                                      subIdx,
+                                      "qty",
+                                      e.target.value
+                                    )
+                                  }
+                                  onPaste={(e) =>
+                                    handleCellPaste(
+                                      e,
+                                      rIdx,
+                                      getSupplierFlatColIndex(sc.colId, "qty"),
+                                      subIdx
+                                    )
+                                  }
+                                />
+                              </td>
+                            )}
+                            <td
+                              className="cell-right cell-sub-amount"
+                              style={{ fontWeight: 600 }}
+                            >
+                              {amt ? formatVND(amt) : "-"}
+                            </td>
+                          </React.Fragment>
+                        );
+                      })}
+                    </tr>
+                  ));
+                })}
+
+                {/* Dòng thêm mới vật tư trên màn hình */}
+                {!isReportMode && (
+                  <tr className="no-print">
+                    <td
+                      colSpan={
+                        4 +
+                        activeRequest.supplierColumns.length * subColCountPerSupplier
+                      }
+                      style={{
+                        textAlign: "left",
+                        padding: "4px 8px",
+                        background: "#f8fafc",
+                      }}
+                    >
+                      <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                        <button
+                          type="button"
+                          style={{
+                            border: "1px dashed #3b82f6",
+                            background: "#eff6ff",
+                            color: "#1d4ed8",
+                            borderRadius: "4px",
+                            padding: "3px 10px",
+                            fontSize: "12px",
+                            fontWeight: 700,
+                            cursor: "pointer",
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: "4px",
+                          }}
+                          onClick={handleAddRow}
+                        >
+                          ＋ Thêm dòng vật tư / hàng hóa
+                        </button>
+                        <span style={{ fontSize: "11px", color: "#64748b" }}>
+                          (Tổng cộng: {activeRequest.rows.length} mặt hàng)
+                        </span>
+                      </div>
+                    </td>
+                  </tr>
+                )}
+
+                {activeRequest.showDeliveryTimeRow && (
+                  <tr>
+                    <td />
+                    <td colSpan={3} className="cell-center bold-cell">
+                      Thời gian giao hàng
+                    </td>
+                    {activeRequest.supplierColumns.map((sc) => (
+                      <td
+                        key={`w_deliv_${sc.colId}`}
+                        colSpan={subColCountPerSupplier}
+                        className="cell-center bold-cell"
+                      >
+                        <input
+                          type="text"
+                          className="sheet-inline-input center"
+                          value={sc.deliveryTime || ""}
+                          readOnly={isReportMode}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            updateActive((prev) => ({
+                              ...prev,
+                              supplierColumns: prev.supplierColumns.map((c) =>
+                                c.colId === sc.colId ? { ...c, deliveryTime: val } : c
+                              ),
+                            }));
+                          }}
+                          placeholder="Thời gian giao..."
+                        />
+                      </td>
+                    ))}
+                  </tr>
+                )}
+
+                {/* Dòng tổng tiền: Phản ánh đúng Chưa VAT hoặc Có VAT */}
+                {activeRequest.vatMode !== "with_vat" ? (
+                  <tr className="total-footer-row">
+                    <td colSpan={4} className="cell-center bold-cell">
+                      Tổng tiền chưa có VAT
+                    </td>
+                    {activeRequest.supplierColumns.map((sc) => {
+                      const totalVal = supplierSubtotals[sc.colId] || 0;
+                      return (
+                        <React.Fragment key={`w_tot_${sc.colId}`}>
+                          <td colSpan={subColCountPerSupplier - 1} />
+                          <td className="cell-right bold-cell">
+                            {totalVal ? formatVND(totalVal) : "-"}
+                          </td>
+                        </React.Fragment>
+                      );
+                    })}
+                  </tr>
+                ) : activeRequest.vatCalculationType === "already_included" ? (
+                  <tr className="total-footer-row">
+                    <td
+                      colSpan={4}
+                      className="cell-center bold-cell"
+                      style={{ fontWeight: 700 }}
+                    >
+                      Tổng tiền có VAT (Đã gồm VAT)
+                    </td>
+                    {activeRequest.supplierColumns.map((sc) => {
+                      const totalVal = supplierFinalTotals[sc.colId] || 0;
+                      return (
+                        <React.Fragment key={`w_tot_${sc.colId}`}>
+                          <td colSpan={subColCountPerSupplier - 1} />
+                          <td
+                            className="cell-right bold-cell"
+                            style={{ fontWeight: 800 }}
+                          >
+                            {totalVal ? formatVND(totalVal) : "-"}
+                          </td>
+                        </React.Fragment>
+                      );
+                    })}
+                  </tr>
+                ) : (
+                  <>
+                    <tr className="total-footer-row">
+                      <td
+                        colSpan={4}
+                        className="cell-center bold-cell"
+                        style={{ color: "#334155" }}
+                      >
+                        Tổng tiền chưa có VAT
+                      </td>
+                      {activeRequest.supplierColumns.map((sc) => {
+                        const subVal = supplierSubtotals[sc.colId] || 0;
+                        return (
+                          <React.Fragment key={`w_sub_${sc.colId}`}>
+                            <td colSpan={subColCountPerSupplier - 1} />
+                            <td className="cell-right bold-cell">
+                              {subVal ? formatVND(subVal) : "-"}
+                            </td>
+                          </React.Fragment>
+                        );
+                      })}
+                    </tr>
+                    <tr className="total-footer-row">
+                      <td
+                        colSpan={4}
+                        className="cell-center bold-cell"
+                        style={{ color: "#334155" }}
+                      >
+                        Thuế GTGT (VAT {activeRequest.vatRate ?? 10}%)
+                      </td>
+                      {activeRequest.supplierColumns.map((sc) => {
+                        const vatVal = supplierVatAmounts[sc.colId] || 0;
+                        return (
+                          <React.Fragment key={`w_vat_${sc.colId}`}>
+                            <td colSpan={subColCountPerSupplier - 1} />
+                            <td className="cell-right bold-cell">
+                              {vatVal ? `+${formatVND(vatVal)}` : "-"}
+                            </td>
+                          </React.Fragment>
+                        );
+                      })}
+                    </tr>
+                    <tr className="total-footer-row">
+                      <td
+                        colSpan={4}
+                        className="cell-center bold-cell"
+                        style={{ fontWeight: 800 }}
+                      >
+                        TỔNG TIỀN CÓ VAT
+                      </td>
+                      {activeRequest.supplierColumns.map((sc) => {
+                        const finalVal = supplierFinalTotals[sc.colId] || 0;
+                        return (
+                          <React.Fragment key={`w_fin_${sc.colId}`}>
+                            <td colSpan={subColCountPerSupplier - 1} />
+                            <td
+                              className="cell-right bold-cell"
+                              style={{ fontWeight: 800 }}
+                            >
+                              {finalVal ? formatVND(finalVal) : "-"}
+                            </td>
+                          </React.Fragment>
+                        );
+                      })}
+                    </tr>
+                  </>
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          {/* 4. Phần II: Đánh giá và đề xuất lựa chọn nhà cung cấp */}
+          <div className="phenikaa-section-block">
+            <div className="phenikaa-section-heading">
+              II. Đánh giá và đề xuất lựa chọn nhà cung cấp:
+            </div>
+            <div className="eval-row">
+              <span className="eval-label">1. Nhà cung cấp đề xuất:</span>
+              <strong
+                style={{
+                  flex: 1,
+                  textTransform: "uppercase",
+                  fontSize: "10pt",
+                  color: "#0f172a",
+                }}
+              >
+                {effectiveRecommendedSupplier}
+              </strong>
+            </div>
+            <div className="eval-row">
+              <span className="eval-label">2. Điều kiện giao hàng:</span>
+              <input
+                type="text"
+                className="sheet-inline-input"
+                value={activeRequest.deliveryTerms || ""}
+                readOnly={isReportMode}
+                onChange={(e) =>
+                  updateActive((prev) => ({
+                    ...prev,
+                    deliveryTerms: e.target.value,
+                  }))
+                }
+                placeholder="Nhập điều kiện giao hàng..."
+              />
+            </div>
+            <div className="eval-row">
+              <span className="eval-label">3. Điều khoản thanh toán:</span>
+              <input
+                type="text"
+                className="sheet-inline-input"
+                value={activeRequest.paymentTerms || ""}
+                readOnly={isReportMode}
+                onChange={(e) =>
+                  updateActive((prev) => ({
+                    ...prev,
+                    paymentTerms: e.target.value,
+                  }))
+                }
+                placeholder="Nhập điều khoản thanh toán..."
+              />
+            </div>
+          </div>
+
+          {/* 5. Phần III: Lý do lựa chọn */}
+          <div className="phenikaa-section-block">
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+              }}
+            >
+              <div className="phenikaa-section-heading">
+                III. Lý do lựa chọn:
+              </div>
+              {!isReportMode && (
+                <button
+                  type="button"
+                  className="no-print"
+                  style={{
+                    border: "1px dashed #94a3b8",
+                    background: "#f8fafc",
+                    fontSize: "11px",
+                    color: "#0369a1",
+                    borderRadius: "4px",
+                    padding: "1px 6px",
+                    cursor: "pointer",
+                  }}
+                  onClick={() =>
+                    updateActive((prev) => ({
+                      ...prev,
+                      reasons: [...prev.reasons, ""],
+                    }))
+                  }
+                >
+                  ＋ Thêm lý do
+                </button>
+              )}
+            </div>
+            {activeRequest.reasons.map((reason, idx) => (
+              <div
+                key={`w_reason_${idx}`}
+                style={{
+                  display: "flex",
+                  alignItems: "baseline",
+                  gap: "4px",
+                  marginBottom: "1px",
+                  lineHeight: 1.2,
+                }}
+              >
+                <span style={{ fontWeight: 700, whiteSpace: "nowrap" }}>
+                  {idx + 1}.
+                </span>
+                <input
+                  type="text"
+                  className="sheet-inline-input"
+                  value={reason}
+                  readOnly={isReportMode}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    updateActive((prev) => {
+                      const nextReasons = [...prev.reasons];
+                      nextReasons[idx] = val;
+                      return { ...prev, reasons: nextReasons };
+                    });
+                  }}
+                  placeholder={`Lý do thứ ${idx + 1}...`}
+                />
+                {!isReportMode && activeRequest.reasons.length > 1 && (
+                  <button
+                    type="button"
+                    className="no-print"
+                    style={{
+                      border: "none",
+                      background: "transparent",
+                      color: "#94a3b8",
+                      cursor: "pointer",
+                      fontSize: "12px",
+                      padding: "0 4px",
+                    }}
+                    title="Xóa dòng lý do này"
+                    onClick={() =>
+                      updateActive((prev) => ({
+                        ...prev,
+                        reasons: prev.reasons.filter((_, i) => i !== idx),
+                      }))
+                    }
+                  >
+                    ×
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+
+          {/* 6. Chữ ký đa cột */}
+          {(() => {
+            const totalCols = 3 + (activeRequest.customSigners?.length || 0);
+            const colWidth = `${(100 / totalCols).toFixed(2)}%`;
+            return (
+              <table
+                className="phenikaa-sign-table"
+                style={{ width: "100%", tableLayout: "fixed", marginTop: "10px" }}
+              >
+                <tbody>
+                  <tr>
+                    <td className="sign-col" style={{ width: colWidth }}>
+                      <div className="sign-title">Lãnh đạo phê duyệt</div>
+                      <div
+                        className="sign-space"
+                        style={{
+                          height: `${activeRequest.signSpaceHeight || 80}px`,
+                        }}
+                      />
+                      <input
+                        type="text"
+                        className="sheet-inline-input center bold-input sign-name"
+                        value={activeRequest.approverLeader || ""}
+                        readOnly={isReportMode}
+                        onChange={(e) =>
+                          updateActive((prev) => ({
+                            ...prev,
+                            approverLeader: e.target.value,
+                          }))
+                        }
+                        placeholder="Họ và tên..."
+                      />
+                    </td>
+                    {(activeRequest.customSigners || []).map((cs, csIdx) => (
+                      <td
+                        key={cs.id}
+                        className="sign-col"
+                        style={{ width: colWidth }}
+                      >
+                        <div className="sign-title">
+                          {cs.title || "Bộ phận chuyên môn"}
+                        </div>
+                        <div
+                          className="sign-space"
+                          style={{
+                            height: `${activeRequest.signSpaceHeight || 80}px`,
+                          }}
+                        />
+                        <input
+                          type="text"
+                          className="sheet-inline-input center bold-input sign-name"
+                          value={cs.name || ""}
+                          readOnly={isReportMode}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            updateActive((prev) => ({
+                              ...prev,
+                              customSigners: (prev.customSigners || []).map((c, i) =>
+                                i === csIdx ? { ...c, name: val } : c
+                              ),
+                            }));
+                          }}
+                          placeholder="Họ và tên..."
+                        />
+                      </td>
+                    ))}
+                    <td className="sign-col" style={{ width: colWidth }}>
+                      <div className="sign-title">Trưởng bộ phận</div>
+                      <div
+                        className="sign-space"
+                        style={{
+                          height: `${activeRequest.signSpaceHeight || 80}px`,
+                        }}
+                      />
+                      <input
+                        type="text"
+                        className="sheet-inline-input center bold-input sign-name"
+                        value={activeRequest.approverDeptHead || ""}
+                        readOnly={isReportMode}
+                        onChange={(e) =>
+                          updateActive((prev) => ({
+                            ...prev,
+                            approverDeptHead: e.target.value,
+                          }))
+                        }
+                        placeholder="Họ và tên..."
+                      />
+                    </td>
+                    <td className="sign-col" style={{ width: colWidth }}>
+                      <div className="sign-title">Người đề nghị</div>
+                      <div
+                        className="sign-space"
+                        style={{
+                          height: `${activeRequest.signSpaceHeight || 80}px`,
+                        }}
+                      />
+                      <input
+                        type="text"
+                        className="sheet-inline-input center bold-input sign-name"
+                        value={activeRequest.requesterName || ""}
+                        readOnly={isReportMode}
+                        onChange={(e) =>
+                          updateActive((prev) => ({
+                            ...prev,
+                            requesterName: e.target.value,
+                          }))
+                        }
+                        placeholder="Họ và tên..."
+                      />
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            );
+          })()}
+        </div>
+      </div>
+    );
+  };
+
+  // =========================================================================
   // CHẾ ĐỘ 2: GIAO DIỆN LÀM VIỆC CHI TIẾT CỦA PHIẾU ĐỀ NGHỊ PHÊ DUYỆT
   // =========================================================================
   return (
@@ -3117,6 +4164,29 @@ export default function ApprovalManagement({
 
       {/* Thanh Cấu hình Cột con của Nhà Cung Cấp & Khổ giấy in */}
       <div className="approval-config-bar no-print">
+        {/* Chế độ làm việc: Form giấy in A4 WYSIWYG vs Dạng thẻ */}
+        <div className="config-group" style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
+          <span className="config-label" style={{ fontWeight: 700 }}>Giao diện:</span>
+          <div className="segmented-pills">
+            <button
+              type="button"
+              className={`seg-pill ${workspaceViewMode === "wysiwyg" ? "active" : ""}`}
+              onClick={() => setWorkspaceViewMode("wysiwyg")}
+              title="Soạn thảo trực tiếp trên biểu mẫu giấy in A4 trực quan"
+            >
+              📄 Mẫu in A4 (Chuẩn)
+            </button>
+            <button
+              type="button"
+              className={`seg-pill ${workspaceViewMode === "cards" ? "active" : ""}`}
+              onClick={() => setWorkspaceViewMode("cards")}
+              title="Xem và chỉnh sửa theo các thẻ phân đoạn"
+            >
+              📋 Dạng thẻ
+            </button>
+          </div>
+        </div>
+
         <div className="config-group">
           <span className="config-label">Tùy chọn cột của Nhà Cung Cấp:</span>
 
@@ -3526,10 +4596,14 @@ export default function ApprovalManagement({
       )}
 
       {/* ===================================================================
-          GIAO DIỆN LÀM VIỆC ĐNPD TRÊN MÀN HÌNH (DẠNG BẢNG CHUẨN DOANH NGHIỆP)
-          Khi cần in ra giấy -> Tự động dùng mẫu chuẩn A4 tại #approvalPrintPortal
+          GIAO DIỆN LÀM VIỆC ĐNPD TRÊN MÀN HÌNH
+          Mặc định: Biểu mẫu in A4 WYSIWYG trực quan (100% như bản in)
+          Có thể chuyển đổi sang Dạng thẻ phân đoạn nếu cần
          =================================================================== */}
-      <div className="approval-screen-workspace">
+      {workspaceViewMode === "wysiwyg" ? (
+        renderWYSIWYGPaperWorkspace()
+      ) : (
+        <div className="approval-screen-workspace">
         {/* CARD 1: THÔNG TIN CHUNG PHIẾU ĐỀ NGHỊ PHÊ DUYỆT */}
         <div className="dnpd-workspace-card dnpd-meta-card no-print">
           <div className="dnpd-card-header">
@@ -5159,6 +6233,7 @@ export default function ApprovalManagement({
           )}
         </div>
       </div>
+      )}
 
       {/* ===================================================================
           PORTAL BẢN IN CÔ LẬP TRỰC TIẾP RA DOCUMENT.BODY (#approvalPrintPortal)

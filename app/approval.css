@@ -631,10 +631,52 @@
   display: none;
 }
 
-/* Ẩn biểu mẫu in A4 Phenikaa header box khi đang thao tác trên màn hình */
+/* Chỉ ẩn biểu mẫu in A4 Phenikaa header box trong portal in cũ khi đang ở màn hình */
 @media screen {
-  .phenikaa-header-table {
+  #approvalPrintPortal .phenikaa-header-table {
     display: none !important;
+  }
+}
+
+/* KHUNG GIẤY IN A4 WYSIWYG TRỰC QUAN TRÊN MÀN HÌNH */
+.a4-paper-workspace-wrapper {
+  width: 100%;
+  background: #cbd5e1;
+  padding: 24px 16px 80px;
+  overflow-x: auto;
+  box-sizing: border-box;
+}
+
+.a4-paper-canvas {
+  font-family: "Times New Roman", Times, serif !important;
+  background: #ffffff !important;
+  color: #000000 !important;
+  box-shadow: 0 10px 30px -5px rgba(15, 23, 42, 0.25), 0 0 0 1px rgba(0, 0, 0, 0.15);
+  margin: 0 auto;
+  font-size: 10pt;
+  line-height: 1.18;
+  box-sizing: border-box;
+  transition: all 0.2s ease;
+}
+
+.a4-paper-canvas.a4-portrait {
+  width: 210mm;
+  min-height: 297mm;
+  padding: 6mm 10mm 15mm 10mm;
+}
+
+.a4-paper-canvas.a4-landscape {
+  width: 297mm;
+  min-height: 210mm;
+  padding: 6mm 10mm 15mm 10mm;
+}
+
+@media screen and (max-width: 900px) {
+  .a4-paper-canvas.a4-portrait,
+  .a4-paper-canvas.a4-landscape {
+    width: 100%;
+    min-height: auto;
+    padding: 8mm 6mm;
   }
 }
 
@@ -737,6 +779,14 @@
 
 .sheet-inline-input.center {
   text-align: center;
+}
+
+.sheet-inline-input.right {
+  text-align: right;
+}
+
+.sheet-inline-input.uppercase {
+  text-transform: uppercase;
 }
 
 /* 3. Khối Phần I, II, III */
