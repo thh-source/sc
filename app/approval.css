@@ -1420,33 +1420,86 @@
 }
 
 /* ==========================================================================
-   PRINT ENGINE AUTO-FIT (@media print & #approvalPrintPortal)
+   PRINT ENGINE AUTO-FIT (@media print, #approvalPrintPortal & .a4-paper-canvas)
    ========================================================================== */
 
+/* Container bao bọc bảng chống tràn tuyệt đối ra khỏi lề trang A4 */
+.phenikaa-table-responsive-box {
+  width: 100% !important;
+  min-width: 100% !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+}
+
+/* Khóa cứng bảng bằng đúng 100% lề giấy, tuyệt đối không thò ra ngoài cũng không thụt vào trong */
+.a4-paper-canvas table.phenikaa-print-grid,
+#approvalPrintPortal table.phenikaa-print-grid,
 .phenikaa-print-grid {
   width: 100% !important;
+  min-width: 100% !important;
+  max-width: 100% !important;
   table-layout: fixed !important;
   border-collapse: collapse !important;
   box-sizing: border-box !important;
   margin: 0 !important;
-  min-width: 0 !important;
-  max-width: 100% !important;
 }
 
 .phenikaa-print-grid th,
 .phenikaa-print-grid td {
   border: 1px solid #000000 !important;
-  padding: 3px 4px !important;
+  padding: 2.5px 3px !important;
   height: auto !important;
   min-width: 0 !important;
+  max-width: 100% !important;
   vertical-align: top !important;
   color: #000000;
+  overflow: hidden !important;
+  box-sizing: border-box !important;
+}
+
+/* Triệt tiêu min-width của flex / input / button con bên trong ô */
+.phenikaa-print-grid th *,
+.phenikaa-print-grid td * {
+  min-width: 0 !important;
+  box-sizing: border-box !important;
+}
+
+/* Ô tiền tệ & Đơn giá: Luôn giữ trên 1 dòng duy nhất, không bao giờ gãy đôi số tiền */
+.phenikaa-print-grid .cell-sub-price,
+.phenikaa-print-grid .cell-sub-amount,
+.phenikaa-print-grid .cell-right {
+  white-space: nowrap !important;
+  word-break: normal !important;
+  overflow-wrap: normal !important;
+  text-align: right !important;
+  font-variant-numeric: tabular-nums !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  padding: 2px 3px !important;
+}
+
+/* Ô tên hàng hóa & quy cách: Cho phép xuống hàng tự nhiên khi dài */
+.phenikaa-print-grid .cell-item-name,
+.phenikaa-print-grid .cell-sub-spec {
   white-space: pre-wrap !important;
   word-break: break-word !important;
   overflow-wrap: break-word !important;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  box-sizing: border-box !important;
+  text-align: left !important;
+}
+
+/* Ô STT, Số lượng, ĐVT */
+.phenikaa-print-grid .cell-stt,
+.phenikaa-print-grid .col-stt,
+.phenikaa-print-grid .cell-qty,
+.phenikaa-print-grid .col-qty,
+.phenikaa-print-grid .cell-unit,
+.phenikaa-print-grid .col-unit {
+  text-align: center !important;
+  padding: 2px 1px !important;
+  overflow: hidden !important;
 }
 
 .phenikaa-print-grid input,

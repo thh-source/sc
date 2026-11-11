@@ -687,17 +687,21 @@ function PaperSupplierHeaderCombobox({
   };
 
   return (
-    <div ref={wrapRef} style={{ position: "relative", width: "100%" }}>
-      <div style={{ display: "flex", alignItems: "center", position: "relative", width: "100%" }}>
+    <div ref={wrapRef} style={{ position: "relative", width: "100%", minWidth: 0, overflow: "hidden" }}>
+      <div style={{ display: "flex", alignItems: "center", position: "relative", width: "100%", minWidth: 0 }}>
         <input
           ref={inputRef}
           type="text"
           className="sheet-inline-input center bold-input uppercase"
           style={{
-            fontSize: "9pt",
+            fontSize: "8.5pt",
             fontWeight: 700,
-            paddingRight: !isReportMode ? "16px" : "2px",
+            paddingRight: !isReportMode ? "14px" : "2px",
             width: "100%",
+            minWidth: 0,
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
           }}
           value={column.shortName || column.supplierName || ""}
           readOnly={isReportMode}
@@ -1121,24 +1125,52 @@ export function computeApprovalColumnWidths(
   hasSupplierQty: boolean
 ): number[] {
   const N = Math.max(1, numSups);
-  // 4 cột cố định bên trái (Tổng = 36%)
-  const leftWidths = [4.0, 22.0, 5.0, 5.0];
-  const widthPerNCC = 64.0 / N;
+  let leftWidths: number[];
+  let widthPerNCC: number;
+
+  if (N === 1) {
+    // 1 NCC: Khóa khít 100% lề giấy, mở rộng Hàng hóa và NCC để không bị thụt vào
+    if (hasQuotedProduct && hasSupplierQty) {
+      leftWidths = [4.0, 26.0, 6.0, 6.0]; // 42%
+      widthPerNCC = 58.0;
+    } else if (hasQuotedProduct && !hasSupplierQty) {
+      leftWidths = [4.0, 28.0, 6.0, 6.0]; // 44%
+      widthPerNCC = 56.0;
+    } else if (!hasQuotedProduct && hasSupplierQty) {
+      leftWidths = [4.0, 30.0, 6.0, 6.0]; // 46%
+      widthPerNCC = 54.0;
+    } else {
+      leftWidths = [4.0, 36.0, 7.0, 7.0]; // 54%
+      widthPerNCC = 46.0;
+    }
+  } else if (N === 2) {
+    // 2 NCC: Chuẩn 36% bên trái + 64% chia đều 2 NCC (32% mỗi NCC)
+    leftWidths = [4.0, 22.0, 5.0, 5.0];
+    widthPerNCC = 32.0;
+  } else if (N === 3) {
+    // 3 NCC: Tinh gọn 30% bên trái (STT 3.5%, Hàng hóa 18.5%, SL 4%, ĐVT 4%) + 70% chia đều 3 NCC (~23.33% mỗi NCC)
+    leftWidths = [3.5, 18.5, 4.0, 4.0];
+    widthPerNCC = 70.0 / 3;
+  } else {
+    // 4 NCC trở lên: Tinh gọn tối đa 26% bên trái + 74% chia đều cho N NCC
+    leftWidths = [3.0, 15.0, 4.0, 4.0];
+    widthPerNCC = 74.0 / N;
+  }
 
   const supplierWidths: number[] = [];
   for (let s = 0; s < N; s++) {
     if (hasQuotedProduct && hasSupplierQty) {
       supplierWidths.push(
-        Number((0.40 * widthPerNCC).toFixed(2)),
-        Number((0.25 * widthPerNCC).toFixed(2)),
-        Number((0.15 * widthPerNCC).toFixed(2)),
-        Number((0.20 * widthPerNCC).toFixed(2))
+        Number((0.38 * widthPerNCC).toFixed(2)),
+        Number((0.26 * widthPerNCC).toFixed(2)),
+        Number((0.14 * widthPerNCC).toFixed(2)),
+        Number((0.22 * widthPerNCC).toFixed(2))
       );
     } else if (hasQuotedProduct && !hasSupplierQty) {
       supplierWidths.push(
-        Number((0.45 * widthPerNCC).toFixed(2)),
-        Number((0.275 * widthPerNCC).toFixed(2)),
-        Number((0.275 * widthPerNCC).toFixed(2))
+        Number((0.44 * widthPerNCC).toFixed(2)),
+        Number((0.28 * widthPerNCC).toFixed(2)),
+        Number((0.28 * widthPerNCC).toFixed(2))
       );
     } else if (!hasQuotedProduct && hasSupplierQty) {
       supplierWidths.push(
@@ -1147,6 +1179,7 @@ export function computeApprovalColumnWidths(
         Number((0.40 * widthPerNCC).toFixed(2))
       );
     } else {
+      // 2 cột con: Đơn giá và Thành tiền
       supplierWidths.push(
         Number((0.50 * widthPerNCC).toFixed(2)),
         Number((0.50 * widthPerNCC).toFixed(2))
@@ -3304,6 +3337,51 @@ export default function ApprovalManagement({
             </button>
           </div>
         )}
+        {/* Scoped CSS chống tràn và ép khít 100% khổ giấy cho màn hình soạn thảo A4 */}
+        <style>{`
+          .a4-paper-canvas {
+            box-sizing: border-box !important;
+          }
+          .a4-paper-canvas table.phenikaa-print-grid {
+            width: 100% !important;
+            min-width: 100% !important;
+            max-width: 100% !important;
+            table-layout: fixed !important;
+            border-collapse: collapse !important;
+            box-sizing: border-box !important;
+            margin: 0 !important;
+          }
+          .a4-paper-canvas .phenikaa-table-responsive-box {
+            width: 100% !important;
+            min-width: 100% !important;
+            max-width: 100% !important;
+            box-sizing: border-box !important;
+            overflow: hidden !important;
+            margin: 0 !important;
+            padding: 0 !important;
+          }
+          .a4-paper-canvas table.phenikaa-print-grid th,
+          .a4-paper-canvas table.phenikaa-print-grid td {
+            box-sizing: border-box !important;
+            min-width: 0 !important;
+            max-width: 100% !important;
+            overflow: hidden !important;
+          }
+          .a4-paper-canvas table.phenikaa-print-grid th *,
+          .a4-paper-canvas table.phenikaa-print-grid td * {
+            min-width: 0 !important;
+            box-sizing: border-box !important;
+          }
+          .a4-paper-canvas table.phenikaa-print-grid .cell-sub-price,
+          .a4-paper-canvas table.phenikaa-print-grid .cell-sub-amount,
+          .a4-paper-canvas table.phenikaa-print-grid .cell-right {
+            white-space: nowrap !important;
+            word-break: normal !important;
+            overflow-wrap: normal !important;
+            text-align: right !important;
+            font-variant-numeric: tabular-nums !important;
+          }
+        `}</style>
         <div
           className={`a4-paper-canvas ${
             activeRequest.printOrientation === "landscape"
@@ -3483,10 +3561,65 @@ export default function ApprovalManagement({
 
           {/* 3. Phần I & Bảng So Sánh Báo Giá */}
           <div className="phenikaa-section-block">
-            <div className="phenikaa-section-heading" style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <div className="phenikaa-section-heading" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "6px" }}>
               <span>I. Nội dung đề nghị phê duyệt:</span>
               {!isReportMode && (
-                <div className="no-print" style={{ display: "flex", gap: "6px", alignItems: "center" }}>
+                <div className="no-print" style={{ display: "flex", gap: "6px", alignItems: "center", flexWrap: "wrap" }}>
+                  <button
+                    type="button"
+                    style={{
+                      border: "1px solid #cbd5e1",
+                      background: activeRequest.printOrientation === "landscape" ? "#eff6ff" : "#ffffff",
+                      color: activeRequest.printOrientation === "landscape" ? "#1d4ed8" : "#334155",
+                      borderRadius: "4px",
+                      padding: "2px 8px",
+                      fontSize: "11px",
+                      fontWeight: 600,
+                      cursor: "pointer",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "3px",
+                    }}
+                    onClick={() => {
+                      const nextOrient = activeRequest.printOrientation === "landscape" ? "portrait" : "landscape";
+                      updateActive((prev) => ({
+                        ...prev,
+                        printOrientation: nextOrient,
+                      }));
+                      showToast(`✨ Đã đổi sang khổ giấy: ${nextOrient === "landscape" ? "A4 Ngang" : "A4 Dọc"}`);
+                    }}
+                    title="Chuyển đổi giữa khổ in A4 Dọc và A4 Ngang"
+                  >
+                    {activeRequest.printOrientation === "landscape" ? "🖼️ A4 Ngang" : "📄 A4 Dọc"}
+                  </button>
+                  <button
+                    type="button"
+                    style={{
+                      border: "1px solid #cbd5e1",
+                      background: "#ffffff",
+                      color: "#475569",
+                      borderRadius: "4px",
+                      padding: "2px 8px",
+                      fontSize: "11px",
+                      fontWeight: 600,
+                      cursor: "pointer",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "3px",
+                    }}
+                    onClick={() => {
+                      const numSups = Math.max(1, activeRequest.supplierColumns.length || 1);
+                      const freshWidths = computeApprovalColumnWidths(numSups, hasQuotedProduct, hasSupplierQty);
+                      updateActive((prev) => ({
+                        ...prev,
+                        columnWidths: freshWidths,
+                      }));
+                      showToast("✨ Đã tự động căn khít 100% lề giấy!");
+                    }}
+                    title="Khôi phục độ rộng chuẩn, căn khít 100% lề giấy A4"
+                  >
+                    ↺ Khóa khít 100%
+                  </button>
                   <button
                     type="button"
                     style={{
@@ -3581,6 +3714,7 @@ export default function ApprovalManagement({
               )}
             </div>
 
+            <div className="phenikaa-table-responsive-box">
             <table
               className="phenikaa-print-grid"
               style={{
@@ -3647,25 +3781,27 @@ export default function ApprovalManagement({
                           position: "relative",
                         }}
                       >
-                        <div style={{ display: "flex", flexDirection: "column", gap: "2px", alignItems: "center" }}>
-                          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", gap: "4px" }}>
+                        <div style={{ display: "flex", flexDirection: "column", gap: "2px", alignItems: "center", width: "100%", minWidth: 0, overflow: "hidden" }}>
+                          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", minWidth: 0, gap: "2px" }}>
                             {sc.isSelected ? (
-                              <span style={{ fontSize: "10px", color: "#16a34a", fontWeight: 800 }}>
-                                ★ NCC lựa chọn
+                              <span style={{ fontSize: "9.5px", color: "#16a34a", fontWeight: 800, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                                ★ NCC chọn
                               </span>
                             ) : (
                               <button
                                 type="button"
                                 className="no-print"
                                 style={{
-                                  fontSize: "10px",
+                                  fontSize: "9px",
                                   color: "#2563eb",
                                   background: "#eff6ff",
                                   border: "1px solid #bfdbfe",
                                   borderRadius: "3px",
-                                  padding: "1px 5px",
+                                  padding: "1px 4px",
                                   cursor: "pointer",
                                   fontWeight: 600,
+                                  whiteSpace: "nowrap",
+                                  lineHeight: "1.2",
                                 }}
                                 onClick={(e) => {
                                   e.stopPropagation();
@@ -3673,7 +3809,7 @@ export default function ApprovalManagement({
                                 }}
                                 title="Chọn nhà cung cấp này trúng thầu"
                               >
-                                Chọn NCC này
+                                Chọn
                               </button>
                             )}
                             {!isReportMode && activeRequest.supplierColumns.length > 1 && (
@@ -3685,12 +3821,17 @@ export default function ApprovalManagement({
                                   background: "#fee2e2",
                                   color: "#dc2626",
                                   borderRadius: "3px",
-                                  fontSize: "11px",
-                                  width: "16px",
-                                  height: "16px",
+                                  fontSize: "10px",
+                                  width: "14px",
+                                  height: "14px",
                                   cursor: "pointer",
-                                  lineHeight: "14px",
+                                  lineHeight: "12px",
                                   marginLeft: "auto",
+                                  padding: 0,
+                                  display: "flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                  flexShrink: 0,
                                 }}
                                 onClick={(e) => {
                                   e.stopPropagation();
@@ -3820,12 +3961,12 @@ export default function ApprovalManagement({
                           <td
                             rowSpan={maxSubLines}
                             className="cell-center cell-stt"
-                            style={{ position: "relative", verticalAlign: "top", paddingTop: "5px" }}
+                            style={{ position: "relative", verticalAlign: "top", paddingTop: "4px", paddingLeft: "1px", paddingRight: "1px", overflow: "hidden" }}
                           >
-                            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "2px" }}>
-                              <span style={{ fontWeight: 700, fontSize: "9pt" }}>{row.stt}</span>
+                            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "1px", minWidth: 0 }}>
+                              <span style={{ fontWeight: 700, fontSize: "9pt", lineHeight: 1 }}>{row.stt}</span>
                               {!isReportMode && (
-                                <div className="no-print" style={{ display: "flex", gap: "2px", marginTop: "2px" }}>
+                                <div className="no-print" style={{ display: "flex", gap: "1px", marginTop: "2px" }}>
                                   <button
                                     type="button"
                                     style={{
@@ -3833,15 +3974,17 @@ export default function ApprovalManagement({
                                       background: "#fee2e2",
                                       color: "#dc2626",
                                       borderRadius: "2px",
-                                      fontSize: "10px",
-                                      width: "16px",
-                                      height: "16px",
+                                      fontSize: "9px",
+                                      width: "12px",
+                                      height: "12px",
                                       cursor: "pointer",
-                                      lineHeight: "14px",
+                                      lineHeight: "10px",
                                       display: "flex",
                                       alignItems: "center",
                                       justifyContent: "center",
+                                      padding: 0,
                                       fontWeight: 700,
+                                      flexShrink: 0,
                                     }}
                                     onClick={() => handleRemoveRow(row.rowId)}
                                     title={activeRequest.rows.length <= 1 ? "Xóa sạch dữ liệu dòng này" : "Xóa dòng này"}
@@ -3855,15 +3998,17 @@ export default function ApprovalManagement({
                                       background: "#eff6ff",
                                       color: "#2563eb",
                                       borderRadius: "2px",
-                                      fontSize: "10px",
-                                      width: "16px",
-                                      height: "16px",
+                                      fontSize: "9px",
+                                      width: "12px",
+                                      height: "12px",
                                       cursor: "pointer",
-                                      lineHeight: "14px",
+                                      lineHeight: "10px",
                                       display: "flex",
                                       alignItems: "center",
                                       justifyContent: "center",
+                                      padding: 0,
                                       fontWeight: 700,
+                                      flexShrink: 0,
                                     }}
                                     onClick={() => handleInsertRowAfter(rIdx)}
                                     title="Chèn thêm dòng ngay bên dưới"
@@ -4169,12 +4314,12 @@ export default function ApprovalManagement({
                       }
                       style={{
                         textAlign: "left",
-                        padding: "6px 10px",
+                        padding: "5px 8px",
                         background: "#f8fafc",
                         borderTop: "1px dashed #cbd5e1",
                       }}
                     >
-                      <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+                      <div style={{ display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap", width: "100%", minWidth: 0 }}>
                         <button
                           type="button"
                           style={{
@@ -4182,13 +4327,14 @@ export default function ApprovalManagement({
                             background: "#eff6ff",
                             color: "#1d4ed8",
                             borderRadius: "4px",
-                            padding: "4px 12px",
-                            fontSize: "12px",
+                            padding: "3px 10px",
+                            fontSize: "11px",
                             fontWeight: 700,
                             cursor: "pointer",
                             display: "inline-flex",
                             alignItems: "center",
-                            gap: "5px",
+                            gap: "4px",
+                            whiteSpace: "nowrap",
                           }}
                           onClick={handleAddRow}
                         >
@@ -4201,17 +4347,18 @@ export default function ApprovalManagement({
                             background: "#ffffff",
                             color: "#334155",
                             borderRadius: "4px",
-                            padding: "4px 10px",
-                            fontSize: "12px",
+                            padding: "3px 8px",
+                            fontSize: "11px",
                             fontWeight: 600,
                             cursor: "pointer",
+                            whiteSpace: "nowrap",
                           }}
                           onClick={handleAddSupplierColumn}
                         >
                           ＋ Thêm cột NCC
                         </button>
-                        <span style={{ fontSize: "11px", color: "#64748b", marginLeft: "auto" }}>
-                          (Tổng cộng: <strong>{activeRequest.rows.length}</strong> mặt hàng | <strong>{activeRequest.supplierColumns.length}</strong> NCC)
+                        <span style={{ fontSize: "11px", color: "#64748b", marginLeft: "auto", whiteSpace: "nowrap" }}>
+                          (Tổng: <strong>{activeRequest.rows.length}</strong> mặt hàng | <strong>{activeRequest.supplierColumns.length}</strong> NCC)
                         </span>
                       </div>
                     </td>
@@ -4362,6 +4509,7 @@ export default function ApprovalManagement({
                 )}
               </tbody>
             </table>
+            </div>
           </div>
 
           {/* 4. Phần II: Đánh giá và đề xuất lựa chọn nhà cung cấp */}
