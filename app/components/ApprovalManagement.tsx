@@ -1361,6 +1361,14 @@ export default function ApprovalManagement({
 
   useEffect(() => {
     setMounted(true);
+    if (typeof document !== "undefined") {
+      document.querySelectorAll("colgroup[data-smart-columns]").forEach((el) => el.remove());
+      document.querySelectorAll("style.smart-table-css").forEach((el) => el.remove());
+      document.querySelectorAll(".smart-table-enabled").forEach((el) => el.classList.remove("smart-table-enabled"));
+      document.querySelectorAll<HTMLTableElement>("table.phenikaa-print-grid").forEach((t) => {
+        t.style.width = "100%";
+      });
+    }
   }, []);
 
   const showToast = (msg: string) => {
@@ -3382,7 +3390,7 @@ export default function ApprovalManagement({
           }`}
         >
           {/* 1. Header Công ty + Tiêu đề Biểu mẫu */}
-          <table className="phenikaa-header-table" style={{ display: "table" }}>
+          <table className="phenikaa-header-table" data-react-managed="true" style={{ display: "table" }}>
             <tbody>
               <tr>
                 <td className="phenikaa-logo-box">
@@ -3708,6 +3716,7 @@ export default function ApprovalManagement({
 
             <table
               className="phenikaa-print-grid"
+              data-react-managed="true"
               style={{
                 width: "100%",
                 tableLayout: "fixed",
@@ -4979,6 +4988,7 @@ export default function ApprovalManagement({
             return (
               <table
                 className="phenikaa-sign-table"
+                data-react-managed="true"
                 style={{ width: "100%", tableLayout: "fixed", marginTop: "10px" }}
               >
                 <tbody>
@@ -7701,6 +7711,7 @@ export default function ApprovalManagement({
 
                 <table
                   className="phenikaa-print-grid"
+                  data-react-managed="true"
                   style={{
                     width: "100%",
                     tableLayout: "fixed",
@@ -8151,7 +8162,7 @@ export default function ApprovalManagement({
                 const totalCols = 3 + (activeRequest.customSigners?.length || 0);
                 const colWidth = `${(100 / totalCols).toFixed(2)}%`;
                 return (
-                  <table className="phenikaa-sign-table" style={{ width: "100%", tableLayout: "fixed" }}>
+                  <table className="phenikaa-sign-table" data-react-managed="true" style={{ width: "100%", tableLayout: "fixed" }}>
                     <tbody>
                       <tr>
                         <td className="sign-col" style={{ width: colWidth }}>

@@ -2827,7 +2827,7 @@ function ProcurementAppInner({
           </div>
         </div>
       )}
-      {!["payment", "handover", "compare"].includes(view) && (
+      {!["payment", "handover", "compare", "approval"].includes(view) && (
         <SmartTableTools scopeKey={view} />
       )}
       <aside>

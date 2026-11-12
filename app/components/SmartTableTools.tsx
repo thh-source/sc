@@ -51,7 +51,7 @@ function labelsFor(table: HTMLTableElement) {
 function tableKey(table: HTMLTableElement, scopeKey: string) {
   const tables = [
     ...document.querySelectorAll<HTMLTableElement>(".app main table"),
-  ].filter((item) => item.offsetParent !== null);
+  ].filter((item) => item.offsetParent !== null && !isReactManagedTable(item));
   return `smart-table:${scopeKey}:${Math.max(0, tables.indexOf(table))}`;
 }
 
@@ -76,14 +76,29 @@ function savePreferences(key: string, value: Preferences) {
 
 function isReactManagedTable(table: HTMLTableElement | null): boolean {
   if (!table) return true;
-  if (table.getAttribute("data-react-managed") === "true") return true;
   if (
+    table.getAttribute("data-react-managed") === "true" ||
     table.classList.contains("payment-table") ||
     table.classList.contains("handover-table") ||
     table.classList.contains("compare-table") ||
+    table.classList.contains("phenikaa-print-grid") ||
+    table.classList.contains("phenikaa-header-table") ||
+    table.classList.contains("phenikaa-sign-table") ||
+    table.classList.contains("phenikaa-approval-grid") ||
+    Boolean(table.closest(".a4-paper-canvas")) ||
+    Boolean(table.closest("#approvalPrintPortal")) ||
     Boolean(table.closest(".payment-table-wrapper")) ||
     Boolean(table.closest(".handover-table-wrapper"))
   ) {
+    // Dọn dẹp triệt để nếu từng bị SmartTableTools inject
+    const smartGroup = table.querySelector("colgroup[data-smart-columns]");
+    if (smartGroup) smartGroup.remove();
+    const smartStyle = table.querySelector("style.smart-table-css");
+    if (smartStyle) smartStyle.remove();
+    table.classList.remove("smart-table-enabled");
+    if (table.classList.contains("phenikaa-print-grid")) {
+      table.style.width = "100%";
+    }
     return true;
   }
   return false;
