@@ -860,24 +860,37 @@
   border-top: 2.5px solid #2563eb !important;
 }
 
-/* Tay cầm kéo thả độ rộng cột trực tiếp trên bảng */
+/* Tay cầm kéo thả độ rộng cột trực tiếp trên bảng (Resizable Columns) */
 .col-resizer-handle {
   position: absolute !important;
   top: 0 !important;
-  right: -3px !important;
-  width: 8px !important;
+  right: -5px !important;
+  width: 10px !important;
   bottom: 0 !important;
+  height: 100% !important;
   cursor: col-resize !important;
   user-select: none !important;
-  z-index: 30 !important;
-  background: transparent;
-  transition: background-color 0.15s;
+  z-index: 50 !important;
+  background: transparent !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
 }
 
-.col-resizer-handle:hover,
-.col-resizer-handle.active {
+.col-resizer-handle::after {
+  content: "";
+  display: block;
+  width: 2px;
+  height: 100%;
+  background-color: transparent;
+  transition: background-color 0.15s ease;
+}
+
+.col-resizer-handle:hover::after,
+.col-resizer-handle.active::after,
+.col-resizer-handle:active::after {
   background-color: #2563eb !important;
-  box-shadow: 0 0 6px rgba(37, 99, 235, 0.6) !important;
+  box-shadow: 0 0 5px rgba(37, 99, 235, 0.9) !important;
 }
 
 /* STT và Số lượng: Tuyệt đối không ngắt dòng chữ số (1000 luôn giữ 1 dòng) */
@@ -1504,25 +1517,25 @@
   text-align: center;
   vertical-align: middle !important;
   background: #ffffff;
+  overflow: visible !important;
 }
 
-.col-resizer-handle {
-  position: absolute !important;
-  top: 0 !important;
-  right: 0 !important;
-  width: 6px !important;
-  height: 100% !important;
-  cursor: col-resize !important;
-  z-index: 10 !important;
-  user-select: none !important;
-  transition: background-color 0.15s ease;
-}
-.col-resizer-handle:hover {
-  background-color: #3b82f6 !important;
-}
-.col-resizer-handle.active,
-.col-resizer-handle:active {
-  background-color: #1d4ed8 !important;
+/* Tiêu đề cột con và tiêu đề NCC: tự động xuống hàng thông minh */
+.phenikaa-print-grid thead th.col-sub-spec,
+.phenikaa-print-grid thead th.col-sub-price,
+.phenikaa-print-grid thead th.col-sub-qty,
+.phenikaa-print-grid thead th.col-sub-amount,
+.phenikaa-print-grid thead th.col-supplier-group,
+#approvalPrintPortal th.col-sub-spec,
+#approvalPrintPortal th.col-sub-price,
+#approvalPrintPortal th.col-sub-qty,
+#approvalPrintPortal th.col-sub-amount,
+#approvalPrintPortal th.col-supplier-group {
+  white-space: normal !important;
+  word-break: break-word !important;
+  overflow-wrap: break-word !important;
+  line-height: 1.18 !important;
+  text-align: center !important;
 }
 
 /* Auto-expanding wrapping textarea for WYSIWYG paper table cells */

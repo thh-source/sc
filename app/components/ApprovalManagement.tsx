@@ -207,6 +207,29 @@ export function getQuotedProductTitle(req: ApprovalRequest): string {
   return "Mặt hàng NCC báo";
 }
 
+export function renderQuotedProductHeaderNode(title: string): React.ReactNode {
+  if (title === "Mặt hàng NCC báo") {
+    return (
+      <>
+        Mặt hàng
+        <br />
+        NCC báo
+      </>
+    );
+  }
+  if (title.includes(" / ") || title.includes("/")) {
+    const parts = title.split("/");
+    return (
+      <>
+        {parts[0].trim()}
+        <br />
+        {parts.slice(1).join("/").trim()}
+      </>
+    );
+  }
+  return <span style={{ display: "inline-block", whiteSpace: "normal", wordBreak: "break-word" }}>{title}</span>;
+}
+
 /**
  * Chuyển đổi chuỗi ngày định dạng DD/MM/YYYY hoặc YYYY-MM-DD thành số so sánh (YYYYMMDD)
  * để đảm bảo sắp xếp chính xác từ mới nhất đến cũ nhất.
@@ -2314,13 +2337,19 @@ export default function ApprovalManagement({
   useEffect(() => {
     if (resizingColIndex === null) return;
 
+    const prevCursor = document.body.style.cursor;
+    const prevUserSelect = document.body.style.userSelect;
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+
     const onMouseMove = (moveEv: MouseEvent) => {
       if (!resizePairRef.current) return;
       const { colIndex, startX, startWidthI, startWidthNext, tableWidth, initialWidths } =
         resizePairRef.current;
       const deltaPx = moveEv.clientX - startX;
       const deltaPct = (deltaPx / tableWidth) * 100;
-      const minWidthPercent = 3.0; // 3% giới hạn tránh biến mất cột
+      const numCols = initialWidths.length;
+      const minWidthPercent = numCols >= 14 ? 1.5 : numCols >= 10 ? 2.0 : 2.5;
 
       let maxDelta = startWidthNext - minWidthPercent;
       let minDelta = -(startWidthI - minWidthPercent);
@@ -2342,6 +2371,8 @@ export default function ApprovalManagement({
     };
 
     const onMouseUp = () => {
+      document.body.style.cursor = prevCursor;
+      document.body.style.userSelect = prevUserSelect;
       setResizingColIndex(null);
       resizePairRef.current = null;
     };
@@ -2349,6 +2380,8 @@ export default function ApprovalManagement({
     window.addEventListener("mousemove", onMouseMove);
     window.addEventListener("mouseup", onMouseUp);
     return () => {
+      document.body.style.cursor = prevCursor;
+      document.body.style.userSelect = prevUserSelect;
       window.removeEventListener("mousemove", onMouseMove);
       window.removeEventListener("mouseup", onMouseUp);
     };
@@ -3361,11 +3394,26 @@ export default function ApprovalManagement({
             box-sizing: border-box !important;
             margin: 0 !important;
           }
-          .a4-paper-canvas table.phenikaa-print-grid th,
+          .a4-paper-canvas table.phenikaa-print-grid th {
+            box-sizing: border-box !important;
+            min-width: 0 !important;
+            overflow: visible !important;
+          }
           .a4-paper-canvas table.phenikaa-print-grid td {
             box-sizing: border-box !important;
             min-width: 0 !important;
             overflow: hidden !important;
+          }
+          .a4-paper-canvas table.phenikaa-print-grid th.col-sub-spec,
+          .a4-paper-canvas table.phenikaa-print-grid th.col-sub-price,
+          .a4-paper-canvas table.phenikaa-print-grid th.col-sub-qty,
+          .a4-paper-canvas table.phenikaa-print-grid th.col-sub-amount,
+          .a4-paper-canvas table.phenikaa-print-grid th.col-supplier-group {
+            white-space: normal !important;
+            word-break: break-word !important;
+            overflow-wrap: break-word !important;
+            line-height: 1.18 !important;
+            text-align: center !important;
           }
           .a4-paper-canvas table.phenikaa-print-grid th *,
           .a4-paper-canvas table.phenikaa-print-grid td * {
@@ -3728,7 +3776,7 @@ export default function ApprovalManagement({
               {renderTableColGroup()}
               <thead>
                 <tr>
-                  <th rowSpan={2} className="col-stt" style={{ width: `${columnWidths[0]}%`, position: "relative" }}>
+                  <th rowSpan={2} className="col-stt" style={{ width: `${columnWidths[0]}%`, position: "relative", zIndex: 50, overflow: "visible" }}>
                     <span>STT</span>
                     {!isReportMode && (
                       <div
@@ -3738,7 +3786,7 @@ export default function ApprovalManagement({
                       />
                     )}
                   </th>
-                  <th rowSpan={2} className="col-item-name" style={{ width: `${columnWidths[1]}%`, position: "relative" }}>
+                  <th rowSpan={2} className="col-item-name" style={{ width: `${columnWidths[1]}%`, position: "relative", zIndex: 49, overflow: "visible" }}>
                     <span>Hàng hóa</span>
                     {!isReportMode && (
                       <div
@@ -3748,7 +3796,7 @@ export default function ApprovalManagement({
                       />
                     )}
                   </th>
-                  <th rowSpan={2} className="col-qty" style={{ width: `${columnWidths[2]}%`, position: "relative" }}>
+                  <th rowSpan={2} className="col-qty" style={{ width: `${columnWidths[2]}%`, position: "relative", zIndex: 48, overflow: "visible" }}>
                     <span>Số<br />lượng</span>
                     {!isReportMode && (
                       <div
@@ -3758,7 +3806,7 @@ export default function ApprovalManagement({
                       />
                     )}
                   </th>
-                  <th rowSpan={2} className="col-unit" style={{ width: `${columnWidths[3]}%`, position: "relative" }}>
+                  <th rowSpan={2} className="col-unit" style={{ width: `${columnWidths[3]}%`, position: "relative", zIndex: 47, overflow: "visible" }}>
                     <span>ĐVT</span>
                     {!isReportMode && (
                       <div
@@ -3784,12 +3832,16 @@ export default function ApprovalManagement({
                           backgroundColor: sc.isSelected ? "#f0fdf4" : undefined,
                           borderTop: sc.isSelected ? "2.5px solid #16a34a" : undefined,
                           position: "relative",
+                          zIndex: 40 - sIdx,
+                          padding: "2px 2px",
+                          overflow: "visible",
+                          verticalAlign: "middle",
                         }}
                       >
-                        <div style={{ display: "flex", flexDirection: "column", gap: "2px", alignItems: "center", width: "100%", minWidth: 0, overflow: "hidden" }}>
+                        <div style={{ display: "flex", flexDirection: "column", gap: "2px", alignItems: "stretch", width: "100%", minWidth: 0 }}>
                           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", minWidth: 0, gap: "2px" }}>
                             {sc.isSelected ? (
-                              <span style={{ fontSize: "9.5px", color: "#16a34a", fontWeight: 800, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                              <span style={{ fontSize: "9px", color: "#16a34a", fontWeight: 800, whiteSpace: "nowrap" }}>
                                 ★ NCC chọn
                               </span>
                             ) : (
@@ -3814,7 +3866,7 @@ export default function ApprovalManagement({
                                 }}
                                 title="Chọn nhà cung cấp này trúng thầu"
                               >
-                                Chọn
+                                Chọn NCC này
                               </button>
                             )}
                             {!isReportMode && activeRequest.supplierColumns.length > 1 && (
@@ -3886,8 +3938,8 @@ export default function ApprovalManagement({
                         {hasQuotedProduct && (() => {
                           const colIdx = baseIdx + offset++;
                           return (
-                            <th className="col-sub-spec" style={{ width: `${columnWidths[colIdx]}%`, position: "relative" }}>
-                              <span>{quotedProductTitle}</span>
+                            <th className="col-sub-spec" style={{ width: `${columnWidths[colIdx]}%`, position: "relative", zIndex: 40 - colIdx, overflow: "visible", whiteSpace: "normal", wordBreak: "break-word", lineHeight: 1.15, textAlign: "center" }}>
+                              <span>{renderQuotedProductHeaderNode(quotedProductTitle)}</span>
                               {!isReportMode && colIdx < columnWidths.length - 1 && (
                                 <div
                                   className={`col-resizer-handle no-print ${resizingColIndex === colIdx ? "active" : ""}`}
@@ -3901,7 +3953,7 @@ export default function ApprovalManagement({
                         {(() => {
                           const colIdx = baseIdx + offset++;
                           return (
-                            <th className="col-sub-price" style={{ width: `${columnWidths[colIdx]}%`, position: "relative" }}>
+                            <th className="col-sub-price" style={{ width: `${columnWidths[colIdx]}%`, position: "relative", zIndex: 40 - colIdx, overflow: "visible", whiteSpace: "normal", wordBreak: "break-word", lineHeight: 1.15, textAlign: "center" }}>
                               <span>Đơn giá<br />(VNĐ)</span>
                               {!isReportMode && colIdx < columnWidths.length - 1 && (
                                 <div
@@ -3916,7 +3968,7 @@ export default function ApprovalManagement({
                         {hasSupplierQty && (() => {
                           const colIdx = baseIdx + offset++;
                           return (
-                            <th className="col-sub-qty" style={{ width: `${columnWidths[colIdx]}%`, position: "relative" }}>
+                            <th className="col-sub-qty" style={{ width: `${columnWidths[colIdx]}%`, position: "relative", zIndex: 40 - colIdx, overflow: "visible", whiteSpace: "normal", wordBreak: "break-word", lineHeight: 1.15, textAlign: "center" }}>
                               <span>Số<br />lượng</span>
                               {!isReportMode && colIdx < columnWidths.length - 1 && (
                                 <div
@@ -3931,7 +3983,7 @@ export default function ApprovalManagement({
                         {(() => {
                           const colIdx = baseIdx + offset++;
                           return (
-                            <th className="col-sub-amount" style={{ width: `${columnWidths[colIdx]}%`, position: "relative" }}>
+                            <th className="col-sub-amount" style={{ width: `${columnWidths[colIdx]}%`, position: "relative", zIndex: 40 - colIdx, overflow: "visible", whiteSpace: "normal", wordBreak: "break-word", lineHeight: 1.15, textAlign: "center" }}>
                               <span>Thành<br />tiền</span>
                               {!isReportMode && colIdx < columnWidths.length - 1 && (
                                 <div
@@ -7639,6 +7691,17 @@ export default function ApprovalManagement({
                   white-space: normal !important;
                   line-height: 1.1 !important;
                 }
+                #approvalPrintPortal th.col-sub-spec,
+                #approvalPrintPortal th.col-sub-price,
+                #approvalPrintPortal th.col-sub-qty,
+                #approvalPrintPortal th.col-sub-amount,
+                #approvalPrintPortal th.col-supplier-group {
+                  white-space: normal !important;
+                  word-break: break-word !important;
+                  overflow-wrap: break-word !important;
+                  line-height: 1.15 !important;
+                  text-align: center !important;
+                }
                 #approvalPrintPortal .cell-unit {
                   white-space: normal !important;
                   word-break: break-word !important;
@@ -7758,16 +7821,36 @@ export default function ApprovalManagement({
                           { length: subColCountPerSupplier },
                           (_, k) => columnWidths[4 + sIdx * subColCountPerSupplier + k] || 0
                         ).reduce((a, b) => a + b, 0);
+                        const supName = sc.shortName?.trim() || sc.supplierName?.trim() || "";
                         return (
                           <th
                             key={`p_head_${sc.colId}`}
                             colSpan={subColCountPerSupplier}
                             className={`col-supplier-group ${sc.isSelected ? "selected-supplier-th" : ""}`}
-                            style={{ width: `${supTotalWidth}%` }}
+                            style={{
+                              width: `${supTotalWidth}%`,
+                              whiteSpace: "normal",
+                              wordBreak: "break-word",
+                              lineHeight: "1.2",
+                              padding: "2px 2px",
+                              textAlign: "center",
+                              verticalAlign: "middle",
+                            }}
                           >
-                            {sc.isSelected
-                              ? `NCC lựa chọn: ${sc.shortName || sc.supplierName}`
-                              : sc.shortName || sc.supplierName}
+                            {sc.isSelected ? (
+                              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", width: "100%", gap: "1px" }}>
+                                <div style={{ fontSize: "7.5pt", fontWeight: 700, color: "#15803d", textTransform: "uppercase" }}>
+                                  ★ NCC lựa chọn:
+                                </div>
+                                <div style={{ fontSize: "8.5pt", fontWeight: 800, color: "#000000", wordBreak: "break-word" }}>
+                                  {supName || `(Chưa chọn NCC)`}
+                                </div>
+                              </div>
+                            ) : (
+                              <div style={{ fontSize: "8.5pt", fontWeight: 700, color: "#000000", wordBreak: "break-word" }}>
+                                {supName || `NCC ${sIdx + 1}`}
+                              </div>
+                            )}
                           </th>
                         );
                       })}
@@ -7783,9 +7866,15 @@ export default function ApprovalManagement({
                               return (
                                 <th
                                   className="col-sub-spec"
-                                  style={{ width: `${columnWidths[colIdx]}%` }}
+                                  style={{
+                                    width: `${columnWidths[colIdx]}%`,
+                                    whiteSpace: "normal",
+                                    wordBreak: "break-word",
+                                    lineHeight: 1.15,
+                                    textAlign: "center",
+                                  }}
                                 >
-                                  {quotedProductTitle}
+                                  {renderQuotedProductHeaderNode(quotedProductTitle)}
                                 </th>
                               );
                             })()}
