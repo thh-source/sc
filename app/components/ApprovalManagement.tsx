@@ -3337,7 +3337,7 @@ export default function ApprovalManagement({
           <div
             className="no-print"
             style={{
-              maxWidth: activeRequest.printOrientation === "landscape" ? "297mm" : "210mm",
+              maxWidth: activeRequest.printOrientation === "landscape" ? "calc(297mm + 240px)" : "calc(210mm + 240px)",
               margin: "0 auto 12px auto",
               padding: "10px 16px",
               backgroundColor: "#fff7ed",
@@ -3434,6 +3434,7 @@ export default function ApprovalManagement({
             font-variant-numeric: tabular-nums !important;
           }
         `}</style>
+        <div className="a4-workspace-inner">
         <div
           className={`a4-paper-canvas ${
             activeRequest.printOrientation === "landscape"
@@ -3613,107 +3614,8 @@ export default function ApprovalManagement({
 
           {/* 3. Phần I & Bảng So Sánh Báo Giá */}
           <div className="phenikaa-section-block">
-            <div className="phenikaa-section-heading" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "6px" }}>
+            <div className="phenikaa-section-heading">
               <span>I. Nội dung đề nghị phê duyệt:</span>
-              {!isReportMode && (
-                <div className="no-print" style={{ display: "flex", gap: "6px", alignItems: "center", flexWrap: "wrap" }}>
-                  <button
-                    type="button"
-                    style={{
-                      border: "1px solid #cbd5e1",
-                      background: activeRequest.printOrientation === "landscape" ? "#eff6ff" : "#ffffff",
-                      color: activeRequest.printOrientation === "landscape" ? "#1d4ed8" : "#334155",
-                      borderRadius: "4px",
-                      padding: "2px 8px",
-                      fontSize: "11px",
-                      fontWeight: 600,
-                      cursor: "pointer",
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: "3px",
-                    }}
-                    onClick={() => {
-                      const nextOrient = activeRequest.printOrientation === "landscape" ? "portrait" : "landscape";
-                      updateActive((prev) => ({
-                        ...prev,
-                        printOrientation: nextOrient,
-                      }));
-                      showToast(`✨ Đã đổi sang khổ giấy: ${nextOrient === "landscape" ? "A4 Ngang" : "A4 Dọc"}`);
-                    }}
-                    title="Chuyển đổi giữa khổ in A4 Dọc và A4 Ngang"
-                  >
-                    {activeRequest.printOrientation === "landscape" ? "🖼️ A4 Ngang" : "📄 A4 Dọc"}
-                  </button>
-                  <button
-                    type="button"
-                    style={{
-                      border: "1px solid #cbd5e1",
-                      background: "#ffffff",
-                      color: "#475569",
-                      borderRadius: "4px",
-                      padding: "2px 8px",
-                      fontSize: "11px",
-                      fontWeight: 600,
-                      cursor: "pointer",
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: "3px",
-                    }}
-                    onClick={() => {
-                      const numSups = Math.max(1, activeRequest.supplierColumns.length || 1);
-                      const freshWidths = computeApprovalColumnWidths(numSups, hasQuotedProduct, hasSupplierQty);
-                      updateActive((prev) => ({
-                        ...prev,
-                        columnWidths: freshWidths,
-                      }));
-                      showToast("✨ Đã tự động căn khít 100% lề giấy!");
-                    }}
-                    title="Khôi phục độ rộng chuẩn, căn khít 100% lề giấy A4"
-                  >
-                    ↺ Khóa khít 100%
-                  </button>
-                  <button
-                    type="button"
-                    style={{
-                      border: "1px dashed #2563eb",
-                      background: "#eff6ff",
-                      color: "#1d4ed8",
-                      borderRadius: "4px",
-                      padding: "2px 8px",
-                      fontSize: "11px",
-                      fontWeight: 700,
-                      cursor: "pointer",
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: "3px",
-                    }}
-                    onClick={handleAddSupplierColumn}
-                    title="Thêm cột Nhà cung cấp mới để so sánh giá"
-                  >
-                    ＋ Thêm cột NCC ({activeRequest.supplierColumns.length})
-                  </button>
-                  <button
-                    type="button"
-                    style={{
-                      border: "1px dashed #16a34a",
-                      background: "#f0fdf4",
-                      color: "#15803d",
-                      borderRadius: "4px",
-                      padding: "2px 8px",
-                      fontSize: "11px",
-                      fontWeight: 700,
-                      cursor: "pointer",
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: "3px",
-                    }}
-                    onClick={handleAddRow}
-                    title="Thêm dòng vật tư mới"
-                  >
-                    ＋ Thêm dòng vật tư ({activeRequest.rows.length})
-                  </button>
-                </div>
-              )}
             </div>
             <div className="phenikaa-section-subline" style={{ display: "flex", alignItems: "center", gap: "6px" }}>
               <input
@@ -4374,54 +4276,15 @@ export default function ApprovalManagement({
                         activeRequest.supplierColumns.length * subColCountPerSupplier
                       }
                       style={{
-                        textAlign: "left",
+                        textAlign: "right",
                         padding: "5px 8px",
                         background: "#f8fafc",
                         borderTop: "1px dashed #cbd5e1",
                       }}
                     >
-                      <div style={{ display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap", width: "100%", minWidth: 0 }}>
-                        <button
-                          type="button"
-                          style={{
-                            border: "1px dashed #2563eb",
-                            background: "#eff6ff",
-                            color: "#1d4ed8",
-                            borderRadius: "4px",
-                            padding: "3px 10px",
-                            fontSize: "11px",
-                            fontWeight: 700,
-                            cursor: "pointer",
-                            display: "inline-flex",
-                            alignItems: "center",
-                            gap: "4px",
-                            whiteSpace: "nowrap",
-                          }}
-                          onClick={handleAddRow}
-                        >
-                          ＋ Thêm dòng vật tư / hàng hóa
-                        </button>
-                        <button
-                          type="button"
-                          style={{
-                            border: "1px dashed #64748b",
-                            background: "#ffffff",
-                            color: "#334155",
-                            borderRadius: "4px",
-                            padding: "3px 8px",
-                            fontSize: "11px",
-                            fontWeight: 600,
-                            cursor: "pointer",
-                            whiteSpace: "nowrap",
-                          }}
-                          onClick={handleAddSupplierColumn}
-                        >
-                          ＋ Thêm cột NCC
-                        </button>
-                        <span style={{ fontSize: "11px", color: "#64748b", marginLeft: "auto", whiteSpace: "nowrap" }}>
-                          (Tổng: <strong>{activeRequest.rows.length}</strong> mặt hàng | <strong>{activeRequest.supplierColumns.length}</strong> NCC)
-                        </span>
-                      </div>
+                      <span style={{ fontSize: "11px", color: "#64748b", whiteSpace: "nowrap" }}>
+                        (Tổng cộng: <strong>{activeRequest.rows.length}</strong> mặt hàng | <strong>{activeRequest.supplierColumns.length}</strong> Nhà cung cấp)
+                      </span>
                     </td>
                   </tr>
                 )}
@@ -5130,6 +4993,186 @@ export default function ApprovalManagement({
             );
           })()}
         </div>
+
+        {/* THANH CÔNG CỤ TÁC VỤ PHÍA BÊN PHẢI BIỂU MẪU A4 */}
+        {!isReportMode && (
+          <div className="a4-sidebar-toolbox no-print" aria-label="Thanh công cụ tác vụ biểu mẫu ĐNPD">
+            {/* Thẻ 1: Thao tác dữ liệu bảng */}
+            <div className="sidebar-tool-card">
+              <div className="sidebar-tool-card-title">
+                <span style={{ fontSize: "13px" }}>📋</span>
+                <span>Thao tác biểu mẫu</span>
+              </div>
+
+              <button
+                type="button"
+                className="sidebar-action-btn btn-add-row"
+                onClick={handleAddRow}
+                title="Thêm một dòng vật tư/hàng hóa mới vào bảng"
+              >
+                <span style={{ fontSize: "14px", fontWeight: 900 }}>＋</span>
+                <span>Thêm dòng vật tư</span>
+                <span style={{ opacity: 0.8, fontSize: "11px" }}>({activeRequest.rows.length})</span>
+              </button>
+
+              <div style={{ display: "flex", flexDirection: "column", gap: "5px", marginTop: "4px" }}>
+                <label style={{ fontSize: "10.5px", color: "#64748b", fontWeight: 600 }}>
+                  Thêm Nhà cung cấp:
+                </label>
+                <select
+                  className="sidebar-select"
+                  value={selectedAddSupplierId}
+                  onChange={(e) => setSelectedAddSupplierId(e.target.value)}
+                  title="Chọn nhà cung cấp từ danh mục hoặc để trống để thêm mới"
+                >
+                  <option value="">-- Chọn NCC từ danh mục --</option>
+                  {suppliers.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.shortName ? `${s.shortName} - ${s.name}` : s.name}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  className="sidebar-action-btn btn-add-sup"
+                  onClick={handleAddSupplierColumn}
+                  title="Thêm cột nhà cung cấp mới vào bảng so sánh"
+                >
+                  <span style={{ fontSize: "14px", fontWeight: 900 }}>＋</span>
+                  <span>Thêm cột NCC</span>
+                  <span style={{ opacity: 0.8, fontSize: "11px" }}>({activeRequest.supplierColumns.length})</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Thẻ 2: Khổ in & Căn chỉnh */}
+            <div className="sidebar-tool-card">
+              <div className="sidebar-tool-card-title">
+                <span style={{ fontSize: "13px" }}>📐</span>
+                <span>Khổ in & Căn chỉnh</span>
+              </div>
+
+              <div className="sidebar-pill-group">
+                <button
+                  type="button"
+                  className={`sidebar-pill-btn ${activeRequest.printOrientation !== "landscape" ? "active" : ""}`}
+                  onClick={() => {
+                    updateActive((prev) => ({
+                      ...prev,
+                      printOrientation: "portrait",
+                    }));
+                    showToast("✨ Đã đổi sang khổ in: A4 Dọc");
+                  }}
+                  title="Chuyển sang khổ in A4 Dọc"
+                >
+                  📄 A4 Dọc
+                </button>
+                <button
+                  type="button"
+                  className={`sidebar-pill-btn ${activeRequest.printOrientation === "landscape" ? "active" : ""}`}
+                  onClick={() => {
+                    updateActive((prev) => ({
+                      ...prev,
+                      printOrientation: "landscape",
+                    }));
+                    showToast("✨ Đã đổi sang khổ in: A4 Ngang");
+                  }}
+                  title="Chuyển sang khổ in A4 Ngang"
+                >
+                  🖼️ A4 Ngang
+                </button>
+              </div>
+
+              {shouldRecommendLandscape && activeRequest.printOrientation === "portrait" && (
+                <div
+                  style={{
+                    background: "#fef3c7",
+                    border: "1px solid #fde047",
+                    borderRadius: "6px",
+                    padding: "6px 8px",
+                    fontSize: "11px",
+                    color: "#854d0e",
+                    lineHeight: 1.3,
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "4px",
+                  }}
+                >
+                  <span>💡 Có <strong>{activeRequest.supplierColumns.length} NCC</strong>. Khuyên dùng khổ <strong>A4 Ngang</strong> để bảng rộng rãi nhất!</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      updateActive((prev) => ({
+                        ...prev,
+                        printOrientation: "landscape",
+                      }));
+                      showToast("✨ Đã chuyển sang A4 Ngang!");
+                    }}
+                    style={{
+                      background: "#ca8a04",
+                      color: "#ffffff",
+                      border: "none",
+                      borderRadius: "4px",
+                      padding: "3px 6px",
+                      fontSize: "10.5px",
+                      fontWeight: 700,
+                      cursor: "pointer",
+                    }}
+                  >
+                    Chuyển ngay sang A4 Ngang
+                  </button>
+                </div>
+              )}
+
+              <button
+                type="button"
+                className="sidebar-action-btn btn-autofit"
+                onClick={() => {
+                  const numSups = Math.max(1, activeRequest.supplierColumns.length || 1);
+                  const freshWidths = computeApprovalColumnWidths(numSups, hasQuotedProduct, hasSupplierQty);
+                  updateActive((prev) => ({
+                    ...prev,
+                    columnWidths: freshWidths,
+                  }));
+                  showToast("✨ Đã tự động căn khít 100% lề giấy!");
+                }}
+                title="Khôi phục độ rộng chuẩn, căn khít 100% lề giấy A4"
+              >
+                <span>↺</span>
+                <span>Khóa khít 100% lề</span>
+              </button>
+            </div>
+
+            {/* Thẻ 3: Lưu dữ liệu */}
+            <div className="sidebar-tool-card" style={{ borderColor: hasUnsavedChanges ? "#f97316" : "#cbd5e1" }}>
+              <div className="sidebar-tool-card-title">
+                <span style={{ fontSize: "13px" }}>💾</span>
+                <span>Lưu dữ liệu</span>
+              </div>
+              <button
+                type="button"
+                className="sidebar-action-btn btn-save-dnpd"
+                style={{
+                  background: hasUnsavedChanges ? "#ea580c" : "#10b981",
+                  borderColor: hasUnsavedChanges ? "#c2410c" : "#059669",
+                }}
+                onClick={handleExplicitSave}
+                                title="Lưu lại tất cả thay đổi trên ĐNPD này (Phím tắt: Ctrl + S)"
+              >
+                <Save size={14} />
+                <span>{hasUnsavedChanges ? "Lưu ĐNPD ngay" : "Đã lưu an toàn"}</span>
+              </button>
+              <div style={{ fontSize: "10.5px", color: hasUnsavedChanges ? "#ea580c" : "#64748b", textAlign: "center", lineHeight: "1.25" }}>
+                {hasUnsavedChanges ? (
+                  <span>⚠️ Có thay đổi chưa lưu<br/><strong>Ctrl + S</strong> để lưu</span>
+                ) : (
+                  <span>✓ Dữ liệu mới nhất</span>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
       </div>
     );
   };
@@ -5563,7 +5606,7 @@ export default function ApprovalManagement({
           )}
         </div>
 
-        {!isReportMode && (
+        {!isReportMode && workspaceViewMode === "cards" && (
           <div className="config-group">
             <select
               className="approval-filter-select"
@@ -5589,6 +5632,7 @@ export default function ApprovalManagement({
           </div>
         )}
 
+        {workspaceViewMode === "cards" && (
         <div className="config-group">
           <span className="config-label">Khổ in:</span>
           <div className="segmented-pills">
@@ -5671,6 +5715,7 @@ export default function ApprovalManagement({
               </button>
             )}
         </div>
+        )}
       </div>
 
       {/* THANH CÔNG CỤ CO KÉO ĐỘ RỘNG CỘT BẢN IN TRỰC QUAN */}
