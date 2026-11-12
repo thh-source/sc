@@ -1511,8 +1511,14 @@
   box-sizing: border-box !important;
 }
 
-.phenikaa-print-grid thead th {
+.phenikaa-print-grid thead th,
+.phenikaa-print-grid thead tr:nth-child(2) th,
+#approvalPrintPortal thead th,
+#approvalPrintPortal thead tr:nth-child(2) th,
+.a4-paper-canvas table.phenikaa-print-grid thead th,
+.a4-paper-canvas table.phenikaa-print-grid thead tr:nth-child(2) th {
   position: relative !important;
+  top: auto !important;
   font-weight: 700;
   text-align: center;
   vertical-align: middle !important;

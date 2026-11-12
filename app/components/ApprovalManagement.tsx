@@ -3398,6 +3398,10 @@ export default function ApprovalManagement({
             box-sizing: border-box !important;
             min-width: 0 !important;
             overflow: visible !important;
+            top: auto !important;
+          }
+          .a4-paper-canvas table.phenikaa-print-grid thead tr:nth-child(2) th {
+            top: auto !important;
           }
           .a4-paper-canvas table.phenikaa-print-grid td {
             box-sizing: border-box !important;
@@ -3938,7 +3942,7 @@ export default function ApprovalManagement({
                         {hasQuotedProduct && (() => {
                           const colIdx = baseIdx + offset++;
                           return (
-                            <th className="col-sub-spec" style={{ width: `${columnWidths[colIdx]}%`, position: "relative", zIndex: 40 - colIdx, overflow: "visible", whiteSpace: "normal", wordBreak: "break-word", lineHeight: 1.15, textAlign: "center" }}>
+                            <th className="col-sub-spec" style={{ width: `${columnWidths[colIdx]}%`, position: "relative", top: "auto", zIndex: 40 - colIdx, overflow: "visible", whiteSpace: "normal", wordBreak: "break-word", lineHeight: 1.15, textAlign: "center" }}>
                               <span>{renderQuotedProductHeaderNode(quotedProductTitle)}</span>
                               {!isReportMode && colIdx < columnWidths.length - 1 && (
                                 <div
@@ -3953,7 +3957,7 @@ export default function ApprovalManagement({
                         {(() => {
                           const colIdx = baseIdx + offset++;
                           return (
-                            <th className="col-sub-price" style={{ width: `${columnWidths[colIdx]}%`, position: "relative", zIndex: 40 - colIdx, overflow: "visible", whiteSpace: "normal", wordBreak: "break-word", lineHeight: 1.15, textAlign: "center" }}>
+                            <th className="col-sub-price" style={{ width: `${columnWidths[colIdx]}%`, position: "relative", top: "auto", zIndex: 40 - colIdx, overflow: "visible", whiteSpace: "normal", wordBreak: "break-word", lineHeight: 1.15, textAlign: "center" }}>
                               <span>Đơn giá<br />(VNĐ)</span>
                               {!isReportMode && colIdx < columnWidths.length - 1 && (
                                 <div
@@ -3968,7 +3972,7 @@ export default function ApprovalManagement({
                         {hasSupplierQty && (() => {
                           const colIdx = baseIdx + offset++;
                           return (
-                            <th className="col-sub-qty" style={{ width: `${columnWidths[colIdx]}%`, position: "relative", zIndex: 40 - colIdx, overflow: "visible", whiteSpace: "normal", wordBreak: "break-word", lineHeight: 1.15, textAlign: "center" }}>
+                            <th className="col-sub-qty" style={{ width: `${columnWidths[colIdx]}%`, position: "relative", top: "auto", zIndex: 40 - colIdx, overflow: "visible", whiteSpace: "normal", wordBreak: "break-word", lineHeight: 1.15, textAlign: "center" }}>
                               <span>Số<br />lượng</span>
                               {!isReportMode && colIdx < columnWidths.length - 1 && (
                                 <div
@@ -3983,7 +3987,7 @@ export default function ApprovalManagement({
                         {(() => {
                           const colIdx = baseIdx + offset++;
                           return (
-                            <th className="col-sub-amount" style={{ width: `${columnWidths[colIdx]}%`, position: "relative", zIndex: 40 - colIdx, overflow: "visible", whiteSpace: "normal", wordBreak: "break-word", lineHeight: 1.15, textAlign: "center" }}>
+                            <th className="col-sub-amount" style={{ width: `${columnWidths[colIdx]}%`, position: "relative", top: "auto", zIndex: 40 - colIdx, overflow: "visible", whiteSpace: "normal", wordBreak: "break-word", lineHeight: 1.15, textAlign: "center" }}>
                               <span>Thành<br />tiền</span>
                               {!isReportMode && colIdx < columnWidths.length - 1 && (
                                 <div
@@ -5008,30 +5012,6 @@ export default function ApprovalManagement({
               </div>
             ))}
           </div>
-
-          {/* 5.5 Dòng ngày tháng & Kính trình Ban Lãnh đạo (Chuẩn mẫu Phenikaa) */}
-          {(() => {
-            const dp = parsePrintDate(activeRequest.createdDate);
-            return (
-              <div
-                style={{
-                  textAlign: "right",
-                  marginTop: "14px",
-                  marginBottom: "8px",
-                  fontStyle: "italic",
-                  fontSize: "10pt",
-                  lineHeight: 1.45,
-                }}
-              >
-                <div>
-                  Hà Nội, ngày {dp.d} tháng {dp.m} năm {dp.y}
-                </div>
-                <div style={{ fontWeight: 700 }}>
-                  Kính trình Ban Lãnh đạo xem xét và phê duyệt!
-                </div>
-              </div>
-            );
-          })()}
 
           {/* 6. Chữ ký đa cột */}
           {(() => {
@@ -7691,6 +7671,10 @@ export default function ApprovalManagement({
                   white-space: normal !important;
                   line-height: 1.1 !important;
                 }
+                #approvalPrintPortal thead th,
+                #approvalPrintPortal thead tr:nth-child(2) th {
+                  top: auto !important;
+                }
                 #approvalPrintPortal th.col-sub-spec,
                 #approvalPrintPortal th.col-sub-price,
                 #approvalPrintPortal th.col-sub-qty,
@@ -8222,31 +8206,7 @@ export default function ApprovalManagement({
                 ))}
               </div>
 
-              {/* 5.5 Dòng ngày tháng & Kính trình Ban Lãnh đạo (Chuẩn mẫu Phenikaa) */}
-          {(() => {
-            const dp = parsePrintDate(activeRequest.createdDate);
-            return (
-              <div
-                style={{
-                  textAlign: "right",
-                  marginTop: "14px",
-                  marginBottom: "8px",
-                  fontStyle: "italic",
-                  fontSize: "10pt",
-                  lineHeight: 1.45,
-                }}
-              >
-                <div>
-                  Hà Nội, ngày {dp.d} tháng {dp.m} năm {dp.y}
-                </div>
-                <div style={{ fontWeight: 700 }}>
-                  Kính trình Ban Lãnh đạo xem xét và phê duyệt!
-                </div>
-              </div>
-            );
-          })()}
-
-          {/* 6. Chữ ký đa cột */}
+              {/* 6. Chữ ký đa cột */}
               {(() => {
                 const totalCols = 3 + (activeRequest.customSigners?.length || 0);
                 const colWidth = `${(100 / totalCols).toFixed(2)}%`;
