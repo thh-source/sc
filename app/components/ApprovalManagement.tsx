@@ -2250,10 +2250,12 @@ export default function ApprovalManagement({
       if (Math.abs(100 - sum) < 0.15) {
         return stored;
       }
-      const diff = Number((100.0 - sum).toFixed(2));
-      const normalized = [...stored];
-      normalized[1] = Number((normalized[1] + diff).toFixed(2));
-      return normalized;
+      if (sum >= 97 && sum <= 103) {
+        const diff = Number((100.0 - sum).toFixed(2));
+        const normalized = [...stored];
+        normalized[1] = Number((normalized[1] + diff).toFixed(2));
+        return normalized;
+      }
     }
 
     return computeApprovalColumnWidths(numSups, hasQuotedProduct, hasSupplierQty);
@@ -3351,20 +3353,10 @@ export default function ApprovalManagement({
             box-sizing: border-box !important;
             margin: 0 !important;
           }
-          .a4-paper-canvas .phenikaa-table-responsive-box {
-            width: 100% !important;
-            min-width: 100% !important;
-            max-width: 100% !important;
-            box-sizing: border-box !important;
-            overflow: hidden !important;
-            margin: 0 !important;
-            padding: 0 !important;
-          }
           .a4-paper-canvas table.phenikaa-print-grid th,
           .a4-paper-canvas table.phenikaa-print-grid td {
             box-sizing: border-box !important;
             min-width: 0 !important;
-            max-width: 100% !important;
             overflow: hidden !important;
           }
           .a4-paper-canvas table.phenikaa-print-grid th *,
@@ -3714,7 +3706,6 @@ export default function ApprovalManagement({
               )}
             </div>
 
-            <div className="phenikaa-table-responsive-box">
             <table
               className="phenikaa-print-grid"
               style={{
@@ -3728,7 +3719,7 @@ export default function ApprovalManagement({
               {renderTableColGroup()}
               <thead>
                 <tr>
-                  <th rowSpan={2} className="col-stt" style={{ position: "relative" }}>
+                  <th rowSpan={2} className="col-stt" style={{ width: `${columnWidths[0]}%`, position: "relative" }}>
                     <span>STT</span>
                     {!isReportMode && (
                       <div
@@ -3738,7 +3729,7 @@ export default function ApprovalManagement({
                       />
                     )}
                   </th>
-                  <th rowSpan={2} className="col-item-name" style={{ position: "relative" }}>
+                  <th rowSpan={2} className="col-item-name" style={{ width: `${columnWidths[1]}%`, position: "relative" }}>
                     <span>Hàng hóa</span>
                     {!isReportMode && (
                       <div
@@ -3748,7 +3739,7 @@ export default function ApprovalManagement({
                       />
                     )}
                   </th>
-                  <th rowSpan={2} className="col-qty" style={{ position: "relative" }}>
+                  <th rowSpan={2} className="col-qty" style={{ width: `${columnWidths[2]}%`, position: "relative" }}>
                     <span>Số<br />lượng</span>
                     {!isReportMode && (
                       <div
@@ -3758,7 +3749,7 @@ export default function ApprovalManagement({
                       />
                     )}
                   </th>
-                  <th rowSpan={2} className="col-unit" style={{ position: "relative" }}>
+                  <th rowSpan={2} className="col-unit" style={{ width: `${columnWidths[3]}%`, position: "relative" }}>
                     <span>ĐVT</span>
                     {!isReportMode && (
                       <div
@@ -3770,12 +3761,17 @@ export default function ApprovalManagement({
                   </th>
                   {activeRequest.supplierColumns.map((sc, sIdx) => {
                     const lastSubColIdx = 4 + (sIdx + 1) * subColCountPerSupplier - 1;
+                    const supTotalWidth = Array.from(
+                      { length: subColCountPerSupplier },
+                      (_, k) => columnWidths[4 + sIdx * subColCountPerSupplier + k] || 0
+                    ).reduce((a, b) => a + b, 0);
                     return (
                       <th
                         key={`w_head_${sc.colId}`}
                         colSpan={subColCountPerSupplier}
                         className={`col-supplier-group ${sc.isSelected ? "selected-supplier-th" : ""}`}
                         style={{
+                          width: `${supTotalWidth}%`,
                           backgroundColor: sc.isSelected ? "#f0fdf4" : undefined,
                           borderTop: sc.isSelected ? "2.5px solid #16a34a" : undefined,
                           position: "relative",
@@ -3881,7 +3877,7 @@ export default function ApprovalManagement({
                         {hasQuotedProduct && (() => {
                           const colIdx = baseIdx + offset++;
                           return (
-                            <th className="col-sub-spec" style={{ position: "relative" }}>
+                            <th className="col-sub-spec" style={{ width: `${columnWidths[colIdx]}%`, position: "relative" }}>
                               <span>{quotedProductTitle}</span>
                               {!isReportMode && colIdx < columnWidths.length - 1 && (
                                 <div
@@ -3896,7 +3892,7 @@ export default function ApprovalManagement({
                         {(() => {
                           const colIdx = baseIdx + offset++;
                           return (
-                            <th className="col-sub-price" style={{ position: "relative" }}>
+                            <th className="col-sub-price" style={{ width: `${columnWidths[colIdx]}%`, position: "relative" }}>
                               <span>Đơn giá<br />(VNĐ)</span>
                               {!isReportMode && colIdx < columnWidths.length - 1 && (
                                 <div
@@ -3911,7 +3907,7 @@ export default function ApprovalManagement({
                         {hasSupplierQty && (() => {
                           const colIdx = baseIdx + offset++;
                           return (
-                            <th className="col-sub-qty" style={{ position: "relative" }}>
+                            <th className="col-sub-qty" style={{ width: `${columnWidths[colIdx]}%`, position: "relative" }}>
                               <span>Số<br />lượng</span>
                               {!isReportMode && colIdx < columnWidths.length - 1 && (
                                 <div
@@ -3926,7 +3922,7 @@ export default function ApprovalManagement({
                         {(() => {
                           const colIdx = baseIdx + offset++;
                           return (
-                            <th className="col-sub-amount" style={{ position: "relative" }}>
+                            <th className="col-sub-amount" style={{ width: `${columnWidths[colIdx]}%`, position: "relative" }}>
                               <span>Thành<br />tiền</span>
                               {!isReportMode && colIdx < columnWidths.length - 1 && (
                                 <div
@@ -4509,7 +4505,6 @@ export default function ApprovalManagement({
                 )}
               </tbody>
             </table>
-            </div>
           </div>
 
           {/* 4. Phần II: Đánh giá và đề xuất lựa chọn nhà cung cấp */}
@@ -7720,18 +7715,21 @@ export default function ApprovalManagement({
                       <th
                         rowSpan={2}
                         className="col-stt"
+                        style={{ width: `${columnWidths[0]}%` }}
                       >
                         STT
                       </th>
                       <th
                         rowSpan={2}
                         className="col-item-name"
+                        style={{ width: `${columnWidths[1]}%` }}
                       >
                         Hàng hóa
                       </th>
                       <th
                         rowSpan={2}
                         className="col-qty"
+                        style={{ width: `${columnWidths[2]}%` }}
                       >
                         Số
                         <br />
@@ -7740,48 +7738,88 @@ export default function ApprovalManagement({
                       <th
                         rowSpan={2}
                         className="col-unit"
+                        style={{ width: `${columnWidths[3]}%` }}
                       >
                         ĐVT
                       </th>
-                      {activeRequest.supplierColumns.map((sc) => (
-                        <th
-                          key={`p_head_${sc.colId}`}
-                          colSpan={subColCountPerSupplier}
-                          className={`col-supplier-group ${sc.isSelected ? "selected-supplier-th" : ""}`}
-                        >
-                          {sc.isSelected
-                            ? `NCC lựa chọn: ${sc.shortName || sc.supplierName}`
-                            : sc.shortName || sc.supplierName}
-                        </th>
-                      ))}
+                      {activeRequest.supplierColumns.map((sc, sIdx) => {
+                        const supTotalWidth = Array.from(
+                          { length: subColCountPerSupplier },
+                          (_, k) => columnWidths[4 + sIdx * subColCountPerSupplier + k] || 0
+                        ).reduce((a, b) => a + b, 0);
+                        return (
+                          <th
+                            key={`p_head_${sc.colId}`}
+                            colSpan={subColCountPerSupplier}
+                            className={`col-supplier-group ${sc.isSelected ? "selected-supplier-th" : ""}`}
+                            style={{ width: `${supTotalWidth}%` }}
+                          >
+                            {sc.isSelected
+                              ? `NCC lựa chọn: ${sc.shortName || sc.supplierName}`
+                              : sc.shortName || sc.supplierName}
+                          </th>
+                        );
+                      })}
                     </tr>
                     <tr>
-                      {activeRequest.supplierColumns.map((sc) => (
-                        <React.Fragment key={`p_sub_${sc.colId}`}>
-                          {hasQuotedProduct && (
-                            <th className="col-sub-spec">
-                              {quotedProductTitle}
-                            </th>
-                          )}
-                          <th className="col-sub-price">
-                            Đơn giá
-                            <br />
-                            (VNĐ)
-                          </th>
-                          {hasSupplierQty && (
-                            <th className="col-sub-qty">
-                              Số
-                              <br />
-                              lượng
-                            </th>
-                          )}
-                          <th className="col-sub-amount">
-                            Thành
-                            <br />
-                            tiền
-                          </th>
-                        </React.Fragment>
-                      ))}
+                      {activeRequest.supplierColumns.map((sc, sIdx) => {
+                        const baseIdx = 4 + sIdx * subColCountPerSupplier;
+                        let offset = 0;
+                        return (
+                          <React.Fragment key={`p_sub_${sc.colId}`}>
+                            {hasQuotedProduct && (() => {
+                              const colIdx = baseIdx + offset++;
+                              return (
+                                <th
+                                  className="col-sub-spec"
+                                  style={{ width: `${columnWidths[colIdx]}%` }}
+                                >
+                                  {quotedProductTitle}
+                                </th>
+                              );
+                            })()}
+                            {(() => {
+                              const colIdx = baseIdx + offset++;
+                              return (
+                                <th
+                                  className="col-sub-price"
+                                  style={{ width: `${columnWidths[colIdx]}%` }}
+                                >
+                                  Đơn giá
+                                  <br />
+                                  (VNĐ)
+                                </th>
+                              );
+                            })()}
+                            {hasSupplierQty && (() => {
+                              const colIdx = baseIdx + offset++;
+                              return (
+                                <th
+                                  className="col-sub-qty"
+                                  style={{ width: `${columnWidths[colIdx]}%` }}
+                                >
+                                  Số
+                                  <br />
+                                  lượng
+                                </th>
+                              );
+                            })()}
+                            {(() => {
+                              const colIdx = baseIdx + offset++;
+                              return (
+                                <th
+                                  className="col-sub-amount"
+                                  style={{ width: `${columnWidths[colIdx]}%` }}
+                                >
+                                  Thành
+                                  <br />
+                                  tiền
+                                </th>
+                              );
+                            })()}
+                          </React.Fragment>
+                        );
+                      })}
                     </tr>
                   </thead>
                   <tbody>

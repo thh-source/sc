@@ -1423,20 +1423,11 @@
    PRINT ENGINE AUTO-FIT (@media print, #approvalPrintPortal & .a4-paper-canvas)
    ========================================================================== */
 
-/* Container bao bọc bảng chống tràn tuyệt đối ra khỏi lề trang A4 */
-.phenikaa-table-responsive-box {
-  width: 100% !important;
-  min-width: 100% !important;
-  max-width: 100% !important;
-  box-sizing: border-box !important;
-  margin: 0 !important;
-  padding: 0 !important;
-  overflow: hidden !important;
-}
-
 /* Khóa cứng bảng bằng đúng 100% lề giấy, tuyệt đối không thò ra ngoài cũng không thụt vào trong */
 .a4-paper-canvas table.phenikaa-print-grid,
+.a4-paper-canvas .phenikaa-print-grid,
 #approvalPrintPortal table.phenikaa-print-grid,
+#approvalPrintPortal .phenikaa-print-grid,
 .phenikaa-print-grid {
   width: 100% !important;
   min-width: 100% !important;
@@ -1453,7 +1444,6 @@
   padding: 2.5px 3px !important;
   height: auto !important;
   min-width: 0 !important;
-  max-width: 100% !important;
   vertical-align: top !important;
   color: #000000;
   overflow: hidden !important;
