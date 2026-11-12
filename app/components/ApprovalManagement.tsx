@@ -3424,12 +3424,17 @@ export default function ApprovalManagement({
             box-sizing: border-box !important;
           }
           .a4-paper-canvas table.phenikaa-print-grid .cell-sub-price,
+          .a4-paper-canvas table.phenikaa-print-grid .cell-sub-price input,
           .a4-paper-canvas table.phenikaa-print-grid .cell-sub-amount,
-          .a4-paper-canvas table.phenikaa-print-grid .cell-right {
+          .a4-paper-canvas table.phenikaa-print-grid .cell-sub-amount input,
+          .a4-paper-canvas table.phenikaa-print-grid .cell-right,
+          .a4-paper-canvas table.phenikaa-print-grid .cell-right input,
+          .a4-paper-canvas table.phenikaa-print-grid .cell-qty,
+          .a4-paper-canvas table.phenikaa-print-grid .cell-qty input,
+          .a4-paper-canvas table.phenikaa-print-grid .cell-stt {
             white-space: nowrap !important;
             word-break: normal !important;
             overflow-wrap: normal !important;
-            text-align: right !important;
             font-variant-numeric: tabular-nums !important;
           }
         `}</style>

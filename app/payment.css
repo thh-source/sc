@@ -2024,3 +2024,494 @@ table.payment-table td .smart-cell-textarea:focus {
   box-shadow: 0 1px 3px rgba(2, 132, 199, 0.3) !important;
 }
 
+/* ==========================================================================
+   WYSIWYG A4 PAPER WORKSPACE FOR PAYMENT REQUEST (MẪU SỐ 01 - TT)
+   ========================================================================== */
+
+.payment-a4-workspace-wrapper {
+  background: #e2e8f0;
+  min-height: 100vh;
+  padding: 16px 20px 80px;
+  overflow-x: auto;
+  box-sizing: border-box;
+}
+
+.payment-workspace-topbar {
+  max-width: 1280px;
+  margin: 0 auto 16px auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  background: #ffffff;
+  padding: 12px 18px;
+  border-radius: 10px;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.08);
+  border: 1px solid #cbd5e1;
+  box-sizing: border-box;
+}
+
+.payment-topbar-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.btn-payment-back-list {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #0369a1;
+  background: #f0f9ff;
+  border: 1.5px solid #bae6fd;
+  border-radius: 7px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-payment-back-list:hover {
+  background: #e0f2fe;
+  border-color: #7dd3fc;
+  color: #0284c7;
+}
+
+.payment-topbar-title-block h2 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 800;
+  color: #0f172a;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.payment-topbar-sub {
+  font-size: 12px;
+  color: #64748b;
+  margin-top: 2px;
+}
+
+.payment-topbar-stt-badge {
+  background: #0284c7;
+  color: #ffffff;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.payment-topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.btn-payment-topbar-save {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #ffffff;
+  background: #0284c7;
+  border: none;
+  border-radius: 7px;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(2, 132, 199, 0.3);
+  transition: all 0.15s ease;
+}
+
+.btn-payment-topbar-save:hover {
+  background: #0369a1;
+}
+
+.btn-payment-topbar-save.has-unsaved {
+  background: #ea580c !important;
+  box-shadow: 0 2px 10px rgba(234, 88, 12, 0.45) !important;
+}
+
+.btn-payment-topbar-print {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #0f766e;
+  background: #f0fdfa;
+  border: 1.5px solid #99f6e4;
+  border-radius: 7px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-payment-topbar-print:hover {
+  background: #ccfbf1;
+  border-color: #5eead4;
+}
+
+.btn-payment-topbar-delete {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #dc2626;
+  background: #fef2f2;
+  border: 1.5px solid #fecaca;
+  border-radius: 7px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-payment-topbar-delete:hover {
+  background: #fee2e2;
+}
+
+.payment-unsaved-alert-banner {
+  max-width: 1280px;
+  margin: 0 auto 14px auto;
+  padding: 10px 16px;
+  background: #fff7ed;
+  border: 1.5px solid #fb923c;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: 0 4px 14px rgba(234, 88, 12, 0.15);
+  box-sizing: border-box;
+}
+
+/* Flex centering container: A4 canvas + Right Sidebar */
+.payment-workspace-inner {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 20px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* Paper canvas: exactly matching A4 standard */
+.payment-paper-canvas {
+  font-family: 'Times New Roman', serif !important;
+  font-size: 15px;
+  line-height: 1.4;
+  background: #ffffff !important;
+  color: #000000 !important;
+  box-shadow: 0 10px 30px -5px rgba(15, 23, 42, 0.25), 0 0 0 1px rgba(0, 0, 0, 0.15);
+  box-sizing: border-box;
+  flex-shrink: 0;
+  transition: all 0.2s ease;
+}
+
+.payment-paper-canvas * {
+  color: #000000;
+  box-sizing: border-box;
+}
+
+.payment-paper-canvas.a4-portrait {
+  width: 210mm;
+  min-height: 297mm;
+  padding: 20mm 15mm 20mm 20mm;
+}
+
+.payment-paper-canvas.a4-landscape {
+  width: 297mm;
+  min-height: 210mm;
+  padding: 15mm 20mm 15mm 20mm;
+}
+
+/* Scoped inline inputs inside A4 Canvas */
+.payment-paper-canvas .sheet-inline-input {
+  width: 100% !important;
+  min-width: 0 !important;
+  border: none !important;
+  border-radius: 0 !important;
+  border-bottom: 1px dashed transparent !important;
+  background: transparent !important;
+  font-family: inherit !important;
+  font-size: inherit !important;
+  color: #000000 !important;
+  padding: 2px 4px !important;
+  outline: none !important;
+  box-sizing: border-box !important;
+  box-shadow: none !important;
+  transition: all 0.15s ease !important;
+}
+
+.payment-paper-canvas .sheet-inline-input:hover,
+.payment-paper-canvas .sheet-inline-input:focus {
+  border-bottom-color: #0284c7 !important;
+  background: rgba(240, 249, 255, 0.7) !important;
+}
+
+.payment-paper-canvas .sheet-inline-input.bold-input {
+  font-weight: 700;
+}
+
+.payment-paper-canvas .sheet-inline-input.center {
+  text-align: center;
+}
+
+.payment-paper-canvas .sheet-inline-input.right {
+  text-align: right;
+}
+
+/* Table inside payment paper canvas */
+.payment-paper-canvas table {
+  width: 100% !important;
+  border-collapse: collapse !important;
+  table-layout: fixed !important;
+  margin: 6px 0 12px !important;
+}
+
+.payment-paper-canvas th,
+.payment-paper-canvas td {
+  border: 1px solid #000000 !important;
+  padding: 6px 6px;
+  vertical-align: middle;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  white-space: normal;
+  line-height: 1.35;
+}
+
+.payment-paper-canvas th {
+  font-size: 14.5px;
+  font-weight: bold;
+  text-align: center;
+  background: #fafafa;
+}
+
+.payment-paper-canvas td {
+  font-size: 14.5px;
+}
+
+/* STT, Số tiền và Tổng cộng: Tuyệt đối không ngắt dòng chữ số hoặc co kéo vỡ dòng */
+.payment-paper-canvas td:first-child,
+.payment-paper-canvas th:first-child {
+  white-space: nowrap !important;
+  word-break: normal !important;
+  text-align: center !important;
+}
+
+.payment-paper-canvas .sheet-inline-input.right,
+.payment-paper-canvas td:nth-child(4),
+.payment-paper-canvas td:nth-child(4) input,
+.payment-paper-canvas .sum td:last-child {
+  white-space: nowrap !important;
+  word-break: normal !important;
+  overflow-wrap: normal !important;
+  text-align: right !important;
+  font-variant-numeric: tabular-nums !important;
+}
+
+.payment-paper-canvas .sum td {
+  height: 28px;
+  padding: 4px 6px;
+  font-weight: bold;
+}
+
+/* Right Sidebar Toolbox */
+.payment-sidebar-toolbox {
+  width: 220px;
+  min-width: 200px;
+  max-width: 235px;
+  position: sticky;
+  top: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex-shrink: 0;
+  z-index: 40;
+  background: transparent !important;
+  height: auto !important;
+  max-height: calc(100vh - 36px);
+  overflow-y: auto;
+  box-shadow: none !important;
+  border: none !important;
+  padding-right: 2px;
+}
+
+.payment-sidebar-toolbox::-webkit-scrollbar {
+  width: 4px;
+}
+.payment-sidebar-toolbox::-webkit-scrollbar-track {
+  background: transparent;
+}
+.payment-sidebar-toolbox::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+.payment-sidebar-toolbox::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+.payment-sidebar-card {
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 9px;
+  padding: 10px 12px;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  box-sizing: border-box;
+}
+
+.payment-sidebar-card-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: #475569;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding-bottom: 5px;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.btn-sidebar-payment-action {
+  width: 100%;
+  padding: 7px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: all 0.15s ease;
+  box-sizing: border-box;
+  line-height: 1.3;
+}
+
+.btn-sidebar-payment-action.btn-add-line {
+  background: #f0fdf4;
+  color: #15803d;
+  border-color: #86efac;
+}
+.btn-sidebar-payment-action.btn-add-line:hover {
+  background: #dcfce7;
+  border-color: #4ade80;
+  box-shadow: 0 2px 6px rgba(22, 163, 74, 0.2);
+}
+
+.btn-sidebar-payment-action.btn-link-po {
+  background: #f0f9ff;
+  color: #0369a1;
+  border-color: #bae6fd;
+}
+.btn-sidebar-payment-action.btn-link-po:hover {
+  background: #e0f2fe;
+  border-color: #7dd3fc;
+  box-shadow: 0 2px 6px rgba(2, 132, 199, 0.2);
+}
+
+.btn-sidebar-payment-action.btn-save-draft {
+  background: #0284c7;
+  color: #ffffff;
+  border-color: #0369a1;
+  box-shadow: 0 2px 8px rgba(2, 132, 199, 0.35);
+}
+.btn-sidebar-payment-action.btn-save-draft:hover {
+  background: #0369a1;
+}
+
+.btn-sidebar-payment-action.btn-save-draft.has-unsaved {
+  background: #ea580c;
+  border-color: #c2410c;
+  box-shadow: 0 2px 8px rgba(234, 88, 12, 0.4);
+}
+.btn-sidebar-payment-action.btn-save-draft.has-unsaved:hover {
+  background: #c2410c;
+}
+
+.payment-sidebar-checklist {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 240px;
+  overflow-y: auto;
+  padding-right: 2px;
+}
+
+.payment-sidebar-checklist label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+  color: #334155;
+  cursor: pointer;
+  user-select: none;
+}
+
+.payment-sidebar-checklist label:hover {
+  color: #0284c7;
+}
+
+.payment-sidebar-select {
+  width: 100%;
+  padding: 5px 6px;
+  font-size: 11px;
+  font-weight: 500;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  background-color: #ffffff;
+  color: #334155;
+  box-sizing: border-box;
+  outline: none;
+}
+
+.payment-sidebar-select:focus {
+  border-color: #0284c7;
+}
+
+.btn-delete-line {
+  background: transparent;
+  color: #ef4444;
+  border: none;
+  font-size: 14px;
+  font-weight: bold;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+  line-height: 1;
+  transition: all 0.15s ease;
+}
+
+.btn-delete-line:hover {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+@media screen and (max-width: 900px) {
+  .payment-workspace-inner {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .payment-paper-canvas.a4-portrait,
+  .payment-paper-canvas.a4-landscape {
+    width: 100%;
+    min-height: auto;
+    padding: 10mm 8mm;
+  }
+  .payment-sidebar-toolbox {
+    width: 100%;
+    max-width: 100%;
+    position: static;
+  }
+}
+
+
