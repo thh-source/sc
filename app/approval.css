@@ -683,8 +683,25 @@
   z-index: 40;
   background: transparent !important;
   height: auto !important;
+  max-height: calc(100vh - 36px);
+  overflow-y: auto;
   box-shadow: none !important;
   border: none !important;
+  padding-right: 2px;
+}
+
+.a4-sidebar-toolbox::-webkit-scrollbar {
+  width: 4px;
+}
+.a4-sidebar-toolbox::-webkit-scrollbar-track {
+  background: transparent;
+}
+.a4-sidebar-toolbox::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+.a4-sidebar-toolbox::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
 }
 
 .sidebar-tool-card {

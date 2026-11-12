@@ -4997,7 +4997,33 @@ export default function ApprovalManagement({
         {/* THANH CÔNG CỤ TÁC VỤ PHÍA BÊN PHẢI BIỂU MẪU A4 */}
         {!isReportMode && (
           <div className="a4-sidebar-toolbox no-print" aria-label="Thanh công cụ tác vụ biểu mẫu ĐNPD">
-            {/* Thẻ 1: Thao tác dữ liệu bảng */}
+            {/* Thẻ 1: Chế độ giao diện */}
+            <div className="sidebar-tool-card">
+              <div className="sidebar-tool-card-title">
+                <span style={{ fontSize: "13px" }}>🖥️</span>
+                <span>Giao diện</span>
+              </div>
+              <div className="sidebar-pill-group">
+                <button
+                  type="button"
+                  className={`sidebar-pill-btn ${workspaceViewMode === "wysiwyg" ? "active" : ""}`}
+                  onClick={() => setWorkspaceViewMode("wysiwyg")}
+                  title="Soạn thảo trực tiếp trên biểu mẫu giấy in A4 trực quan"
+                >
+                  📄 Mẫu in A4
+                </button>
+                <button
+                  type="button"
+                  className={`sidebar-pill-btn ${workspaceViewMode === "cards" ? "active" : ""}`}
+                  onClick={() => setWorkspaceViewMode("cards")}
+                  title="Xem và chỉnh sửa theo các thẻ phân đoạn"
+                >
+                  📋 Dạng thẻ
+                </button>
+              </div>
+            </div>
+
+            {/* Thẻ 2: Thao tác dữ liệu bảng */}
             <div className="sidebar-tool-card">
               <div className="sidebar-tool-card-title">
                 <span style={{ fontSize: "13px" }}>📋</span>
@@ -5045,7 +5071,176 @@ export default function ApprovalManagement({
               </div>
             </div>
 
-            {/* Thẻ 2: Khổ in & Căn chỉnh */}
+            {/* Thẻ 3: Tùy chọn cột con của NCC */}
+            <div className="sidebar-tool-card">
+              <div className="sidebar-tool-card-title">
+                <span style={{ fontSize: "13px" }}>⚙️</span>
+                <span>Tùy chọn cột NCC</span>
+              </div>
+
+              <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                <label
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "6px",
+                    fontSize: "11px",
+                    fontWeight: 600,
+                    color: "#334155",
+                    cursor: "pointer",
+                  }}
+                  title="Thêm/Bật cột Mặt hàng NCC báo (hoặc Sản phẩm / Hãng sản xuất)"
+                >
+                  <input
+                    type="checkbox"
+                    checked={hasQuotedProduct}
+                    onChange={(e) => toggleQuotedProductColumn(e.target.checked)}
+                    style={{ cursor: "pointer" }}
+                  />
+                  <span>＋ Cột Mặt hàng NCC báo</span>
+                </label>
+
+                {hasQuotedProduct && (
+                  <input
+                    type="text"
+                    className="sidebar-select"
+                    style={{ padding: "4px 6px", fontSize: "11px" }}
+                    value={quotedProductTitle}
+                    onChange={(e) =>
+                      updateActive((prev) => ({
+                        ...prev,
+                        quotedProductHeader: e.target.value,
+                      }))
+                    }
+                    title="Đổi tên tiêu đề cột con (VD: Mặt hàng NCC báo, Sản phẩm, Hãng/ Xuất xứ)"
+                    placeholder="Tên cột (VD: Mặt hàng NCC báo)"
+                  />
+                )}
+
+                <label
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "6px",
+                    fontSize: "11px",
+                    fontWeight: 600,
+                    color: "#334155",
+                    cursor: "pointer",
+                  }}
+                  title="Thêm/Bật cột Số lượng mua của từng NCC (cho phép tách dòng số lượng)"
+                >
+                  <input
+                    type="checkbox"
+                    checked={hasSupplierQty}
+                    onChange={(e) => toggleSupplierQtyColumn(e.target.checked)}
+                    style={{ cursor: "pointer" }}
+                  />
+                  <span>＋ Cột Số lượng mua của NCC</span>
+                </label>
+
+                <label
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "6px",
+                    fontSize: "11px",
+                    fontWeight: 600,
+                    color: "#334155",
+                    cursor: "pointer",
+                  }}
+                  title="Hiển thị dòng Thời gian giao hàng ở chân bảng so sánh"
+                >
+                  <input
+                    type="checkbox"
+                    checked={activeRequest.showDeliveryTimeRow}
+                    onChange={(e) =>
+                      updateActive((prev) => ({
+                        ...prev,
+                        showDeliveryTimeRow: e.target.checked,
+                      }))
+                    }
+                    style={{ cursor: "pointer" }}
+                  />
+                  <span>＋ Dòng TG giao hàng</span>
+                </label>
+              </div>
+            </div>
+
+            {/* Thẻ 4: Tính tổng tiền & Thuế VAT */}
+            <div className="sidebar-tool-card">
+              <div className="sidebar-tool-card-title">
+                <span style={{ fontSize: "13px" }}>💰</span>
+                <span>Tính tổng tiền</span>
+              </div>
+
+              <div className="sidebar-pill-group">
+                <button
+                  type="button"
+                  className={`sidebar-pill-btn ${activeRequest.vatMode !== "with_vat" ? "active" : ""}`}
+                  onClick={() =>
+                    updateActive((prev) => ({
+                      ...prev,
+                      vatMode: "without_vat",
+                    }))
+                  }
+                  title="Tổng tiền chưa bao gồm thuế giá trị gia tăng"
+                >
+                  Chưa VAT
+                </button>
+                <button
+                  type="button"
+                  className={`sidebar-pill-btn ${activeRequest.vatMode === "with_vat" ? "active" : ""}`}
+                  onClick={() =>
+                    updateActive((prev) => ({
+                      ...prev,
+                      vatMode: "with_vat",
+                      vatRate: prev.vatRate !== undefined ? prev.vatRate : 10,
+                      vatCalculationType: prev.vatCalculationType || "add_vat",
+                    }))
+                  }
+                  title="Tổng tiền có bao gồm thuế giá trị gia tăng"
+                >
+                  Có VAT
+                </button>
+              </div>
+
+              {activeRequest.vatMode === "with_vat" && (
+                <select
+                  className="sidebar-select"
+                  style={{ marginTop: "4px" }}
+                  value={
+                    activeRequest.vatCalculationType === "already_included"
+                      ? "included"
+                      : String(activeRequest.vatRate !== undefined ? activeRequest.vatRate : 10)
+                  }
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (val === "included") {
+                      updateActive((prev) => ({
+                        ...prev,
+                        vatCalculationType: "already_included",
+                        vatRate: 0,
+                      }));
+                    } else {
+                      updateActive((prev) => ({
+                        ...prev,
+                        vatCalculationType: "add_vat",
+                        vatRate: Number(val),
+                      }));
+                    }
+                  }}
+                  title="Chọn mức thuế suất VAT hoặc đơn giá đã bao gồm VAT"
+                >
+                  <option value="10">Thuế VAT 10%</option>
+                  <option value="8">Thuế VAT 8%</option>
+                  <option value="5">Thuế VAT 5%</option>
+                  <option value="0">Thuế VAT 0%</option>
+                  <option value="included">Đơn giá đã gồm VAT</option>
+                </select>
+              )}
+            </div>
+
+            {/* Thẻ 5: Khổ in & Căn chỉnh */}
             <div className="sidebar-tool-card">
               <div className="sidebar-tool-card-title">
                 <span style={{ fontSize: "13px" }}>📐</span>
@@ -5143,7 +5338,7 @@ export default function ApprovalManagement({
               </button>
             </div>
 
-            {/* Thẻ 3: Lưu dữ liệu */}
+            {/* Thẻ 6: Lưu dữ liệu */}
             <div className="sidebar-tool-card" style={{ borderColor: hasUnsavedChanges ? "#f97316" : "#cbd5e1" }}>
               <div className="sidebar-tool-card-title">
                 <span style={{ fontSize: "13px" }}>💾</span>
@@ -5157,7 +5352,7 @@ export default function ApprovalManagement({
                   borderColor: hasUnsavedChanges ? "#c2410c" : "#059669",
                 }}
                 onClick={handleExplicitSave}
-                                title="Lưu lại tất cả thay đổi trên ĐNPD này (Phím tắt: Ctrl + S)"
+                title="Lưu lại tất cả thay đổi trên ĐNPD này (Phím tắt: Ctrl + S)"
               >
                 <Save size={14} />
                 <span>{hasUnsavedChanges ? "Lưu ĐNPD ngay" : "Đã lưu an toàn"}</span>
@@ -5439,7 +5634,8 @@ export default function ApprovalManagement({
         </div>
       </div>
 
-      {/* Thanh Cấu hình Cột con của Nhà Cung Cấp & Khổ giấy in */}
+      {/* Thanh Cấu hình Cột con của Nhà Cung Cấp & Khổ giấy in (Chỉ hiển thị ở chế độ Dạng thẻ) */}
+      {workspaceViewMode === "cards" && (
       <div className="approval-config-bar no-print">
         {/* Chế độ làm việc: Form giấy in A4 WYSIWYG vs Dạng thẻ */}
         <div className="config-group" style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
@@ -5717,6 +5913,7 @@ export default function ApprovalManagement({
         </div>
         )}
       </div>
+      )}
 
       {/* THANH CÔNG CỤ CO KÉO ĐỘ RỘNG CỘT BẢN IN TRỰC QUAN */}
       {showColWidthAdjuster && (
