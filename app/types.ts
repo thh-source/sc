@@ -335,6 +335,7 @@ export type PO = {
   contractNote?: string;
   contractNumber?: string;
   contractDate?: string;
+  department?: string;
 };
 
 export type ContractPO = PO & {

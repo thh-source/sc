@@ -10,6 +10,7 @@ import { useTranslation } from "../i18n";
 import { DocFlowLinks } from "./DocFlowLinks";
 import { resolveDocFlow } from "../utils/docFlow";
 import { isPOCompleted, calcPODeliveryStats } from "../utils/paymentSync";
+import { getUnifiedDepartments } from "../utils/departments";
 import "../payment.css";
 
 interface DraftPOItem {
@@ -74,6 +75,80 @@ export function POList({
 }) {
   const { t } = useTranslation();
   const [q, setQ] = useState("");
+  const [departmentFilter, setDepartmentFilter] = useState<string>("all");
+  const [draftDepartment, setDraftDepartment] = useState("");
+
+  const getEffectivePODepartment = React.useCallback((targetPo: PO): string => {
+    // 1. Nếu PO đã có department được chỉ định trực tiếp
+    if (targetPo.department && targetPo.department.trim()) return targetPo.department.trim();
+
+    // 2. Tra cứu theo PR liên kết trực tiếp
+    const rawPrNumber = (targetPo.prNumber || "").trim().toLowerCase();
+    if (rawPrNumber && rawPrNumber !== "mua trực tiếp") {
+      const linkedPr = prs.find(
+        (p) => (p.number || "").trim().toLowerCase() === rawPrNumber
+      );
+      if (linkedPr?.department && linkedPr.department.trim()) return linkedPr.department.trim();
+    }
+
+    // 3. Tra cứu theo Đề nghị phê duyệt (ĐNPD) liên kết
+    const linkedAppr = approvalRequests.find(
+      (a) =>
+        (a.linkedPoId && a.linkedPoId === targetPo.id) ||
+        (a.linkedPoNumber && targetPo.number && a.linkedPoNumber.trim().toLowerCase() === targetPo.number.trim().toLowerCase()) ||
+        (rawPrNumber && a.requestNumber && a.requestNumber.trim().toLowerCase() === rawPrNumber) ||
+        (rawPrNumber && a.prNumber && a.prNumber.trim().toLowerCase() === rawPrNumber)
+    );
+    if (linkedAppr) {
+      if (linkedAppr.department && linkedAppr.department.trim() && linkedAppr.department.trim() !== "Cung ứng") {
+        return linkedAppr.department.trim();
+      }
+      if (linkedAppr.prId || linkedAppr.prNumber) {
+        const prFromAppr = prs.find(
+          (p) =>
+            (linkedAppr.prId !== undefined && p.id === linkedAppr.prId) ||
+            (linkedAppr.prNumber && p.number && p.number.trim().toLowerCase() === linkedAppr.prNumber.trim().toLowerCase())
+        );
+        if (prFromAppr?.department && prFromAppr.department.trim()) return prFromAppr.department.trim();
+      }
+    }
+
+    // 4. Tra cứu từ danh sách mặt hàng của PO
+    const itemWithDept = (targetPo.items || []).find((it) => it.department && it.department.trim());
+    if (itemWithDept?.department) return itemWithDept.department.trim();
+
+    // 5. Dự đoán thông minh dựa trên ký hiệu / mã PR (VD: QC1-QC3 -> QC, ĐX-TĐSH -> TT ĐSH, QA... -> Phòng QA, RD... -> RD, EM... -> Cơ điện)
+    if (rawPrNumber) {
+      if (rawPrNumber.includes("qc")) return "QC";
+      if (rawPrNumber.includes("qa")) return "Phòng QA";
+      if (rawPrNumber.includes("tđsh") || rawPrNumber.includes("đsh") || rawPrNumber.includes("tdsh")) return "TT ĐSH";
+      if (rawPrNumber.includes("rd") || rawPrNumber.includes("r&d")) return "RD";
+      if (rawPrNumber.includes("cơ điện") || rawPrNumber.includes("em") || rawPrNumber.includes("diesel")) return "Cơ điện";
+      if (rawPrNumber.includes("kho") || rawPrNumber.includes("wh")) return "Kho";
+      if (rawPrNumber.includes("it")) return "IT";
+      if (rawPrNumber.includes("sản xuất") || rawPrNumber.includes("sx")) return "Sản xuất";
+    }
+
+    return "";
+  }, [prs, approvalRequests]);
+
+  const allDepartmentOptions = useMemo(() => {
+    const baseList = getUnifiedDepartments();
+    const set = new Set<string>(baseList);
+    (pos || []).forEach((p) => {
+      const d = getEffectivePODepartment(p);
+      if (d) set.add(d);
+    });
+    (prs || []).forEach((pr) => {
+      if (pr.department && pr.department.trim()) set.add(pr.department.trim());
+    });
+    return Array.from(set).filter(Boolean);
+  }, [pos, prs, getEffectivePODepartment]);
+
+  const handleUpdatePODepartment = (targetPo: PO, newDept: string) => {
+    const updated: PO = { ...targetPo, department: newDept };
+    onUpdatePO?.(updated);
+  };
 
   // Create Direct PO Modal State
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -113,6 +188,12 @@ export function POList({
     if (!draftPrId) return null;
     return prs.find((p) => p.id === Number(draftPrId)) || null;
   }, [draftPrId, prs]);
+
+  useEffect(() => {
+    if (selectedPR && selectedPR.department) {
+      setDraftDepartment(selectedPR.department);
+    }
+  }, [selectedPR]);
 
   const handleSelectItemsFromTree = (items: SelectedItemData[]) => {
     setDraftItems((prev) => {
@@ -216,6 +297,7 @@ export function POList({
     setDraftPrNumber("Mua trực tiếp");
     setDraftCreatedDate(todayStr);
     setDraftExpectedDate("");
+    setDraftDepartment("");
     setDraftNote("");
     setShowDraftNote(false);
     setDraftVatRate(10);
@@ -427,6 +509,7 @@ export function POList({
       supplierId: supplierIdNum,
       createdDate: draftCreatedDate || new Date().toISOString().slice(0, 10),
       expectedDate: draftExpectedDate || "",
+      department: draftDepartment || selectedPR?.department || "",
       status: "Mới tạo",
       items: draftItems.map((item, idx) => ({
         id: item.id || makeId(),
@@ -529,9 +612,11 @@ export function POList({
       const isDone = isPOCompleted(po, paymentHandovers);
       if (statusFilter === "active" && isDone) return false;
       if (statusFilter === "done" && !isDone) return false;
+      const poDept = getEffectivePODepartment(po);
+      if (departmentFilter !== "all" && poDept !== departmentFilter) return false;
       const s = suppliers.find((x) => Number(x.id) === Number(po.supplierId));
       const itemNames = (po.items || []).map((it) => it.name || "").join(" ");
-      return ((po.number || "") + (po.prNumber || "") + (s?.name || "") + " " + itemNames)
+      return ((po.number || "") + (po.prNumber || "") + (s?.name || "") + " " + itemNames + " " + poDept)
         .toLowerCase()
         .includes(q.toLowerCase());
     })
@@ -659,6 +744,33 @@ export function POList({
           </div>
 
           <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap", flex: 1, justifyContent: "flex-end" }}>
+            {/* Bộ lọc phòng ban */}
+            <select
+              value={departmentFilter}
+              onChange={(e) => setDepartmentFilter(e.target.value)}
+              style={{
+                height: "38px",
+                padding: "0 10px",
+                borderRadius: "6px",
+                border: `1px solid ${departmentFilter !== "all" ? "#0284c7" : "#cbd5e1"}`,
+                background: departmentFilter !== "all" ? "#f0f9ff" : "#ffffff",
+                color: departmentFilter !== "all" ? "#0369a1" : "#475569",
+                fontWeight: departmentFilter !== "all" ? 700 : 500,
+                fontSize: "12.5px",
+                cursor: "pointer",
+                outline: "none",
+                boxShadow: departmentFilter !== "all" ? "0 0 0 1px #0284c7" : undefined,
+              }}
+              title="Lọc riêng các đơn PO theo phòng ban"
+            >
+              <option value="all">Tất cả phòng ban ({allDepartmentOptions.length})</option>
+              {allDepartmentOptions.map((dept) => (
+                <option key={dept} value={dept}>
+                  {dept}
+                </option>
+              ))}
+            </select>
+
             <label style={{ display: "inline-flex", alignItems: "center", gap: "6px", position: "relative" }}>
               <Search size={16} style={{ color: "var(--slate-400)", position: "absolute", left: "12px", pointerEvents: "none" }} />
               <input
@@ -937,7 +1049,7 @@ export function POList({
                 <th style={{ width: "150px", whiteSpace: "nowrap" }}>{t("table.po_number")}</th>
                 <th style={{ minWidth: "220px" }}>{t("table.supplier")}</th>
                 <th style={{ width: "115px", whiteSpace: "nowrap" }}>{t("table.created_date")}</th>
-                <th style={{ width: "115px", whiteSpace: "nowrap" }}>{t("table.expected_delivery")}</th>
+                <th style={{ width: "145px", minWidth: "135px", whiteSpace: "nowrap", textAlign: "left" }}>Phòng ban</th>
                 <th style={{ width: "135px", whiteSpace: "nowrap", textAlign: "right" }}>{t("table.po_value")}</th>
                 <th style={{ width: "175px", whiteSpace: "nowrap", textAlign: "center" }}>Giao hàng &amp; Thanh toán</th>
                 <th style={{ width: "105px", whiteSpace: "nowrap", textAlign: "center" }}>{t("table.documents")}</th>
@@ -960,6 +1072,7 @@ export function POList({
                 const total = calcPOTotal(po);
                 const flow = resolveDocFlow({ po }, { prs, pos, approvalRequests, paymentRequests, paymentHandovers });
                 const isDone = isPOCompleted(po, paymentHandovers);
+                const effectiveDept = getEffectivePODepartment(po);
 
                 // Tính toán trạng thái thanh toán hiển thị tại Dòng 2
                 const isFullyPaid = total > 0 && paid >= total;
@@ -1143,7 +1256,53 @@ export function POList({
                       )}
                     </td>
                     <td style={{ whiteSpace: "nowrap", fontWeight: 400, color: "#0f172a", fontSize: "13px" }}>{dateVN(po.createdDate)}</td>
-                    <td style={{ whiteSpace: "nowrap", color: "#0f172a", fontSize: "13px", fontWeight: 400 }}>{dateVN(po.expectedDate)}</td>
+                    <td style={{ whiteSpace: "nowrap", padding: "6px 8px" }} onClick={(e) => e.stopPropagation()}>
+                      {readOnly ? (
+                        <span
+                          style={{
+                            display: "inline-block",
+                            fontSize: "12px",
+                            fontWeight: effectiveDept ? 600 : 400,
+                            color: effectiveDept ? "#0369a1" : "#94a3b8",
+                            background: effectiveDept ? "#f0f9ff" : "transparent",
+                            padding: "3px 8px",
+                            borderRadius: "4px",
+                          }}
+                        >
+                          {effectiveDept || "—"}
+                        </span>
+                      ) : (
+                        <select
+                          value={effectiveDept}
+                          onChange={(e) => {
+                            e.stopPropagation();
+                            handleUpdatePODepartment(po, e.target.value);
+                          }}
+                          style={{
+                            width: "100%",
+                            maxWidth: "140px",
+                            fontSize: "12px",
+                            fontWeight: effectiveDept ? 650 : 500,
+                            color: effectiveDept ? "#0369a1" : "#64748b",
+                            background: effectiveDept ? "#f0f9ff" : "#ffffff",
+                            border: `1px solid ${effectiveDept ? "#7dd3fc" : "#cbd5e1"}`,
+                            borderRadius: "6px",
+                            padding: "4px 6px",
+                            cursor: "pointer",
+                            outline: "none",
+                            transition: "all 0.15s ease",
+                          }}
+                          title="Bấm để chọn/đổi phòng ban cho đơn PO này"
+                        >
+                          <option value="">-- Chọn phòng ban --</option>
+                          {allDepartmentOptions.map((dept) => (
+                            <option key={dept} value={dept}>
+                              {dept}
+                            </option>
+                          ))}
+                        </select>
+                      )}
+                    </td>
                     <td className="money" style={{ whiteSpace: "nowrap", textAlign: "right", fontSize: "13px", fontWeight: 400, color: "#0f172a" }}>{fmt(total)} ₫</td>
                     <td style={{ textAlign: "center", minWidth: "175px" }}>
                       {/* Dòng 1: Tiến độ giao hàng */}
@@ -1390,6 +1549,37 @@ export function POList({
                       <option key={pr.id} value={pr.id}>
                         {pr.number} - {pr.department || "PR"} (
                         {pr.items?.length || 0} mặt hàng)
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label
+                    style={{
+                      display: "block",
+                      fontSize: 12,
+                      fontWeight: 600,
+                      color: "#475569",
+                      marginBottom: 4,
+                    }}
+                  >
+                    Phòng ban sử dụng
+                  </label>
+                  <select
+                    className="payment-input"
+                    style={{
+                      width: "100%",
+                      fontWeight: 600,
+                      color: draftDepartment ? "#1e293b" : "#64748b",
+                    }}
+                    value={draftDepartment}
+                    onChange={(e) => setDraftDepartment(e.target.value)}
+                  >
+                    <option value="">-- Chọn phòng ban --</option>
+                    {allDepartmentOptions.map((dept) => (
+                      <option key={dept} value={dept}>
+                        {dept}
                       </option>
                     ))}
                   </select>
