@@ -23,7 +23,7 @@ import {
   Lock,
   Unlock,
 } from "lucide-react";
-import { PaymentHandoverItem, PR, PO, Supplier, PaymentRequestEntry, isItemHidden } from "../types";
+import { PaymentHandoverItem, PR, PO, Supplier, PaymentRequestEntry, isItemHidden, isContractPO } from "../types";
 import { calcPODeliveryStats } from "../utils/paymentSync";
 import { navigateTo } from "../utils/navigation";
 import {
@@ -96,6 +96,24 @@ export const DEFAULT_HANDOVER_COLUMN_SETTINGS: HandoverColumnSetting[] = [
   { id: "receiver_name", label: "Bên nhận", minWidth: 110, width: 140, visible: true, pinned: false, align: "left" },
 ];
 
+
+export interface HandoverBatchDraft {
+  batchKey: string;
+  sourceType: string;
+  sourceNumber: string;
+  department: string;
+  handoverDate: string;
+  senderName: string;
+  senderDept: string;
+  receiverName: string;
+  batchNumber: number;
+  conclusionText: string;
+  scanUrl?: string;
+  scanName?: string;
+  printOrientation: "portrait" | "landscape";
+  items: PaymentHandoverItem[];
+}
+
 export interface HandoverManagementProps {
   paymentHandovers: PaymentHandoverItem[];
   onUpdateHandovers?: (handovers: PaymentHandoverItem[]) => void;
@@ -128,6 +146,208 @@ export function HandoverManagement({
   onClearAutoCreate,
 }: HandoverManagementProps) {
   const { t } = useTranslation();
+
+  // --- A4 WYSIWYG Workspace State for Handover Report ---
+  const [activeWorkspaceBatchKey, setActiveWorkspaceBatchKey] = useState<string | null>(null);
+  const [localHandoverDraft, setLocalHandoverDraft] = useState<HandoverBatchDraft | null>(null);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [printOrientation, setPrintOrientation] = useState<"portrait" | "landscape">("portrait");
+  const [workspaceToast, setWorkspaceToast] = useState<string | null>(null);
+  const [showImportPoModal, setShowImportPoModal] = useState(false);
+  const [selectedPoForImport, setSelectedPoForImport] = useState<PO | null>(null);
+  const [selectedPoItemIds, setSelectedPoItemIds] = useState<Set<number>>(new Set());
+
+  const showToast = (msg: string) => {
+    setWorkspaceToast(msg);
+    setTimeout(() => setWorkspaceToast(null), 3000);
+  };
+
+  const handleOpenHandoverWorkspace = (batchKey: string) => {
+    const batch = handoverBatches.find((b) => b.batchKey === batchKey);
+    if (!batch) return;
+
+    const first = batch.items[0];
+    const draft: HandoverBatchDraft = {
+      batchKey: batch.batchKey,
+      sourceType: batch.sourceType || (batch.sourceNumber ? "PO" : ""),
+      sourceNumber: batch.sourceNumber || "",
+      department: batch.department || "Phòng Cung ứng",
+      handoverDate: batch.date || localToday(),
+      senderName: batch.senderName || "Trần Hải Hà",
+      senderDept: first?.sender_dept || "Phòng Cung ứng",
+      receiverName: batch.receiverName || "",
+      batchNumber: batch.batchNumber || 1,
+      conclusionText: "Biên bản này được lập thành 02 bản có giá trị pháp lý như nhau, 01 bản giao cho người giao hàng; 01 bản giao cho người nhận hàng.",
+      scanUrl: batch.scanUrl,
+      scanName: first?.handover_scan_name,
+      printOrientation: "portrait",
+      items: JSON.parse(JSON.stringify(batch.items)),
+    };
+
+    setLocalHandoverDraft(draft);
+    setActiveWorkspaceBatchKey(batchKey);
+    setHasUnsavedChanges(false);
+    setPrintOrientation("portrait");
+  };
+
+  const handleAddNewHandoverWorkspace = () => {
+    const newBatchId = `b_${Date.now()}`;
+    const newBatchKey = `BATCH__${newBatchId}`;
+    const newItem: PaymentHandoverItem = {
+      id: Date.now(),
+      department: "Phòng Cung ứng",
+      item_name: "",
+      unit: "Cái",
+      quantity_doc: 1,
+      quantity_pass: 1,
+      quantity_fail: 0,
+      note: "",
+      handover_date: localToday(),
+      sender_name: "Trần Hải Hà",
+      sender_dept: "Phòng Cung ứng",
+      receiver_name: "",
+      batch_id: newBatchId,
+      batch_number: 1,
+    };
+
+    const draft: HandoverBatchDraft = {
+      batchKey: newBatchKey,
+      sourceType: "PO",
+      sourceNumber: "",
+      department: "Phòng Cung ứng",
+      handoverDate: localToday(),
+      senderName: "Trần Hải Hà",
+      senderDept: "Phòng Cung ứng",
+      receiverName: "",
+      batchNumber: 1,
+      conclusionText: "Biên bản này được lập thành 02 bản có giá trị pháp lý như nhau, 01 bản giao cho người giao hàng; 01 bản giao cho người nhận hàng.",
+      printOrientation: "portrait",
+      items: [newItem],
+    };
+
+    setLocalHandoverDraft(draft);
+    setActiveWorkspaceBatchKey(newBatchKey);
+    setHasUnsavedChanges(true);
+    setPrintOrientation("portrait");
+  };
+
+  const updateHandoverDraft = (updater: (prev: HandoverBatchDraft) => HandoverBatchDraft) => {
+    if (readOnly) return;
+    setLocalHandoverDraft((current) => {
+      if (!current) return current;
+      const next = updater(JSON.parse(JSON.stringify(current)));
+      setHasUnsavedChanges(true);
+      return next;
+    });
+  };
+
+  const updateHandoverDraftLine = (index: number, patch: Partial<PaymentHandoverItem>) => {
+    updateHandoverDraft((prev) => {
+      const items = [...prev.items];
+      if (!items[index]) return prev;
+      items[index] = { ...items[index], ...patch };
+      return { ...prev, items };
+    });
+  };
+
+  const handleAddDraftLine = () => {
+    updateHandoverDraft((prev) => {
+      const newLine: PaymentHandoverItem = {
+        id: Date.now() + Math.floor(Math.random() * 1000),
+        department: prev.department,
+        item_name: "",
+        unit: "Cái",
+        quantity_doc: 1,
+        quantity_pass: 1,
+        quantity_fail: 0,
+        note: "",
+        handover_date: prev.handoverDate,
+        sender_name: prev.senderName,
+        sender_dept: prev.senderDept,
+        receiver_name: prev.receiverName,
+        source_type: prev.sourceType,
+        source_number: prev.sourceNumber,
+        batch_number: prev.batchNumber,
+      };
+      return { ...prev, items: [...prev.items, newLine] };
+    });
+  };
+
+  const handleRemoveDraftLine = (index: number) => {
+    updateHandoverDraft((prev) => {
+      if (prev.items.length <= 1) return prev;
+      const items = prev.items.filter((_, i) => i !== index);
+      return { ...prev, items };
+    });
+  };
+
+  const handleMarkAllPassedInDraft = () => {
+    updateHandoverDraft((prev) => {
+      const items = prev.items.map((it) => ({
+        ...it,
+        quantity_pass: it.quantity_doc,
+        quantity_fail: 0,
+      }));
+      return { ...prev, items };
+    });
+    showToast("✓ Đã đánh dấu tất cả mặt hàng ĐẠT 100%!");
+  };
+
+  const handleExplicitSaveHandover = () => {
+    if (!localHandoverDraft || readOnly) return;
+    const draft = localHandoverDraft;
+
+    const updatedItems: PaymentHandoverItem[] = draft.items.map((it, idx) => ({
+      ...it,
+      department: draft.department,
+      handover_date: draft.handoverDate,
+      sender_name: draft.senderName,
+      sender_dept: draft.senderDept,
+      receiver_name: draft.receiverName,
+      source_type: draft.sourceType,
+      source_number: draft.sourceNumber,
+      batch_number: draft.batchNumber,
+      handover_scan_url: draft.scanUrl,
+      handover_scan_name: draft.scanName,
+      item_order: idx + 1,
+    }));
+
+    const origBatch = handoverBatches.find((b) => b.batchKey === draft.batchKey);
+    const origItemIds = new Set(origBatch ? origBatch.items.map((it) => it.id) : []);
+    const draftItemIds = new Set(updatedItems.map((it) => it.id));
+
+    const remaining = paymentHandovers.filter((h) => !origItemIds.has(h.id) && !draftItemIds.has(h.id));
+    const nextHandovers = [...updatedItems, ...remaining];
+
+    triggerUpdateHandovers(nextHandovers);
+    setHasUnsavedChanges(false);
+    showToast("✓ Đã lưu Biên bản bàn giao thành công!");
+  };
+
+  const handleBackToList = () => {
+    if (hasUnsavedChanges) {
+      const confirmLeave = window.confirm(
+        "Bạn có thay đổi chưa lưu trên Biên bản bàn giao này.\nBạn có chắc chắn muốn thoát mà KHÔNG lưu không?"
+      );
+      if (!confirmLeave) return;
+    }
+    setActiveWorkspaceBatchKey(null);
+    setLocalHandoverDraft(null);
+    setHasUnsavedChanges(false);
+  };
+
+  useEffect(() => {
+    if (!activeWorkspaceBatchKey) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") {
+        e.preventDefault();
+        handleExplicitSaveHandover();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [activeWorkspaceBatchKey, localHandoverDraft]);
+
 
   useEffect(() => {
     if (autoOpenCreate) {
@@ -1227,6 +1447,857 @@ export function HandoverManagement({
     }
   };
 
+
+  const renderImportPoModal = () => {
+    if (!showImportPoModal) return null;
+
+    const availablePos = pos.filter((p) => p.items && p.items.length > 0);
+
+    return (
+      <div
+        className="payment-modal-overlay"
+        style={{ zIndex: 100000 }}
+        onClick={() => {
+          setShowImportPoModal(false);
+          setSelectedPoForImport(null);
+          setSelectedPoItemIds(new Set());
+        }}
+      >
+        <div
+          className="payment-modal-card"
+          style={{ maxWidth: "860px", width: "95vw", maxHeight: "90vh", display: "flex", flexDirection: "column" }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="payment-modal-header">
+            <div>
+              <h3 style={{ margin: 0, fontSize: "16px" }}>⚡ Lấy vật tư từ Đơn mua hàng (PO) hoặc Hợp đồng</h3>
+              <small>Chọn một đơn hàng và tích chọn các mặt hàng cần đưa vào Biên bản bàn giao</small>
+            </div>
+            <button
+              type="button"
+              className="payment-modal-close"
+              onClick={() => {
+                setShowImportPoModal(false);
+                setSelectedPoForImport(null);
+                setSelectedPoItemIds(new Set());
+              }}
+            >
+              ✕
+            </button>
+          </div>
+
+          <div style={{ padding: "16px", overflowY: "auto", flex: 1, display: "flex", flexDirection: "column", gap: "12px" }}>
+            <div>
+              <label style={{ fontSize: "12px", fontWeight: 700, color: "#334155", display: "block", marginBottom: "4px" }}>
+                1. Chọn Đơn hàng PO / Hợp đồng nguồn:
+              </label>
+              <select
+                className="handover-sidebar-select"
+                value={selectedPoForImport?.id || ""}
+                onChange={(e) => {
+                  const foundPo = pos.find((p) => String(p.id) === e.target.value);
+                  setSelectedPoForImport(foundPo || null);
+                  if (foundPo && foundPo.items) {
+                    setSelectedPoItemIds(new Set(foundPo.items.map((_, i) => i)));
+                  } else {
+                    setSelectedPoItemIds(new Set());
+                  }
+                }}
+              >
+                <option value="">-- Bấm để chọn PO / Hợp đồng ({availablePos.length} đơn hàng) --</option>
+                {availablePos.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {isContractPO(p) ? "Hợp đồng" : "PO"} #{p.number} · {p.supplierName || "Chưa có NCC"} ({p.items?.length || 0} mục) · {p.department || ""}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {selectedPoForImport && selectedPoForImport.items && (
+              <div>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "6px" }}>
+                  <label style={{ fontSize: "12px", fontWeight: 700, color: "#334155" }}>
+                    2. Chọn các mặt hàng cần nhập ({selectedPoItemIds.size}/{selectedPoForImport.items.length}):
+                  </label>
+                  <button
+                    type="button"
+                    style={{ fontSize: "11px", color: "#0284c7", background: "transparent", border: "none", cursor: "pointer", fontWeight: 700 }}
+                    onClick={() => {
+                      if (selectedPoItemIds.size === selectedPoForImport.items.length) {
+                        setSelectedPoItemIds(new Set());
+                      } else {
+                        setSelectedPoItemIds(new Set(selectedPoForImport.items.map((_, i) => i)));
+                      }
+                    }}
+                  >
+                    {selectedPoItemIds.size === selectedPoForImport.items.length ? "Bỏ chọn tất cả" : "Chọn tất cả"}
+                  </button>
+                </div>
+
+                <div style={{ border: "1px solid #cbd5e1", borderRadius: "8px", overflow: "hidden" }}>
+                  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12px" }}>
+                    <thead>
+                      <tr style={{ background: "#f8fafc", borderBottom: "1px solid #cbd5e1", textAlign: "left" }}>
+                        <th style={{ width: "36px", padding: "6px", textAlign: "center" }}>
+                          <input
+                            type="checkbox"
+                            checked={selectedPoItemIds.size === selectedPoForImport.items.length && selectedPoForImport.items.length > 0}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setSelectedPoItemIds(new Set(selectedPoForImport.items.map((_, i) => i)));
+                              } else {
+                                setSelectedPoItemIds(new Set());
+                              }
+                            }}
+                          />
+                        </th>
+                        <th style={{ padding: "6px" }}>Tên hàng hóa / vật tư</th>
+                        <th style={{ width: "60px", padding: "6px", textAlign: "center" }}>ĐVT</th>
+                        <th style={{ width: "80px", padding: "6px", textAlign: "right" }}>SL Đặt</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {selectedPoForImport.items.map((it, idx) => {
+                        const isChecked = selectedPoItemIds.has(idx);
+                        return (
+                          <tr key={idx} style={{ background: isChecked ? "#eff6ff" : undefined, borderBottom: "1px solid #e2e8f0" }}>
+                            <td style={{ textAlign: "center", padding: "6px" }}>
+                              <input
+                                type="checkbox"
+                                checked={isChecked}
+                                onChange={(e) => {
+                                  const next = new Set(selectedPoItemIds);
+                                  if (e.target.checked) next.add(idx);
+                                  else next.delete(idx);
+                                  setSelectedPoItemIds(next);
+                                }}
+                              />
+                            </td>
+                            <td style={{ padding: "6px", fontWeight: 600 }}>{it.name || (it as any).item_name || ""}</td>
+                            <td style={{ textAlign: "center", padding: "6px" }}>{it.unit || "Cái"}</td>
+                            <td style={{ textAlign: "right", padding: "6px", fontWeight: 700 }}>{it.quantity || 1}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="payment-modal-footer">
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={() => {
+                setShowImportPoModal(false);
+                setSelectedPoForImport(null);
+                setSelectedPoItemIds(new Set());
+              }}
+            >
+              Hủy
+            </button>
+            <button
+              type="button"
+              className="btn btn-primary"
+              disabled={!selectedPoForImport || selectedPoItemIds.size === 0}
+              onClick={() => {
+                if (!selectedPoForImport || selectedPoItemIds.size === 0) return;
+                const po = selectedPoForImport;
+                const itemsToAdd: PaymentHandoverItem[] = [];
+                selectedPoItemIds.forEach((idx) => {
+                  const it = po.items[idx];
+                  if (!it) return;
+                  itemsToAdd.push({
+                    id: Date.now() + Math.floor(Math.random() * 1000) + itemsToAdd.length,
+                    department: localHandoverDraft?.department || po.department || "Phòng Cung ứng",
+                    item_name: it.name || (it as any).item_name || "",
+                    unit: it.unit || "Cái",
+                    quantity_doc: it.quantity || 1,
+                    quantity_pass: it.quantity || 1,
+                    quantity_fail: 0,
+                    note: it.note || "",
+                    handover_date: localHandoverDraft?.handoverDate || localToday(),
+                    sender_name: localHandoverDraft?.senderName || "Trần Hải Hà",
+                    sender_dept: po.supplierName || localHandoverDraft?.senderDept,
+                    receiver_name: localHandoverDraft?.receiverName || "",
+                    source_type: isContractPO(po) ? "Hợp đồng" : "PO",
+                    source_number: po.number || "",
+                    batch_number: localHandoverDraft?.batchNumber || 1,
+                  });
+                });
+
+                updateHandoverDraft((prev) => ({
+                  ...prev,
+                  sourceType: isContractPO(po) ? "Hợp đồng" : "PO",
+                  sourceNumber: po.number || prev.sourceNumber,
+                  department: prev.department && prev.department !== "Phòng Cung ứng" ? prev.department : (po.department || prev.department),
+                  senderDept: po.supplierName || prev.senderDept,
+                  items: [...prev.items.filter((it) => it.item_name.trim() !== ""), ...itemsToAdd],
+                }));
+
+                setShowImportPoModal(false);
+                setSelectedPoForImport(null);
+                setSelectedPoItemIds(new Set());
+                showToast(`✓ Đã nhập ${itemsToAdd.length} mặt hàng từ PO #${po.number}!`);
+              }}
+            >
+              ⚡ Nhập vào Biên bản bàn giao ({selectedPoItemIds.size})
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // =========================================================================
+  // BẢN IN A4 WYSIWYG TRỰC QUAN CHO BIÊN BẢN BÀN GIAO & NGHIỆM THU
+  // =========================================================================
+  const renderWYSIWYGHandoverWorkspace = () => {
+    const draft = localHandoverDraft;
+    if (!draft) return null;
+
+    const dateParts = parsePrintDate(draft.handoverDate || localToday());
+    const depts = getUnifiedDepartments();
+
+    const totalDocQty = draft.items.reduce((s, it) => s + (Number(it.quantity_doc) || 0), 0);
+    const totalPassQty = draft.items.reduce((s, it) => s + (Number(it.quantity_pass) || 0), 0);
+    const totalFailQty = draft.items.reduce((s, it) => s + (Number(it.quantity_fail) || 0), 0);
+
+    return (
+      <div className="handover-a4-workspace-wrapper">
+        {/* Top Control Header Bar */}
+        <div className="handover-workspace-topbar no-print">
+          <div className="handover-topbar-left">
+            <button
+              type="button"
+              className="btn-handover-back-list"
+              onClick={handleBackToList}
+              title="Quay lại danh sách Đợt bàn giao"
+            >
+              <span>←</span>
+              <span>Danh sách BB bàn giao</span>
+            </button>
+            <div className="handover-topbar-title-block">
+              <h2>
+                <span>📦 BIÊN BẢN BÀN GIAO & NGHIỆM THU</span>
+                <span className="handover-topbar-badge">Đợt {draft.batchNumber || 1}</span>
+                {draft.sourceNumber && (
+                  <span style={{ fontSize: "12px", background: "#f1f5f9", color: "#334155", padding: "2px 8px", borderRadius: "6px", fontWeight: 700 }}>
+                    {draft.sourceType || "PO"} #{draft.sourceNumber}
+                  </span>
+                )}
+              </h2>
+              <div className="handover-topbar-sub">
+                Đơn vị nhận: <b>{draft.department || "Chưa chọn bộ phận"}</b> · Ngày: {draft.handoverDate || "Hôm nay"} · Tổng số: <b>{draft.items.length}</b> mặt hàng
+              </div>
+            </div>
+          </div>
+
+          <div className="handover-topbar-right">
+            <button
+              type="button"
+              className="btn-handover-topbar-print"
+              onClick={() => {
+                handlePrintHandoverDirect(draft.items);
+              }}
+              title="In biên bản bàn giao chuẩn khổ giấy A4 (2 liên)"
+            >
+              <Printer size={15} />
+              <span>In biên bản ngay</span>
+            </button>
+
+            <button
+              type="button"
+              className={`btn-handover-topbar-save ${hasUnsavedChanges ? "has-unsaved" : ""}`}
+              onClick={handleExplicitSaveHandover}
+              title="Lưu tất cả thay đổi trên biên bản bàn giao này (Ctrl + S)"
+            >
+              <span>💾</span>
+              <span>{hasUnsavedChanges ? "Lưu biên bản ngay (Ctrl+S)" : "Đã lưu an toàn"}</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Unsaved changes alert banner */}
+        {hasUnsavedChanges && (
+          <div className="handover-unsaved-alert-banner no-print">
+            <div style={{ display: "flex", alignItems: "center", gap: "8px", color: "#c2410c", fontWeight: 700, fontSize: "13px" }}>
+              <span style={{ fontSize: "16px" }}>⚠️</span>
+              <span>Biên bản này đang có thay đổi chưa lưu. Dữ liệu chưa ghi vào cơ sở dữ liệu cho đến khi bạn bấm "Lưu biên bản ngay".</span>
+            </div>
+            <button
+              type="button"
+              onClick={handleExplicitSaveHandover}
+              style={{
+                background: "#ea580c",
+                color: "#ffffff",
+                border: "none",
+                borderRadius: "6px",
+                padding: "6px 14px",
+                fontSize: "12.5px",
+                fontWeight: 800,
+                cursor: "pointer",
+              }}
+            >
+              💾 Lưu ngay (Ctrl + S)
+            </button>
+          </div>
+        )}
+
+        {/* Floating Toast Notification */}
+        {workspaceToast && (
+          <div
+            style={{
+              position: "fixed",
+              bottom: "24px",
+              right: "24px",
+              background: "#0f172a",
+              color: "#ffffff",
+              padding: "10px 18px",
+              borderRadius: "8px",
+              boxShadow: "0 10px 25px rgba(0,0,0,0.3)",
+              zIndex: 999999,
+              fontSize: "13px",
+              fontWeight: 700,
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+            }}
+          >
+            <span>✨</span>
+            <span>{workspaceToast}</span>
+          </div>
+        )}
+
+        {/* Centering Flex container: Left A4 Sheet + Right Sticky Sidebar Toolbox */}
+        <div className="handover-workspace-inner">
+          {/* TỜ GIẤY A4 BIÊN BẢN BÀN GIAO */}
+          <div
+            className={`handover-paper-canvas paper ${
+              printOrientation === "landscape" ? "a4-landscape" : "a4-portrait"
+            }`}
+          >
+            {/* Header Box (Logo + Tiêu đề biểu mẫu) */}
+            <table className="hb-box" style={{ width: "100%", tableLayout: "fixed" }}>
+              <tbody>
+                <tr>
+                  <td className="hb-box-left" style={{ width: "35%", verticalAlign: "middle" }}>
+                    <div className="hb-logo">
+                      <img
+                        src={PHENIKAA_LOGO_SRC}
+                        alt="PHENIKAA PHARMA"
+                        style={{
+                          height: "40px",
+                          width: "170px",
+                          objectFit: "contain",
+                          display: "block",
+                          margin: "0 auto",
+                        }}
+                      />
+                    </div>
+                    <div className="hb-sender-dept" style={{ marginTop: "6px" }}>
+                      Bộ phận:{" "}
+                      <input
+                        type="text"
+                        list="deptSuggestions"
+                        className="sheet-inline-input bold-input"
+                        value={draft.department || ""}
+                        onChange={(e) => updateHandoverDraft((prev) => ({ ...prev, department: e.target.value }))}
+                        placeholder="Bộ phận tiếp nhận..."
+                        style={{ width: "160px", display: "inline-block" }}
+                      />
+                    </div>
+                  </td>
+                  <td className="hb-box-right" style={{ width: "65%", verticalAlign: "middle" }}>
+                    <div className="hb-title-main">
+                      BIÊN BẢN BÀN GIAO, NGHIỆM THU VẬT TƯ,
+                    </div>
+                    <div className="hb-title-main">HÀNG HÓA</div>
+                    <div className="hb-title-sub">(Không qua kho)</div>
+                    <div style={{ fontSize: "11px", color: "#475569", marginTop: "4px", fontStyle: "italic" }}>
+                      {draft.sourceNumber
+                        ? `Căn cứ theo ${draft.sourceType || "PO"} số: ${draft.sourceNumber}`
+                        : "Bàn giao vật tư trực tiếp"}
+                      {draft.batchNumber ? ` · Đợt ${draft.batchNumber}` : ""}
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+
+            {/* Thông tin chung */}
+            <div className="hb-info" style={{ marginTop: "12px", lineHeight: "1.5" }}>
+              <div className="hb-line">
+                Hôm nay, ngày&nbsp;<b>{dateParts.d}</b>&nbsp;tháng&nbsp;<b>{dateParts.m}</b>&nbsp;năm 20<b>{dateParts.y.slice(-2)}</b>
+              </div>
+              <div className="hb-line">Tại Công ty CP Dược phẩm Phenikaa</div>
+              <div className="hb-line">
+                Địa chỉ: Lô đất CN2-10, KCN Công nghệ cao 2, KCNC Hòa Lạc, Xã Hòa Lạc, TP Hà Nội
+              </div>
+              <div className="hb-line" style={{ fontWeight: 700, marginTop: "4px" }}>Chúng tôi gồm:</div>
+              <div className="hb-two-col" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", marginTop: "4px" }}>
+                <div>
+                  Ông (bà):{" "}
+                  <input
+                    type="text"
+                    className="sheet-inline-input bold-input"
+                    style={{ width: "160px", display: "inline-block" }}
+                    value={draft.senderName || ""}
+                    onChange={(e) => updateHandoverDraft((prev) => ({ ...prev, senderName: e.target.value }))}
+                    placeholder="Họ tên người giao..."
+                  />{" "}
+                  - Người giao hàng
+                  <br />
+                  Đơn vị:{" "}
+                  <input
+                    type="text"
+                    className="sheet-inline-input bold-input"
+                    style={{ width: "160px", display: "inline-block" }}
+                    value={draft.senderDept || "Phòng Cung ứng"}
+                    onChange={(e) => updateHandoverDraft((prev) => ({ ...prev, senderDept: e.target.value }))}
+                    placeholder="Đơn vị giao hàng..."
+                  />
+                </div>
+                <div>
+                  Ông (bà):{" "}
+                  <input
+                    type="text"
+                    className="sheet-inline-input bold-input"
+                    style={{ width: "160px", display: "inline-block" }}
+                    value={draft.receiverName || ""}
+                    onChange={(e) => updateHandoverDraft((prev) => ({ ...prev, receiverName: e.target.value }))}
+                    placeholder="Họ tên người nhận..."
+                  />{" "}
+                  - Người nhận hàng
+                  <br />
+                  Bộ phận: <b>{draft.department || "Chưa chọn bộ phận"}</b>
+                </div>
+              </div>
+              <div className="hb-line" style={{ marginTop: "6px" }}>
+                Cùng nhau tiến hành giao nhận và nghiệm thu số lượng vật tư:
+              </div>
+            </div>
+
+            {/* Bảng danh sách vật tư bàn giao */}
+            <table className="hb-table" style={{ width: "100%", tableLayout: "fixed", borderCollapse: "collapse", marginTop: "8px" }}>
+              <thead>
+                <tr>
+                  <th style={{ width: "36px" }}>STT</th>
+                  <th>Tên hàng hóa - Quy cách</th>
+                  <th style={{ width: "62px" }}>ĐVT</th>
+                  <th style={{ width: "85px" }}>
+                    SL theo
+                    <br />
+                    chứng từ
+                  </th>
+                  <th style={{ width: "80px" }}>
+                    SL kiểm tra
+                    <br />
+                    Đạt
+                  </th>
+                  <th style={{ width: "80px" }}>
+                    SL kiểm tra
+                    <br />
+                    K.Đạt
+                  </th>
+                  <th style={{ width: "98px" }}>Ghi chú</th>
+                  <th className="no-print" style={{ width: "30px" }}></th>
+                </tr>
+              </thead>
+              <tbody>
+                {draft.items.map((it, idx) => (
+                  <tr key={it.id || idx}>
+                    <td className="center">{idx + 1}</td>
+                    <td className="left" style={{ padding: "4px 6px" }}>
+                      <AutoGrowTextarea
+                        className="sheet-inline-input bold-input"
+                        value={it.item_name || ""}
+                        onChange={(val) => updateHandoverDraftLine(idx, { item_name: val })}
+                        placeholder="Tên hàng hóa, vật tư, quy cách..."
+                        minRows={1}
+                      />
+                    </td>
+                    <td className="center" style={{ padding: "4px 2px" }}>
+                      <input
+                        type="text"
+                        className="sheet-inline-input center"
+                        value={it.unit || ""}
+                        onChange={(e) => updateHandoverDraftLine(idx, { unit: e.target.value })}
+                        placeholder="ĐVT"
+                      />
+                    </td>
+                    <td className="center cell-qty" style={{ padding: "4px 2px" }}>
+                      <input
+                        type="number"
+                        step="any"
+                        className="sheet-inline-input center bold-input"
+                        value={it.quantity_doc !== undefined ? it.quantity_doc : ""}
+                        onChange={(e) => {
+                          const docQty = parseFloat(e.target.value) || 0;
+                          const currentPass = parseFloat(String(it.quantity_pass)) || 0;
+                          const passQty = Math.min(docQty, currentPass || docQty);
+                          const failQty = Math.max(0, docQty - passQty);
+                          updateHandoverDraftLine(idx, {
+                            quantity_doc: e.target.value,
+                            quantity_pass: passQty,
+                            quantity_fail: failQty,
+                          });
+                        }}
+                        placeholder="1"
+                      />
+                    </td>
+                    <td className="center cell-qty" style={{ padding: "4px 2px" }}>
+                      <input
+                        type="number"
+                        step="any"
+                        className="sheet-inline-input center bold-input"
+                        style={{ color: "#16a34a" }}
+                        value={it.quantity_pass !== undefined ? it.quantity_pass : ""}
+                        onChange={(e) => {
+                          const passQty = parseFloat(e.target.value) || 0;
+                          const docQty = parseFloat(String(it.quantity_doc)) || 0;
+                          const failQty = Math.max(0, docQty - passQty);
+                          updateHandoverDraftLine(idx, {
+                            quantity_pass: e.target.value,
+                            quantity_fail: failQty,
+                          });
+                        }}
+                        placeholder="1"
+                      />
+                    </td>
+                    <td className="center cell-qty" style={{ padding: "4px 2px" }}>
+                      <input
+                        type="number"
+                        step="any"
+                        className="sheet-inline-input center"
+                        style={{ color: Number(it.quantity_fail) > 0 ? "#dc2626" : undefined }}
+                        value={it.quantity_fail !== undefined ? it.quantity_fail : 0}
+                        onChange={(e) => updateHandoverDraftLine(idx, { quantity_fail: e.target.value })}
+                        placeholder="0"
+                      />
+                    </td>
+                    <td className="left" style={{ padding: "4px 6px" }}>
+                      <input
+                        type="text"
+                        className="sheet-inline-input"
+                        value={it.note || ""}
+                        onChange={(e) => updateHandoverDraftLine(idx, { note: e.target.value })}
+                        placeholder="Ghi chú..."
+                      />
+                    </td>
+                    <td className="no-print" style={{ textAlign: "center", padding: "2px" }}>
+                      {draft.items.length > 1 && (
+                        <button
+                          type="button"
+                          className="btn-delete-line no-print"
+                          onClick={() => handleRemoveDraftLine(idx)}
+                          title="Xóa dòng vật tư này"
+                        >
+                          ×
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr style={{ background: "#f8fafc", fontWeight: 700 }}>
+                  <td colSpan={2} style={{ textAlign: "center", padding: "6px" }}>
+                    TỔNG CỘNG ({draft.items.length} mặt hàng)
+                  </td>
+                  <td className="center">-</td>
+                  <td className="center" style={{ fontWeight: 800 }}>{totalDocQty}</td>
+                  <td className="center" style={{ fontWeight: 800, color: "#16a34a" }}>{totalPassQty}</td>
+                  <td className="center" style={{ fontWeight: 800, color: totalFailQty > 0 ? "#dc2626" : undefined }}>
+                    {totalFailQty}
+                  </td>
+                  <td></td>
+                  <td className="no-print"></td>
+                </tr>
+              </tfoot>
+            </table>
+
+            {/* Kết luận & Chữ ký */}
+            <div className="hb-footer" style={{ marginTop: "16px" }}>
+              <div className="hb-conclusion-title" style={{ fontWeight: 700 }}>Kết luận:</div>
+              <div className="hb-conclusion-body" style={{ marginTop: "4px" }}>
+                <AutoGrowTextarea
+                  className="sheet-inline-input"
+                  value={draft.conclusionText || "Biên bản này được lập thành 02 bản có giá trị pháp lý như nhau, 01 bản giao cho người giao hàng; 01 bản giao cho người nhận hàng."}
+                  onChange={(val) => updateHandoverDraft((prev) => ({ ...prev, conclusionText: val }))}
+                  minRows={1}
+                />
+              </div>
+
+              <div className="hb-sign-row" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "24px", marginTop: "24px", textAlign: "center" }}>
+                <div className="hb-sign-col">
+                  <b>Người giao hàng</b>
+                  <br />
+                  <i>(Ký, ghi rõ họ tên)</i>
+                  <div style={{ height: "65px" }} />
+                  <input
+                    type="text"
+                    className="sheet-inline-input center bold-input"
+                    value={draft.senderName || ""}
+                    onChange={(e) => updateHandoverDraft((prev) => ({ ...prev, senderName: e.target.value }))}
+                    placeholder="Họ và tên..."
+                  />
+                </div>
+                <div className="hb-sign-col">
+                  <b>Người nhận hàng</b>
+                  <br />
+                  <i>(Ký, ghi rõ họ tên)</i>
+                  <div style={{ height: "65px" }} />
+                  <input
+                    type="text"
+                    className="sheet-inline-input center bold-input"
+                    value={draft.receiverName || ""}
+                    onChange={(e) => updateHandoverDraft((prev) => ({ ...prev, receiverName: e.target.value }))}
+                    placeholder="Họ và tên..."
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* THANH CÔNG CỤ TÁC VỤ PHÍA BÊN PHẢI (Right Sticky Sidebar Toolbox) */}
+          <div className="handover-sidebar-toolbox no-print" aria-label="Thanh công cụ tác vụ biểu mẫu BB Bàn giao">
+            {/* Card 1: Thao tác biểu mẫu */}
+            <div className="handover-sidebar-card">
+              <div className="handover-sidebar-card-title">
+                <span>📋</span>
+                <span>Thao tác biểu mẫu</span>
+              </div>
+
+              <button
+                type="button"
+                className="btn-sidebar-handover-action btn-primary"
+                onClick={handleAddDraftLine}
+                title="Thêm một dòng vật tư mới vào biên bản"
+              >
+                <span>＋</span>
+                <span>Thêm dòng vật tư ({draft.items.length})</span>
+              </button>
+
+              <button
+                type="button"
+                className="btn-sidebar-handover-action"
+                onClick={() => setShowImportPoModal(true)}
+                title="Lấy vật tư từ đơn hàng PO hoặc Hợp đồng"
+              >
+                <span>⚡</span>
+                <span>Lấy vật tư từ PO / HĐ</span>
+              </button>
+
+              <button
+                type="button"
+                className="btn-sidebar-handover-action"
+                onClick={() => setShowPasteModal(true)}
+                title="Dán nhanh danh sách vật tư từ Excel"
+              >
+                <span>📋</span>
+                <span>Dán từ Excel</span>
+              </button>
+            </div>
+
+            {/* Card 2: Thông tin Bên giao & Bên nhận */}
+            <div className="handover-sidebar-card">
+              <div className="handover-sidebar-card-title">
+                <span>🏢</span>
+                <span>Đơn vị & Đợt bàn giao</span>
+              </div>
+
+              <div>
+                <label style={{ fontSize: "11px", fontWeight: 700, color: "#475569", display: "block", marginBottom: "3px" }}>
+                  Bộ phận tiếp nhận:
+                </label>
+                <select
+                  className="handover-sidebar-select"
+                  value={draft.department || ""}
+                  onChange={(e) => updateHandoverDraft((prev) => ({ ...prev, department: e.target.value }))}
+                >
+                  <option value="">-- Chọn bộ phận --</option>
+                  {depts.map((d) => (
+                    <option key={d} value={d}>
+                      {d}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label style={{ fontSize: "11px", fontWeight: 700, color: "#475569", display: "block", marginBottom: "3px" }}>
+                  Đơn vị giao hàng:
+                </label>
+                <input
+                  type="text"
+                  className="handover-sidebar-input"
+                  value={draft.senderDept || ""}
+                  onChange={(e) => updateHandoverDraft((prev) => ({ ...prev, senderDept: e.target.value }))}
+                  placeholder="Phòng Cung ứng / Tên NCC..."
+                />
+              </div>
+
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px" }}>
+                <div>
+                  <label style={{ fontSize: "11px", fontWeight: 700, color: "#475569", display: "block", marginBottom: "3px" }}>
+                    Người giao:
+                  </label>
+                  <input
+                    type="text"
+                    className="handover-sidebar-input"
+                    value={draft.senderName || ""}
+                    onChange={(e) => updateHandoverDraft((prev) => ({ ...prev, senderName: e.target.value }))}
+                    placeholder="Tên người giao..."
+                  />
+                </div>
+                <div>
+                  <label style={{ fontSize: "11px", fontWeight: 700, color: "#475569", display: "block", marginBottom: "3px" }}>
+                    Người nhận:
+                  </label>
+                  <input
+                    type="text"
+                    className="handover-sidebar-input"
+                    value={draft.receiverName || ""}
+                    onChange={(e) => updateHandoverDraft((prev) => ({ ...prev, receiverName: e.target.value }))}
+                    placeholder="Tên người nhận..."
+                  />
+                </div>
+              </div>
+
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px" }}>
+                <div>
+                  <label style={{ fontSize: "11px", fontWeight: 700, color: "#475569", display: "block", marginBottom: "3px" }}>
+                    Ngày bàn giao:
+                  </label>
+                  <input
+                    type="date"
+                    className="handover-sidebar-input"
+                    value={draft.handoverDate || localToday()}
+                    onChange={(e) => updateHandoverDraft((prev) => ({ ...prev, handoverDate: e.target.value }))}
+                  />
+                </div>
+                <div>
+                  <label style={{ fontSize: "11px", fontWeight: 700, color: "#475569", display: "block", marginBottom: "3px" }}>
+                    Đợt bàn giao:
+                  </label>
+                  <input
+                    type="number"
+                    min={1}
+                    className="handover-sidebar-input"
+                    value={draft.batchNumber || 1}
+                    onChange={(e) => updateHandoverDraft((prev) => ({ ...prev, batchNumber: parseInt(e.target.value) || 1 }))}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Card 3: Tình trạng nghiệm thu & Scan */}
+            <div className="handover-sidebar-card">
+              <div className="handover-sidebar-card-title">
+                <span>📦</span>
+                <span>Nghiệm thu & File Scan</span>
+              </div>
+
+              <button
+                type="button"
+                className="btn-sidebar-handover-action"
+                onClick={handleMarkAllPassedInDraft}
+                title="Đánh dấu tất cả số lượng kiểm tra ĐẠT 100% bằng số lượng chứng từ"
+                style={{ background: "#ecfdf5", borderColor: "#a7f3d0", color: "#047857" }}
+              >
+                <span>✅</span>
+                <span>Đánh dấu tất cả ĐẠT 100%</span>
+              </button>
+
+              <div style={{ marginTop: "4px" }}>
+                <label style={{ fontSize: "11px", fontWeight: 700, color: "#475569", display: "block", marginBottom: "3px" }}>
+                  File scan biên bản đã ký:
+                </label>
+                <HandoverScanControl
+                  scanUrl={draft.scanUrl}
+                  scanName={draft.scanName}
+                  readOnly={readOnly}
+                  onScanUploaded={(url, name) => updateHandoverDraft((prev) => ({ ...prev, scanUrl: url, scanName: name }))}
+                  onScanRemoved={() => updateHandoverDraft((prev) => ({ ...prev, scanUrl: undefined, scanName: undefined }))}
+                />
+              </div>
+            </div>
+
+            {/* Card 4: Khổ in & In ấn */}
+            <div className="handover-sidebar-card">
+              <div className="handover-sidebar-card-title">
+                <span>📐</span>
+                <span>Khổ in & In ấn</span>
+              </div>
+
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px" }}>
+                <button
+                  type="button"
+                  className={`btn-sidebar-handover-action ${printOrientation === "portrait" ? "btn-primary" : ""}`}
+                  onClick={() => setPrintOrientation("portrait")}
+                  title="Khổ in A4 Dọc (Chuẩn mẫu Phenikaa)"
+                >
+                  📄 A4 Dọc
+                </button>
+                <button
+                  type="button"
+                  className={`btn-sidebar-handover-action ${printOrientation === "landscape" ? "btn-primary" : ""}`}
+                  onClick={() => setPrintOrientation("landscape")}
+                  title="Khổ in A4 Ngang"
+                >
+                  🖼️ A4 Ngang
+                </button>
+              </div>
+
+              <button
+                type="button"
+                className="btn-sidebar-handover-action"
+                style={{ background: "#f0fdfa", borderColor: "#99f6e4", color: "#0f766e" }}
+                onClick={() => handlePrintHandoverDirect(draft.items)}
+                title="In biên bản bàn giao này (2 liên)"
+              >
+                <Printer size={14} />
+                <span>In biên bản ngay (2 liên)</span>
+              </button>
+            </div>
+
+            {/* Card 5: Lưu dữ liệu */}
+            <div className="handover-sidebar-card">
+              <div className="handover-sidebar-card-title">
+                <span>💾</span>
+                <span>Lưu dữ liệu</span>
+              </div>
+
+              <button
+                type="button"
+                className={`btn-sidebar-handover-action btn-save-main ${hasUnsavedChanges ? "has-unsaved" : ""}`}
+                onClick={handleExplicitSaveHandover}
+                title="Lưu dữ liệu vào hệ thống (Phím tắt: Ctrl + S)"
+              >
+                <span>💾</span>
+                <span>{hasUnsavedChanges ? "Lưu biên bản ngay" : "Đã lưu an toàn"}</span>
+              </button>
+
+              <div style={{ fontSize: "11px", color: hasUnsavedChanges ? "#ea580c" : "#16a34a", textAlign: "center", fontWeight: 600 }}>
+                {hasUnsavedChanges ? "● Có thay đổi chưa lưu (Ctrl+S)" : "✓ Toàn bộ dữ liệu đã lưu"}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Modal Lấy vật tư từ PO / Hợp đồng */}
+        {renderImportPoModal()}
+      </div>
+    );
+  };
+
+  if (activeWorkspaceBatchKey !== null && localHandoverDraft) {
+    return renderWYSIWYGHandoverWorkspace();
+  }
+
   return (
     <section className={`content payment-management handover-management ${isWorkspaceExpanded ? "workspace-expanded" : ""}`}>
       {/* Preload logo in DOM */}
@@ -1278,10 +2349,18 @@ export function HandoverManagement({
           </div>
           <button
             className="btn btn-primary btn-md"
+            onClick={handleAddNewHandoverWorkspace}
+            style={{ display: "inline-flex", alignItems: "center", gap: "6px", background: "#059669", borderColor: "#059669" }}
+            title="Mở giao diện biểu mẫu in A4 để soạn thảo trực tiếp Biên bản bàn giao mới"
+          >
+            <span>📄</span> ＋ Soạn Biên Bản A4 Mới
+          </button>
+          <button
+            className="btn btn-secondary btn-md"
             onClick={openImportDocModal}
             style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}
           >
-            <FileText size={16} /> + Tạo Đợt Bàn Giao (Từ PR/PO/HĐ)
+            <FileText size={16} /> + Tạo Đợt (Từ PR/PO/HĐ)
           </button>
         </div>
       </div>
@@ -1588,6 +2667,8 @@ export function HandoverManagement({
               <div
                 key={batch.batchKey}
                 className={`m-card handover-batch-card ${allChecked ? "m-card-checked" : ""} ${isBatchHidden ? "handover-batch-hidden" : ""} ${isUnlocked ? "handover-batch-unlocked" : ""}`}
+                onDoubleClick={() => handleOpenHandoverWorkspace(batch.batchKey)}
+                title="Nhấp đúp chuột để mở biểu mẫu in A4 (WYSIWYG)"
                 style={{
                   background: isBatchHidden ? "#fffdfa" : "#ffffff",
                   opacity: isBatchHidden ? 0.82 : 1,
@@ -2283,13 +3364,11 @@ export function HandoverManagement({
                   <button
                     type="button"
                     className="stitch-action-pill pill-navy"
-                    onClick={() => {
-                      setEditingBatchKey(batch.batchKey);
-                      setEditingBatchItemIds(batch.items.map((it) => it.id));
-                    }}
-                    title="Mở xem & chỉnh sửa chi tiết đợt bàn giao này trong cửa sổ lớn"
+                    onClick={() => handleOpenHandoverWorkspace(batch.batchKey)}
+                    title="Mở biểu mẫu in A4 để soạn thảo trực quan & in ấn (WYSIWYG)"
+                    style={{ background: "#0284c7", color: "#ffffff", fontWeight: 700 }}
                   >
-                    <span>✎ Chi tiết / Sửa đợt</span>
+                    <span>📄 Soạn / Mở A4</span>
                   </button>
 
                   <button
