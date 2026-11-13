@@ -597,7 +597,36 @@ export function PaymentManagement({
   // Modals state
   const [docModalReqId, setDocModalReqId] = useState<number | null>(null);
   const [newDocName, setNewDocName] = useState("");
-  const [customDocTypes, setCustomDocTypes] = useState<string[]>(DEFAULT_DOCS);
+  const [customDocTypes, setCustomDocTypes] = useState<string[]>(() => {
+    try {
+      if (typeof window !== "undefined") {
+        const stored = localStorage.getItem("scmh_payment_doc_types");
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        }
+      }
+    } catch {}
+    return [
+      "Hóa đơn GTGT",
+      "Hợp đồng kinh tế",
+      "Đơn mua hàng (PO)",
+      "BB giao nhận hàng",
+      "BB nghiệm thu & bàn giao",
+      "Bảng kê chi tiết",
+      "Đề nghị phê duyệt (ĐNPD)",
+      "Yêu cầu mua sắm (PR)",
+      "Báo giá NCC",
+      "Phiếu nhập kho",
+      "Giấy bảo lãnh",
+      "Chứng chỉ CO / CQ",
+      "Packing List / Invoice",
+      "Phụ lục hợp đồng",
+      "Tờ trình / Đề xuất",
+      "Chứng từ khác",
+    ];
+  });
+  const [newDocInput, setNewDocInput] = useState("");
 
   const [showPOPickerModal, setShowPOPickerModal] = useState(false);
   const [poSearch, setPoSearch] = useState("");
@@ -896,12 +925,17 @@ export function PaymentManagement({
             if (match) {
               updated.payee_name = valName;
               updated.beneficiary_id = match.id;
-              if (match.address) updated.address = match.address;
-              if (match.bankAccount) updated.account_no = match.bankAccount;
-              if (match.bank) updated.bank = match.bank;
+              updated.address = match.address || "";
+              updated.account_no = match.bankAccount || "";
+              updated.bank = match.bank || "";
             } else {
               updated.payee_name = valName;
               updated.beneficiary_id = undefined;
+              if (r.beneficiary_id) {
+                updated.address = "";
+                updated.account_no = "";
+                updated.bank = "";
+              }
             }
           }
         }
@@ -1170,33 +1204,69 @@ export function PaymentManagement({
 
   // Gõ / chọn NCC trong biểu mẫu A4
   const handlePayeeChangeInDraft = (name: string) => {
+    const trimmed = name.trim();
+    if (!trimmed) {
+      updateDraft((prev) => ({
+        ...prev,
+        payee_name: "",
+        beneficiary_id: undefined,
+        address: "",
+        account_no: "",
+        bank: "",
+      }));
+      return;
+    }
+
     const match = suppliers.find(
       (s) =>
-        normName(s.name) === normName(name) ||
-        (s.shortName && normName(s.shortName) === normName(name)) ||
-        (s.code && normName(s.code) === normName(name))
+        normName(s.name) === normName(trimmed) ||
+        (s.shortName && normName(s.shortName) === normName(trimmed)) ||
+        (s.code && normName(s.code) === normName(trimmed))
     );
-    updateDraft((prev) => ({
-      ...prev,
-      payee_name: name,
-      beneficiary_id: match ? match.id : prev.beneficiary_id,
-      address: match?.address ? match.address : prev.address,
-      account_no: match?.bankAccount ? match.bankAccount : prev.account_no,
-      bank: match?.bank ? match.bank : prev.bank,
-    }));
+
+    if (match) {
+      updateDraft((prev) => ({
+        ...prev,
+        payee_name: match.name || match.shortName || name,
+        beneficiary_id: match.id,
+        address: match.address || "",
+        account_no: match.bankAccount || "",
+        bank: match.bank || "",
+      }));
+    } else {
+      updateDraft((prev) => ({
+        ...prev,
+        payee_name: name,
+        beneficiary_id: undefined,
+        address: prev.beneficiary_id ? "" : prev.address,
+        account_no: prev.beneficiary_id ? "" : prev.account_no,
+        bank: prev.beneficiary_id ? "" : prev.bank,
+      }));
+    }
   };
 
   // Chọn nhanh NCC từ Sidebar
   const handleSelectSupplierIntoDraft = (supId: number | string) => {
+    if (!supId) {
+      updateDraft((prev) => ({
+        ...prev,
+        beneficiary_id: undefined,
+        payee_name: "",
+        address: "",
+        account_no: "",
+        bank: "",
+      }));
+      return;
+    }
     const match = suppliers.find((s) => String(s.id) === String(supId));
     if (!match) return;
     updateDraft((prev) => ({
       ...prev,
       beneficiary_id: match.id,
-      payee_name: match.name || match.shortName || prev.payee_name,
-      address: match.address || prev.address || "",
-      account_no: match.bankAccount || prev.account_no || "",
-      bank: match.bank || prev.bank || "",
+      payee_name: match.name || match.shortName || "",
+      address: match.address || "",
+      account_no: match.bankAccount || "",
+      bank: match.bank || "",
     }));
     showToast(`✓ Đã điền thông tin NCC: ${match.shortName || match.name}`);
   };
@@ -1215,6 +1285,33 @@ export function PaymentManagement({
         documents: Array.from(current),
       };
     });
+  };
+
+  // Thêm loại chứng từ mới vào danh sách
+  const handleAddCustomDocType = (name: string) => {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    if (!customDocTypes.includes(trimmed)) {
+      const next = [...customDocTypes, trimmed];
+      setCustomDocTypes(next);
+      try {
+        localStorage.setItem("scmh_payment_doc_types", JSON.stringify(next));
+      } catch {}
+    }
+    handleToggleDocInDraft(trimmed);
+  };
+
+  // Xóa loại chứng từ khỏi danh sách
+  const handleDeleteCustomDocType = (name: string) => {
+    const next = customDocTypes.filter((d) => d !== name);
+    setCustomDocTypes(next);
+    try {
+      localStorage.setItem("scmh_payment_doc_types", JSON.stringify(next));
+    } catch {}
+    updateDraft((prev) => ({
+      ...prev,
+      documents: (prev.documents || []).filter((d) => d !== name),
+    }));
   };
 
   // In phiếu từ giao diện làm việc A4
@@ -1613,9 +1710,9 @@ export function PaymentManagement({
         amount: amountToPay,
         description,
         payment_type: phaseText || r.payment_type || "TT trước 100%",
-        address: s?.address || r.address,
-        account_no: s?.bankAccount || r.account_no,
-        bank: s?.bank || r.bank,
+        address: s ? (s.address || "") : (po.supplier_name !== r.payee_name ? "" : r.address),
+        account_no: s ? (s.bankAccount || "") : (po.supplier_name !== r.payee_name ? "" : r.account_no),
+        bank: s ? (s.bank || "") : (po.supplier_name !== r.payee_name ? "" : r.bank),
       };
     });
 
@@ -1631,9 +1728,9 @@ export function PaymentManagement({
           amount: amountToPay,
           description,
           payment_type: phaseText || prev.payment_type || "TT trước 100%",
-          address: s?.address || prev.address,
-          account_no: s?.bankAccount || prev.account_no,
-          bank: s?.bank || prev.bank,
+          address: s ? (s.address || "") : (po.supplier_name !== prev.payee_name ? "" : prev.address),
+          account_no: s ? (s.bankAccount || "") : (po.supplier_name !== prev.payee_name ? "" : prev.account_no),
+          bank: s ? (s.bank || "") : (po.supplier_name !== prev.payee_name ? "" : prev.bank),
           lines: [
             {
               description,
@@ -2759,33 +2856,133 @@ export function PaymentManagement({
               </button>
             </div>
 
-            {/* Card 2: Chứng từ đính kèm (Checklist) */}
+            {/* Card 2: Chứng từ đính kèm (Checklist đầy đủ + Thêm mới / Xóa) */}
             <div className="payment-sidebar-card">
-              <div className="payment-sidebar-card-title">
-                📑 CHỨNG TỪ ĐÍNH KÈM
+              <div
+                className="payment-sidebar-card-title"
+                style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}
+              >
+                <span>📑 CHỨNG TỪ ĐÍNH KÈM</span>
+                <span style={{ fontSize: "10px", color: "#64748b", fontWeight: 600 }}>
+                  {(draft.documents || []).length} chọn
+                </span>
               </div>
-              <div className="payment-sidebar-checklist">
-                {[
-                  "Hóa đơn GTGT",
-                  "Hợp đồng kinh tế",
-                  "Đơn mua hàng (PO)",
-                  "BB giao nhận hàng",
-                  "BB nghiệm thu & bàn giao",
-                  "Bảng kê chi tiết",
-                  "Đề nghị phê duyệt (ĐNPD)",
-                ].map((docName) => {
+              <div className="payment-sidebar-checklist" style={{ maxHeight: "280px" }}>
+                {customDocTypes.map((docName) => {
                   const isChecked = (draft.documents || []).includes(docName);
                   return (
-                    <label key={docName}>
-                      <input
-                        type="checkbox"
-                        checked={isChecked}
-                        onChange={() => handleToggleDocInDraft(docName)}
-                      />
-                      <span>{docName}</span>
-                    </label>
+                    <div
+                      key={docName}
+                      className="payment-doc-item"
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        padding: "2px 4px",
+                        borderRadius: "4px",
+                        background: isChecked ? "#f0f9ff" : "transparent",
+                      }}
+                    >
+                      <label
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "6px",
+                          cursor: "pointer",
+                          flex: 1,
+                          minWidth: 0,
+                          margin: 0,
+                        }}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={() => handleToggleDocInDraft(docName)}
+                        />
+                        <span
+                          style={{
+                            fontSize: "11px",
+                            fontWeight: isChecked ? 700 : 500,
+                            color: isChecked ? "#0284c7" : "#334155",
+                            textTransform: "uppercase",
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                            whiteSpace: "nowrap",
+                          }}
+                          title={docName}
+                        >
+                          {docName}
+                        </span>
+                      </label>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteCustomDocType(docName);
+                        }}
+                        style={{
+                          border: "none",
+                          background: "transparent",
+                          color: "#94a3b8",
+                          cursor: "pointer",
+                          fontSize: "14px",
+                          padding: "0 4px",
+                          lineHeight: 1,
+                        }}
+                        title={`Xóa loại chứng từ "${docName}"`}
+                      >
+                        ×
+                      </button>
+                    </div>
                   );
                 })}
+              </div>
+
+              {/* Thêm mới loại chứng từ */}
+              <div style={{ marginTop: "8px", paddingTop: "8px", borderTop: "1px dashed #e2e8f0", display: "flex", gap: "4px" }}>
+                <input
+                  type="text"
+                  placeholder="+ Thêm loại giấy tờ..."
+                  value={newDocInput}
+                  onChange={(e) => setNewDocInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      handleAddCustomDocType(newDocInput);
+                      setNewDocInput("");
+                    }
+                  }}
+                  style={{
+                    flex: 1,
+                    minWidth: 0,
+                    fontSize: "11px",
+                    padding: "4px 8px",
+                    border: "1px solid #cbd5e1",
+                    borderRadius: "4px",
+                    outline: "none",
+                    background: "#ffffff",
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    handleAddCustomDocType(newDocInput);
+                    setNewDocInput("");
+                  }}
+                  style={{
+                    background: "#f1f5f9",
+                    border: "1px solid #cbd5e1",
+                    borderRadius: "4px",
+                    padding: "4px 8px",
+                    fontSize: "11px",
+                    fontWeight: 700,
+                    color: "#0369a1",
+                    cursor: "pointer",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  + Thêm
+                </button>
               </div>
             </div>
 
@@ -2854,61 +3051,6 @@ export function PaymentManagement({
                     </option>
                   ))}
                 </select>
-              </div>
-            </div>
-
-            {/* Card 4: Khổ in & In ấn */}
-            <div className="payment-sidebar-card">
-              <div className="payment-sidebar-card-title">
-                📐 KHỔ IN & IN ẤN
-              </div>
-              <div
-                style={{
-                  fontSize: "12px",
-                  fontWeight: 600,
-                  color: "#0369a1",
-                  background: "#f0f9ff",
-                  border: "1px solid #bae6fd",
-                  borderRadius: "6px",
-                  padding: "6px 8px",
-                  textAlign: "center",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: "6px",
-                  marginBottom: "4px",
-                }}
-              >
-                <span>📄</span>
-                <span>Khổ in: A4 Dọc (Chuẩn Mẫu 01-TT)</span>
-              </div>
-              <button
-                type="button"
-                className="btn-sidebar-payment-action btn-link-po"
-                style={{ marginTop: "4px" }}
-                onClick={handlePrintWorkspacePayment}
-              >
-                <Printer size={14} /> In giấy ĐNTT ngay
-              </button>
-            </div>
-
-            {/* Card 5: Lưu dữ liệu */}
-            <div className="payment-sidebar-card">
-              <div className="payment-sidebar-card-title">
-                💾 LƯU DỮ LIỆU
-              </div>
-              <button
-                type="button"
-                className={`btn-sidebar-payment-action btn-save-draft ${hasUnsavedChanges ? "has-unsaved" : ""}`}
-                onClick={handleExplicitSavePayment}
-              >
-                <Save size={14} /> Lưu ĐNTT ngay
-              </button>
-              <div style={{ fontSize: "10.5px", color: hasUnsavedChanges ? "#c2410c" : "#15803d", textAlign: "center", fontWeight: 600 }}>
-                {hasUnsavedChanges ? "⚠️ Có thay đổi chưa lưu" : "✓ Đã lưu mọi thay đổi"}
-              </div>
-              <div style={{ fontSize: "10px", color: "#94a3b8", textAlign: "center", marginTop: "2px" }}>
-                Bấm phím <strong>Ctrl + S</strong> để lưu nhanh
               </div>
             </div>
           </div>
