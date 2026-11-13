@@ -1525,24 +1525,18 @@ export function HandoverManagement({
           </tbody>
         </table>
 
-        <div className="hb-info" style={{ fontSize: "13.5px", lineHeight: 1.6, marginBottom: "8px" }}>
+        <div className="hb-info" style={{ fontSize: "14px", lineHeight: 1.7, marginBottom: "8px" }}>
           <div>Hôm nay, ngày <b>{dStr}</b> tháng <b>{mStr}</b> năm <b>{yStr}</b></div>
           <div>Tại Công ty CP Dược phẩm Phenikaa</div>
           <div>Địa chỉ: Lô đất CN2-10, KCN Công nghệ cao 2, KCNC Hòa Lạc, Xã Hòa Lạc, TP Hà Nội</div>
-          <div style={{ fontWeight: 700, marginTop: "4px" }}>Chúng tôi gồm:</div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
-            <div>
-              <div>Ông (bà): <b>{draft.senderName || "Trần Hải Hà"}</b></div>
-              <div>- Người giao hàng</div>
-              <div>Đơn vị: {draft.senderDept || "Phòng Cung ứng"}</div>
-            </div>
-            <div>
-              <div>Ông (bà): <b>{draft.receiverName || "...................................................."}</b></div>
-              <div>- Người nhận hàng</div>
-              <div>Bộ phận: <b>{draft.department || "Phòng Cung ứng"}</b></div>
-            </div>
+          <div style={{ fontWeight: 700, marginTop: "5px" }}>Chúng tôi gồm:</div>
+          <div style={{ marginTop: "3px" }}>
+            Ông (bà): <b>{draft.senderName || "Trần Hải Hà"}</b> - Người giao hàng&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Đơn vị: <b>{draft.senderDept || "Phòng Cung ứng"}</b>
           </div>
-          <div style={{ marginTop: "6px" }}>Cùng nhau tiến hành giao nhận và nghiệm thu số lượng vật tư:</div>
+          <div style={{ marginTop: "3px" }}>
+            Ông (bà): <b>{draft.receiverName || "...................................................."}</b> - Người nhận hàng&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Bộ phận: <b>{draft.department || "Phòng Cung ứng"}</b>
+          </div>
+          <div style={{ marginTop: "7px" }}>Cùng nhau tiến hành giao nhận và nghiệm thu số lượng vật tư:</div>
         </div>
 
         <table className="hb-table" style={{ width: "100%", tableLayout: "fixed", borderCollapse: "collapse", margin: "8px 0" }}>
@@ -2166,7 +2160,7 @@ export function HandoverManagement({
             </table>
 
             {/* Thông tin chung */}
-            <div className="hb-info" style={{ marginTop: "12px", lineHeight: "1.5" }}>
+            <div className="hb-info" style={{ marginTop: "12px", lineHeight: "1.7", fontSize: "14px" }}>
               <div className="hb-line">
                 Hôm nay, ngày&nbsp;<b>{dateParts.d}</b>&nbsp;tháng&nbsp;<b>{dateParts.m}</b>&nbsp;năm <b>{dateParts.y}</b>
               </div>
@@ -2174,46 +2168,48 @@ export function HandoverManagement({
               <div className="hb-line">
                 Địa chỉ: Lô đất CN2-10, KCN Công nghệ cao 2, KCNC Hòa Lạc, Xã Hòa Lạc, TP Hà Nội
               </div>
-              <div className="hb-line" style={{ fontWeight: 700, marginTop: "4px" }}>Chúng tôi gồm:</div>
-              <div className="hb-two-col" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", marginTop: "4px" }}>
-                <div>
-                  Ông (bà):{" "}
-                  <input
-                    type="text"
-                    className="sheet-inline-input bold-input"
-                    style={{ width: "160px", display: "inline-block" }}
-                    value={draft.senderName || ""}
-                    onChange={(e) => updateHandoverDraft((prev) => ({ ...prev, senderName: e.target.value }))}
-                    placeholder="Họ tên người giao..."
-                  />{" "}
-                  - Người giao hàng
-                  <br />
-                  Đơn vị:{" "}
-                  <input
-                    type="text"
-                    className="sheet-inline-input bold-input"
-                    style={{ width: "160px", display: "inline-block" }}
-                    value={draft.senderDept || "Phòng Cung ứng"}
-                    onChange={(e) => updateHandoverDraft((prev) => ({ ...prev, senderDept: e.target.value }))}
-                    placeholder="Đơn vị giao hàng..."
-                  />
-                </div>
-                <div>
-                  Ông (bà):{" "}
-                  <input
-                    type="text"
-                    className="sheet-inline-input bold-input"
-                    style={{ width: "160px", display: "inline-block" }}
-                    value={draft.receiverName || ""}
-                    onChange={(e) => updateHandoverDraft((prev) => ({ ...prev, receiverName: e.target.value }))}
-                    placeholder="Họ tên người nhận..."
-                  />{" "}
-                  - Người nhận hàng
-                  <br />
-                  Bộ phận: <b>{draft.department || "Chưa chọn bộ phận"}</b>
-                </div>
+              <div className="hb-line" style={{ fontWeight: 700, marginTop: "6px" }}>Chúng tôi gồm:</div>
+
+              {/* Dòng 1: Người giao hàng (3 thông tin trên cùng 1 dòng) */}
+              <div className="hb-line" style={{ display: "flex", alignItems: "baseline", whiteSpace: "nowrap", gap: "6px", marginTop: "4px" }}>
+                <span>Ông (bà):</span>
+                <input
+                  type="text"
+                  className="sheet-inline-input bold-input"
+                  style={{ width: "170px", flexShrink: 0 }}
+                  value={draft.senderName || ""}
+                  onChange={(e) => updateHandoverDraft((prev) => ({ ...prev, senderName: e.target.value }))}
+                  placeholder="Họ tên người giao..."
+                />
+                <span>- Người giao hàng</span>
+                <span style={{ marginLeft: "24px" }}>Đơn vị:</span>
+                <input
+                  type="text"
+                  className="sheet-inline-input bold-input"
+                  style={{ width: "190px", flexShrink: 0 }}
+                  value={draft.senderDept || "Phòng Cung ứng"}
+                  onChange={(e) => updateHandoverDraft((prev) => ({ ...prev, senderDept: e.target.value }))}
+                  placeholder="Đơn vị giao hàng..."
+                />
               </div>
-              <div className="hb-line" style={{ marginTop: "6px" }}>
+
+              {/* Dòng 2: Người nhận hàng (3 thông tin trên cùng 1 dòng) */}
+              <div className="hb-line" style={{ display: "flex", alignItems: "baseline", whiteSpace: "nowrap", gap: "6px", marginTop: "4px" }}>
+                <span>Ông (bà):</span>
+                <input
+                  type="text"
+                  className="sheet-inline-input bold-input"
+                  style={{ width: "170px", flexShrink: 0 }}
+                  value={draft.receiverName || ""}
+                  onChange={(e) => updateHandoverDraft((prev) => ({ ...prev, receiverName: e.target.value }))}
+                  placeholder="Họ tên người nhận..."
+                />
+                <span>- Người nhận hàng</span>
+                <span style={{ marginLeft: "24px" }}>Bộ phận:</span>
+                <b style={{ minWidth: "120px" }}>{draft.department || "Phòng Cung ứng"}</b>
+              </div>
+
+              <div className="hb-line" style={{ marginTop: "7px" }}>
                 Cùng nhau tiến hành giao nhận và nghiệm thu số lượng vật tư:
               </div>
             </div>
@@ -2266,11 +2262,12 @@ export function HandoverManagement({
                         placeholder="ĐVT"
                       />
                     </td>
-                    <td className="center cell-qty" style={{ padding: "4px 2px" }}>
+                    <td className="center cell-qty" style={{ padding: "4px 2px", textAlign: "center" }}>
                       <input
                         type="number"
                         step="any"
                         className="sheet-inline-input center bold-input"
+                        style={{ textAlign: "center" }}
                         value={it.quantity_doc !== undefined ? it.quantity_doc : ""}
                         onChange={(e) => {
                           const docQty = parseFloat(e.target.value) || 0;
@@ -2286,12 +2283,12 @@ export function HandoverManagement({
                         placeholder="1"
                       />
                     </td>
-                    <td className="center cell-qty" style={{ padding: "4px 2px" }}>
+                    <td className="center cell-qty" style={{ padding: "4px 2px", textAlign: "center" }}>
                       <input
                         type="number"
                         step="any"
                         className="sheet-inline-input center bold-input"
-                        style={{ color: "#16a34a" }}
+                        style={{ color: "#16a34a", textAlign: "center" }}
                         value={it.quantity_pass !== undefined ? it.quantity_pass : ""}
                         onChange={(e) => {
                           const passQty = parseFloat(e.target.value) || 0;
@@ -2305,12 +2302,12 @@ export function HandoverManagement({
                         placeholder="1"
                       />
                     </td>
-                    <td className="center cell-qty" style={{ padding: "4px 2px" }}>
+                    <td className="center cell-qty" style={{ padding: "4px 2px", textAlign: "center" }}>
                       <input
                         type="number"
                         step="any"
                         className="sheet-inline-input center"
-                        style={{ color: Number(it.quantity_fail) > 0 ? "#dc2626" : undefined }}
+                        style={{ color: Number(it.quantity_fail) > 0 ? "#dc2626" : undefined, textAlign: "center" }}
                         value={it.quantity_fail !== undefined ? it.quantity_fail : 0}
                         onChange={(e) => updateHandoverDraftLine(idx, { quantity_fail: e.target.value })}
                         placeholder="0"
@@ -2345,10 +2342,10 @@ export function HandoverManagement({
                   <td colSpan={2} style={{ textAlign: "center", padding: "6px" }}>
                     TỔNG CỘNG ({draft.items.length} mặt hàng)
                   </td>
-                  <td className="center">-</td>
-                  <td className="center" style={{ fontWeight: 800 }}>{totalDocQty}</td>
-                  <td className="center" style={{ fontWeight: 800, color: "#16a34a" }}>{totalPassQty}</td>
-                  <td className="center" style={{ fontWeight: 800, color: totalFailQty > 0 ? "#dc2626" : undefined }}>
+                  <td className="center" style={{ textAlign: "center" }}>-</td>
+                  <td className="center cell-qty" style={{ textAlign: "center", fontWeight: 800 }}>{totalDocQty}</td>
+                  <td className="center cell-qty" style={{ textAlign: "center", fontWeight: 800, color: "#16a34a" }}>{totalPassQty}</td>
+                  <td className="center cell-qty" style={{ textAlign: "center", fontWeight: 800, color: totalFailQty > 0 ? "#dc2626" : undefined }}>
                     {totalFailQty}
                   </td>
                   <td></td>
@@ -4561,17 +4558,12 @@ export function HandoverManagement({
                       <div className="hb-line">
                         Địa chỉ: Lô đất CN2-10, KCN Công nghệ cao 2, KCNC Hòa Lạc, Xã Hòa Lạc, TP Hà Nội
                       </div>
-                      <div className="hb-line">Chúng tôi gồm:</div>
-                      <div className="hb-two-col">
-                        <div>Ông (bà): Trần Hải Hà - Người giao hàng</div>
-                        <div>Địa chỉ: Phòng Cung ứng</div>
+                      <div className="hb-line" style={{ fontWeight: 700, marginTop: "4px" }}>Chúng tôi gồm:</div>
+                      <div className="hb-line" style={{ marginTop: "3px" }}>
+                        Ông (bà): <b>Trần Hải Hà</b> - Người giao hàng&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Đơn vị: <b>Phòng Cung ứng</b>
                       </div>
-                      <div className="hb-two-col">
-                        <div>
-                          Ông (bà): .................................................... Người nhận
-                          hàng
-                        </div>
-                        <div>Địa chỉ: {dept && dept !== "Phòng Cung ứng" ? dept : "...................................................."}</div>
+                      <div className="hb-line" style={{ marginTop: "3px" }}>
+                        Ông (bà): <b>....................................................</b> - Người nhận hàng&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Bộ phận: <b>{dept && dept !== "Phòng Cung ứng" ? dept : "Phòng Cung ứng"}</b>
                       </div>
                       <div className="hb-line">
                         Cùng nhau tiến hành giao nhận và nghiệm thu số lượng vật tư:

@@ -62,6 +62,10 @@ export function HandoverPrintPreviewModal({
     return sortHandoversByPOLineOrder(items, po);
   }, [items, po]);
 
+  const totalDocQty = sortedItems.reduce((acc, it) => acc + (Number(it.quantity_doc) || 0), 0);
+  const totalPassQty = sortedItems.reduce((acc, it) => acc + (Number(it.quantity_pass) || 0), 0);
+  const totalFailQty = sortedItems.reduce((acc, it) => acc + (Number(it.quantity_fail) || 0), 0);
+
   const rawDept = department || items[0]?.department || "";
   const effectiveDept = (rawDept && rawDept.trim() !== "Phòng Cung ứng")
     ? rawDept.trim()
@@ -114,16 +118,12 @@ export function HandoverPrintPreviewModal({
         <div className="hb-line">
           Địa chỉ: Lô đất CN2-10, KCN Công nghệ cao 2, KCNC Hòa Lạc, Xã Hòa Lạc, TP Hà Nội
         </div>
-        <div className="hb-line">Chúng tôi gồm:</div>
-        <div className="hb-two-col">
-          <div>Ông (bà): <b>{senderName}</b> - Người giao hàng</div>
-          <div>Địa chỉ: <b>Phòng Cung ứng</b></div>
+        <div className="hb-line" style={{ fontWeight: 700, marginTop: "4px" }}>Chúng tôi gồm:</div>
+        <div className="hb-line" style={{ marginTop: "3px" }}>
+          Ông (bà): <b>{senderName}</b> - Người giao hàng&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Đơn vị: <b>Phòng Cung ứng</b>
         </div>
-        <div className="hb-two-col">
-          <div>
-            Ông (bà): <b>{receiverName ? receiverName : "...................................................."}</b> - Người nhận hàng
-          </div>
-          <div>Địa chỉ: <b>{effectiveDept}</b></div>
+        <div className="hb-line" style={{ marginTop: "3px" }}>
+          Ông (bà): <b>{receiverName ? receiverName : "...................................................."}</b> - Người nhận hàng&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Bộ phận: <b>{effectiveDept}</b>
         </div>
         <div className="hb-line">
           Cùng nhau tiến hành giao nhận và nghiệm thu số lượng vật tư:
@@ -173,6 +173,18 @@ export function HandoverPrintPreviewModal({
             </tr>
           ))}
         </tbody>
+        <tfoot>
+          <tr style={{ fontWeight: 700, background: "#fafafa" }}>
+            <td colSpan={2} className="center" style={{ textAlign: "center", padding: "4px" }}>
+              TỔNG CỘNG ({sortedItems.length} mặt hàng)
+            </td>
+            <td className="center" style={{ textAlign: "center", padding: "4px" }}>-</td>
+            <td className="center" style={{ textAlign: "center", padding: "4px", fontWeight: 800 }}>{totalDocQty}</td>
+            <td className="center" style={{ textAlign: "center", padding: "4px", fontWeight: 800, color: "#16a34a" }}>{totalPassQty}</td>
+            <td className="center" style={{ textAlign: "center", padding: "4px", fontWeight: 800, color: totalFailQty > 0 ? "#dc2626" : undefined }}>{totalFailQty}</td>
+            <td></td>
+          </tr>
+        </tfoot>
       </table>
 
       <div className="hb-footer">

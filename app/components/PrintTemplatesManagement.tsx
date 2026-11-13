@@ -539,14 +539,12 @@ export function PrintTemplatesManagement({
                       <div className="hb-line">
                         Địa chỉ: Lô đất CN2-10, KCN Công nghệ cao 2, KCNC Hòa Lạc, Xã Hòa Lạc, TP Hà Nội
                       </div>
-                      <div className="hb-line">Chúng tôi gồm:</div>
-                      <div className="hb-two-col">
-                        <div>Ông (bà): {tplForm.default_requester_name || "Trần Hải Hà"} - Người giao hàng</div>
-                        <div>Địa chỉ: Phòng Cung ứng</div>
+                      <div className="hb-line" style={{ fontWeight: 700, marginTop: "4px" }}>Chúng tôi gồm:</div>
+                      <div className="hb-line" style={{ marginTop: "3px" }}>
+                        Ông (bà): <b>{tplForm.default_requester_name || "Trần Hải Hà"}</b> - Người giao hàng&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Đơn vị: <b>Phòng Cung ứng</b>
                       </div>
-                      <div className="hb-two-col">
-                        <div>Ông (bà): .................................................... Người nhận hàng</div>
-                        <div>Địa chỉ: Sản xuất</div>
+                      <div className="hb-line" style={{ marginTop: "3px" }}>
+                        Ông (bà): <b>....................................................</b> - Người nhận hàng&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Bộ phận: <b>Sản xuất</b>
                       </div>
                       <div className="hb-line">Cùng nhau tiến hành giao nhận và nghiệm thu số lượng vật tư:</div>
                     </div>
@@ -649,14 +647,12 @@ export function PrintTemplatesManagement({
                     <div className="hb-line">
                       Địa chỉ: Lô đất CN2-10, KCN Công nghệ cao 2, KCNC Hòa Lạc, Xã Hòa Lạc, TP Hà Nội
                     </div>
-                    <div className="hb-line">Chúng tôi gồm:</div>
-                    <div className="hb-two-col">
-                      <div>Ông (bà): {tplForm.default_requester_name || "Trần Hải Hà"} - Người giao hàng</div>
-                      <div>Địa chỉ: Phòng Cung ứng</div>
+                    <div className="hb-line" style={{ fontWeight: 700, marginTop: "4px" }}>Chúng tôi gồm:</div>
+                    <div className="hb-line" style={{ marginTop: "3px" }}>
+                      Ông (bà): <b>{tplForm.default_requester_name || "Trần Hải Hà"}</b> - Người giao hàng&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Đơn vị: <b>Phòng Cung ứng</b>
                     </div>
-                    <div className="hb-two-col">
-                      <div>Ông (bà): .................................................... Người nhận hàng</div>
-                      <div>Địa chỉ: Sản xuất</div>
+                    <div className="hb-line" style={{ marginTop: "3px" }}>
+                      Ông (bà): <b>....................................................</b> - Người nhận hàng&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Bộ phận: <b>Sản xuất</b>
                     </div>
                     <div className="hb-line">Cùng nhau tiến hành giao nhận và nghiệm thu số lượng vật tư:</div>
                   </div>

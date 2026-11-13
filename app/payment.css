@@ -2732,6 +2732,27 @@ table.payment-table td .smart-cell-textarea:focus {
   transition: all 0.15s ease !important;
 }
 
+/* Inline inputs specifically inside hb-info stay on 1 line with dotted underline like Word/paper */
+.handover-paper-canvas .hb-info .sheet-inline-input {
+  width: auto !important;
+  display: inline-block !important;
+  border: none !important;
+  border-bottom: 1px dotted #64748b !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  padding: 0 4px !important;
+  margin: 0 2px !important;
+  font-family: inherit !important;
+  font-size: inherit !important;
+  line-height: inherit !important;
+  vertical-align: baseline !important;
+}
+.handover-paper-canvas .hb-info .sheet-inline-input:hover,
+.handover-paper-canvas .hb-info .sheet-inline-input:focus {
+  border-bottom: 1.5px solid #0284c7 !important;
+  background: rgba(238, 242, 255, 0.5) !important;
+}
+
 .handover-paper-canvas .sheet-inline-input::-webkit-calendar-picker-indicator,
 .payment-paper-canvas .sheet-inline-input::-webkit-calendar-picker-indicator {
   display: none !important;
@@ -2973,3 +2994,25 @@ table.payment-table td .smart-cell-textarea:focus {
 }
 
 
+
+
+/* Strict centering for all Handover quantity cells (both rows and totals, canvas and print) */
+.handover-paper-canvas table.hb-table .cell-qty,
+.handover-paper-canvas table.hb-table .cell-qty input,
+.handover-paper-canvas table.hb-table td:nth-child(4),
+.handover-paper-canvas table.hb-table td:nth-child(5),
+.handover-paper-canvas table.hb-table td:nth-child(6),
+.handover-paper-canvas table.hb-table tfoot td:nth-child(3),
+.handover-paper-canvas table.hb-table tfoot td:nth-child(4),
+.handover-paper-canvas table.hb-table tfoot td:nth-child(5),
+.handover-paper table.hb-table .cell-qty,
+.handover-paper table.hb-table td:nth-child(4),
+.handover-paper table.hb-table td:nth-child(5),
+.handover-paper table.hb-table td:nth-child(6),
+.handover-paper table.hb-table tfoot td:nth-child(3),
+.handover-paper table.hb-table tfoot td:nth-child(4),
+.handover-paper table.hb-table tfoot td:nth-child(5) {
+  text-align: center !important;
+  font-variant-numeric: tabular-nums !important;
+  white-space: nowrap !important;
+}
