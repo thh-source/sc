@@ -9,6 +9,7 @@ import { useTranslation } from "../i18n";
 import { DocFlowLinks } from "./DocFlowLinks";
 import { resolveDocFlow } from "../utils/docFlow";
 import { isPRCompleted } from "../utils/paymentSync";
+import { getUnifiedDepartments } from "../utils/departments";
 
 export function PRList({
   prs,
@@ -159,7 +160,15 @@ export function PRList({
     }
   };
 
-  const departments = Array.from(new Set(prs.map((p) => (p.department || "").trim()).filter(Boolean)));
+  const allDepartmentOptions = React.useMemo(() => {
+    const baseList = getUnifiedDepartments();
+    const set = new Set<string>(baseList);
+    prs.forEach((p) => {
+      if (p.department && p.department.trim()) set.add(p.department.trim());
+    });
+    return Array.from(set).filter(Boolean);
+  }, [prs]);
+
   const totalPrBudget = prs.reduce(
     (sum, pr) => sum + (pr.items || []).reduce((s, it) => s + (Number(it.qty) || 0) * (Number(it.estimate) || 0), 0),
     0
@@ -174,7 +183,7 @@ export function PRList({
       const isDone = isPRCompleted(p);
       if (statusFilter === "active" && isDone) return false;
       if (statusFilter === "done" && !isDone) return false;
-      if (deptFilter && (p.department || "").trim() !== deptFilter) return false;
+      if (deptFilter && (p.department || "").trim().toLowerCase() !== deptFilter.trim().toLowerCase()) return false;
       const itemNames = (p.items || []).map((it) => it.name || "").join(" ");
       return (p.number + " " + p.department + " " + p.purpose + " " + itemNames)
         .toLowerCase()
@@ -301,19 +310,22 @@ export function PRList({
               value={deptFilter}
               onChange={(e) => setDeptFilter(e.target.value)}
               style={{
-                height: "36px",
-                borderRadius: "8px",
-                border: "1px solid #cbd5e1",
-                padding: "0 12px",
+                height: "38px",
+                padding: "0 10px",
+                borderRadius: "6px",
+                border: `1px solid ${deptFilter ? "#0284c7" : "#cbd5e1"}`,
+                background: deptFilter ? "#f0f9ff" : "#ffffff",
+                color: deptFilter ? "#0369a1" : "#475569",
+                fontWeight: deptFilter ? 700 : 500,
                 fontSize: "12.5px",
-                fontWeight: 600,
-                color: "#334155",
-                background: "#ffffff",
                 cursor: "pointer",
+                outline: "none",
+                boxShadow: deptFilter ? "0 0 0 1px #0284c7" : undefined,
               }}
+              title="Lọc danh sách PR theo phòng ban / bộ phận"
             >
-              <option value="">Tất cả phòng ban ({departments.length})</option>
-              {departments.map((d) => (
+              <option value="">Tất cả phòng ban ({allDepartmentOptions.length})</option>
+              {allDepartmentOptions.map((d) => (
                 <option key={d} value={d}>
                   {d}
                 </option>

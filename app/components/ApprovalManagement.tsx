@@ -1252,6 +1252,7 @@ export default function ApprovalManagement({
   }, [autoOpenCreate]);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
+  const [departmentFilter, setDepartmentFilter] = useState<string>("ALL");
   const [showHidden, setShowHidden] = useState<boolean>(() => {
     if (typeof window !== "undefined") {
       return localStorage.getItem("scmh_approval_show_hidden") === "true";
@@ -1400,17 +1401,60 @@ export default function ApprovalManagement({
     }, 3200);
   };
 
+  const getEffectiveApprovalDepartment = React.useCallback((req: ApprovalRequest): string => {
+    if (req.department && req.department.trim() && req.department.trim() !== "Cung ứng" && req.department.trim() !== "Phòng Cung ứng") {
+      return req.department.trim();
+    }
+    // Tra cứu theo PR liên kết
+    if (req.prId !== undefined || req.prNumber) {
+      const linkedPr = prs.find(
+        (p) =>
+          (req.prId !== undefined && p.id === req.prId) ||
+          (req.prNumber && p.number && p.number.trim().toLowerCase() === req.prNumber.trim().toLowerCase())
+      );
+      if (linkedPr?.department?.trim()) return linkedPr.department.trim();
+    }
+    // Tra cứu theo ký hiệu PR
+    const rawPr = (req.prNumber || req.requestNumber || "").toLowerCase();
+    if (rawPr.includes("qc")) return "QC";
+    if (rawPr.includes("qa")) return "Phòng QA";
+    if (rawPr.includes("tđsh") || rawPr.includes("đsh") || rawPr.includes("tdsh")) return "TT ĐSH";
+    if (rawPr.includes("rd") || rawPr.includes("r&d")) return "RD";
+    if (rawPr.includes("cơ điện") || rawPr.includes("em") || rawPr.includes("diesel")) return "Cơ điện";
+    if (rawPr.includes("kho") || rawPr.includes("wh")) return "Kho";
+    if (rawPr.includes("it")) return "IT";
+    if (rawPr.includes("sản xuất") || rawPr.includes("sx")) return "Sản xuất";
+
+    return (req.department || "").trim() || "Cung ứng";
+  }, [prs]);
+
+  const allApprovalDepartments = useMemo(() => {
+    const baseList = getUnifiedDepartments();
+    const set = new Set<string>(baseList);
+    (approvalRequests || []).forEach((r) => {
+      const d = getEffectiveApprovalDepartment(r);
+      if (d) set.add(d);
+    });
+    (prs || []).forEach((pr) => {
+      if (pr.department && pr.department.trim()) set.add(pr.department.trim());
+    });
+    return Array.from(set).filter(Boolean);
+  }, [approvalRequests, prs, getEffectiveApprovalDepartment]);
+
   const filteredRequests = useMemo(() => {
     return approvalRequests
       .filter((req) => {
         if (!showHidden && isItemHidden(req)) return false;
         if (statusFilter !== "ALL" && req.status !== statusFilter) return false;
+        const effDept = getEffectiveApprovalDepartment(req);
+        if (departmentFilter !== "ALL" && effDept !== departmentFilter) return false;
         if (!searchQuery.trim()) return true;
         const q = searchQuery.toLowerCase();
         return (
           req.requestNumber.toLowerCase().includes(q) ||
           req.prNumber.toLowerCase().includes(q) ||
           req.department.toLowerCase().includes(q) ||
+          effDept.toLowerCase().includes(q) ||
           req.recommendedSupplierName.toLowerCase().includes(q) ||
           req.section1Title.toLowerCase().includes(q)
         );
@@ -1422,7 +1466,7 @@ export default function ApprovalManagement({
         if (dateB !== dateA) return dateB - dateA;
         return (Number(b.id) || 0) - (Number(a.id) || 0);
       });
-  }, [approvalRequests, searchQuery, statusFilter, showHidden]);
+  }, [approvalRequests, searchQuery, statusFilter, departmentFilter, showHidden, getEffectiveApprovalDepartment]);
 
   // Bản nháp cục bộ: KHÔNG tự động lưu khi chỉnh sửa, chỉ lưu khi người dùng bấm nút "Lưu ĐNPD"
   const [localDraft, setLocalDraft] = useState<ApprovalRequest | null>(null);
@@ -2711,15 +2755,33 @@ export default function ApprovalManagement({
             </div>
 
             <div style={{ display: "flex", gap: 10, alignItems: "center", flex: 1, justifyContent: "flex-end", flexWrap: "wrap" }}>
-              <label style={{ minWidth: 280, display: "inline-flex", alignItems: "center", gap: "6px", position: "relative" }}>
-                <Search size={16} style={{ color: "var(--slate-400)", position: "absolute", left: "12px", pointerEvents: "none" }} />
-                <input
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Tìm theo số PR, tên nhà cung cấp, bộ phận, nội dung..."
-                  style={{ paddingLeft: "36px" }}
-                />
-              </label>
+              {/* Bộ lọc phòng ban / bộ phận */}
+              <select
+                value={departmentFilter}
+                onChange={(e) => setDepartmentFilter(e.target.value)}
+                style={{
+                  height: "38px",
+                  padding: "0 10px",
+                  borderRadius: "6px",
+                  border: `1px solid ${departmentFilter !== "ALL" ? "#0284c7" : "#cbd5e1"}`,
+                  background: departmentFilter !== "ALL" ? "#f0f9ff" : "#ffffff",
+                  color: departmentFilter !== "ALL" ? "#0369a1" : "#475569",
+                  fontWeight: departmentFilter !== "ALL" ? 700 : 500,
+                  fontSize: "12.5px",
+                  cursor: "pointer",
+                  outline: "none",
+                  boxShadow: departmentFilter !== "ALL" ? "0 0 0 1px #0284c7" : undefined,
+                }}
+                title="Lọc phiếu ĐNPD theo phòng ban / bộ phận"
+              >
+                <option value="ALL">Tất cả phòng ban ({allApprovalDepartments.length})</option>
+                {allApprovalDepartments.map((dept) => (
+                  <option key={dept} value={dept}>
+                    {dept}
+                  </option>
+                ))}
+              </select>
+
               <select
                 className="approval-filter-select"
                 value={statusFilter}
@@ -2733,6 +2795,17 @@ export default function ApprovalManagement({
                 <option value="Đã phê duyệt">Đã phê duyệt</option>
                 <option value="Đã tạo PO">Đã tạo PO</option>
               </select>
+
+              <label style={{ minWidth: 260, display: "inline-flex", alignItems: "center", gap: "6px", position: "relative" }}>
+                <Search size={16} style={{ color: "var(--slate-400)", position: "absolute", left: "12px", pointerEvents: "none" }} />
+                <input
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Tìm theo số PR, tên nhà cung cấp, bộ phận, nội dung..."
+                  style={{ paddingLeft: "36px" }}
+                />
+              </label>
+
               <span className="stitch-count-pill">
                 Hiển thị <b>{filteredRequests.length}</b> phiếu ĐNPD
               </span>
@@ -2810,7 +2883,7 @@ export default function ApprovalManagement({
 
                     <h3>{req.section1Title || "Đề nghị phê duyệt kết quả lựa chọn NCC"}</h3>
                     <p>
-                      {req.department} · {req.createdDate}
+                      🏢 {getEffectiveApprovalDepartment(req)} · {req.createdDate}
                     </p>
 
                     <dl>
@@ -3018,6 +3091,22 @@ export default function ApprovalManagement({
                                 Đã ẩn
                               </span>
                             )}
+                          </div>
+                          <div style={{ marginTop: "3px" }}>
+                            <span
+                              style={{
+                                fontSize: "11px",
+                                fontWeight: 500,
+                                color: "#0369a1",
+                                background: "#f0f9ff",
+                                border: "1px solid #bae6fd",
+                                padding: "1px 6px",
+                                borderRadius: "4px",
+                                display: "inline-block",
+                              }}
+                            >
+                              🏢 {getEffectiveApprovalDepartment(req)}
+                            </span>
                           </div>
                         </td>
                         <td>{getApprovalDisplayDate(req.createdDate, req.id)}</td>

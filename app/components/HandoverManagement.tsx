@@ -627,19 +627,50 @@ export function HandoverManagement({
     return () => window.removeEventListener("scm_departments_updated", onDeptsUpdated);
   }, []);
 
+  const getEffectiveHandoverDept = React.useCallback((h: PaymentHandoverItem): string => {
+    if (h.department && h.department.trim() && h.department.trim() !== "Chưa chọn bộ phận") {
+      return h.department.trim();
+    }
+    if (h.source_number) {
+      const cleanSrc = h.source_number.trim().toLowerCase();
+      const matchedPo = pos.find((p) => p.number && p.number.trim().toLowerCase() === cleanSrc);
+      if (matchedPo) {
+        if (matchedPo.department && matchedPo.department.trim()) return matchedPo.department.trim();
+        const linkedPr = prs.find((pr) => pr.number && pr.number.trim().toLowerCase() === (matchedPo.prNumber || "").trim().toLowerCase());
+        if (linkedPr?.department?.trim()) return linkedPr.department.trim();
+      }
+      const matchedPr = prs.find((pr) => pr.number && pr.number.trim().toLowerCase() === cleanSrc);
+      if (matchedPr?.department?.trim()) return matchedPr.department.trim();
+
+      if (cleanSrc.includes("qc")) return "QC";
+      if (cleanSrc.includes("qa")) return "Phòng QA";
+      if (cleanSrc.includes("tđsh") || cleanSrc.includes("đsh") || cleanSrc.includes("tdsh")) return "TT ĐSH";
+      if (cleanSrc.includes("rd") || cleanSrc.includes("r&d")) return "RD";
+      if (cleanSrc.includes("cơ điện") || cleanSrc.includes("em") || cleanSrc.includes("diesel")) return "Cơ điện";
+      if (cleanSrc.includes("kho") || cleanSrc.includes("wh")) return "Kho";
+      if (cleanSrc.includes("it")) return "IT";
+      if (cleanSrc.includes("sản xuất") || cleanSrc.includes("sx")) return "Sản xuất";
+    }
+    return h.department?.trim() || "Chưa chọn bộ phận";
+  }, [pos, prs]);
+
   // Danh sách các phòng ban thống nhất toàn web
   const handoverDepts = useMemo(() => {
     const set = new Set<string>(sysDepts);
     paymentHandovers.forEach((h) => {
-      if (h.department?.trim() && h.department.trim() !== "Chưa chọn bộ phận") {
-        set.add(h.department.trim());
+      const d = getEffectiveHandoverDept(h);
+      if (d && d !== "Chưa chọn bộ phận") {
+        set.add(d);
       }
     });
     prs.forEach((pr) => {
       if (pr.department?.trim()) set.add(pr.department.trim());
     });
+    pos.forEach((po) => {
+      if (po.department?.trim()) set.add(po.department.trim());
+    });
     return Array.from(set).filter(Boolean).sort((a, b) => a.localeCompare(b, "vi"));
-  }, [sysDepts, paymentHandovers, prs]);
+  }, [sysDepts, paymentHandovers, prs, pos, getEffectiveHandoverDept]);
 
   const handoverItemSuggestions = useMemo(() => {
     const set = new Set<string>();
@@ -681,17 +712,18 @@ export function HandoverManagement({
       if (!showHidden && isItemHidden(h)) {
         return false;
       }
-      if (handoverDeptFilter && String(h.department || "").trim() !== handoverDeptFilter) {
+      const effDept = getEffectiveHandoverDept(h);
+      if (handoverDeptFilter && effDept.trim().toLowerCase() !== handoverDeptFilter.trim().toLowerCase()) {
         return false;
       }
       if (q) {
-        const text = [h.department, h.item_name, h.unit, h.note, h.receiver_name, h.sender_name].join(" ");
+        const text = [effDept, h.department, h.item_name, h.unit, h.note, h.receiver_name, h.sender_name, h.source_number].join(" ");
         if (!normName(text).includes(q)) return false;
       }
       return true;
     });
     return list.sort((a, b) => (Number(b.id) || 0) - (Number(a.id) || 0));
-  }, [paymentHandovers, handoverDeptFilter, handoverSearch, showHidden]);
+  }, [paymentHandovers, handoverDeptFilter, handoverSearch, showHidden, getEffectiveHandoverDept]);
 
   // Nhóm danh sách vật tư bàn giao thành các ĐỢT BÀN GIAO (Handover Batches)
   const handoverBatches = useMemo(() => {
@@ -699,17 +731,18 @@ export function HandoverManagement({
 
     for (const h of filteredHandovers) {
       let key = "";
+      const hDept = getEffectiveHandoverDept(h) || h.department || "";
       if (h.batch_id && h.batch_id.trim()) {
         key = `BATCH__${h.batch_id.trim()}`;
       } else if (h.source_number && h.source_number.trim()) {
         const srcType = (h.source_type || "PO").trim().toUpperCase();
         const srcNum = h.source_number.trim().toUpperCase();
         const dateStr = (h.handover_date || "").trim();
-        const deptStr = (h.department || "").trim().toLowerCase();
+        const deptStr = hDept.trim().toLowerCase();
         key = `SRC__${srcType}__${srcNum}__${dateStr}__${deptStr}`;
       } else {
         const dateStr = (h.handover_date || "NO_DATE").trim();
-        const deptStr = (h.department || "NO_DEPT").trim().toLowerCase();
+        const deptStr = (hDept || "NO_DEPT").trim().toLowerCase();
         const recvStr = (h.receiver_name || "").trim().toLowerCase();
         const sendStr = (h.sender_name || "").trim().toLowerCase();
         key = `MANUAL__${dateStr}__${deptStr}__${recvStr}__${sendStr}`;
@@ -738,6 +771,7 @@ export function HandoverManagement({
       const totalPassQty = sortedItems.reduce((s, it) => s + (Number(it.quantity_pass) || 0), 0);
       const totalFailQty = sortedItems.reduce((s, it) => s + (Number(it.quantity_fail) || 0), 0);
       const itemWithScan = sortedItems.find((it) => it.handover_scan_url);
+      const batchDept = (first ? getEffectiveHandoverDept(first) : "") || first?.department || "Chưa chọn bộ phận";
 
       return {
         batchKey: key,
@@ -745,7 +779,7 @@ export function HandoverManagement({
         maxId,
         minId,
         date: first?.handover_date || "",
-        department: first?.department || "Chưa chọn bộ phận",
+        department: batchDept,
         senderName: first?.sender_name || "Trần Hải Hà",
         receiverName: first?.receiver_name || "",
         sourceType: srcType,
@@ -2883,9 +2917,23 @@ export function HandoverManagement({
         <select
           value={handoverDeptFilter}
           onChange={(e) => setHandoverDeptFilter(e.target.value)}
-          style={{ width: "auto", minWidth: "185px" }}
+          style={{
+            height: "38px",
+            padding: "0 10px",
+            borderRadius: "6px",
+            border: `1px solid ${handoverDeptFilter ? "#0284c7" : "#cbd5e1"}`,
+            background: handoverDeptFilter ? "#f0f9ff" : "#ffffff",
+            color: handoverDeptFilter ? "#0369a1" : "#475569",
+            fontWeight: handoverDeptFilter ? 700 : 500,
+            fontSize: "12.5px",
+            cursor: "pointer",
+            outline: "none",
+            boxShadow: handoverDeptFilter ? "0 0 0 1px #0284c7" : undefined,
+            minWidth: "185px",
+          }}
+          title="Lọc các đợt bàn giao theo phòng ban / bộ phận tiếp nhận"
         >
-          <option value="">Tất cả phòng ban nhận</option>
+          <option value="">Tất cả phòng ban nhận ({handoverDepts.length})</option>
           {handoverDepts.map((d) => (
             <option key={d} value={d}>
               {d}
@@ -3260,20 +3308,39 @@ export function HandoverManagement({
                       </div>
                     ) : (
                       <>
-                        <span
+                        <select
+                          value={batch.department && batch.department !== "Chưa chọn bộ phận" ? batch.department : ""}
+                          onChange={(e) => {
+                            e.stopPropagation();
+                            const val = e.target.value;
+                            const batchIdSet = new Set(batch.items.map((it) => it.id));
+                            const next = paymentHandovers.map((h) =>
+                              batchIdSet.has(h.id) ? { ...h, department: val } : h
+                            );
+                            triggerUpdateHandovers(next);
+                          }}
+                          onClick={(e) => e.stopPropagation()}
                           style={{
                             fontSize: "11.5px",
                             fontWeight: 700,
-                            color: "#047857",
-                            background: "#ecfdf5",
-                            border: "1px solid #a7f3d0",
-                            padding: "3px 9px",
-                            borderRadius: "999px",
-                            whiteSpace: "nowrap",
+                            color: batch.department && batch.department !== "Chưa chọn bộ phận" ? "#047857" : "#64748b",
+                            background: batch.department && batch.department !== "Chưa chọn bộ phận" ? "#ecfdf5" : "#ffffff",
+                            border: `1px solid ${batch.department && batch.department !== "Chưa chọn bộ phận" ? "#a7f3d0" : "#cbd5e1"}`,
+                            padding: "2px 8px",
+                            borderRadius: "6px",
+                            cursor: "pointer",
+                            outline: "none",
+                            maxWidth: "155px",
                           }}
+                          title="Bấm để chọn/đổi phòng ban nhận cho đợt bàn giao này"
                         >
-                          🏢 {batch.department}
-                        </span>
+                          <option value="">-- Chọn phòng ban --</option>
+                          {handoverDepts.map((d) => (
+                            <option key={d} value={d}>
+                              {d}
+                            </option>
+                          ))}
+                        </select>
                         <span style={{ fontSize: "11.5px", fontWeight: 600, color: "#64748b", whiteSpace: "nowrap" }}>
                           📅 {batch.date || "Chưa ghi ngày"}
                         </span>
