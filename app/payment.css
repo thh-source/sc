@@ -3016,3 +3016,77 @@ table.payment-table td .smart-cell-textarea:focus {
   font-variant-numeric: tabular-nums !important;
   white-space: nowrap !important;
 }
+
+/* PO Row Action Dropdown Menu & Contextual Action Styles */
+.po-action-menu-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #64748b;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.po-action-menu-btn:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+  border-color: #94a3b8;
+}
+
+.po-action-menu-btn.active {
+  background: #e2e8f0;
+  color: #0f172a;
+  border-color: #64748b;
+}
+
+.po-row-menu-dropdown {
+  position: absolute;
+  right: 0;
+  background: #ffffff;
+  border-radius: 8px;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.15), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+  border: 1px solid #cbd5e1;
+  z-index: 999;
+  min-width: 195px;
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.po-dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 7px 10px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #334155;
+  background: transparent;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.12s ease;
+  white-space: nowrap;
+}
+
+.po-dropdown-item:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+.po-dropdown-item.text-danger {
+  color: #dc2626;
+}
+
+.po-dropdown-item.text-danger:hover {
+  background: #fef2f2;
+  color: #b91c1c;
+}

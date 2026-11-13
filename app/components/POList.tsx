@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from "react";
-import { Plus, ArrowRight, Trash2, Truck, Search, CheckCircle2, Circle, Pencil, RotateCcw, CreditCard, Eye, EyeOff, ClipboardCheck } from "lucide-react";
+import { Plus, ArrowRight, Trash2, Truck, Search, CheckCircle2, Circle, Pencil, RotateCcw, CreditCard, Eye, EyeOff, ClipboardCheck, MoreHorizontal } from "lucide-react";
 import { Supplier, PO, PR, Item, ApprovalRequest, PaymentRequestEntry, PaymentHandoverItem, getPOContractInfo, formatPONumber, generatePOCode, isPONumberExists, TrashItem, calcPOTotal, isItemHidden } from "../types";
 import { fmt, dateVN, makeId } from "../utils";
 import { SupplierSearchCombobox } from "./SupplierSearchCombobox";
@@ -12,6 +12,39 @@ import { resolveDocFlow } from "../utils/docFlow";
 import { isPOCompleted, calcPODeliveryStats } from "../utils/paymentSync";
 import { getUnifiedDepartments } from "../utils/departments";
 import "../payment.css";
+
+function cleanItemDisplayName(raw: string): string {
+  if (!raw) return "Mặt hàng";
+  // 1. Tách phần trước dấu | (thường là spec thừa: | Hãng: ...; Quy cách: ...)
+  let cleaned = raw.split("|")[0].trim();
+  // 2. Tách nếu có ; Hãng: hoặc ; Quy cách:
+  cleaned = cleaned.split(/;\s*(?:Hãng|Quy cách):/i)[0].trim();
+  // 3. Tách nếu có Hãng: hoặc Quy cách: ở đầu hoặc giữa
+  cleaned = cleaned.replace(/\s*Hãng\s*:\s*[^;,]+/gi, "").trim();
+  cleaned = cleaned.replace(/\s*Quy cách\s*:\s*[^;,]+/gi, "").trim();
+  // 4. Bỏ các ký tự thừa ở đuôi
+  cleaned = cleaned.replace(/[,;\s]+$/, "").trim();
+  // 5. Cắt ngắn gọn nếu quá dài để bảng luôn thông thoáng
+  if (cleaned.length > 40) {
+    cleaned = cleaned.substring(0, 38) + "...";
+  }
+  return cleaned || raw;
+}
+
+function getDepartmentBadgeStyle(dept: string): { bg: string; color: string; border: string } {
+  if (!dept) return { bg: "#f8fafc", color: "#94a3b8", border: "#e2e8f0" };
+  const d = dept.toLowerCase();
+  if (d.includes("qc")) return { bg: "#f3e8ff", color: "#7e22ce", border: "#d8b4fe" }; // tím
+  if (d.includes("đsh") || d.includes("tdsh")) return { bg: "#e0f2fe", color: "#0369a1", border: "#bae6fd" }; // xanh dương
+  if (d.includes("rd") || d.includes("r&d")) return { bg: "#ffedd5", color: "#c2410c", border: "#fed7aa" }; // cam
+  if (d.includes("qa")) return { bg: "#ecfdf5", color: "#047857", border: "#a7f3d0" }; // xanh ngọc
+  if (d.includes("cơ điện") || d.includes("em")) return { bg: "#fef3c7", color: "#b45309", border: "#fde68a" }; // vàng hổ phách
+  if (d.includes("kho")) return { bg: "#fef9c3", color: "#a16207", border: "#fef08a" }; // vàng
+  if (d.includes("it")) return { bg: "#ede9fe", color: "#6d28d9", border: "#ddd6fe" }; // tím nhạt
+  if (d.includes("sản xuất") || d.includes("sx")) return { bg: "#f1f5f9", color: "#334155", border: "#cbd5e1" }; // xám đậm
+  if (d.includes("cung ứng")) return { bg: "#e0e7ff", color: "#4338ca", border: "#c7d2fe" }; // chàm
+  return { bg: "#f0fdf4", color: "#15803d", border: "#bbf7d0" }; // xanh lá mặc định
+}
 
 interface DraftPOItem {
   id: number;
@@ -162,6 +195,14 @@ export function POList({
   }, [autoOpenCreate]);
   const [editingPONumberModal, setEditingPONumberModal] = useState<PO | null>(null);
   const [editNewNumber, setEditNewNumber] = useState("");
+  const [openMenuPoId, setOpenMenuPoId] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (openMenuPoId === null) return;
+    const handleDocClick = () => setOpenMenuPoId(null);
+    window.addEventListener("click", handleDocClick);
+    return () => window.removeEventListener("click", handleDocClick);
+  }, [openMenuPoId]);
 
   const handleOpenEditNumber = (targetPO: PO) => {
     setEditingPONumberModal(targetPO);
@@ -1042,22 +1083,21 @@ export function POList({
           })}
         </div>
 
-        <div className="pr-table" style={{ width: "100%", overflowX: "auto", overflowY: "visible", maxHeight: "none" }}>
-          <table style={{ width: "100%", minWidth: "1080px", tableLayout: "auto" }}>
+        <div className="pr-table" style={{ width: "100%", overflowX: "auto", overflowY: "visible", maxHeight: "none", minHeight: "350px" }}>
+          <table style={{ width: "100%", minWidth: "980px", tableLayout: "auto" }}>
             <thead>
               <tr>
-                <th style={{ width: "150px", whiteSpace: "nowrap" }}>{t("table.po_number")}</th>
-                <th style={{ minWidth: "220px" }}>{t("table.supplier")}</th>
-                <th style={{ width: "115px", whiteSpace: "nowrap" }}>{t("table.created_date")}</th>
-                <th style={{ width: "145px", minWidth: "135px", whiteSpace: "nowrap", textAlign: "left" }}>Phòng ban</th>
-                <th style={{ width: "135px", whiteSpace: "nowrap", textAlign: "right" }}>{t("table.po_value")}</th>
-                <th style={{ width: "175px", whiteSpace: "nowrap", textAlign: "center" }}>Giao hàng &amp; Thanh toán</th>
-                <th style={{ width: "105px", whiteSpace: "nowrap", textAlign: "center" }}>{t("table.documents")}</th>
-                <th style={{ width: "230px", minWidth: "230px", textAlign: "right", paddingRight: "16px" }}>{t("table.actions")}</th>
+                <th style={{ width: "155px", whiteSpace: "nowrap" }}>Số PO &amp; Trạng thái</th>
+                <th style={{ minWidth: "200px" }}>Nhà cung cấp &amp; Vật tư</th>
+                <th style={{ width: "105px", whiteSpace: "nowrap", textAlign: "center" }}>Phòng ban</th>
+                <th style={{ width: "120px", whiteSpace: "nowrap", textAlign: "right" }}>Giá trị PO</th>
+                <th style={{ width: "160px", whiteSpace: "nowrap", textAlign: "center" }}>Giao hàng &amp; Thanh toán</th>
+                <th style={{ width: "70px", whiteSpace: "nowrap", textAlign: "center" }}>Hồ sơ</th>
+                <th style={{ width: "135px", minWidth: "130px", textAlign: "right", paddingRight: "12px" }}>Thao tác</th>
               </tr>
             </thead>
             <tbody>
-              {shown.map((po) => {
+              {shown.map((po, index) => {
                 const s = suppliers.find((x) => Number(x.id) === Number(po.supplierId));
                 const items = po.items || [];
                 const docs = po.docs || [];
@@ -1073,8 +1113,21 @@ export function POList({
                 const flow = resolveDocFlow({ po }, { prs, pos, approvalRequests, paymentRequests, paymentHandovers });
                 const isDone = isPOCompleted(po, paymentHandovers);
                 const effectiveDept = getEffectivePODepartment(po);
+                const deptStyle = getDepartmentBadgeStyle(effectiveDept);
 
-                // Tính toán trạng thái thanh toán hiển thị tại Dòng 2
+                // Subline status badge for PO
+                let poStatusBadge: { label: string; color: string; bg: string; border: string };
+                if (isDone) {
+                  poStatusBadge = { label: "✓ Hoàn thành", color: "#166534", bg: "#dcfce7", border: "#bbf7d0" };
+                } else if (deliveryStats.isFullyDelivered) {
+                  poStatusBadge = { label: "Đã nhận hàng", color: "#0f766e", bg: "#ccfbf1", border: "#99f6e4" };
+                } else if (delivered > 0) {
+                  poStatusBadge = { label: "Đang giao", color: "#0369a1", bg: "#e0f2fe", border: "#bae6fd" };
+                } else {
+                  poStatusBadge = { label: "Mới tạo", color: "#475569", bg: "#f1f5f9", border: "#e2e8f0" };
+                }
+
+                // Trạng thái thanh toán hiển thị tại Cột 5
                 const isFullyPaid = total > 0 && paid >= total;
                 let paymentStatusBadge: React.ReactNode = null;
                 if (isFullyPaid) {
@@ -1090,7 +1143,7 @@ export function POList({
                         borderRadius: "4px",
                       }}
                     >
-                      ✓ Đã TT
+                      ✓ Đã TT đủ
                     </span>
                   );
                 } else if (paid > 0) {
@@ -1110,7 +1163,7 @@ export function POList({
                         borderRadius: "4px",
                       }}
                     >
-                      Đã TT {stageText} - {paidPct}%
+                      Đã TT {stageText} ({paidPct}%)
                     </span>
                   );
                 } else {
@@ -1130,10 +1183,18 @@ export function POList({
                   );
                 }
 
+                const fullItemsTooltip = items.length > 0
+                  ? items.map((it, idx) => `${idx + 1}. ${cleanItemDisplayName(it.name || (it as any).itemName)} (${it.qty || 1} ${it.unit || ""})`).join("\n")
+                  : "";
+
+                const isMenuOpen = openMenuPoId === po.id;
+                const isLastRows = index >= shown.length - 2 && shown.length > 2;
+
                 return (
                   <tr key={po.id} className={isDone ? "row-completed" : ""}>
+                    {/* CỘT 1: SỐ PO & TRẠNG THÁI */}
                     <td style={{ whiteSpace: "nowrap" }}>
-                      <div style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
                         {onToggleComplete && (
                           <button
                             type="button"
@@ -1151,23 +1212,27 @@ export function POList({
                             )}
                           </button>
                         )}
-                        <button className="pr-link" onClick={() => onOpen(po)}>
+                        <button
+                          className="pr-link"
+                          onClick={() => onOpen(po)}
+                          style={{ fontWeight: 650, fontSize: "13.5px", color: "#0284c7" }}
+                        >
                           {po.number}
                         </button>
                         {isItemHidden(po) && (
                           <span
                             style={{
-                              fontSize: "11px",
+                              fontSize: "10px",
                               fontWeight: 700,
                               color: "#b45309",
                               background: "#fef3c7",
                               border: "1px solid #fde68a",
-                              padding: "1px 6px",
+                              padding: "1px 5px",
                               borderRadius: "4px",
                               whiteSpace: "nowrap",
                             }}
                           >
-                            Đã ẩn
+                            Ẩn
                           </span>
                         )}
                         {!readOnly && onUpdatePO && (
@@ -1178,18 +1243,17 @@ export function POList({
                               handleOpenEditNumber(po);
                             }}
                             style={{
-                              marginLeft: 6,
                               padding: "2px 4px",
                               background: "none",
                               border: "none",
-                              color: "#64748b",
+                              color: "#94a3b8",
                               cursor: "pointer",
                               display: "inline-flex",
                               alignItems: "center",
                             }}
                             title="Chỉnh sửa mã Số PO này"
                           >
-                            <Pencil size={12} />
+                            <Pencil size={11} />
                           </button>
                         )}
                         {pos.filter((p) => p.number && p.number.trim().toLowerCase() === (po.number || "").trim().toLowerCase()).length > 1 && (
@@ -1200,9 +1264,8 @@ export function POList({
                               handleOpenEditNumber(po);
                             }}
                             style={{
-                              marginLeft: 6,
-                              padding: "1px 6px",
-                              fontSize: "10.5px",
+                              padding: "1px 5px",
+                              fontSize: "10px",
                               fontWeight: 700,
                               color: "#b45309",
                               background: "#fef3c7",
@@ -1212,102 +1275,171 @@ export function POList({
                             }}
                             title="Số PO này đang trùng với đơn khác! Bấm để sửa mã"
                           >
-                            ⚠ Trùng mã
+                            ⚠ Trùng
                           </button>
                         )}
                       </div>
-                      {contractInfo.hasContract && (
-                        <div style={{ marginTop: "3px" }}>
+
+                      {/* Subline: Ngày tạo + Trạng thái PO + Hợp đồng */}
+                      <div style={{ marginTop: "4px", display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
+                        <span style={{ fontSize: "11px", color: "#64748b" }}>
+                          {dateVN(po.createdDate)}
+                        </span>
+                        <span
+                          style={{
+                            fontSize: "10.5px",
+                            fontWeight: 600,
+                            color: poStatusBadge.color,
+                            background: poStatusBadge.bg,
+                            border: `1px solid ${poStatusBadge.border}`,
+                            padding: "0px 5px",
+                            borderRadius: "4px",
+                          }}
+                        >
+                          {poStatusBadge.label}
+                        </span>
+                        {contractInfo.hasContract && (
                           <span
                             style={{
-                              display: "inline-block",
-                              fontSize: "10.5px",
+                              fontSize: "10px",
                               fontWeight: 600,
                               color: "#6d28d9",
                               background: "#f3e8ff",
                               border: "1px solid #d8b4fe",
-                              padding: "1px 6px",
+                              padding: "0px 5px",
                               borderRadius: "4px",
                             }}
                             title={`Hợp đồng số: ${contractInfo.contractNumber || "Chưa nhập số"} · Ngày: ${dateVN(contractInfo.contractDate)}`}
                           >
-                            📑 HĐ: {contractInfo.contractNumber || "Có HĐ"}
+                            📑 HĐ
                           </span>
-                        </div>
-                      )}
+                        )}
+                      </div>
                     </td>
-                    <td>
-                      <div style={{ display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
-                        <span style={{ color: "#0f172a", fontSize: "13px", fontWeight: 400 }}>{s?.name || "Chưa có NCC"}</span>
-                        {s?.code && <small className="supplier-code">{s.code}</small>}
+
+                    {/* CỘT 2: NHÀ CUNG CẤP & VẬT TƯ */}
+                    <td style={{ maxWidth: "340px", minWidth: "220px" }}>
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "6px" }}>
+                        <div style={{ color: "#0f172a", fontSize: "13px", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          {s?.name || "Chưa có NCC"}
+                          {s?.code && <small className="supplier-code" style={{ marginLeft: "4px" }}>{s.code}</small>}
+                        </div>
                         {po.prNumber && (
-                          <span style={{ fontSize: "11px", fontWeight: 400, color: "#0369a1", background: "#f0f9ff", border: "1px solid #bae6fd", padding: "1px 7px", borderRadius: "6px" }}>
+                          <span style={{ fontSize: "10.5px", fontWeight: 500, color: "#0369a1", background: "#f0f9ff", border: "1px solid #bae6fd", padding: "1px 6px", borderRadius: "4px", whiteSpace: "nowrap", flexShrink: 0 }}>
                             PR: {po.prNumber}
                           </span>
                         )}
                       </div>
                       {items.length > 0 && (
-                        <div style={{ marginTop: "4px", fontSize: "11.5px", color: "#64748b", display: "flex", alignItems: "center", gap: "5px", flexWrap: "wrap" }}>
-                          <span style={{ background: "#f1f5f9", color: "#334155", padding: "1px 7px", borderRadius: "6px", fontWeight: 400 }}>
-                            📦 {items.slice(0, 2).map((it) => it.name || (it as any).itemName || "Mặt hàng").join(", ")}
-                            {items.length > 2 ? ` (+${items.length - 2} mục)` : ""}
+                        <div
+                          style={{ marginTop: "4px", fontSize: "11.5px", color: "#475569" }}
+                          title={fullItemsTooltip}
+                        >
+                          <span style={{ display: "inline-flex", alignItems: "center", maxWidth: "100%", background: "#f8fafc", border: "1px solid #e2e8f0", color: "#334155", padding: "1px 7px", borderRadius: "6px", fontWeight: 400, overflow: "hidden" }}>
+                            <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                              📦 {cleanItemDisplayName(items[0]?.name || (items[0] as any)?.itemName || "Mặt hàng")}
+                            </span>
+                            {items.length > 1 && (
+                              <span
+                                style={{
+                                  marginLeft: "5px",
+                                  fontWeight: 650,
+                                  color: "#2563eb",
+                                  background: "#eff6ff",
+                                  padding: "0 4px",
+                                  borderRadius: "4px",
+                                  cursor: "pointer",
+                                  flexShrink: 0,
+                                  whiteSpace: "nowrap",
+                                }}
+                                title={fullItemsTooltip}
+                              >
+                                +{items.length - 1} mục
+                              </span>
+                            )}
                           </span>
                         </div>
                       )}
                     </td>
-                    <td style={{ whiteSpace: "nowrap", fontWeight: 400, color: "#0f172a", fontSize: "13px" }}>{dateVN(po.createdDate)}</td>
-                    <td style={{ whiteSpace: "nowrap", padding: "6px 8px" }} onClick={(e) => e.stopPropagation()}>
+
+                    {/* CỘT 3: PHÒNG BAN (SMART BADGE) */}
+                    <td style={{ whiteSpace: "nowrap", textAlign: "center", padding: "6px 8px" }} onClick={(e) => e.stopPropagation()}>
                       {readOnly ? (
                         <span
                           style={{
                             display: "inline-block",
                             fontSize: "12px",
-                            fontWeight: effectiveDept ? 600 : 400,
-                            color: effectiveDept ? "#0369a1" : "#94a3b8",
-                            background: effectiveDept ? "#f0f9ff" : "transparent",
-                            padding: "3px 8px",
-                            borderRadius: "4px",
+                            fontWeight: 650,
+                            color: deptStyle.color,
+                            background: deptStyle.bg,
+                            border: `1px solid ${deptStyle.border}`,
+                            padding: "2px 8px",
+                            borderRadius: "12px",
                           }}
                         >
                           {effectiveDept || "—"}
                         </span>
                       ) : (
-                        <select
-                          value={effectiveDept}
-                          onChange={(e) => {
-                            e.stopPropagation();
-                            handleUpdatePODepartment(po, e.target.value);
-                          }}
-                          style={{
-                            width: "100%",
-                            maxWidth: "140px",
-                            fontSize: "12px",
-                            fontWeight: effectiveDept ? 650 : 500,
-                            color: effectiveDept ? "#0369a1" : "#64748b",
-                            background: effectiveDept ? "#f0f9ff" : "#ffffff",
-                            border: `1px solid ${effectiveDept ? "#7dd3fc" : "#cbd5e1"}`,
-                            borderRadius: "6px",
-                            padding: "4px 6px",
-                            cursor: "pointer",
-                            outline: "none",
-                            transition: "all 0.15s ease",
-                          }}
-                          title="Bấm để chọn/đổi phòng ban cho đơn PO này"
-                        >
-                          <option value="">-- Chọn phòng ban --</option>
-                          {allDepartmentOptions.map((dept) => (
-                            <option key={dept} value={dept}>
-                              {dept}
-                            </option>
-                          ))}
-                        </select>
+                        <div style={{ position: "relative", display: "inline-block" }}>
+                          <select
+                            value={effectiveDept}
+                            onChange={(e) => {
+                              e.stopPropagation();
+                              handleUpdatePODepartment(po, e.target.value);
+                            }}
+                            style={{
+                              appearance: "none",
+                              WebkitAppearance: "none",
+                              MozAppearance: "none",
+                              fontSize: "11.5px",
+                              fontWeight: 650,
+                              color: effectiveDept ? deptStyle.color : "#94a3b8",
+                              background: effectiveDept ? deptStyle.bg : "#f8fafc",
+                              border: `1px solid ${effectiveDept ? deptStyle.border : "#e2e8f0"}`,
+                              borderRadius: "12px",
+                              padding: "3px 20px 3px 8px",
+                              cursor: "pointer",
+                              outline: "none",
+                              textAlign: "center",
+                              transition: "all 0.15s ease",
+                            }}
+                            title="Bấm để chọn/đổi phòng ban cho đơn này"
+                          >
+                            <option value="">+ Chọn PB</option>
+                            {allDepartmentOptions.map((dept) => (
+                              <option key={dept} value={dept}>
+                                {dept}
+                              </option>
+                            ))}
+                          </select>
+                          <span
+                            style={{
+                              position: "absolute",
+                              right: "6px",
+                              top: "50%",
+                              transform: "translateY(-50%)",
+                              pointerEvents: "none",
+                              fontSize: "9px",
+                              color: effectiveDept ? deptStyle.color : "#94a3b8",
+                            }}
+                          >
+                            ▾
+                          </span>
+                        </div>
                       )}
                     </td>
-                    <td className="money" style={{ whiteSpace: "nowrap", textAlign: "right", fontSize: "13px", fontWeight: 400, color: "#0f172a" }}>{fmt(total)} ₫</td>
-                    <td style={{ textAlign: "center", minWidth: "175px" }}>
-                      {/* Dòng 1: Tiến độ giao hàng */}
-                      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "3px", marginBottom: "5px" }}>
-                        <span className="mini-progress" style={{ margin: "0 auto 2px", width: "120px", height: "7px", borderRadius: "999px", background: "#e2e8f0" }}>
+
+                    {/* CỘT 4: GIÁ TRỊ PO */}
+                    <td className="money" style={{ whiteSpace: "nowrap", textAlign: "right" }}>
+                      <div style={{ fontSize: "13px", fontWeight: 600, color: "#0f172a" }}>
+                        {fmt(total)} ₫
+                      </div>
+                    </td>
+
+                    {/* CỘT 5: GIAO HÀNG & THANH TOÁN */}
+                    <td style={{ textAlign: "center", minWidth: "155px" }}>
+                      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "2px", marginBottom: "4px" }}>
+                        <span className="mini-progress" style={{ margin: "0 auto 2px", width: "110px", height: "6px", borderRadius: "999px", background: "#e2e8f0" }}>
                           <i
                             style={{
                               width: `${deliveryStats.overallProgressPercent}%`,
@@ -1316,7 +1448,7 @@ export function POList({
                             }}
                           />
                         </span>
-                        <small style={{ color: deliveryStats.isFullyDelivered ? "#15803d" : "#334155", fontWeight: 700, fontSize: "11px" }}>
+                        <small style={{ color: deliveryStats.isFullyDelivered ? "#15803d" : "#475569", fontWeight: deliveryStats.isFullyDelivered ? 700 : 500, fontSize: "11px" }}>
                           {deliveryStats.isFullyDelivered ? (
                             "✓ Giao đủ 100%"
                           ) : (
@@ -1324,81 +1456,175 @@ export function POList({
                           )}
                         </small>
                       </div>
-
-                      {/* Dòng 2: Trạng thái thanh toán thực tế */}
-                      <div style={{ marginTop: "2px" }}>
+                      <div style={{ marginTop: "1px" }}>
                         {paymentStatusBadge}
                       </div>
                     </td>
-                    <td style={{ textAlign: "center" }}>
+
+                    {/* CỘT 6: HỒ SƠ */}
+                    <td style={{ textAlign: "center", whiteSpace: "nowrap" }}>
                       {docs.length === 0 ? (
-                        <span style={{ fontSize: "11.5px", color: "#94a3b8", background: "#f8fafc", padding: "3px 8px", borderRadius: "6px", border: "1px solid #e2e8f0" }}>
-                          Chưa đính kèm
-                        </span>
+                        <span style={{ color: "#cbd5e1", fontSize: "13px" }}>—</span>
                       ) : (
                         <span
-                          className={
-                            docsCount === docs.length
-                              ? "status done"
-                              : "status waiting"
-                          }
+                          className={docsCount === docs.length ? "status done" : "status waiting"}
+                          style={{ fontSize: "11px", padding: "2px 6px" }}
                         >
-                          {docsCount}/{docs.length} đủ
+                          📎 {docsCount}/{docs.length} đủ
                         </span>
                       )}
                     </td>
-                    <td style={{ width: "260px", minWidth: "260px", paddingRight: "16px" }}>
-                      <div className="row-actions" style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: "6px", flexWrap: "nowrap" }}>
-                        <button
-                          type="button"
-                          className="stitch-action-pill pill-navy"
-                          onClick={() => onOpen(po)}
-                          title="Mở chi tiết Đơn mua hàng (PO)"
-                        >
-                          <span>Chi tiết</span>
-                          <ArrowRight size={13} />
-                        </button>
-                        {onCreateHandover && (
+
+                    {/* CỘT 7: THAO TÁC (CONTEXTUAL + MORE) */}
+                    <td style={{ textAlign: "right", paddingRight: "16px", position: "relative" }} onClick={(e) => e.stopPropagation()}>
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: "6px" }}>
+                        {/* Nút hành động chính thông minh theo ngữ cảnh */}
+                        {!deliveryStats.isFullyDelivered && onCreateHandover ? (
                           <button
                             type="button"
                             className="stitch-action-pill pill-navy"
                             onClick={() => onCreateHandover(po)}
                             title="Tạo biên bản bàn giao cho PO này"
+                            style={{ padding: "4px 8px", fontSize: "11.5px" }}
                           >
-                            <ClipboardCheck size={13} />
-                            <span>Bàn giao nội bộ</span>
+                            <ClipboardCheck size={12} />
+                            <span>Bàn giao</span>
                           </button>
-                        )}
-                        {onCreatePaymentRequest && (
+                        ) : deliveryStats.isFullyDelivered && !isFullyPaid && onCreatePaymentRequest ? (
                           <button
                             type="button"
                             className="stitch-action-pill pill-navy"
                             onClick={() => onCreatePaymentRequest(po)}
-                            title="Lập Đề nghị thanh toán (ĐNTT) và mở ngay bản in Mẫu 01-TT"
+                            title="Lập Đề nghị thanh toán (ĐNTT)"
+                            style={{ padding: "4px 8px", fontSize: "11.5px" }}
                           >
-                            <CreditCard size={13} />
+                            <CreditCard size={12} />
                             <span>ĐNTT</span>
                           </button>
-                        )}
-                        {onToggleHidePO && (
+                        ) : (
                           <button
-                            className="btn-icon"
-                            onClick={() => onToggleHidePO(po)}
-                            title={isItemHidden(po) ? "Hiện lại PO này" : "Ẩn PO này khỏi bảng"}
-                            style={{ color: isItemHidden(po) ? "#d97706" : "#64748b" }}
+                            type="button"
+                            className="stitch-action-pill"
+                            onClick={() => onOpen(po)}
+                            title="Xem chi tiết PO"
+                            style={{ padding: "4px 8px", fontSize: "11.5px" }}
                           >
-                            {isItemHidden(po) ? <Eye size={15} /> : <EyeOff size={15} />}
+                            <span>Chi tiết</span>
+                            <ArrowRight size={12} />
                           </button>
                         )}
-                        {onDelete && (
+
+                        {/* Nút Menu 3 chấm "···" */}
+                        <div style={{ position: "relative" }}>
                           <button
-                            className="btn-icon danger-ghost"
-                            onClick={() => onDelete(po)}
-                            title="Xóa PO"
+                            type="button"
+                            className={`po-action-menu-btn ${isMenuOpen ? "active" : ""}`}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setOpenMenuPoId(isMenuOpen ? null : po.id);
+                            }}
+                            title="Các thao tác khác"
                           >
-                            <Trash2 size={15} />
+                            <MoreHorizontal size={15} />
                           </button>
-                        )}
+
+                          {/* Dropdown Menu */}
+                          {isMenuOpen && (
+                            <div
+                              className="po-row-menu-dropdown"
+                              style={{
+                                top: isLastRows ? "auto" : "calc(100% + 4px)",
+                                bottom: isLastRows ? "calc(100% + 4px)" : "auto",
+                              }}
+                            >
+                              <button
+                                type="button"
+                                className="po-dropdown-item"
+                                onClick={() => {
+                                  setOpenMenuPoId(null);
+                                  onOpen(po);
+                                }}
+                              >
+                                <ArrowRight size={14} className="text-slate-500" />
+                                <span>Chi tiết Đơn mua hàng</span>
+                              </button>
+                              {onCreateHandover && (
+                                <button
+                                  type="button"
+                                  className="po-dropdown-item"
+                                  onClick={() => {
+                                    setOpenMenuPoId(null);
+                                    onCreateHandover(po);
+                                  }}
+                                >
+                                  <ClipboardCheck size={14} className="text-blue-600" />
+                                  <span>Tạo biên bản bàn giao</span>
+                                </button>
+                              )}
+                              {onCreatePaymentRequest && (
+                                <button
+                                  type="button"
+                                  className="po-dropdown-item"
+                                  onClick={() => {
+                                    setOpenMenuPoId(null);
+                                    onCreatePaymentRequest(po);
+                                  }}
+                                >
+                                  <CreditCard size={14} className="text-indigo-600" />
+                                  <span>Lập Đề nghị thanh toán</span>
+                                </button>
+                              )}
+                              {!readOnly && onUpdatePO && (
+                                <button
+                                  type="button"
+                                  className="po-dropdown-item"
+                                  onClick={() => {
+                                    setOpenMenuPoId(null);
+                                    handleOpenEditNumber(po);
+                                  }}
+                                >
+                                  <Pencil size={14} className="text-slate-500" />
+                                  <span>Sửa mã Số PO</span>
+                                </button>
+                              )}
+                              {onToggleHidePO && (
+                                <button
+                                  type="button"
+                                  className="po-dropdown-item"
+                                  onClick={() => {
+                                    setOpenMenuPoId(null);
+                                    onToggleHidePO(po);
+                                  }}
+                                >
+                                  {isItemHidden(po) ? (
+                                    <>
+                                      <Eye size={14} className="text-amber-600" />
+                                      <span>Hiện lại đơn này</span>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <EyeOff size={14} className="text-slate-500" />
+                                      <span>Ẩn đơn khỏi danh sách</span>
+                                    </>
+                                  )}
+                                </button>
+                              )}
+                              {onDelete && (
+                                <button
+                                  type="button"
+                                  className="po-dropdown-item text-danger"
+                                  onClick={() => {
+                                    setOpenMenuPoId(null);
+                                    onDelete(po);
+                                  }}
+                                >
+                                  <Trash2 size={14} />
+                                  <span>Xóa đơn mua hàng</span>
+                                </button>
+                              )}
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </td>
                   </tr>
