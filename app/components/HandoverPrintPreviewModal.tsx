@@ -77,7 +77,7 @@ export function HandoverPrintPreviewModal({
       <table className="hb-box">
         <tbody>
           <tr>
-            <td className="hb-box-left">
+            <td className="hb-box-left" style={{ textAlign: "center", verticalAlign: "middle" }}>
               <div className="hb-logo">
                 <img
                   src={PHENIKAA_PHARMA_LOGO_BASE64}
@@ -91,7 +91,7 @@ export function HandoverPrintPreviewModal({
                   }}
                 />
               </div>
-              <div className="hb-sender-dept">Bộ phận: {effectiveDept}</div>
+              
             </td>
             <td className="hb-box-right">
               <div className="hb-title-main">

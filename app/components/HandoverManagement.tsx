@@ -153,9 +153,13 @@ export function HandoverManagement({
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [printOrientation, setPrintOrientation] = useState<"portrait" | "landscape">("portrait");
   const [workspaceToast, setWorkspaceToast] = useState<string | null>(null);
-  const [showImportPoModal, setShowImportPoModal] = useState(false);
+  const [showWorkspaceImportModal, setShowWorkspaceImportModal] = useState(false);
+  const [importDocTab, setImportDocTab] = useState<"PO" | "PR">("PO");
   const [selectedPoForImport, setSelectedPoForImport] = useState<PO | null>(null);
   const [selectedPoItemIds, setSelectedPoItemIds] = useState<Set<number>>(new Set());
+  const [selectedPrForImport, setSelectedPrForImport] = useState<PR | null>(null);
+  const [selectedPrItemIds, setSelectedPrItemIds] = useState<Set<number>>(new Set());
+  const [importSearchText, setImportSearchText] = useState<string>("");
 
   const showToast = (msg: string) => {
     setWorkspaceToast(msg);
@@ -1448,141 +1452,487 @@ export function HandoverManagement({
   };
 
 
-  const renderImportPoModal = () => {
-    if (!showImportPoModal) return null;
+  const handlePrintWorkspaceHandover = () => {
+    window.print();
+  };
 
-    const availablePos = pos.filter((p) => p.items && p.items.length > 0);
+  const renderPrintCopy = (copyNum: number) => {
+    if (!localHandoverDraft) return null;
+    const draft = localHandoverDraft;
+    const curDate = draft.handoverDate || localToday();
+    const dateParts = parsePrintDate(curDate);
+    const dStr = dateParts?.d || String(new Date().getDate()).padStart(2, "0");
+    const mStr = dateParts?.m || String(new Date().getMonth() + 1).toString().padStart(2, "0");
+    const yStr = dateParts?.y || String(new Date().getFullYear());
+
+    const totalDocQty = draft.items.reduce((s, it) => s + (Number(it.quantity_doc) || 0), 0);
+    const totalPassQty = draft.items.reduce((s, it) => s + (Number(it.quantity_pass) || 0), 0);
+    const totalFailQty = draft.items.reduce((s, it) => s + (Number(it.quantity_fail) || 0), 0);
+
+    return (
+      <div
+        key={copyNum}
+        className="handover-paper paper"
+        style={{
+          boxShadow: "none",
+          margin: 0,
+          padding: "12mm 15mm",
+          breakAfter: copyNum === 1 ? "page" : "auto",
+          pageBreakAfter: copyNum === 1 ? "always" : "auto",
+        }}
+      >
+        <table className="hb-box" style={{ width: "100%", borderCollapse: "collapse", border: "1.5px solid #000", marginBottom: "10px" }}>
+          <tbody>
+            <tr>
+              <td
+                className="hb-box-left"
+                style={{
+                  width: "230px",
+                  borderRight: "1.5px solid #000",
+                  padding: "12px 10px",
+                  textAlign: "center",
+                  verticalAlign: "middle",
+                }}
+              >
+                <img
+                  src={PHENIKAA_LOGO_SRC}
+                  alt="PHENIKAA PHARMA"
+                  style={{ height: "46px", maxWidth: "180px", objectFit: "contain", margin: "0 auto", display: "block" }}
+                />
+              </td>
+              <td
+                className="hb-box-right"
+                style={{
+                  padding: "10px",
+                  textAlign: "center",
+                  verticalAlign: "middle",
+                }}
+              >
+                <div style={{ fontSize: "14px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                  BIÊN BẢN BÀN GIAO, NGHIỆM THU VẬT TƯ,
+                </div>
+                <div style={{ fontSize: "14px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                  HÀNG HÓA
+                </div>
+                <div style={{ fontSize: "13px", fontStyle: "italic", marginTop: "2px" }}>
+                  (Không qua kho)
+                </div>
+                <div style={{ fontSize: "11px", fontWeight: 600, color: "#475569", marginTop: "4px" }}>
+                  {copyNum === 1 ? "(Liên 1: Giao cho người nhận hàng)" : "(Liên 2: Giao cho người giao hàng)"}
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div className="hb-info" style={{ fontSize: "13.5px", lineHeight: 1.6, marginBottom: "8px" }}>
+          <div>Hôm nay, ngày <b>{dStr}</b> tháng <b>{mStr}</b> năm <b>{yStr}</b></div>
+          <div>Tại Công ty CP Dược phẩm Phenikaa</div>
+          <div>Địa chỉ: Lô đất CN2-10, KCN Công nghệ cao 2, KCNC Hòa Lạc, Xã Hòa Lạc, TP Hà Nội</div>
+          <div style={{ fontWeight: 700, marginTop: "4px" }}>Chúng tôi gồm:</div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
+            <div>
+              <div>Ông (bà): <b>{draft.senderName || "Trần Hải Hà"}</b></div>
+              <div>- Người giao hàng</div>
+              <div>Đơn vị: {draft.senderDept || "Phòng Cung ứng"}</div>
+            </div>
+            <div>
+              <div>Ông (bà): <b>{draft.receiverName || "...................................................."}</b></div>
+              <div>- Người nhận hàng</div>
+              <div>Bộ phận: <b>{draft.department || "Phòng Cung ứng"}</b></div>
+            </div>
+          </div>
+          <div style={{ marginTop: "6px" }}>Cùng nhau tiến hành giao nhận và nghiệm thu số lượng vật tư:</div>
+        </div>
+
+        <table className="hb-table" style={{ width: "100%", tableLayout: "fixed", borderCollapse: "collapse", margin: "8px 0" }}>
+          <thead>
+            <tr>
+              <th style={{ width: "36px", border: "1px solid #000", padding: "4px", textAlign: "center", fontSize: "13px" }}>STT</th>
+              <th style={{ border: "1px solid #000", padding: "4px", textAlign: "center", fontSize: "13px" }}>Tên hàng hóa - Quy cách</th>
+              <th style={{ width: "62px", border: "1px solid #000", padding: "4px", textAlign: "center", fontSize: "13px" }}>ĐVT</th>
+              <th style={{ width: "85px", border: "1px solid #000", padding: "4px", textAlign: "center", fontSize: "13px" }}>
+                SL theo<br />chứng từ
+              </th>
+              <th style={{ width: "80px", border: "1px solid #000", padding: "4px", textAlign: "center", fontSize: "13px" }}>
+                SL kiểm tra<br />Đạt
+              </th>
+              <th style={{ width: "80px", border: "1px solid #000", padding: "4px", textAlign: "center", fontSize: "13px" }}>
+                SL kiểm tra<br />K.Đạt
+              </th>
+              <th style={{ width: "98px", border: "1px solid #000", padding: "4px", textAlign: "center", fontSize: "13px" }}>Ghi chú</th>
+            </tr>
+          </thead>
+          <tbody>
+            {draft.items.map((it, idx) => (
+              <tr key={it.id || idx}>
+                <td style={{ border: "1px solid #000", textAlign: "center", padding: "4px", fontSize: "13px" }}>{idx + 1}</td>
+                <td style={{ border: "1px solid #000", padding: "4px 6px", fontSize: "13px", wordBreak: "break-word" }}>{it.item_name || ""}</td>
+                <td style={{ border: "1px solid #000", textAlign: "center", padding: "4px", fontSize: "13px" }}>{it.unit || ""}</td>
+                <td style={{ border: "1px solid #000", textAlign: "center", padding: "4px", fontSize: "13px", fontWeight: 700 }}>{it.quantity_doc || 0}</td>
+                <td style={{ border: "1px solid #000", textAlign: "center", padding: "4px", fontSize: "13px", fontWeight: 700, color: "#16a34a" }}>{it.quantity_pass || 0}</td>
+                <td style={{ border: "1px solid #000", textAlign: "center", padding: "4px", fontSize: "13px", fontWeight: 700, color: Number(it.quantity_fail) > 0 ? "#dc2626" : undefined }}>{it.quantity_fail || 0}</td>
+                <td style={{ border: "1px solid #000", padding: "4px 6px", fontSize: "13px" }}>{it.note || ""}</td>
+              </tr>
+            ))}
+          </tbody>
+          <tfoot>
+            <tr style={{ fontWeight: 700, background: "#fafafa" }}>
+              <td colSpan={2} style={{ border: "1px solid #000", textAlign: "center", padding: "4px" }}>
+                TỔNG CỘNG ({draft.items.length} mặt hàng)
+              </td>
+              <td style={{ border: "1px solid #000", textAlign: "center", padding: "4px" }}>-</td>
+              <td style={{ border: "1px solid #000", textAlign: "center", padding: "4px", fontWeight: 800 }}>{totalDocQty}</td>
+              <td style={{ border: "1px solid #000", textAlign: "center", padding: "4px", fontWeight: 800, color: "#16a34a" }}>{totalPassQty}</td>
+              <td style={{ border: "1px solid #000", textAlign: "center", padding: "4px", fontWeight: 800, color: totalFailQty > 0 ? "#dc2626" : undefined }}>{totalFailQty}</td>
+              <td style={{ border: "1px solid #000" }}></td>
+            </tr>
+          </tfoot>
+        </table>
+
+        <div className="hb-footer" style={{ marginTop: "12px", fontSize: "13.5px" }}>
+          <div><b>Kết luận:</b></div>
+          <div style={{ marginTop: "2px" }}>
+            {draft.conclusionText || "Biên bản này được lập thành 02 bản có giá trị pháp lý như nhau, 01 bản giao cho người giao hàng; 01 bản giao cho người nhận hàng."}
+          </div>
+
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "24px", marginTop: "20px", textAlign: "center" }}>
+            <div>
+              <b>Người giao hàng</b><br />
+              <i>(Ký, ghi rõ họ tên)</i>
+              <div style={{ height: "65px" }} />
+              <b>{draft.senderName || ""}</b>
+            </div>
+            <div>
+              <b>Người nhận hàng</b><br />
+              <i>(Ký, ghi rõ họ tên)</i>
+              <div style={{ height: "65px" }} />
+              <b>{draft.receiverName || ""}</b>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const renderImportDocModal = () => {
+    if (!showWorkspaceImportModal) return null;
+
+    const availablePos = (pos || []).filter((p) => p.items && p.items.length > 0);
+    const availablePrs = (prs || []).filter((p) => p.items && p.items.length > 0);
+
+    const filteredPos = availablePos.filter((p) => {
+      if (!importSearchText) return true;
+      const q = importSearchText.toLowerCase();
+      return (
+        p.number.toLowerCase().includes(q) ||
+        (p.supplierName && p.supplierName.toLowerCase().includes(q)) ||
+        (p.department && p.department.toLowerCase().includes(q))
+      );
+    });
+
+    const filteredPrs = availablePrs.filter((p) => {
+      if (!importSearchText) return true;
+      const q = importSearchText.toLowerCase();
+      return (
+        p.number.toLowerCase().includes(q) ||
+        (p.department && p.department.toLowerCase().includes(q)) ||
+        (p.purpose && p.purpose.toLowerCase().includes(q))
+      );
+    });
 
     return (
       <div
         className="payment-modal-overlay"
         style={{ zIndex: 100000 }}
         onClick={() => {
-          setShowImportPoModal(false);
+          setShowWorkspaceImportModal(false);
           setSelectedPoForImport(null);
           setSelectedPoItemIds(new Set());
+          setSelectedPrForImport(null);
+          setSelectedPrItemIds(new Set());
+          setImportSearchText("");
         }}
       >
         <div
           className="payment-modal-card"
-          style={{ maxWidth: "860px", width: "95vw", maxHeight: "90vh", display: "flex", flexDirection: "column" }}
+          style={{ maxWidth: "880px", width: "95vw", maxHeight: "90vh", display: "flex", flexDirection: "column" }}
           onClick={(e) => e.stopPropagation()}
         >
           <div className="payment-modal-header">
             <div>
-              <h3 style={{ margin: 0, fontSize: "16px" }}>⚡ Lấy vật tư từ Đơn mua hàng (PO) hoặc Hợp đồng</h3>
-              <small>Chọn một đơn hàng và tích chọn các mặt hàng cần đưa vào Biên bản bàn giao</small>
+              <h3 style={{ margin: 0, fontSize: "16px" }}>⚡ Lấy hàng hóa từ PR hoặc PO nguồn</h3>
+              <small>Chọn Đơn mua hàng (PO) hoặc Yêu cầu mua sắm (PR) để lấy vật tư đưa vào Biên bản bàn giao</small>
             </div>
             <button
               type="button"
               className="payment-modal-close"
               onClick={() => {
-                setShowImportPoModal(false);
+                setShowWorkspaceImportModal(false);
                 setSelectedPoForImport(null);
                 setSelectedPoItemIds(new Set());
+                setSelectedPrForImport(null);
+                setSelectedPrItemIds(new Set());
+                setImportSearchText("");
               }}
             >
               ✕
             </button>
           </div>
 
+          {/* Tab chọn nguồn: PO vs PR */}
+          <div style={{ display: "flex", borderBottom: "1px solid #e2e8f0", background: "#f8fafc", padding: "8px 16px 0", gap: "8px" }}>
+            <button
+              type="button"
+              style={{
+                padding: "8px 16px",
+                fontSize: "13px",
+                fontWeight: 700,
+                border: "none",
+                background: "transparent",
+                borderBottom: importDocTab === "PO" ? "3px solid #0284c7" : "3px solid transparent",
+                color: importDocTab === "PO" ? "#0284c7" : "#64748b",
+                cursor: "pointer",
+              }}
+              onClick={() => setImportDocTab("PO")}
+            >
+              🛒 Đơn mua hàng / Hợp đồng ({availablePos.length})
+            </button>
+            <button
+              type="button"
+              style={{
+                padding: "8px 16px",
+                fontSize: "13px",
+                fontWeight: 700,
+                border: "none",
+                background: "transparent",
+                borderBottom: importDocTab === "PR" ? "3px solid #059669" : "3px solid transparent",
+                color: importDocTab === "PR" ? "#059669" : "#64748b",
+                cursor: "pointer",
+              }}
+              onClick={() => setImportDocTab("PR")}
+            >
+              📋 Yêu cầu mua sắm PR ({availablePrs.length})
+            </button>
+          </div>
+
           <div style={{ padding: "16px", overflowY: "auto", flex: 1, display: "flex", flexDirection: "column", gap: "12px" }}>
+            {/* Thanh tìm kiếm nhanh */}
             <div>
-              <label style={{ fontSize: "12px", fontWeight: 700, color: "#334155", display: "block", marginBottom: "4px" }}>
-                1. Chọn Đơn hàng PO / Hợp đồng nguồn:
-              </label>
-              <select
-                className="handover-sidebar-select"
-                value={selectedPoForImport?.id || ""}
-                onChange={(e) => {
-                  const foundPo = pos.find((p) => String(p.id) === e.target.value);
-                  setSelectedPoForImport(foundPo || null);
-                  if (foundPo && foundPo.items) {
-                    setSelectedPoItemIds(new Set(foundPo.items.map((_, i) => i)));
-                  } else {
-                    setSelectedPoItemIds(new Set());
-                  }
-                }}
-              >
-                <option value="">-- Bấm để chọn PO / Hợp đồng ({availablePos.length} đơn hàng) --</option>
-                {availablePos.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {isContractPO(p) ? "Hợp đồng" : "PO"} #{p.number} · {p.supplierName || "Chưa có NCC"} ({p.items?.length || 0} mục) · {p.department || ""}
-                  </option>
-                ))}
-              </select>
+              <input
+                type="text"
+                className="handover-sidebar-input"
+                style={{ width: "100%", padding: "7px 10px", fontSize: "13px" }}
+                value={importSearchText}
+                onChange={(e) => setImportSearchText(e.target.value)}
+                placeholder={importDocTab === "PO" ? "🔍 Tìm nhanh theo số PO, Nhà cung cấp, phòng ban..." : "🔍 Tìm nhanh theo số PR, bộ phận, mục đích..."}
+              />
             </div>
 
-            {selectedPoForImport && selectedPoForImport.items && (
-              <div>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "6px" }}>
-                  <label style={{ fontSize: "12px", fontWeight: 700, color: "#334155" }}>
-                    2. Chọn các mặt hàng cần nhập ({selectedPoItemIds.size}/{selectedPoForImport.items.length}):
+            {/* TAB PO */}
+            {importDocTab === "PO" && (
+              <>
+                <div>
+                  <label style={{ fontSize: "12px", fontWeight: 700, color: "#334155", display: "block", marginBottom: "4px" }}>
+                    1. Chọn Đơn mua hàng PO / Hợp đồng:
                   </label>
-                  <button
-                    type="button"
-                    style={{ fontSize: "11px", color: "#0284c7", background: "transparent", border: "none", cursor: "pointer", fontWeight: 700 }}
-                    onClick={() => {
-                      if (selectedPoItemIds.size === selectedPoForImport.items.length) {
-                        setSelectedPoItemIds(new Set());
+                  <select
+                    className="handover-sidebar-select"
+                    value={selectedPoForImport?.id || ""}
+                    onChange={(e) => {
+                      const foundPo = availablePos.find((p) => String(p.id) === e.target.value);
+                      setSelectedPoForImport(foundPo || null);
+                      if (foundPo && foundPo.items) {
+                        setSelectedPoItemIds(new Set(foundPo.items.map((_, i) => i)));
                       } else {
-                        setSelectedPoItemIds(new Set(selectedPoForImport.items.map((_, i) => i)));
+                        setSelectedPoItemIds(new Set());
                       }
                     }}
                   >
-                    {selectedPoItemIds.size === selectedPoForImport.items.length ? "Bỏ chọn tất cả" : "Chọn tất cả"}
-                  </button>
+                    <option value="">-- Bấm để chọn Đơn hàng PO / Hợp đồng ({filteredPos.length} kết quả) --</option>
+                    {filteredPos.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {isContractPO(p) ? "Hợp đồng" : "PO"} #{p.number} · {p.supplierName || "Chưa có NCC"} ({p.items?.length || 0} mục) · {p.department || ""}
+                      </option>
+                    ))}
+                  </select>
                 </div>
 
-                <div style={{ border: "1px solid #cbd5e1", borderRadius: "8px", overflow: "hidden" }}>
-                  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12px" }}>
-                    <thead>
-                      <tr style={{ background: "#f8fafc", borderBottom: "1px solid #cbd5e1", textAlign: "left" }}>
-                        <th style={{ width: "36px", padding: "6px", textAlign: "center" }}>
-                          <input
-                            type="checkbox"
-                            checked={selectedPoItemIds.size === selectedPoForImport.items.length && selectedPoForImport.items.length > 0}
-                            onChange={(e) => {
-                              if (e.target.checked) {
-                                setSelectedPoItemIds(new Set(selectedPoForImport.items.map((_, i) => i)));
-                              } else {
-                                setSelectedPoItemIds(new Set());
-                              }
-                            }}
-                          />
-                        </th>
-                        <th style={{ padding: "6px" }}>Tên hàng hóa / vật tư</th>
-                        <th style={{ width: "60px", padding: "6px", textAlign: "center" }}>ĐVT</th>
-                        <th style={{ width: "80px", padding: "6px", textAlign: "right" }}>SL Đặt</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {selectedPoForImport.items.map((it, idx) => {
-                        const isChecked = selectedPoItemIds.has(idx);
-                        return (
-                          <tr key={idx} style={{ background: isChecked ? "#eff6ff" : undefined, borderBottom: "1px solid #e2e8f0" }}>
-                            <td style={{ textAlign: "center", padding: "6px" }}>
+                {selectedPoForImport && selectedPoForImport.items && (
+                  <div>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "6px" }}>
+                      <label style={{ fontSize: "12px", fontWeight: 700, color: "#334155" }}>
+                        2. Chọn các mặt hàng cần nhập ({selectedPoItemIds.size}/{selectedPoForImport.items.length}):
+                      </label>
+                      <button
+                        type="button"
+                        style={{ fontSize: "11px", color: "#0284c7", background: "transparent", border: "none", cursor: "pointer", fontWeight: 700 }}
+                        onClick={() => {
+                          if (selectedPoItemIds.size === selectedPoForImport.items.length) {
+                            setSelectedPoItemIds(new Set());
+                          } else {
+                            setSelectedPoItemIds(new Set(selectedPoForImport.items.map((_, i) => i)));
+                          }
+                        }}
+                      >
+                        {selectedPoItemIds.size === selectedPoForImport.items.length ? "Bỏ chọn tất cả" : "Chọn tất cả"}
+                      </button>
+                    </div>
+
+                    <div style={{ border: "1px solid #cbd5e1", borderRadius: "8px", overflow: "hidden" }}>
+                      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12px" }}>
+                        <thead>
+                          <tr style={{ background: "#f8fafc", borderBottom: "1px solid #cbd5e1", textAlign: "left" }}>
+                            <th style={{ width: "36px", padding: "6px", textAlign: "center" }}>
                               <input
                                 type="checkbox"
-                                checked={isChecked}
+                                checked={selectedPoItemIds.size === selectedPoForImport.items.length && selectedPoForImport.items.length > 0}
                                 onChange={(e) => {
-                                  const next = new Set(selectedPoItemIds);
-                                  if (e.target.checked) next.add(idx);
-                                  else next.delete(idx);
-                                  setSelectedPoItemIds(next);
+                                  if (e.target.checked) {
+                                    setSelectedPoItemIds(new Set(selectedPoForImport.items.map((_, i) => i)));
+                                  } else {
+                                    setSelectedPoItemIds(new Set());
+                                  }
                                 }}
                               />
-                            </td>
-                            <td style={{ padding: "6px", fontWeight: 600 }}>{it.name || (it as any).item_name || ""}</td>
-                            <td style={{ textAlign: "center", padding: "6px" }}>{it.unit || "Cái"}</td>
-                            <td style={{ textAlign: "right", padding: "6px", fontWeight: 700 }}>{it.quantity || 1}</td>
+                            </th>
+                            <th style={{ padding: "6px" }}>Tên hàng hóa / vật tư</th>
+                            <th style={{ width: "60px", padding: "6px", textAlign: "center" }}>ĐVT</th>
+                            <th style={{ width: "80px", padding: "6px", textAlign: "right" }}>SL Đặt</th>
                           </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
+                        </thead>
+                        <tbody>
+                          {selectedPoForImport.items.map((it, idx) => {
+                            const isChecked = selectedPoItemIds.has(idx);
+                            return (
+                              <tr key={idx} style={{ background: isChecked ? "#eff6ff" : undefined, borderBottom: "1px solid #e2e8f0" }}>
+                                <td style={{ textAlign: "center", padding: "6px" }}>
+                                  <input
+                                    type="checkbox"
+                                    checked={isChecked}
+                                    onChange={(e) => {
+                                      const next = new Set(selectedPoItemIds);
+                                      if (e.target.checked) next.add(idx);
+                                      else next.delete(idx);
+                                      setSelectedPoItemIds(next);
+                                    }}
+                                  />
+                                </td>
+                                <td style={{ padding: "6px", fontWeight: 600 }}>{it.name || (it as any).item_name || ""}</td>
+                                <td style={{ textAlign: "center", padding: "6px" }}>{it.unit || "Cái"}</td>
+                                <td style={{ textAlign: "right", padding: "6px", fontWeight: 700 }}>{it.quantity || 1}</td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+
+            {/* TAB PR */}
+            {importDocTab === "PR" && (
+              <>
+                <div>
+                  <label style={{ fontSize: "12px", fontWeight: 700, color: "#334155", display: "block", marginBottom: "4px" }}>
+                    1. Chọn Yêu cầu mua sắm PR:
+                  </label>
+                  <select
+                    className="handover-sidebar-select"
+                    value={selectedPrForImport?.id || ""}
+                    onChange={(e) => {
+                      const foundPr = availablePrs.find((p) => String(p.id) === e.target.value);
+                      setSelectedPrForImport(foundPr || null);
+                      if (foundPr && foundPr.items) {
+                        setSelectedPrItemIds(new Set(foundPr.items.map((_, i) => i)));
+                      } else {
+                        setSelectedPrItemIds(new Set());
+                      }
+                    }}
+                  >
+                    <option value="">-- Bấm để chọn Yêu cầu mua sắm PR ({filteredPrs.length} kết quả) --</option>
+                    {filteredPrs.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        PR #{p.number} · {p.department} ({p.items?.length || 0} mục) · {p.purpose ? p.purpose.slice(0, 45) : ""}
+                      </option>
+                    ))}
+                  </select>
                 </div>
-              </div>
+
+                {selectedPrForImport && selectedPrForImport.items && (
+                  <div>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "6px" }}>
+                      <label style={{ fontSize: "12px", fontWeight: 700, color: "#334155" }}>
+                        2. Chọn các mặt hàng cần nhập ({selectedPrItemIds.size}/{selectedPrForImport.items.length}):
+                      </label>
+                      <button
+                        type="button"
+                        style={{ fontSize: "11px", color: "#059669", background: "transparent", border: "none", cursor: "pointer", fontWeight: 700 }}
+                        onClick={() => {
+                          if (selectedPrItemIds.size === selectedPrForImport.items.length) {
+                            setSelectedPrItemIds(new Set());
+                          } else {
+                            setSelectedPrItemIds(new Set(selectedPrForImport.items.map((_, i) => i)));
+                          }
+                        }}
+                      >
+                        {selectedPrItemIds.size === selectedPrForImport.items.length ? "Bỏ chọn tất cả" : "Chọn tất cả"}
+                      </button>
+                    </div>
+
+                    <div style={{ border: "1px solid #cbd5e1", borderRadius: "8px", overflow: "hidden" }}>
+                      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12px" }}>
+                        <thead>
+                          <tr style={{ background: "#f8fafc", borderBottom: "1px solid #cbd5e1", textAlign: "left" }}>
+                            <th style={{ width: "36px", padding: "6px", textAlign: "center" }}>
+                              <input
+                                type="checkbox"
+                                checked={selectedPrItemIds.size === selectedPrForImport.items.length && selectedPrForImport.items.length > 0}
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    setSelectedPrItemIds(new Set(selectedPrForImport.items.map((_, i) => i)));
+                                  } else {
+                                    setSelectedPrItemIds(new Set());
+                                  }
+                                }}
+                              />
+                            </th>
+                            <th style={{ padding: "6px" }}>Tên hàng hóa / vật tư</th>
+                            <th style={{ width: "60px", padding: "6px", textAlign: "center" }}>ĐVT</th>
+                            <th style={{ width: "80px", padding: "6px", textAlign: "right" }}>SL Yêu cầu</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {selectedPrForImport.items.map((it, idx) => {
+                            const isChecked = selectedPrItemIds.has(idx);
+                            return (
+                              <tr key={idx} style={{ background: isChecked ? "#ecfdf5" : undefined, borderBottom: "1px solid #e2e8f0" }}>
+                                <td style={{ textAlign: "center", padding: "6px" }}>
+                                  <input
+                                    type="checkbox"
+                                    checked={isChecked}
+                                    onChange={(e) => {
+                                      const next = new Set(selectedPrItemIds);
+                                      if (e.target.checked) next.add(idx);
+                                      else next.delete(idx);
+                                      setSelectedPrItemIds(next);
+                                    }}
+                                  />
+                                </td>
+                                <td style={{ padding: "6px", fontWeight: 600 }}>{it.name || (it as any).item_name || ""}</td>
+                                <td style={{ textAlign: "center", padding: "6px" }}>{it.unit || "Cái"}</td>
+                                <td style={{ textAlign: "right", padding: "6px", fontWeight: 700 }}>{it.quantity || 1}</td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+              </>
             )}
           </div>
 
@@ -1591,9 +1941,12 @@ export function HandoverManagement({
               type="button"
               className="btn btn-secondary"
               onClick={() => {
-                setShowImportPoModal(false);
+                setShowWorkspaceImportModal(false);
                 setSelectedPoForImport(null);
                 setSelectedPoItemIds(new Set());
+                setSelectedPrForImport(null);
+                setSelectedPrItemIds(new Set());
+                setImportSearchText("");
               }}
             >
               Hủy
@@ -1601,49 +1954,90 @@ export function HandoverManagement({
             <button
               type="button"
               className="btn btn-primary"
-              disabled={!selectedPoForImport || selectedPoItemIds.size === 0}
+              disabled={
+                importDocTab === "PO"
+                  ? !selectedPoForImport || selectedPoItemIds.size === 0
+                  : !selectedPrForImport || selectedPrItemIds.size === 0
+              }
               onClick={() => {
-                if (!selectedPoForImport || selectedPoItemIds.size === 0) return;
-                const po = selectedPoForImport;
                 const itemsToAdd: PaymentHandoverItem[] = [];
-                selectedPoItemIds.forEach((idx) => {
-                  const it = po.items[idx];
-                  if (!it) return;
-                  itemsToAdd.push({
-                    id: Date.now() + Math.floor(Math.random() * 1000) + itemsToAdd.length,
-                    department: localHandoverDraft?.department || po.department || "Phòng Cung ứng",
-                    item_name: it.name || (it as any).item_name || "",
-                    unit: it.unit || "Cái",
-                    quantity_doc: it.quantity || 1,
-                    quantity_pass: it.quantity || 1,
-                    quantity_fail: 0,
-                    note: it.note || "",
-                    handover_date: localHandoverDraft?.handoverDate || localToday(),
-                    sender_name: localHandoverDraft?.senderName || "Trần Hải Hà",
-                    sender_dept: po.supplierName || localHandoverDraft?.senderDept,
-                    receiver_name: localHandoverDraft?.receiverName || "",
-                    source_type: isContractPO(po) ? "Hợp đồng" : "PO",
-                    source_number: po.number || "",
-                    batch_number: localHandoverDraft?.batchNumber || 1,
+
+                if (importDocTab === "PO" && selectedPoForImport) {
+                  const po = selectedPoForImport;
+                  selectedPoItemIds.forEach((idx) => {
+                    const it = po.items[idx];
+                    if (!it) return;
+                    itemsToAdd.push({
+                      id: Date.now() + Math.floor(Math.random() * 1000) + itemsToAdd.length,
+                      department: localHandoverDraft?.department || po.department || "Phòng Cung ứng",
+                      item_name: it.name || (it as any).item_name || "",
+                      unit: it.unit || "Cái",
+                      quantity_doc: it.quantity || 1,
+                      quantity_pass: it.quantity || 1,
+                      quantity_fail: 0,
+                      note: it.note || "",
+                      handover_date: localHandoverDraft?.handoverDate || localToday(),
+                      sender_name: localHandoverDraft?.senderName || "Trần Hải Hà",
+                      sender_dept: po.supplierName || localHandoverDraft?.senderDept,
+                      receiver_name: localHandoverDraft?.receiverName || "",
+                      source_type: isContractPO(po) ? "Hợp đồng" : "PO",
+                      source_number: po.number || "",
+                      batch_number: localHandoverDraft?.batchNumber || 1,
+                    });
                   });
-                });
 
-                updateHandoverDraft((prev) => ({
-                  ...prev,
-                  sourceType: isContractPO(po) ? "Hợp đồng" : "PO",
-                  sourceNumber: po.number || prev.sourceNumber,
-                  department: prev.department && prev.department !== "Phòng Cung ứng" ? prev.department : (po.department || prev.department),
-                  senderDept: po.supplierName || prev.senderDept,
-                  items: [...prev.items.filter((it) => it.item_name.trim() !== ""), ...itemsToAdd],
-                }));
+                  updateHandoverDraft((prev) => ({
+                    ...prev,
+                    sourceType: isContractPO(po) ? "Hợp đồng" : "PO",
+                    sourceNumber: po.number || prev.sourceNumber,
+                    department: prev.department && prev.department !== "Phòng Cung ứng" ? prev.department : (po.department || prev.department),
+                    senderDept: po.supplierName || prev.senderDept,
+                    items: [...prev.items.filter((it) => it.item_name.trim() !== ""), ...itemsToAdd],
+                  }));
+                  showToast(`✓ Đã nhập ${itemsToAdd.length} mặt hàng từ PO #${po.number}!`);
+                } else if (importDocTab === "PR" && selectedPrForImport) {
+                  const pr = selectedPrForImport;
+                  selectedPrItemIds.forEach((idx) => {
+                    const it = pr.items[idx];
+                    if (!it) return;
+                    itemsToAdd.push({
+                      id: Date.now() + Math.floor(Math.random() * 1000) + itemsToAdd.length,
+                      department: localHandoverDraft?.department || pr.department || "Phòng Cung ứng",
+                      item_name: it.name || (it as any).item_name || "",
+                      unit: it.unit || "Cái",
+                      quantity_doc: it.quantity || 1,
+                      quantity_pass: it.quantity || 1,
+                      quantity_fail: 0,
+                      note: (it as any).note || "",
+                      handover_date: localHandoverDraft?.handoverDate || localToday(),
+                      sender_name: localHandoverDraft?.senderName || "Trần Hải Hà",
+                      sender_dept: localHandoverDraft?.senderDept || "Phòng Cung ứng",
+                      receiver_name: localHandoverDraft?.receiverName || "",
+                      source_type: "PR",
+                      source_number: pr.number || "",
+                      batch_number: localHandoverDraft?.batchNumber || 1,
+                    });
+                  });
 
-                setShowImportPoModal(false);
+                  updateHandoverDraft((prev) => ({
+                    ...prev,
+                    sourceType: "PR",
+                    sourceNumber: pr.number || prev.sourceNumber,
+                    department: prev.department && prev.department !== "Phòng Cung ứng" ? prev.department : (pr.department || prev.department),
+                    items: [...prev.items.filter((it) => it.item_name.trim() !== ""), ...itemsToAdd],
+                  }));
+                  showToast(`✓ Đã nhập ${itemsToAdd.length} mặt hàng từ PR #${pr.number}!`);
+                }
+
+                setShowWorkspaceImportModal(false);
                 setSelectedPoForImport(null);
                 setSelectedPoItemIds(new Set());
-                showToast(`✓ Đã nhập ${itemsToAdd.length} mặt hàng từ PO #${po.number}!`);
+                setSelectedPrForImport(null);
+                setSelectedPrItemIds(new Set());
+                setImportSearchText("");
               }}
             >
-              ⚡ Nhập vào Biên bản bàn giao ({selectedPoItemIds.size})
+              ⚡ Nhập vào Biên bản bàn giao ({importDocTab === "PO" ? selectedPoItemIds.size : selectedPrItemIds.size})
             </button>
           </div>
         </div>
@@ -1651,9 +2045,6 @@ export function HandoverManagement({
     );
   };
 
-  // =========================================================================
-  // BẢN IN A4 WYSIWYG TRỰC QUAN CHO BIÊN BẢN BÀN GIAO & NGHIỆM THU
-  // =========================================================================
   const renderWYSIWYGHandoverWorkspace = () => {
     const draft = localHandoverDraft;
     if (!draft) return null;
@@ -1667,31 +2058,28 @@ export function HandoverManagement({
 
     return (
       <div className="handover-a4-workspace-wrapper">
-        {/* Top Control Header Bar */}
+        {/* Topbar điều hướng và trạng thái */}
         <div className="handover-workspace-topbar no-print">
           <div className="handover-topbar-left">
             <button
               type="button"
               className="btn-handover-back-list"
               onClick={handleBackToList}
-              title="Quay lại danh sách Đợt bàn giao"
+              title="Quay lại danh sách các đợt bàn giao"
             >
-              <span>←</span>
-              <span>Danh sách BB bàn giao</span>
+              ← Danh sách BB bàn giao
             </button>
             <div className="handover-topbar-title-block">
-              <h2>
-                <span>📦 BIÊN BẢN BÀN GIAO & NGHIỆM THU</span>
-                <span className="handover-topbar-badge">Đợt {draft.batchNumber || 1}</span>
-                {draft.sourceNumber && (
-                  <span style={{ fontSize: "12px", background: "#f1f5f9", color: "#334155", padding: "2px 8px", borderRadius: "6px", fontWeight: 700 }}>
-                    {draft.sourceType || "PO"} #{draft.sourceNumber}
-                  </span>
-                )}
-              </h2>
-              <div className="handover-topbar-sub">
-                Đơn vị nhận: <b>{draft.department || "Chưa chọn bộ phận"}</b> · Ngày: {draft.handoverDate || "Hôm nay"} · Tổng số: <b>{draft.items.length}</b> mặt hàng
-              </div>
+              <span className="handover-topbar-icon">📦</span>
+              <span className="handover-topbar-main-title">BIÊN BẢN BÀN GIAO & NGHIỆM THU</span>
+              <span className="handover-topbar-badge">Đợt {draft.batchNumber || 1}</span>
+            </div>
+            <div className="handover-topbar-meta">
+              <span>Đơn vị nhận: <b>{draft.department || "Chưa chọn"}</b></span>
+              <span>·</span>
+              <span>Ngày: <b>{draft.handoverDate || localToday()}</b></span>
+              <span>·</span>
+              <span>Tổng số: <b>{draft.items.length} mặt hàng</b></span>
             </div>
           </div>
 
@@ -1699,13 +2087,11 @@ export function HandoverManagement({
             <button
               type="button"
               className="btn-handover-topbar-print"
-              onClick={() => {
-                handlePrintHandoverDirect(draft.items);
-              }}
+              onClick={handlePrintWorkspaceHandover}
               title="In biên bản bàn giao chuẩn khổ giấy A4 (2 liên)"
             >
               <Printer size={15} />
-              <span>In biên bản ngay</span>
+              <span>In biên bản ngay (2 liên)</span>
             </button>
 
             <button
@@ -1720,53 +2106,27 @@ export function HandoverManagement({
           </div>
         </div>
 
-        {/* Unsaved changes alert banner */}
+        {/* Thanh cảnh báo màu cam khi có thay đổi chưa lưu */}
         {hasUnsavedChanges && (
           <div className="handover-unsaved-alert-banner no-print">
-            <div style={{ display: "flex", alignItems: "center", gap: "8px", color: "#c2410c", fontWeight: 700, fontSize: "13px" }}>
-              <span style={{ fontSize: "16px" }}>⚠️</span>
+            <div className="handover-alert-text">
+              <span className="alert-icon">⚠️</span>
               <span>Biên bản này đang có thay đổi chưa lưu. Dữ liệu chưa ghi vào cơ sở dữ liệu cho đến khi bạn bấm "Lưu biên bản ngay".</span>
             </div>
             <button
               type="button"
+              className="btn-quick-save"
               onClick={handleExplicitSaveHandover}
-              style={{
-                background: "#ea580c",
-                color: "#ffffff",
-                border: "none",
-                borderRadius: "6px",
-                padding: "6px 14px",
-                fontSize: "12.5px",
-                fontWeight: 800,
-                cursor: "pointer",
-              }}
+              title="Lưu ngay lập tức"
             >
               💾 Lưu ngay (Ctrl + S)
             </button>
           </div>
         )}
 
-        {/* Floating Toast Notification */}
+        {/* Toast thông báo nhanh */}
         {workspaceToast && (
-          <div
-            style={{
-              position: "fixed",
-              bottom: "24px",
-              right: "24px",
-              background: "#0f172a",
-              color: "#ffffff",
-              padding: "10px 18px",
-              borderRadius: "8px",
-              boxShadow: "0 10px 25px rgba(0,0,0,0.3)",
-              zIndex: 999999,
-              fontSize: "13px",
-              fontWeight: 700,
-              display: "flex",
-              alignItems: "center",
-              gap: "8px",
-            }}
-          >
-            <span>✨</span>
+          <div className="handover-workspace-toast no-print">
             <span>{workspaceToast}</span>
           </div>
         )}
@@ -1774,54 +2134,32 @@ export function HandoverManagement({
         {/* Centering Flex container: Left A4 Sheet + Right Sticky Sidebar Toolbox */}
         <div className="handover-workspace-inner">
           {/* TỜ GIẤY A4 BIÊN BẢN BÀN GIAO */}
-          <div
-            className={`handover-paper-canvas paper ${
-              printOrientation === "landscape" ? "a4-landscape" : "a4-portrait"
-            }`}
-          >
+          <div className="handover-paper-canvas paper a4-portrait">
             {/* Header Box (Logo + Tiêu đề biểu mẫu) */}
             <table className="hb-box" style={{ width: "100%", tableLayout: "fixed" }}>
               <tbody>
                 <tr>
-                  <td className="hb-box-left" style={{ width: "35%", verticalAlign: "middle" }}>
+                  <td className="hb-box-left" style={{ width: "35%", verticalAlign: "middle", textAlign: "center", padding: "12px 10px" }}>
                     <div className="hb-logo">
                       <img
                         src={PHENIKAA_LOGO_SRC}
                         alt="PHENIKAA PHARMA"
                         style={{
-                          height: "40px",
-                          width: "170px",
+                          height: "46px",
+                          maxWidth: "180px",
                           objectFit: "contain",
                           display: "block",
                           margin: "0 auto",
                         }}
                       />
                     </div>
-                    <div className="hb-sender-dept" style={{ marginTop: "6px" }}>
-                      Bộ phận:{" "}
-                      <input
-                        type="text"
-                        list="deptSuggestions"
-                        className="sheet-inline-input bold-input"
-                        value={draft.department || ""}
-                        onChange={(e) => updateHandoverDraft((prev) => ({ ...prev, department: e.target.value }))}
-                        placeholder="Bộ phận tiếp nhận..."
-                        style={{ width: "160px", display: "inline-block" }}
-                      />
-                    </div>
                   </td>
-                  <td className="hb-box-right" style={{ width: "65%", verticalAlign: "middle" }}>
+                  <td className="hb-box-right" style={{ width: "65%", verticalAlign: "middle", textAlign: "center", padding: "10px" }}>
                     <div className="hb-title-main">
                       BIÊN BẢN BÀN GIAO, NGHIỆM THU VẬT TƯ,
                     </div>
                     <div className="hb-title-main">HÀNG HÓA</div>
                     <div className="hb-title-sub">(Không qua kho)</div>
-                    <div style={{ fontSize: "11px", color: "#475569", marginTop: "4px", fontStyle: "italic" }}>
-                      {draft.sourceNumber
-                        ? `Căn cứ theo ${draft.sourceType || "PO"} số: ${draft.sourceNumber}`
-                        : "Bàn giao vật tư trực tiếp"}
-                      {draft.batchNumber ? ` · Đợt ${draft.batchNumber}` : ""}
-                    </div>
                   </td>
                 </tr>
               </tbody>
@@ -1830,7 +2168,7 @@ export function HandoverManagement({
             {/* Thông tin chung */}
             <div className="hb-info" style={{ marginTop: "12px", lineHeight: "1.5" }}>
               <div className="hb-line">
-                Hôm nay, ngày&nbsp;<b>{dateParts.d}</b>&nbsp;tháng&nbsp;<b>{dateParts.m}</b>&nbsp;năm 20<b>{dateParts.y.slice(-2)}</b>
+                Hôm nay, ngày&nbsp;<b>{dateParts.d}</b>&nbsp;tháng&nbsp;<b>{dateParts.m}</b>&nbsp;năm <b>{dateParts.y}</b>
               </div>
               <div className="hb-line">Tại Công ty CP Dược phẩm Phenikaa</div>
               <div className="hb-line">
@@ -2084,11 +2422,12 @@ export function HandoverManagement({
               <button
                 type="button"
                 className="btn-sidebar-handover-action"
-                onClick={() => setShowImportPoModal(true)}
-                title="Lấy vật tư từ đơn hàng PO hoặc Hợp đồng"
+                style={{ background: "#f0fdf4", borderColor: "#86efac", color: "#166534" }}
+                onClick={() => setShowWorkspaceImportModal(true)}
+                title="Lấy hàng hóa từ Đơn mua hàng (PO) hoặc Yêu cầu mua sắm (PR)"
               >
                 <span>⚡</span>
-                <span>Lấy vật tư từ PO / HĐ</span>
+                <span>Lấy hàng hóa từ PR / PO</span>
               </button>
 
               <button
@@ -2107,6 +2446,31 @@ export function HandoverManagement({
               <div className="handover-sidebar-card-title">
                 <span>🏢</span>
                 <span>Đơn vị & Đợt bàn giao</span>
+              </div>
+
+              <div>
+                <label style={{ fontSize: "11px", fontWeight: 700, color: "#475569", display: "block", marginBottom: "3px" }}>
+                  Căn cứ PR / PO nguồn:
+                </label>
+                <div style={{ display: "flex", gap: "4px" }}>
+                  <input
+                    type="text"
+                    className="handover-sidebar-input"
+                    style={{ flex: 1 }}
+                    value={draft.sourceNumber || ""}
+                    onChange={(e) => updateHandoverDraft((prev) => ({ ...prev, sourceNumber: e.target.value }))}
+                    placeholder="Số PR hoặc PO..."
+                  />
+                  <button
+                    type="button"
+                    className="stitch-action-pill pill-navy"
+                    style={{ padding: "3px 6px", fontSize: "10px", whiteSpace: "nowrap" }}
+                    onClick={() => setShowWorkspaceImportModal(true)}
+                    title="Chọn nhanh từ danh sách PR / PO"
+                  >
+                    ⚡ Chọn
+                  </button>
+                </div>
               </div>
 
               <div>
@@ -2233,31 +2597,33 @@ export function HandoverManagement({
                 <span>Khổ in & In ấn</span>
               </div>
 
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px" }}>
-                <button
-                  type="button"
-                  className={`btn-sidebar-handover-action ${printOrientation === "portrait" ? "btn-primary" : ""}`}
-                  onClick={() => setPrintOrientation("portrait")}
-                  title="Khổ in A4 Dọc (Chuẩn mẫu Phenikaa)"
-                >
-                  📄 A4 Dọc
-                </button>
-                <button
-                  type="button"
-                  className={`btn-sidebar-handover-action ${printOrientation === "landscape" ? "btn-primary" : ""}`}
-                  onClick={() => setPrintOrientation("landscape")}
-                  title="Khổ in A4 Ngang"
-                >
-                  🖼️ A4 Ngang
-                </button>
+              <div
+                style={{
+                  fontSize: "12px",
+                  fontWeight: 600,
+                  color: "#047857",
+                  background: "#ecfdf5",
+                  border: "1px solid #a7f3d0",
+                  borderRadius: "6px",
+                  padding: "6px 8px",
+                  textAlign: "center",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: "6px",
+                  marginBottom: "4px",
+                }}
+              >
+                <span>📄</span>
+                <span>Khổ in: A4 Dọc (Chuẩn 2 liên)</span>
               </div>
 
               <button
                 type="button"
                 className="btn-sidebar-handover-action"
                 style={{ background: "#f0fdfa", borderColor: "#99f6e4", color: "#0f766e" }}
-                onClick={() => handlePrintHandoverDirect(draft.items)}
-                title="In biên bản bàn giao này (2 liên)"
+                onClick={handlePrintWorkspaceHandover}
+                title="In biên bản bàn giao này (2 liên) chuẩn A4"
               >
                 <Printer size={14} />
                 <span>In biên bản ngay (2 liên)</span>
@@ -2288,8 +2654,17 @@ export function HandoverManagement({
           </div>
         </div>
 
-        {/* Modal Lấy vật tư từ PO / Hợp đồng */}
-        {renderImportPoModal()}
+        {/* Modal Lấy vật tư từ PR / PO */}
+        {renderImportDocModal()}
+
+        {/* Cổng in cô lập 2 liên ra document.body */}
+        {typeof document !== "undefined" && createPortal(
+          <div id="paymentPrintPortal">
+            {renderPrintCopy(1)}
+            {renderPrintCopy(2)}
+          </div>,
+          document.body
+        )}
       </div>
     );
   };
@@ -4163,7 +4538,7 @@ export function HandoverManagement({
                                 }}
                               />
                             </div>
-                            <div className="hb-sender-dept">Bộ phận: {dept && dept !== "Phòng Cung ứng" ? dept : "...................................................."}</div>
+                            
                           </td>
                           <td className="hb-box-right">
                             <div className="hb-title-main">

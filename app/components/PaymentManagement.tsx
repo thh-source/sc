@@ -2862,35 +2862,25 @@ export function PaymentManagement({
               <div className="payment-sidebar-card-title">
                 📐 KHỔ IN & IN ẤN
               </div>
-              <div style={{ display: "flex", gap: "4px" }}>
-                <button
-                  type="button"
-                  className={`btn-sidebar-payment-action ${printOrientation === "portrait" ? "btn-save-draft" : ""}`}
-                  style={{
-                    flex: 1,
-                    fontSize: "11px",
-                    padding: "5px 2px",
-                    background: printOrientation === "portrait" ? "#0284c7" : "#f1f5f9",
-                    color: printOrientation === "portrait" ? "#fff" : "#475569",
-                  }}
-                  onClick={() => setPrintOrientation("portrait")}
-                >
-                  📄 A4 Dọc
-                </button>
-                <button
-                  type="button"
-                  className={`btn-sidebar-payment-action ${printOrientation === "landscape" ? "btn-save-draft" : ""}`}
-                  style={{
-                    flex: 1,
-                    fontSize: "11px",
-                    padding: "5px 2px",
-                    background: printOrientation === "landscape" ? "#0284c7" : "#f1f5f9",
-                    color: printOrientation === "landscape" ? "#fff" : "#475569",
-                  }}
-                  onClick={() => setPrintOrientation("landscape")}
-                >
-                  🖼️ A4 Ngang
-                </button>
+              <div
+                style={{
+                  fontSize: "12px",
+                  fontWeight: 600,
+                  color: "#0369a1",
+                  background: "#f0f9ff",
+                  border: "1px solid #bae6fd",
+                  borderRadius: "6px",
+                  padding: "6px 8px",
+                  textAlign: "center",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: "6px",
+                  marginBottom: "4px",
+                }}
+              >
+                <span>📄</span>
+                <span>Khổ in: A4 Dọc (Chuẩn Mẫu 01-TT)</span>
               </div>
               <button
                 type="button"
