@@ -8,6 +8,7 @@ export interface AutoGrowTextareaProps {
   title?: string;
   style?: React.CSSProperties;
   rows?: number;
+  minRows?: number;
   readOnly?: boolean;
   disabled?: boolean;
   onBlur?: React.FocusEventHandler<HTMLTextAreaElement>;

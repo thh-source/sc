@@ -13,6 +13,8 @@ interface PRScanPreviewModalProps {
         customTitle?: string;
         customSubtitle?: string;
         entityType?: string;
+        fileName?: string;
+        isPdf?: boolean;
       };
   onClose: () => void;
 }
@@ -94,8 +96,8 @@ export async function createScanShareUrl(params: {
       entityType: params.entityType || "pr",
     }),
   });
-  const data = await res.json();
-  if (!res.ok || !data.ok) throw new Error(data.error || "Không thể tạo link chia sẻ");
+  const data = (await res.json()) as { ok?: boolean; error?: string; shareUrl?: string };
+  if (!res.ok || !data.ok || !data.shareUrl) throw new Error(data.error || "Không thể tạo link chia sẻ");
   try {
     await navigator.clipboard.writeText(data.shareUrl);
   } catch {}

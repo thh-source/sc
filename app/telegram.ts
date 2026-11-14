@@ -277,15 +277,15 @@ export async function getActiveSubscribers(db: any): Promise<string[]> {
 export async function getMasterAppState(db: any): Promise<any> {
   if (!db) return null;
   try {
-    let row = await db
+    let row = (await db
       .prepare("SELECT payload FROM app_state WHERE id = ?")
       .bind(MASTER_STATE_KEY)
-      .first<{ payload: string }>();
+      .first()) as { payload: string } | null;
 
     if (!row || !row.payload) {
-      row = await db
+      row = (await db
         .prepare("SELECT payload FROM app_state WHERE id = 'procurement'")
-        .first<{ payload: string }>();
+        .first()) as { payload: string } | null;
     }
 
     if (row && row.payload) {
@@ -1109,10 +1109,10 @@ export async function handleTodoDone(
   if (!db) return { text: "Lỗi kết nối CSDL" };
 
   try {
-    const match = await db
+    const match = (await db
       .prepare(`SELECT id, content FROM personal_todos WHERE id LIKE ? AND is_deleted = 0 LIMIT 1`)
       .bind(`${shortId}%`)
-      .first<any>();
+      .first()) as any;
 
     if (!match) {
       if (cbId) await answerCallbackQuery(cbId, "Không tìm thấy công việc này", false, token);
@@ -1338,7 +1338,7 @@ export async function handleCallbackQuery(
       return;
     }
 
-    const pendingRow = await db.prepare("SELECT * FROM telegram_pending_files WHERE id = ?").bind(tempId).first<any>();
+    const pendingRow = (await db.prepare("SELECT * FROM telegram_pending_files WHERE id = ?").bind(tempId).first()) as any;
     if (!pendingRow) {
       if (messageId) await editTelegramMessage(chatId, messageId, "⚠️ Tài liệu này đã được xử lý hoặc hết hạn.", {}, token);
       return;

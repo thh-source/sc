@@ -561,11 +561,11 @@ export function DataVault({
         }
       } else if (entType === "dnpd") {
         const matchedApp = approvalRequests.find(
-          (a) => String(a.id) === String(f.entityId) || a.number === f.entityId
+          (a) => String(a.id) === String(f.entityId) || a.requestNumber === f.entityId || a.prNumber === f.entityId
         );
         if (matchedApp) {
-          docCode = matchedApp.number;
-          displayTitle = `${matchedApp.number} · ${f.fileName}`;
+          docCode = matchedApp.requestNumber || matchedApp.prNumber;
+          displayTitle = `${docCode} · ${f.fileName}`;
           partyOrDept = matchedApp.department || "—";
           resolvedDate = matchedApp.createdDate || f.uploadedAt || "";
           route = { view: "approval", id: matchedApp.id };

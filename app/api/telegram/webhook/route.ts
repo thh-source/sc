@@ -42,7 +42,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const env = await getBindings();
-    const update = await request.json();
+    const update = (await request.json()) as Parameters<typeof processTelegramUpdate>[0];
 
     // Xử lý update bất đồng bộ
     await processTelegramUpdate(update, env);

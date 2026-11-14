@@ -21,11 +21,11 @@ export async function runAutoClean(bucket: any, db?: any) {
     let latestUpdateVersion = "1.1.3";
     if (db) {
       try {
-        const row = await db
+        const row = (await db
           .prepare(
             "SELECT value FROM system_configs WHERE key = 'app_version'"
           )
-          .first<{ value: string }>();
+          .first()) as { value: string } | null;
         if (row?.value) {
           const parsed = JSON.parse(row.value);
           if (parsed.latestVersion) latestUpdateVersion = parsed.latestVersion;

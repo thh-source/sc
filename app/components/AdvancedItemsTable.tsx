@@ -181,7 +181,7 @@ export function AdvancedItemsTable({
   const flatEditableCols = useMemo<CompareColDescriptor[]>(() => {
     const cols: CompareColDescriptor[] = [];
     activeOrder.forEach((col) => {
-      if (col !== "stt" && col !== "amount" && col !== "code") {
+      if ((col as string) !== "stt" && (col as string) !== "amount" && (col as string) !== "code") {
         cols.push({ id: `item:${col}`, kind: "item", key: col });
       }
     });

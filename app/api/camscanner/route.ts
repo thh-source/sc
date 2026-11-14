@@ -502,9 +502,9 @@ export async function POST(request: Request) {
           addDocs(lowRes.docs);
           if (lowRes.docs.length === 50 && midT > minT) {
             const subMods = lowRes.docs
-              .map((x) => Number(x.modify_time) || Number(x.create_time))
+              .map((x: { modify_time?: unknown; create_time?: unknown }) => Number(x.modify_time) || Number(x.create_time))
               .filter(Boolean)
-              .sort((a, b) => a - b);
+              .sort((a: number, b: number) => a - b);
             const subMid =
               subMods.length > 0
                 ? subMods[Math.floor(subMods.length / 2)]

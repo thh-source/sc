@@ -19,7 +19,7 @@ export default function LoginForm() {
       });
     if (response.ok) {
       try {
-        const data = await response.json();
+        const data = (await response.json()) as { user?: unknown; token?: string };
         if (data && data.user) {
           localStorage.setItem("pka_user", JSON.stringify(data.user));
           if (data.token) {

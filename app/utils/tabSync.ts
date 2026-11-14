@@ -107,10 +107,12 @@ function ensureChannel(): void {
   } catch {}
 }
 
+export type DistributiveOmit<T, K extends PropertyKey> = T extends unknown ? Omit<T, K> : never;
+
 /**
  * Gửi thông điệp đồng bộ tới tất cả các tab khác cùng mở workspace này
  */
-export function broadcastTabMessage(message: Omit<TabSyncMessage, "senderTabId" | "timestamp">): void {
+export function broadcastTabMessage(message: DistributiveOmit<TabSyncMessage, "senderTabId" | "timestamp">): void {
   if (typeof window === "undefined") return;
   ensureChannel();
 

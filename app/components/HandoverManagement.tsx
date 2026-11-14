@@ -2615,8 +2615,7 @@ export function HandoverManagement({
                   scanUrl={draft.scanUrl}
                   scanName={draft.scanName}
                   readOnly={readOnly}
-                  onScanUploaded={(url, name) => updateHandoverDraft((prev) => ({ ...prev, scanUrl: url, scanName: name }))}
-                  onScanRemoved={() => updateHandoverDraft((prev) => ({ ...prev, scanUrl: undefined, scanName: undefined }))}
+                  onUpdate={(url, name) => updateHandoverDraft((prev) => ({ ...prev, scanUrl: url, scanName: name }))}
                 />
               </div>
             </div>
@@ -2850,7 +2849,7 @@ export function HandoverManagement({
             <button
               type="button"
               className="btn btn-accent btn-md"
-              onClick={handleCreatePaymentRequestFromSelected}
+              onClick={() => handleCreatePaymentRequestFromSelected()}
               title={
                 checkedHandovers.size > 0
                   ? `Lập Đề nghị thanh toán (ĐNTT) cho ${checkedHandovers.size} vật tư đã chọn`
@@ -2905,7 +2904,7 @@ export function HandoverManagement({
               type="button"
               className="btn btn-accent btn-md"
               
-              onClick={handleCreatePaymentRequestFromSelected}
+              onClick={() => handleCreatePaymentRequestFromSelected()}
               disabled={checkedHandovers.size === 0}
               title="Lập ĐNTT cho các vật tư đã chọn"
             >

@@ -228,7 +228,7 @@ export function NativeApp() {
 
   return (
     <NativeAppErrorBoundary>
-      <ProcurementApp currentUser={user} />
+      <ProcurementApp currentUser={{ ...user, role: (user.role === "master" || user.role === "admin" ? user.role : "user") }} />
     </NativeAppErrorBoundary>
   );
 }

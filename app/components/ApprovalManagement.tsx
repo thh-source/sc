@@ -1899,7 +1899,7 @@ export default function ApprovalManagement({
     updateActive((prev) => {
       if (prev.rows.length <= 1) {
         // Nếu chỉ còn 1 dòng, xóa sạch để người dùng gõ mới chứ không xóa mất bảng
-        const resetRow: ApprovalRequestRow = {
+        const resetRow: ApprovalItemRow = {
           rowId: `row_${Date.now()}_1`,
           stt: 1,
           itemName: "",
@@ -1946,7 +1946,7 @@ export default function ApprovalManagement({
           },
         ];
       });
-      const newRow: ApprovalRequestRow = {
+      const newRow: ApprovalItemRow = {
         rowId,
         stt: targetIndex + 2,
         itemName: "",

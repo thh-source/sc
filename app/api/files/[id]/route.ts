@@ -18,17 +18,17 @@ export async function GET(
     }
 
     // Tìm thông tin file theo ID (UUID duy nhất)
-    const row = await env.DB.prepare(
+    const row = (await env.DB.prepare(
       "SELECT id, object_key, file_name, content_type, size FROM files WHERE id = ?"
     )
       .bind(id)
-      .first<{
+      .first()) as {
         id: string;
         object_key: string;
         file_name: string;
         content_type: string;
         size: number;
-      }>();
+      } | null;
 
     if (!row) {
       return new Response("Không tìm thấy thông tin tài liệu trong hệ thống", { status: 404 });
@@ -82,11 +82,11 @@ export async function DELETE(
   const { id } = await params;
   const bucket = env.R2_BUCKET || env.BUCKET;
 
-  const row = await env.DB.prepare(
+  const row = (await env.DB.prepare(
     "SELECT object_key FROM files WHERE id = ?"
   )
     .bind(id)
-    .first<{ object_key: string }>();
+    .first()) as { object_key: string } | null;
 
   if (!row) return Response.json({ error: "Không tìm thấy file" }, { status: 404 });
 

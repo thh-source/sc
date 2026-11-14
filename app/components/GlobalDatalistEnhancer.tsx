@@ -44,7 +44,7 @@ function migrateInputListAttr(el: Element) {
   }
 }
 
-function migrateAllInputsInSubtree(root: ParentNode) {
+function migrateAllInputsInSubtree(root: Document | HTMLElement) {
   if (root instanceof HTMLInputElement) {
     migrateInputListAttr(root);
   }

@@ -80,8 +80,8 @@ export default function DocumentManager({
           fileSize: file.size,
         }),
       });
-      const data = await res.json();
-      if (!res.ok || !data.ok) throw new Error(data.error || "Không thể tạo link chia sẻ");
+      const data = (await res.json()) as { ok?: boolean; error?: string; shareUrl?: string };
+      if (!res.ok || !data.ok || !data.shareUrl) throw new Error(data.error || "Không thể tạo link chia sẻ");
 
       navigator.clipboard.writeText(data.shareUrl);
       setShareData({

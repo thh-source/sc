@@ -1015,7 +1015,7 @@ export function Dashboard({
         onSelectPR={onSelectPR}
         onSelectPO={onSelectPO}
         onSelectPayment={onSelectPayment}
-        onSelectApproval={onSelectApproval}
+        onSelectApproval={onSelectApproval ? (req) => onSelectApproval(req.id) : undefined}
         onToggleCompletePayment={onToggleCompletePayment}
         todaySpent={paidTodayAmount}
         paidTodayAmount={paidTodayAmount}

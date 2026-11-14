@@ -7,6 +7,7 @@ export type Item = {
   spec: string;
   unit: string;
   qty: number;
+  quantity?: number;
   estimate: number;
 };
 
@@ -80,6 +81,7 @@ export type POAllocation = {
 };
 
 export type PODeliveryLog = {
+  batchId?: string;
   date: string;
   qty: number;
   note?: string;
@@ -94,6 +96,7 @@ export type POItem = Item & {
   price: number;
   vatRate?: number;
   note?: string;
+  department?: string;
   deliveryStatus: "Chưa giao" | "Giao một phần" | "Đã giao";
   deliveredQty: number;
   deliveryDate: string;
@@ -336,6 +339,10 @@ export type PO = {
   contractNumber?: string;
   contractDate?: string;
   department?: string;
+  supplierName?: string;
+  supplier_name?: string;
+  date?: string;
+  deliveryDate?: string;
 };
 
 export type ContractPO = PO & {
@@ -533,6 +540,10 @@ export type PaymentRequestEntry = {
   created_by_name?: string;
   due_date?: string;
   lines?: PaymentDetailLine[];
+  note?: string;
+  po_id?: number;
+  po_number?: string;
+  printOrientation?: "portrait" | "landscape" | string;
 };
 
 export type PaymentGroup = {
@@ -579,6 +590,7 @@ export type PaymentHandoverItem = {
   item_order?: number;
   handover_scan_url?: string;
   handover_scan_name?: string;
+  status?: string;
 };
 
 export type PaymentPrintTemplate = {

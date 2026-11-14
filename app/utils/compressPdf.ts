@@ -50,6 +50,7 @@ export async function compressPdfIfNeeded(
     if (!pdfjsLib.GlobalWorkerOptions.workerSrc) {
       try {
         const workerModule = await import(
+          // @ts-expect-error Vite ?url asset import
           "pdfjs-dist/build/pdf.worker.min.js?url"
         );
         pdfjsLib.GlobalWorkerOptions.workerSrc = workerModule.default;
@@ -147,7 +148,7 @@ export async function compressPdfIfNeeded(
       return file;
     }
 
-    const compressedFile = new File([compressedPdfBytes], file.name, {
+    const compressedFile = new File([compressedPdfBytes as BlobPart], file.name, {
       type: "application/pdf",
       lastModified: Date.now(),
     });

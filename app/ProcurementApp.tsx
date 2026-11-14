@@ -904,7 +904,7 @@ function ProcurementAppInner({
             headers: { "Cache-Control": "no-cache" },
           });
           if (res.ok) {
-            const json = await res.json();
+            const json = (await res.json()) as { version?: number; data?: any };
             if (json.version && json.version > serverVersionRef.current && json.data) {
               serverVersionRef.current = json.version;
               const d = json.data;

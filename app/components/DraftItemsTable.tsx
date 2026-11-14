@@ -50,14 +50,14 @@ export function DraftItemsTable({
 }) {
   const [dragged, setDragged] = useState<ColumnKey | null>(null);
   const activeOrder = order.filter((col) => col !== "code");
-  const editableCols = activeOrder.filter((k): k is Exclude<ColumnKey, "stt" | "amount" | "code"> => k !== "stt" && k !== "amount" && k !== "code");
+  const editableCols = activeOrder.filter((k): k is Exclude<ColumnKey, "stt" | "amount" | "code"> => k !== "stt" && k !== "amount");
 
   const handleExcelPaste = (
     e: React.ClipboardEvent<HTMLInputElement | HTMLTextAreaElement>,
     targetItemId: number,
     startKey: ColumnKey,
   ) => {
-    if (startKey === "stt" || startKey === "amount") return;
+    if (startKey === "stt" || startKey === "amount" || startKey === "code") return;
     const text = e.clipboardData?.getData("text/plain") || "";
     if (!text) return;
     const matrix = parseExcelClipboard(text);

@@ -2,7 +2,14 @@ import { createFileShareToken, getFileShareRecord } from "../../share-file";
 
 export async function POST(request: Request) {
   try {
-    const body = await request.json();
+    const body = (await request.json()) as {
+      fileUrl?: string;
+      fileName?: string;
+      fileType?: string;
+      entityType?: string;
+      entityCode?: string;
+      fileSize?: number;
+    };
     const { fileUrl, fileName, fileType, entityType, entityCode, fileSize } = body;
 
     if (!fileUrl || !fileName) {
