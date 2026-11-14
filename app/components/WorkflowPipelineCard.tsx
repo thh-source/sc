@@ -4,7 +4,7 @@ import React, { useState } from "react";
 import {
   AlertCircle,
   AlertTriangle,
-  ArrowRight,
+  Eye,
   Check,
   CheckCircle2,
   Clock,
@@ -318,8 +318,8 @@ export function WorkflowPipelineCard(props: WorkflowPipelineCardProps) {
       </div>
 
       {/* 5-Stage Tabs + Inline Quick Search */}
-      <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
-        <div className="pipeline-stage-tabs" role="tablist" style={{ marginBottom: 0 }}>
+      <div className="pipeline-tabs-toolbar">
+        <div className="pipeline-stage-tabs" role="tablist">
           {stages.map((st) => (
             <button
               key={st.key}
@@ -337,19 +337,18 @@ export function WorkflowPipelineCard(props: WorkflowPipelineCardProps) {
             </button>
           ))}
         </div>
-        <div className="relative min-w-[200px]">
+        <div className="pipeline-search-box">
           <input
             type="text"
             value={tableQuery}
             onChange={(e) => setTableQuery(e.target.value)}
             placeholder="Lọc mã, nội dung, NCC..."
-            className="w-full h-8 px-2.5 pr-7 text-[12px] rounded-lg border border-slate-200 bg-slate-50 text-slate-700 focus:outline-none focus:border-blue-500"
           />
           {tableQuery && (
             <button
               type="button"
               onClick={() => setTableQuery("")}
-              className="absolute right-1.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 border-0 bg-transparent cursor-pointer"
+              className="pipeline-search-clear"
               title="Xóa lọc"
             >
               <X size={13} />
@@ -429,7 +428,7 @@ export function WorkflowPipelineCard(props: WorkflowPipelineCardProps) {
                             className="btn-row-action"
                             onClick={() => (onOpenDetailDrawer ? onOpenDetailDrawer("pr", pr.id) : onSelectPR?.(pr))}
                           >
-                            Mở <ArrowRight size={12} />
+                            <Eye size={12} /> Chi tiết
                           </button>
                         </div>
                       </td>
@@ -521,7 +520,7 @@ export function WorkflowPipelineCard(props: WorkflowPipelineCardProps) {
                             className="btn-row-action"
                             onClick={() => (onOpenDetailDrawer ? onOpenDetailDrawer("approval", approval.id) : onSelectApproval?.(approval.id))}
                           >
-                            Mở <ArrowRight size={12} />
+                            <Eye size={12} /> Chi tiết
                           </button>
                         </div>
                       </td>
@@ -615,7 +614,7 @@ export function WorkflowPipelineCard(props: WorkflowPipelineCardProps) {
                             className="btn-row-action"
                             onClick={() => (onOpenDetailDrawer ? onOpenDetailDrawer("po", po.id) : onSelectPO?.(po))}
                           >
-                            Mở <ArrowRight size={12} />
+                            <Eye size={12} /> Chi tiết
                           </button>
                         </div>
                       </td>
@@ -700,7 +699,7 @@ export function WorkflowPipelineCard(props: WorkflowPipelineCardProps) {
                           className="btn-row-action"
                           onClick={() => (onOpenDetailDrawer ? onOpenDetailDrawer("handover", handover.id) : (onSelectHandover ? onSelectHandover(handover) : onCreateHandover?.()))}
                         >
-                          Mở <ArrowRight size={12} />
+                          <Eye size={12} /> Chi tiết
                         </button>
                       </div>
                     </td>
