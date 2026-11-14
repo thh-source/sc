@@ -2998,6 +2998,7 @@ function ProcurementAppInner({
             pos={pos}
             approvalRequests={approvalRequests}
             paymentRequests={paymentRequests}
+            paymentHandovers={paymentHandovers}
             suppliers={suppliers}
             purchaseHistory={purchaseHistory}
             onNavigate={(route) => navigateTo(route)}
@@ -3022,6 +3023,9 @@ function ProcurementAppInner({
             onSelectPayment={(id) => {
               if (id) setSpotlightPaymentActiveId(id);
               navigateTo({ view: "payment", id });
+            }}
+            onSelectHandover={(h) => {
+              navigateTo({ view: "handover", id: h.id });
             }}
             onToggleCompletePayment={handleToggleCompletePayment}
             onUpdatePaymentRequest={handleUpdatePaymentRequest}

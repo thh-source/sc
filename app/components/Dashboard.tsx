@@ -22,20 +22,23 @@ import {
   X,
   Pencil,
 } from "lucide-react";
-import { PR, PO, Supplier, PurchaseHistory, ApprovalRequest, PaymentRequestEntry, calcPOTotal, isItemHidden } from "../types";
+import { PR, PO, Supplier, PurchaseHistory, ApprovalRequest, PaymentRequestEntry, PaymentHandoverItem, isItemHidden } from "../types";
 import { fmt } from "../utils";
 import { fmtMoney } from "../payment-utils";
 import {
   isPaymentCompleted,
-  isPaymentPaidToday,
   findLinkedPOForPayment,
-  isPRCompleted,
-  isPOCompleted,
-  isApprovalCompleted,
 } from "../utils/paymentSync";
+import {
+  buildWorkflowRadar,
+  PipelineStage,
+  RadarFilter,
+  WorkflowAlertTag,
+} from "../utils/workflowRadar";
 import { enqueueOfflineAction, checkIsOnline } from "../utils/offlineSync";
 import { useIsMobile } from "../useIsMobile";
 import { MobileDashboard } from "./MobileDashboard";
+import { WorkflowPipelineCard } from "./WorkflowPipelineCard";
 import { resolveApiUrl, apiFetch } from "../utils/apiConfig";
 
 // --- TYPES FOR DASHBOARD TO-DO WIDGET & MENTION SYSTEM ---
@@ -66,6 +69,7 @@ export function Dashboard({
   pos = [],
   approvalRequests = [],
   paymentRequests = [],
+  paymentHandovers = [],
   suppliers = [],
   purchaseHistory = [],
   onNavigate,
@@ -79,6 +83,7 @@ export function Dashboard({
   onSelectPO,
   onSelectApproval,
   onSelectPayment,
+  onSelectHandover,
   onToggleCompletePayment,
   onUpdatePaymentRequest,
   onToggleCompletePR,
@@ -89,6 +94,7 @@ export function Dashboard({
   pos?: PO[];
   approvalRequests?: ApprovalRequest[];
   paymentRequests?: PaymentRequestEntry[];
+  paymentHandovers?: PaymentHandoverItem[];
   suppliers?: Supplier[];
   purchaseHistory?: PurchaseHistory[];
   onNavigate?: (route: any) => void;
@@ -102,6 +108,7 @@ export function Dashboard({
   onSelectPO?: (po: PO) => void;
   onSelectApproval?: (id: number) => void;
   onSelectPayment?: (id: number) => void;
+  onSelectHandover?: (handover: PaymentHandoverItem) => void;
   onToggleCompletePayment?: (req: PaymentRequestEntry) => void;
   onUpdatePaymentRequest?: (req: PaymentRequestEntry) => void;
   onToggleCompletePR?: (pr: PR) => void;
@@ -113,170 +120,59 @@ export function Dashboard({
   const handleCreatePO = onCreatePO || (() => onNavigate?.({ view: "po-list" }));
   const handleCreatePayment = onCreatePayment || (() => onNavigate?.({ view: "payment" }));
   const handleCreateHandover = onCreateHandover || (() => onNavigate?.({ view: "handover" }));
-  // Current date for comparison
   const todayStr = useMemo(() => new Date().toISOString().slice(0, 10), []);
 
   // -------------------------------------------------------------
-  // 1. ACTION ITEMS QUEUE (Khu vực 1: Hàng đợi cần xử lý ngay)
+  // 1. WORKFLOW RADAR & 5-STAGE PIPELINE (Chống sót việc xuyên luồng)
   // -------------------------------------------------------------
-  type QueueTab = "pr_quote" | "approval_pending" | "po_delivery";
-  const [activeQueueTab, setActiveQueueTab] = useState<QueueTab>("pr_quote");
+  const [radarFilter, setRadarFilter] = useState<RadarFilter>("all");
+  const [activeStage, setActiveStage] = useState<PipelineStage>("po");
 
-  // Tab 1: PRs waiting for quote / compare
-  const pendingPRs = useMemo(() => {
-    return prs.filter(
-      (p) =>
-        !isItemHidden(p) &&
-        !isPRCompleted(p) &&
-        (p.status === "Chờ xử lý" ||
-          p.status === "Đang lấy báo giá" ||
-          p.status.toLowerCase().includes("báo giá") ||
-          p.status.toLowerCase().includes("so sánh")),
-    );
-  }, [prs]);
+  const radar = useMemo(
+    () =>
+      buildWorkflowRadar({
+        prs,
+        pos,
+        approvalRequests,
+        paymentRequests,
+        paymentHandovers,
+        suppliers,
+        todayStr,
+      }),
+    [prs, pos, approvalRequests, paymentRequests, paymentHandovers, suppliers, todayStr],
+  );
 
-  // Tab 2: Approval requests waiting for decision
-  const pendingApprovals = useMemo(() => {
-    return approvalRequests.filter(
-      (a) =>
-        !isItemHidden(a) &&
-        !isApprovalCompleted(a) &&
-        (a.status === "Chờ phê duyệt" ||
-          a.status === "Nháp" ||
-          !a.status),
-    );
-  }, [approvalRequests]);
+  const matchesRadar = (alerts: WorkflowAlertTag[], isDoneToday = false) => {
+    if (radarFilter === "all") return true;
+    if (isDoneToday) return false;
+    return alerts.some((a) => a.category === radarFilter);
+  };
 
-  // Tab 3: POs undelivered / partially delivered
-  const pendingDeliveryPOs = useMemo(() => {
-    return pos.filter((po) => {
-      if (isItemHidden(po) || isPOCompleted(po) || po.status === "Hoàn thành" || po.status === "Đã hủy") return false;
-      const items = po.items || [];
-      const hasUndelivered = items.some(
-        (i) => (i.deliveredQty || 0) < i.qty || i.deliveryStatus !== "Đã giao",
-      );
-      return hasUndelivered || po.status.toLowerCase().includes("giao");
-    });
-  }, [pos]);
+  const stagePRs = useMemo(() => radar.prs.filter((x) => matchesRadar(x.alerts)), [radar.prs, radarFilter]);
+  const stageApprovals = useMemo(() => radar.approvals.filter((x) => matchesRadar(x.alerts)), [radar.approvals, radarFilter]);
+  const stagePOs = useMemo(() => radar.pos.filter((x) => matchesRadar(x.alerts)), [radar.pos, radarFilter]);
+  const stageHandovers = useMemo(() => radar.handovers.filter((x) => matchesRadar(x.alerts)), [radar.handovers, radarFilter]);
+  const stagePayments = useMemo(
+    () => radar.payments.filter((x) => matchesRadar(x.alerts, x.isDoneToday)),
+    [radar.payments, radarFilter],
+  );
 
-  // -------------------------------------------------------------
-  // 2. PAYMENT & CASH FLOW TRACKER (Khu vực 2: Dòng tiền & Đợt thanh toán)
-  // -------------------------------------------------------------
-  type CashFlowFilter = "all" | "advance_urgent" | "due_soon";
-  const [cashFlowFilter, setCashFlowFilter] = useState<CashFlowFilter>("all");
-
-  const cashFlowItems = useMemo(() => {
-    const list: Array<{
-      poId: number;
-      poNumber: string;
-      supplierName: string;
-      phase: string;
-      amount: number;
-      date: string;
-      isAdvance: boolean;
-      status: string;
-      urgency: "overdue" | "due_soon" | "normal";
-      urgencyLabel: string;
-    }> = [];
-
-    pos.forEach((po) => {
-      const sup = suppliers.find((s) => s.id === po.supplierId);
-      const supplierName = sup?.name || "Chưa rõ NCC";
-      const payments = po.payments || [];
-
-      payments.forEach((pm) => {
-        if (pm.status === "Đã thanh toán") return;
-
-        const isAdvance =
-          pm.condition === "advance" ||
-          pm.phase.toLowerCase().includes("tạm ứng") ||
-          pm.phase.toLowerCase().includes("đặt cọc") ||
-          pm.phase.toLowerCase().includes("trước giao");
-
-        let urgency: "overdue" | "due_soon" | "normal" = "normal";
-        let urgencyLabel = "Trong hạn";
-
-        if (pm.date) {
-          const diffDays = Math.ceil(
-            (new Date(pm.date).getTime() - new Date(todayStr).getTime()) /
-              (1000 * 3600 * 24),
-          );
-          if (diffDays < 0) {
-            urgency = "overdue";
-            urgencyLabel = `Quá hạn ${Math.abs(diffDays)} ngày`;
-          } else if (diffDays <= 3) {
-            urgency = "due_soon";
-            urgencyLabel = diffDays === 0 ? "Đến hạn hôm nay" : `Hạn trong ${diffDays} ngày`;
-          }
-        } else if (isAdvance) {
-          // If advance payment with no set date, it holds up delivery!
-          urgency = "overdue";
-          urgencyLabel = "Cần TT để giao hàng";
-        }
-
-        list.push({
-          poId: po.id,
-          poNumber: po.number,
-          supplierName,
-          phase: pm.phase || "Đợt thanh toán",
-          amount: pm.amount || 0,
-          date: pm.date || "Chưa rõ ngày",
-          isAdvance,
-          status: pm.status,
-          urgency,
-          urgencyLabel,
-        });
-      });
-    });
-
-    // Sort: overdue first, then due_soon, then normal
-    return list.sort((a, b) => {
-      const score = (u: string) => (u === "overdue" ? 3 : u === "due_soon" ? 2 : 1);
-      return score(b.urgency) - score(a.urgency);
-    });
-  }, [pos, suppliers, todayStr]);
-
-  // -------------------------------------------------------------
-  // KPI TỔNG HỢP DÒNG TIỀN & TIẾN ĐỘ THANH TOÁN (Real-time Reactivity)
-  // -------------------------------------------------------------
-  const paidTodayAmount = useMemo(() => {
-    return (paymentRequests || [])
-      .filter((r) => isPaymentCompleted(r) && r.paidAt?.slice(0, 10) === todayStr)
-      .reduce((sum, r) => sum + (Number(r.amount) || 0), 0);
-  }, [paymentRequests, todayStr]);
-
-  const { totalPOValue, totalPOPaid, poPaymentProgressPct, remainingDebt } = useMemo(() => {
-    let totalVal = 0;
-    let totalPaid = 0;
-    pos.forEach((po) => {
-      const poVal = calcPOTotal(po);
-      totalVal += poVal;
-      const poPaidAmt = (po.payments || [])
-        .filter((p) => p.status === "Đã thanh toán")
-        .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
-      totalPaid += Math.min(poVal, poPaidAmt);
-    });
-    const pct = totalVal > 0 ? Math.round((totalPaid / totalVal) * 100) : 0;
-    const remaining = Math.max(0, totalVal - totalPaid);
-    return {
-      totalPOValue: totalVal,
-      totalPOPaid: totalPaid,
-      poPaymentProgressPct: pct,
-      remainingDebt: remaining,
-    };
-  }, [pos]);
-
-  const filteredCashFlowItems = useMemo(() => {
-    if (cashFlowFilter === "advance_urgent") {
-      return cashFlowItems.filter((item) => item.isAdvance);
+  const handleSelectRadarFilter = (next: RadarFilter) => {
+    setRadarFilter(next);
+    if (next === "all") return;
+    const order: Array<{ stage: PipelineStage; count: number }> = [
+      { stage: "po", count: radar.pos.filter((x) => x.alerts.some((a) => a.category === next)).length },
+      { stage: "payment", count: radar.payments.filter((x) => !x.isDoneToday && x.alerts.some((a) => a.category === next)).length },
+      { stage: "handover", count: radar.handovers.filter((x) => x.alerts.some((a) => a.category === next)).length },
+      { stage: "approval", count: radar.approvals.filter((x) => x.alerts.some((a) => a.category === next)).length },
+      { stage: "pr", count: radar.prs.filter((x) => x.alerts.some((a) => a.category === next)).length },
+    ];
+    const currentMatch = order.find((o) => o.stage === activeStage && o.count > 0);
+    if (!currentMatch) {
+      const firstMatch = order.find((o) => o.count > 0);
+      if (firstMatch) setActiveStage(firstMatch.stage);
     }
-    if (cashFlowFilter === "due_soon") {
-      return cashFlowItems.filter(
-        (item) => item.urgency === "overdue" || item.urgency === "due_soon",
-      );
-    }
-    return cashFlowItems;
-  }, [cashFlowItems, cashFlowFilter]);
+  };
 
   // -------------------------------------------------------------
   // PENDING PAYMENTS WORKLIST (Khoản thanh toán chưa hoàn thành & hoàn thành trong ngày)
@@ -670,9 +566,11 @@ export function Dashboard({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const handleAddTodo = async (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
-    const trimmed = todoInput.trim();
+  const createAndSyncTodo = async (
+    text: string,
+    priority: "high" | "normal" | "low" = "normal",
+  ) => {
+    const trimmed = text.trim();
     if (!trimmed) return;
 
     const newTodo: DashboardTodo = {
@@ -680,15 +578,11 @@ export function Dashboard({
       text: trimmed,
       completed: false,
       createdAt: new Date().toISOString(),
-      priority: todoPriority,
+      priority,
     };
 
     setTodos((prev) => [newTodo, ...prev]);
-    setTodoInput("");
-    setTodoPriority("normal");
-    setMentionState((prev) => ({ ...prev, isOpen: false }));
 
-    // Đồng bộ ngay lập tức lên Cloudflare D1
     try {
       const isOnline = await checkIsOnline();
       if (!isOnline) {
@@ -713,6 +607,17 @@ export function Dashboard({
         description: `Thêm công việc: ${trimmed}`,
       });
     }
+  };
+
+  const handleAddTodo = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    const trimmed = todoInput.trim();
+    if (!trimmed) return;
+    const priorityToUse = todoPriority;
+    setTodoInput("");
+    setTodoPriority("normal");
+    setMentionState((prev) => ({ ...prev, isOpen: false }));
+    await createAndSyncTodo(trimmed, priorityToUse);
   };
 
   const handleToggleTodo = async (id: string) => {
@@ -955,12 +860,6 @@ export function Dashboard({
 
   const activeTodoCount = useMemo(() => todos.filter((t) => !t.completed).length, [todos]);
 
-  // Operational Pulse Metrics
-  const advanceRequiredCount = useMemo(
-    () => cashFlowItems.filter((i) => i.isAdvance).length,
-    [cashFlowItems],
-  );
-
   const isMobile = useIsMobile();
   if (isMobile) {
     return (
@@ -969,42 +868,10 @@ export function Dashboard({
         pos={pos}
         approvalRequests={approvalRequests}
         paymentRequests={paymentRequests}
+        paymentHandovers={paymentHandovers}
         suppliers={suppliers}
         todos={todos}
-        onAddTodo={async (text, priority) => {
-          const newTodo: DashboardTodo = {
-            id: "todo-" + Date.now(),
-            text,
-            completed: false,
-            createdAt: new Date().toISOString(),
-            priority: priority || "normal",
-          };
-          setTodos((prev) => [newTodo, ...prev]);
-          try {
-            const isOnline = await checkIsOnline();
-            if (!isOnline) {
-              await enqueueOfflineAction({
-                endpoint: "/api/todos",
-                method: "POST",
-                data: newTodo,
-                description: `Thêm công việc: ${text}`,
-              });
-            } else {
-              await apiFetch("/api/todos", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(newTodo),
-              });
-            }
-          } catch {
-            await enqueueOfflineAction({
-              endpoint: "/api/todos",
-              method: "POST",
-              data: newTodo,
-              description: `Thêm công việc: ${text}`,
-            });
-          }
-        }}
+        onAddTodo={createAndSyncTodo}
         onToggleTodo={handleToggleTodo}
         onDeleteTodo={handleDeleteTodo}
         onClearCompletedTodos={handleClearCompletedTodos}
@@ -1015,19 +882,9 @@ export function Dashboard({
         onSelectPR={onSelectPR}
         onSelectPO={onSelectPO}
         onSelectPayment={onSelectPayment}
+        onSelectHandover={onSelectHandover}
         onSelectApproval={onSelectApproval ? (req) => onSelectApproval(req.id) : undefined}
         onToggleCompletePayment={onToggleCompletePayment}
-        todaySpent={paidTodayAmount}
-        paidTodayAmount={paidTodayAmount}
-        todayPending={todayPendingAmount}
-        totalPOAmount={totalPOValue}
-        totalPOValue={totalPOValue}
-        disbursedPOAmount={totalPOPaid}
-        totalPOPaid={totalPOPaid}
-        poPaymentPercent={poPaymentProgressPct}
-        poPaymentProgressPct={poPaymentProgressPct}
-        remainingDebt={remainingDebt}
-        pendingPayments={pendingPayments}
       />
     );
   }
@@ -1107,8 +964,78 @@ export function Dashboard({
       </div>
 
       {/* -------------------------------------------------------------
-          MỤC ƯU TIÊN SỐ 1: BẢNG CÔNG VIỆC CẦN LÀM TRONG NGÀY (TO-DO LIST)
+          THANH RADAR NHẮC VIỆC (CHỐNG SÓT VIỆC XUYÊN LUỒNG)
           ------------------------------------------------------------- */}
+      <div className="radar-attention-strip">
+        <button
+          type="button"
+          className={`radar-pill pill-all ${radarFilter === "all" ? "active" : ""}`}
+          onClick={() => handleSelectRadarFilter("all")}
+        >
+          <span className="radar-dot dot-slate" />
+          <span>Tất cả đang theo dõi</span>
+          <strong>{radar.counts.totalActionable}</strong>
+        </button>
+        <button
+          type="button"
+          className={`radar-pill pill-overdue ${radarFilter === "overdue" ? "active" : ""}`}
+          onClick={() => handleSelectRadarFilter("overdue")}
+        >
+          <span className="radar-dot dot-red" />
+          <span>Quá hạn gấp / Hàng lỗi</span>
+          <strong>{radar.counts.overdue}</strong>
+        </button>
+        <button
+          type="button"
+          className={`radar-pill pill-due ${radarFilter === "due_soon" ? "active" : ""}`}
+          onClick={() => handleSelectRadarFilter("due_soon")}
+        >
+          <span className="radar-dot dot-amber" />
+          <span>Sắp đến hạn (≤ 3 ngày)</span>
+          <strong>{radar.counts.dueSoon}</strong>
+        </button>
+        <button
+          type="button"
+          className={`radar-pill pill-missing ${radarFilter === "missing_docs" ? "active" : ""}`}
+          onClick={() => handleSelectRadarFilter("missing_docs")}
+        >
+          <span className="radar-dot dot-orange" />
+          <span>Thiếu chứng từ / Treo bước</span>
+          <strong>{radar.counts.missingDocs}</strong>
+        </button>
+      </div>
+
+      {/* -------------------------------------------------------------
+          BỐ CỤC 2 CỘT: TRÁI (PIPELINE 5 CHẶNG) - PHẢI (TO-DO LIST)
+          ------------------------------------------------------------- */}
+      <div className="dashboard-action-grid">
+        <div className="dashboard-action-left">
+          <WorkflowPipelineCard
+            radar={radar}
+            radarFilter={radarFilter}
+            activeStage={activeStage}
+            onChangeStage={setActiveStage}
+            onSelectPR={onSelectPR}
+            onSelectApproval={onSelectApproval}
+            onSelectPO={onSelectPO}
+            onSelectHandover={onSelectHandover}
+            onSelectPayment={onSelectPayment}
+            onCreateHandover={handleCreateHandover}
+            onCreatePayment={handleCreatePayment}
+            onQuickRemindTodo={(text, priority) => createAndSyncTodo(text, priority || "normal")}
+            editingInvoiceId={editingInvoiceId}
+            draftInvoiceNo={draftInvoiceNo}
+            draftInvoiceDate={draftInvoiceDate}
+            onDraftInvoiceNoChange={setDraftInvoiceNo}
+            onDraftInvoiceDateChange={setDraftInvoiceDate}
+            onStartEditInvoice={handleStartEditInvoice}
+            onSaveInvoice={handleSaveInvoice}
+            onCancelEditInvoice={handleCancelEditInvoice}
+            onRequestPaymentConfirm={(req, action) => setPaymentConfirmModal({ req, action })}
+          />
+        </div>
+
+        <div className="dashboard-action-right">
       <div className="dashboard-card todo-hero-card">
         <div className="card-header todo-hero-header">
           <div className="card-title-group">
@@ -1401,801 +1328,6 @@ export function Dashboard({
         </div>
       </div>
 
-      {/* -------------------------------------------------------------
-          MAIN BENTO GRID (Col 8 : Col 4)
-          ------------------------------------------------------------- */}
-      <div className="dashboard-bento-grid">
-        {/* LEFT COLUMN (8 Cols): ACTION ITEMS & CASH FLOW TRACKER */}
-        <div className="dashboard-main-col">
-          {/* KHU VỰC 1: HÀNG ĐỢI CẦN XỬ LÝ NGAY (ACTION ITEMS) */}
-          <div className="dashboard-card queue-card">
-            <div className="card-header">
-              <div className="card-title-group">
-                <span className="card-badge-icon badge-orange">
-                  <AlertCircle size={16} />
-                </span>
-                <div>
-                  <h2>Hàng đợi Cần xử lý ngay</h2>
-                  <p>Các đầu việc đang chờ phê duyệt, lấy báo giá hoặc theo dõi nhận hàng</p>
-                </div>
-              </div>
-
-              {/* Queue Segmented Tabs */}
-              <div className="queue-tabs">
-                <button
-                  type="button"
-                  className={`queue-tab-btn ${activeQueueTab === "pr_quote" ? "active" : ""}`}
-                  onClick={() => setActiveQueueTab("pr_quote")}
-                >
-                  PR chờ báo giá
-                  <span className="queue-pill-count">{pendingPRs.length}</span>
-                </button>
-                <button
-                  type="button"
-                  className={`queue-tab-btn ${activeQueueTab === "approval_pending" ? "active" : ""}`}
-                  onClick={() => setActiveQueueTab("approval_pending")}
-                >
-                  ĐNPD chờ duyệt
-                  <span className="queue-pill-count">{pendingApprovals.length}</span>
-                </button>
-                <button
-                  type="button"
-                  className={`queue-tab-btn ${activeQueueTab === "po_delivery" ? "active" : ""}`}
-                  onClick={() => setActiveQueueTab("po_delivery")}
-                >
-                  PO giao thiếu / chậm
-                  <span className="queue-pill-count">{pendingDeliveryPOs.length}</span>
-                </button>
-              </div>
-            </div>
-
-            {/* TAB CONTENT 1: PRs WAITING FOR QUOTE / COMPARE */}
-            {activeQueueTab === "pr_quote" && (
-              <div className="queue-table-wrap">
-                {pendingPRs.length === 0 ? (
-                  <div className="queue-empty-state">
-                    <CheckCircle2 size={32} className="empty-icon-success" />
-                    <p>Không có PR nào đang chờ xử lý báo giá. Mọi yêu cầu đã hoàn tất!</p>
-                  </div>
-                ) : (
-                  <table className="queue-data-table">
-                    <thead>
-                      <tr>
-                        <th>Mã PR</th>
-                        <th>Đơn vị yêu cầu</th>
-                        <th>Số món</th>
-                        <th>Ngày tạo</th>
-                        <th>Mục đích sử dụng</th>
-                        <th style={{ textAlign: "right" }}>Thao tác</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {pendingPRs.slice(0, 6).map((pr) => (
-                        <tr key={pr.id}>
-                          <td>
-                            <div style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
-                              {onToggleCompletePR && (
-                                <button
-                                  type="button"
-                                  className="completion-toggle-btn"
-                                  onClick={() => onToggleCompletePR(pr)}
-                                  title="Đánh dấu hoàn thành PR"
-                                >
-                                  <Circle size={15} className="text-slate-400 hover:text-slate-600" />
-                                </button>
-                              )}
-                              <button
-                                type="button"
-                                className="queue-code-link"
-                                onClick={() => onSelectPR && onSelectPR(pr)}
-                              >
-                                {pr.number}
-                              </button>
-                            </div>
-                          </td>
-                          <td>
-                            <span className="cell-dept-badge">{pr.department}</span>
-                          </td>
-                          <td>
-                            <b>{pr.items?.length || 0}</b> mặt hàng
-                          </td>
-                          <td className="cell-date">{pr.date}</td>
-                          <td className="cell-purpose" title={pr.purpose}>
-                            {pr.purpose}
-                          </td>
-                          <td style={{ textAlign: "right" }}>
-                            <button
-                              type="button"
-                              className="btn btn-secondary btn-xs"
-                              onClick={() => onSelectPR && onSelectPR(pr)}
-                            >
-                              So sánh giá <ArrowRight size={12} />
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                )}
-              </div>
-            )}
-
-            {/* TAB CONTENT 2: APPROVALS WAITING FOR DECISION */}
-            {activeQueueTab === "approval_pending" && (
-              <div className="queue-table-wrap">
-                {pendingApprovals.length === 0 ? (
-                  <div className="queue-empty-state">
-                    <CheckCircle2 size={32} className="empty-icon-success" />
-                    <p>Không có tờ trình ĐNPD nào đang chờ phê duyệt.</p>
-                  </div>
-                ) : (
-                  <table className="queue-data-table">
-                    <thead>
-                      <tr>
-                        <th>Số ĐNPD</th>
-                        <th>Bộ phận đề xuất</th>
-                        <th>Nhà cung cấp lựa chọn</th>
-                        <th style={{ textAlign: "right" }}>Tổng giá trị đề xuất</th>
-                        <th>Ngày lập</th>
-                        <th style={{ textAlign: "right" }}>Thao tác</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {pendingApprovals.slice(0, 6).map((appr) => {
-                        const selectedCol = (appr.supplierColumns || []).find((c) => c.isSelected);
-                        const totalVal = (appr.rows || []).reduce((sum, r) => {
-                          if (selectedCol && r.supplierQuotes?.[selectedCol.colId]) {
-                            const lines = r.supplierQuotes[selectedCol.colId];
-                            return (
-                              sum +
-                              lines.reduce(
-                                (lSum, l) =>
-                                  lSum +
-                                  (l.amount ||
-                                    (l.unitPrice || 0) * (l.qty || r.qty || 1)),
-                                0,
-                              )
-                            );
-                          }
-                          const firstColId = Object.keys(r.supplierQuotes || {})[0];
-                          if (firstColId && r.supplierQuotes[firstColId]) {
-                            return (
-                              sum +
-                              r.supplierQuotes[firstColId].reduce(
-                                (lSum, l) => lSum + (l.amount || 0),
-                                0,
-                              )
-                            );
-                          }
-                          return sum;
-                        }, 0);
-                        return (
-                          <tr key={appr.id}>
-                            <td>
-                              <div style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
-                                {onToggleCompleteApproval && (
-                                  <button
-                                    type="button"
-                                    className="completion-toggle-btn"
-                                    onClick={() => onToggleCompleteApproval(appr)}
-                                    title="Duyệt & đánh dấu hoàn thành ĐNPD"
-                                  >
-                                    <Circle size={15} className="text-slate-400 hover:text-slate-600" />
-                                  </button>
-                                )}
-                                <button
-                                  type="button"
-                                  className="queue-code-link"
-                                  onClick={() =>
-                                    onSelectApproval && onSelectApproval(appr.id)
-                                  }
-                                >
-                                  {appr.requestNumber || `ĐNPD-#${appr.id}`}
-                                </button>
-                              </div>
-                            </td>
-                            <td>
-                              <span className="cell-dept-badge">
-                                {appr.department || "Phòng Cung ứng"}
-                              </span>
-                            </td>
-                            <td>
-                              <span className="cell-supplier-name">
-                                {appr.recommendedSupplierName || "Đề xuất theo so sánh"}
-                              </span>
-                            </td>
-                            <td className="cell-money" style={{ textAlign: "right" }}>
-                              <b>{fmt(totalVal)} ₫</b>
-                            </td>
-                            <td className="cell-date">{appr.createdDate}</td>
-                            <td style={{ textAlign: "right" }}>
-                              <button
-                                type="button"
-                                className="btn btn-primary btn-xs"
-                                onClick={() =>
-                                  onSelectApproval && onSelectApproval(appr.id)
-                                }
-                              >
-                                Xem & Duyệt <ArrowRight size={12} />
-                              </button>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                )}
-              </div>
-            )}
-
-            {/* TAB CONTENT 3: POs UNDELIVERED / PARTIALLY DELIVERED */}
-            {activeQueueTab === "po_delivery" && (
-              <div className="queue-table-wrap">
-                {pendingDeliveryPOs.length === 0 ? (
-                  <div className="queue-empty-state">
-                    <CheckCircle2 size={32} className="empty-icon-success" />
-                    <p>Tất cả các đơn hàng PO đã được giao đủ vào kho!</p>
-                  </div>
-                ) : (
-                  <table className="queue-data-table">
-                    <thead>
-                      <tr>
-                        <th>Mã PO</th>
-                        <th>Nhà cung cấp</th>
-                        <th>Hạn giao dự kiến</th>
-                        <th>Tiến độ giao hàng</th>
-                        <th>Tình trạng</th>
-                        <th style={{ textAlign: "right" }}>Thao tác</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {pendingDeliveryPOs.slice(0, 6).map((po) => {
-                        const sup = suppliers.find((s) => s.id === po.supplierId);
-                        const items = po.items || [];
-                        const deliveredCount = items.filter(
-                          (i) => i.deliveryStatus === "Đã giao",
-                        ).length;
-                        const percent = items.length
-                          ? Math.round((deliveredCount / items.length) * 100)
-                          : 0;
-
-                        const isOverdue =
-                          po.expectedDate && po.expectedDate < todayStr;
-
-                        return (
-                          <tr key={po.id}>
-                            <td>
-                              <div style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
-                                {onToggleCompletePO && (
-                                  <button
-                                    type="button"
-                                    className="completion-toggle-btn"
-                                    onClick={() => onToggleCompletePO(po)}
-                                    title="Đánh dấu hoàn thành PO"
-                                  >
-                                    <Circle size={15} className="text-slate-400 hover:text-slate-600" />
-                                  </button>
-                                )}
-                                <button
-                                  type="button"
-                                  className="queue-code-link"
-                                  onClick={() => onSelectPO && onSelectPO(po)}
-                                >
-                                  {po.number}
-                                </button>
-                              </div>
-                            </td>
-                            <td>
-                              <span className="cell-supplier-name">
-                                {sup?.name || "Chưa rõ NCC"}
-                              </span>
-                            </td>
-                            <td className="cell-date">
-                              <span className={isOverdue ? "date-overdue" : ""}>
-                                {po.expectedDate || "Chưa hẹn ngày"}
-                              </span>
-                            </td>
-                            <td>
-                              <div className="delivery-progress-wrap">
-                                <div className="mini-track">
-                                  <div
-                                    className="mini-fill"
-                                    style={{ width: `${percent}%` }}
-                                  />
-                                </div>
-                                <span className="mini-text">
-                                  {deliveredCount}/{items.length} món ({percent}%)
-                                </span>
-                              </div>
-                            </td>
-                            <td>
-                              {isOverdue ? (
-                                <span className="tag-warning red">
-                                  <AlertTriangle size={12} /> Chậm tiến độ
-                                </span>
-                              ) : (
-                                <span className="tag-warning amber">
-                                  <Clock size={12} /> Đang giao
-                                </span>
-                              )}
-                            </td>
-                            <td style={{ textAlign: "right" }}>
-                              <button
-                                type="button"
-                                className="btn btn-secondary btn-xs"
-                                onClick={() => onSelectPO && onSelectPO(po)}
-                              >
-                                Chi tiết PO <ArrowRight size={12} />
-                              </button>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* KHU VỰC 2: THEO DÕI DÒNG TIỀN & ĐỢT THANH TOÁN ĐẾN HẠN */}
-          <div className="dashboard-card cashflow-card">
-            <div className="card-header">
-              <div className="card-title-group">
-                <span className="card-badge-icon badge-blue">
-                  <CreditCard size={16} />
-                </span>
-                <div>
-                  <h2>Theo dõi Dòng tiền & Tiến độ Thanh toán</h2>
-                  <p>Hạn nợ và các khoản yêu cầu tạm ứng trước để nhà cung cấp giao hàng</p>
-                </div>
-              </div>
-
-              {/* Cashflow Filter Pills */}
-              <div className="cashflow-filter-pills">
-                <button
-                  type="button"
-                  className={`pill-btn ${cashFlowFilter === "all" ? "active" : ""}`}
-                  onClick={() => setCashFlowFilter("all")}
-                >
-                  Tất cả ({cashFlowItems.length})
-                </button>
-                <button
-                  type="button"
-                  className={`pill-btn ${cashFlowFilter === "advance_urgent" ? "active" : ""}`}
-                  onClick={() => setCashFlowFilter("advance_urgent")}
-                >
-                  Tạm ứng trước giao ({advanceRequiredCount})
-                </button>
-                <button
-                  type="button"
-                  className={`pill-btn ${cashFlowFilter === "due_soon" ? "active" : ""}`}
-                  onClick={() => setCashFlowFilter("due_soon")}
-                >
-                  Quá hạn & Đến hạn
-                </button>
-              </div>
-            </div>
-
-            {/* KPI Tóm tắt Dòng tiền & Tiến độ thanh toán PO - Ẩn để tối ưu diện tích */}
-            <div
-              className="dashboard-payment-kpis"
-              style={{
-                display: "none",
-                gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-                gap: "12px",
-                padding: "12px 16px",
-                backgroundColor: "#f8fafc",
-                borderBottom: "1px solid #e2e8f0",
-              }}
-            >
-              {/* 1. Đã chi trong ngày */}
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "12px",
-                  padding: "10px 14px",
-                  backgroundColor: "#ffffff",
-                  borderRadius: "8px",
-                  border: "1px solid #e2e8f0",
-                  boxShadow: "0 1px 2px rgba(0,0,0,0.03)",
-                }}
-              >
-                <div
-                  style={{
-                    width: 38,
-                    height: 38,
-                    borderRadius: "8px",
-                    backgroundColor: "#ecfdf5",
-                    color: "#059669",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    flexShrink: 0,
-                  }}
-                >
-                  <DollarSign size={20} />
-                </div>
-                <div>
-                  <div style={{ fontSize: "11px", color: "#64748b", fontWeight: 600, textTransform: "uppercase" }}>
-                    Đã chi trong ngày
-                  </div>
-                  <div style={{ fontSize: "16px", fontWeight: 800, color: "#0f172a" }}>
-                    {fmt(paidTodayAmount)} ₫
-                  </div>
-                  <div style={{ fontSize: "11px", color: "#10b981", fontWeight: 600 }}>
-                    {paidTodayPaymentsCount > 0 ? `${paidTodayPaymentsCount} khoản đã giải ngân` : "Chưa có khoản chi nào"}
-                  </div>
-                </div>
-              </div>
-
-              {/* 2. Tiến độ thanh toán theo PO */}
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "12px",
-                  padding: "10px 14px",
-                  backgroundColor: "#ffffff",
-                  borderRadius: "8px",
-                  border: "1px solid #e2e8f0",
-                  boxShadow: "0 1px 2px rgba(0,0,0,0.03)",
-                }}
-              >
-                <div
-                  style={{
-                    width: 38,
-                    height: 38,
-                    borderRadius: "8px",
-                    backgroundColor: "#eff6ff",
-                    color: "#2563eb",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    flexShrink: 0,
-                  }}
-                >
-                  <TrendingUp size={20} />
-                </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-                    <span style={{ fontSize: "11px", color: "#64748b", fontWeight: 600, textTransform: "uppercase" }}>
-                      Tiến độ thanh toán PO
-                    </span>
-                    <span style={{ fontSize: "13px", fontWeight: 800, color: "#2563eb" }}>
-                      {poPaymentProgressPct}%
-                    </span>
-                  </div>
-                  <div style={{ fontSize: "15px", fontWeight: 800, color: "#0f172a" }}>
-                    {fmt(totalPOPaid)} ₫
-                  </div>
-                  <div style={{ fontSize: "11px", color: "#64748b" }}>
-                    trên tổng {fmt(totalPOValue)} ₫
-                  </div>
-                </div>
-              </div>
-
-              {/* 3. Công nợ còn lại */}
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "12px",
-                  padding: "10px 14px",
-                  backgroundColor: "#ffffff",
-                  borderRadius: "8px",
-                  border: "1px solid #e2e8f0",
-                  boxShadow: "0 1px 2px rgba(0,0,0,0.03)",
-                }}
-              >
-                <div
-                  style={{
-                    width: 38,
-                    height: 38,
-                    borderRadius: "8px",
-                    backgroundColor: "#fff7ed",
-                    color: "#ea580c",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    flexShrink: 0,
-                  }}
-                >
-                  <CreditCard size={20} />
-                </div>
-                <div>
-                  <div style={{ fontSize: "11px", color: "#64748b", fontWeight: 600, textTransform: "uppercase" }}>
-                    Công nợ còn lại
-                  </div>
-                  <div style={{ fontSize: "16px", fontWeight: 800, color: remainingDebt > 0 ? "#ea580c" : "#166534" }}>
-                    {fmt(remainingDebt)} ₫
-                  </div>
-                  <div style={{ fontSize: "11px", color: "#64748b" }}>
-                    {cashFlowItems.length} đợt chờ thanh toán
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="queue-table-wrap">
-              {filteredCashFlowItems.length === 0 ? (
-                <div className="queue-empty-state">
-                  <CheckCircle2 size={32} className="empty-icon-success" />
-                  <p>Không có đợt thanh toán nào cần gấp trong danh mục này.</p>
-                </div>
-              ) : (
-                <table className="queue-data-table">
-                  <thead>
-                    <tr>
-                      <th>PO & NCC</th>
-                      <th>Giai đoạn thanh toán</th>
-                      <th style={{ textAlign: "right" }}>Số tiền thanh toán</th>
-                      <th>Hạn thanh toán</th>
-                      <th>Tình trạng cảnh báo</th>
-                      <th style={{ textAlign: "right" }}>Thao tác</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredCashFlowItems.slice(0, 6).map((item, idx) => {
-                      const poObj = pos.find((p) => p.id === item.poId);
-                      return (
-                        <tr key={idx}>
-                          <td>
-                            <div>
-                              <button
-                                type="button"
-                                className="queue-code-link"
-                                onClick={() => poObj && onSelectPO && onSelectPO(poObj)}
-                              >
-                                {item.poNumber}
-                              </button>
-                              <div className="sub-supplier-name">
-                                {item.supplierName}
-                              </div>
-                            </div>
-                          </td>
-                          <td>
-                            <div className="payment-phase-text">
-                              <b>{item.phase}</b>
-                              {item.isAdvance && (
-                                <span className="advance-pill">Tạm ứng bắt buộc</span>
-                              )}
-                            </div>
-                          </td>
-                          <td className="cell-money" style={{ textAlign: "right" }}>
-                            <b>{fmt(item.amount)} ₫</b>
-                          </td>
-                          <td className="cell-date">{item.date}</td>
-                          <td>
-                            {item.urgency === "overdue" && (
-                              <span className="urgency-tag urgency-red">
-                                <AlertCircle size={12} /> {item.urgencyLabel}
-                              </span>
-                            )}
-                            {item.urgency === "due_soon" && (
-                              <span className="urgency-tag urgency-yellow">
-                                <Clock size={12} /> {item.urgencyLabel}
-                              </span>
-                            )}
-                            {item.urgency === "normal" && (
-                              <span className="urgency-tag urgency-green">
-                                <Check size={12} /> {item.urgencyLabel}
-                              </span>
-                            )}
-                          </td>
-                          <td style={{ textAlign: "right" }}>
-                            <button
-                              type="button"
-                              className="btn btn-secondary btn-xs"
-                              onClick={() => {
-                                if (poObj && onSelectPO) onSelectPO(poObj);
-                              }}
-                            >
-                              Xem PO <ArrowRight size={12} />
-                            </button>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              )}
-            </div>
-          </div>
-
-          {/* KHU VỰC: KHOẢN THANH TOÁN CHƯA HOÀN THÀNH */}
-          <div className="dashboard-card pending-payments-card">
-            <div className="card-header">
-              <div className="card-title-group">
-                <span className="card-badge-icon badge-emerald">
-                  <CreditCard size={16} />
-                </span>
-                <div>
-                  <h2>Thanh toán cần xử lý &amp; trong ngày</h2>
-                  <p>Hàng đợi các khoản chi phí cần giải ngân để NCC giao hàng hoặc thanh toán công nợ</p>
-                </div>
-              </div>
-              <span className="queue-pill-count">
-                {unpaidPaymentsCount} khoản chờ đi tiền
-                {paidTodayPaymentsCount > 0 && ` • ${paidTodayPaymentsCount} đã xong hôm nay`}
-              </span>
-            </div>
-
-            <div className="queue-table-wrap">
-              {pendingPayments.length === 0 ? (
-                <div className="queue-empty-state">
-                  <CheckCircle2 size={32} className="empty-icon-success" />
-                  <p>Tuyệt vời! Không còn khoản thanh toán nào bị tồn đọng.</p>
-                </div>
-              ) : (
-                <table className="queue-data-table pending-payments-table">
-                  <thead>
-                    <tr>
-                      <th style={{ width: "135px" }}>PO liên kết</th>
-                      <th style={{ width: "210px" }}>Đơn vị thụ hưởng</th>
-                      <th>Nội dung thanh toán</th>
-                      <th style={{ width: "155px", textAlign: "right" }}>Số tiền</th>
-                      <th style={{ width: "210px" }}>Số HĐ (Ngày HĐ)</th>
-                      <th style={{ width: "155px", textAlign: "center" }}>Trạng thái / Xác nhận</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {pendingPayments.map((r) => {
-                      const linkedInfo = findLinkedPOForPayment(r, pos);
-                      const linkedPO = linkedInfo?.po;
-                      const isDone = isPaymentCompleted(r);
-                      const isEditing = editingInvoiceId === r.id;
-                      const invoiceText = r.invoice_no?.trim() || "Chưa có HĐ";
-                      const dateText = r.invoice_date?.trim() ? ` (${r.invoice_date.trim()})` : "";
-                      const invoiceCombined = `${invoiceText}${dateText}`;
-
-                      return (
-                        <tr
-                          key={r.id}
-                          className={isDone ? "row-paid-today" : "row-unpaid"}
-                          style={{
-                            opacity: isDone ? 0.78 : 1,
-                            backgroundColor: isDone ? "#f0fdf4" : undefined,
-                            transition: "all 0.2s ease",
-                          }}
-                        >
-                          {/* 1. PO liên kết */}
-                          <td>
-                            {linkedPO ? (
-                              <button
-                                type="button"
-                                className="queue-code-link"
-                                onClick={() => onSelectPO && onSelectPO(linkedPO)}
-                                title={`Mở xem đơn ${linkedPO.number}`}
-                              >
-                                <Package size={12} /> {linkedPO.number}
-                              </button>
-                            ) : (
-                              <span className="text-muted" style={{ fontSize: "12px", color: "var(--slate-400)" }}>
-                                {r.group_code || "Trực tiếp"}
-                              </span>
-                            )}
-                          </td>
-
-                          {/* 2. Đơn vị thụ hưởng */}
-                          <td>
-                            <span className="cell-supplier-name font-medium">
-                              {r.payee_name || "Chưa có NCC"}
-                            </span>
-                          </td>
-
-                          {/* 3. Nội dung thanh toán */}
-                          <td className="cell-purpose" title={r.description || r.item_name}>
-                            {r.description || r.item_name || "Thanh toán"}
-                          </td>
-
-                          {/* 4. Số tiền (Gộp chung đơn vị tiền) */}
-                          <td className="cell-money font-semibold" style={{ textAlign: "right", whiteSpace: "nowrap" }}>
-                            {fmtMoney(r.amount)} {r.currency || "VND"}
-                          </td>
-
-                          {/* 5. Số HĐ (Ngày HĐ) - Inline Edit */}
-                          <td style={{ whiteSpace: "nowrap" }}>
-                            {isEditing ? (
-                              <div
-                                className="inline-invoice-editor-wrap"
-                                onBlur={(e) => {
-                                  if (!e.currentTarget.contains(e.relatedTarget as Node)) {
-                                    handleSaveInvoice(r);
-                                  }
-                                }}
-                                onKeyDown={(e) => {
-                                  if (e.key === "Enter") {
-                                    e.preventDefault();
-                                    handleSaveInvoice(r);
-                                  } else if (e.key === "Escape") {
-                                    e.preventDefault();
-                                    handleCancelEditInvoice();
-                                  }
-                                }}
-                              >
-                                <input
-                                  type="text"
-                                  autoFocus
-                                  placeholder="Số HĐ"
-                                  value={draftInvoiceNo}
-                                  onChange={(e) => setDraftInvoiceNo(e.target.value)}
-                                  className="inline-invoice-input inline-invoice-input-no"
-                                  title="Nhập số hóa đơn (Enter để lưu)"
-                                />
-                                <input
-                                  type="date"
-                                  value={draftInvoiceDate}
-                                  onChange={(e) => setDraftInvoiceDate(e.target.value)}
-                                  className="inline-invoice-input inline-invoice-input-date"
-                                  title="Chọn ngày hóa đơn (Enter để lưu)"
-                                />
-                                <button
-                                  type="button"
-                                  className="inline-invoice-save-btn"
-                                  onMouseDown={(e) => {
-                                    e.preventDefault();
-                                    handleSaveInvoice(r);
-                                  }}
-                                  title="Lưu số hóa đơn"
-                                >
-                                  <Check size={12} />
-                                </button>
-                                <button
-                                  type="button"
-                                  className="inline-invoice-cancel-btn"
-                                  onMouseDown={(e) => {
-                                    e.preventDefault();
-                                    handleCancelEditInvoice();
-                                  }}
-                                  title="Hủy"
-                                >
-                                  <X size={12} />
-                                </button>
-                              </div>
-                            ) : (
-                              <div
-                                className={`compact-invoice-trigger ${r.invoice_no?.trim() ? "has-invoice" : "no-invoice"}`}
-                                onClick={() => handleStartEditInvoice(r)}
-                                title="Bấm để nhập/sửa nhanh số và ngày hóa đơn"
-                              >
-                                <span>{invoiceCombined}</span>
-                                <Pencil size={11} className="invoice-edit-icon" />
-                              </div>
-                            )}
-                          </td>
-
-                          {/* 6. Trạng thái / Nút xác nhận an toàn */}
-                          <td style={{ textAlign: "center" }}>
-                            {isDone ? (
-                              <button
-                                type="button"
-                                className="payment-status-badge status-paid"
-                                onClick={() => setPaymentConfirmModal({ req: r, action: "revert" })}
-                                title="Đã thanh toán hôm nay. Bấm để hoàn tác nếu chuyển nhầm"
-                              >
-                                <CheckCircle2 size={13} /> Đã thanh toán
-                              </button>
-                            ) : (
-                              <button
-                                type="button"
-                                className="payment-status-badge status-unpaid"
-                                onClick={() => setPaymentConfirmModal({ req: r, action: "complete" })}
-                                title="Chưa thanh toán. Bấm để mở hộp thoại xác nhận thanh toán"
-                              >
-                                <Clock size={13} /> Chưa thanh toán
-                              </button>
-                            )}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              )}
-            </div>
-          </div>
         </div>
       </div>
       {/* MODAL XÁC NHẬN CHUYỂN TRẠNG THÁI THANH TOÁN */}

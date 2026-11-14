@@ -1624,3 +1624,228 @@
     transform: scale(1) translateY(0);
   }
 }
+
+/* =========================================================
+   WORKFLOW RADAR & 5-STAGE PIPELINE (TRANG CHỦ CHỐNG SÓT VIỆC)
+   ========================================================= */
+.radar-attention-strip {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.radar-pill {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  color: #334155;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  text-align: left;
+}
+
+.radar-pill strong {
+  margin-left: auto;
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.radar-pill:hover {
+  border-color: #cbd5e1;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px rgba(15, 23, 42, 0.05);
+}
+
+.radar-pill.active.pill-all {
+  background: #f0f9ff;
+  border-color: #0284c7;
+  color: #0369a1;
+}
+
+.radar-pill.active.pill-overdue {
+  background: #fef2f2;
+  border-color: #ef4444;
+  color: #b91c1c;
+}
+
+.radar-pill.active.pill-due {
+  background: #fffbeb;
+  border-color: #f59e0b;
+  color: #b45309;
+}
+
+.radar-pill.active.pill-missing {
+  background: #fff7ed;
+  border-color: #f97316;
+  color: #c2410c;
+}
+
+.radar-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.radar-dot.dot-slate { background: #0284c7; }
+.radar-dot.dot-red { background: #ef4444; }
+.radar-dot.dot-amber { background: #f59e0b; }
+.radar-dot.dot-orange { background: #f97316; }
+
+.dashboard-action-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.65fr) minmax(320px, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.dashboard-action-right .todo-hero-card {
+  position: sticky;
+  top: 16px;
+}
+
+.pipeline-stage-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 0 18px 12px;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.pipeline-stage-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 12px;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  color: #475569;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.pipeline-stage-tab:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+.pipeline-stage-tab.active {
+  background: #0f172a;
+  border-color: #0f172a;
+  color: #ffffff;
+}
+
+.pipeline-stage-tab.active .queue-pill-count {
+  background: rgba(255, 255, 255, 0.18);
+  color: #ffffff;
+}
+
+.stage-status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+}
+
+.stage-status-dot.dot-red { background: #ef4444; }
+.stage-status-dot.dot-amber { background: #f59e0b; }
+
+.pipeline-alerts-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.pipeline-alert-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.pipeline-alert-tag.sev-overdue {
+  background: #fef2f2;
+  color: #b91c1c;
+  border: 1px solid #fecaca;
+}
+
+.pipeline-alert-tag.sev-due_soon {
+  background: #fffbeb;
+  color: #b45309;
+  border: 1px solid #fde68a;
+}
+
+.pipeline-alert-tag.sev-warning {
+  background: #fff7ed;
+  color: #c2410c;
+  border: 1px solid #fed7aa;
+}
+
+.pipeline-alert-tag.sev-info {
+  background: #f0f9ff;
+  color: #0369a1;
+  border: 1px solid #bae6fd;
+}
+
+.pipeline-row-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.btn-row-remind {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  border: 1px dashed #cbd5e1;
+  background: #ffffff;
+  color: #475569;
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-row-remind:hover {
+  border-color: #10b981;
+  background: #ecfdf5;
+  color: #047857;
+}
+
+.cell-strong {
+  font-weight: 600;
+  color: #0f172a;
+  font-size: 13px;
+}
+
+.cell-sub {
+  font-size: 11.5px;
+  color: #64748b;
+  margin-top: 2px;
+}
+
+@media (max-width: 1180px) {
+  .radar-attention-strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .dashboard-action-grid {
+    grid-template-columns: 1fr;
+  }
+  .dashboard-action-right .todo-hero-card {
+    position: static;
+  }
+}

@@ -17,17 +17,19 @@ import {
   X,
   Bell,
 } from "lucide-react";
-import { PR, PO, Supplier, ApprovalRequest, PaymentRequestEntry, calcPOTotal } from "../types";
+import { PR, PO, Supplier, ApprovalRequest, PaymentRequestEntry, PaymentHandoverItem } from "../types";
 import { fmtMoney } from "../payment-utils";
 import { fmt } from "../utils";
 import { DashboardTodo } from "./Dashboard";
 import { checkIsOnline, getOfflineQueue, subscribeToNetworkStatus } from "../utils/offlineSync";
+import { buildWorkflowRadar } from "../utils/workflowRadar";
 
 export interface MobileDashboardProps {
   prs?: PR[];
   pos?: PO[];
   approvalRequests?: ApprovalRequest[];
   paymentRequests?: PaymentRequestEntry[];
+  paymentHandovers?: PaymentHandoverItem[];
   suppliers?: Supplier[];
   todos?: DashboardTodo[];
   onAddTodo?: (text: string, priority?: "high" | "normal" | "low") => void;
@@ -52,6 +54,7 @@ export interface MobileDashboardProps {
   onSelectPR?: (pr: PR) => void;
   onSelectPO?: (po: PO) => void;
   onSelectPayment?: (id: number) => void;
+  onSelectHandover?: (handover: PaymentHandoverItem) => void;
   onSelectApproval?: (req: ApprovalRequest) => void;
   onToggleCompletePayment?: (req: PaymentRequestEntry) => void;
   onConfirmPayment?: (req: PaymentRequestEntry) => void;
@@ -65,14 +68,13 @@ export function MobileDashboard(props: MobileDashboardProps) {
     pos = [],
     approvalRequests = [],
     paymentRequests = [],
+    paymentHandovers = [],
     suppliers = [],
     todos = [],
     onAddTodo,
     onToggleTodo,
     onDeleteTodo,
     onClearCompletedTodos,
-    remainingDebt = 0,
-    pendingPayments = [],
     onNavigate,
     onCreatePR,
     onCreatePO,
@@ -80,6 +82,7 @@ export function MobileDashboard(props: MobileDashboardProps) {
     onSelectPR,
     onSelectPO,
     onSelectPayment,
+    onSelectHandover,
     onSelectApproval,
     onToggleCompletePayment,
     onConfirmPayment,
@@ -87,11 +90,22 @@ export function MobileDashboard(props: MobileDashboardProps) {
     onStartEditInvoice,
   } = props;
 
-  const todaySpent = props.todaySpent ?? props.paidTodayAmount ?? 0;
-  const todayPending = props.todayPending ?? 0;
-  const totalPOAmount = props.totalPOAmount ?? props.totalPOValue ?? 0;
-  const disbursedPOAmount = props.disbursedPOAmount ?? props.totalPOPaid ?? 0;
-  const poPaymentPercent = props.poPaymentPercent ?? props.poPaymentProgressPct ?? 0;
+  const radar = useMemo(
+    () =>
+      buildWorkflowRadar({
+        prs,
+        pos,
+        approvalRequests,
+        paymentRequests,
+        paymentHandovers,
+        suppliers,
+      }),
+    [prs, pos, approvalRequests, paymentRequests, paymentHandovers, suppliers],
+  );
+  const pendingPayments = useMemo(
+    () => radar.payments.map((p) => p.payment),
+    [radar.payments],
+  );
   const [isOnline, setIsOnline] = useState<boolean>(true);
   const [queueCount, setQueueCount] = useState<number>(0);
   const [activeTab, setActiveTab] = useState<"todos" | "payments" | "queue">("todos");
@@ -267,174 +281,25 @@ export function MobileDashboard(props: MobileDashboardProps) {
         </div>
       </div>
 
-      {/* ----------------------------------------------------------------
-          2. KHỐI DÒNG TIỀN & CÔNG NỢ (HORIZONTAL SWIPE CAROUSEL)
-          ---------------------------------------------------------------- */}
-      <div style={{ padding: "14px 16px 6px" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
-          <h3 style={{ margin: 0, fontSize: "14px", fontWeight: 700, color: "#1e293b", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-            📊 Dòng tiền &amp; Tiến độ mua sắm
-          </h3>
-          <span style={{ fontSize: "11px", color: "#64748b" }}>Vuốt ngang để xem ➔</span>
-        </div>
-
-        {/* Carousel Container */}
-        <div
-          style={{
-            display: "flex",
-            overflowX: "auto",
-            scrollSnapType: "x mandatory",
-            WebkitOverflowScrolling: "touch",
-            gap: "12px",
-            paddingBottom: "8px",
-            scrollbarWidth: "none",
-          }}
-        >
-          {/* Card 1: Tổng chi hôm nay */}
-          <div
-            style={{
-              flex: "0 0 84vw",
-              maxWidth: "340px",
-              scrollSnapAlign: "start",
-              borderRadius: "14px",
-              padding: "16px",
-              background: "linear-gradient(135deg, #0284c7 0%, #0369a1 100%)",
-              color: "#ffffff",
-              boxShadow: "0 10px 20px -5px rgba(2, 132, 199, 0.35)",
-              display: "flex",
-              flexDirection: "column",
-              justifyContent: "space-between",
-              height: "140px",
-              boxSizing: "border-box",
-            }}
-          >
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-              <div>
-                <span style={{ fontSize: "12px", color: "#e0f2fe", fontWeight: 600 }}>TỔNG CHI TRONG NGÀY</span>
-                <div style={{ fontSize: "22px", fontWeight: 800, color: "#ffffff", marginTop: "4px" }}>
-                  {fmtMoney(todaySpent)} ₫
-                </div>
-              </div>
-              <div
-                style={{
-                  width: "36px",
-                  height: "36px",
-                  borderRadius: "10px",
-                  background: "rgba(255, 255, 255, 0.2)",
-                  backdropFilter: "blur(4px)",
-                  display: "grid",
-                  placeItems: "center",
-                }}
-              >
-                <DollarSign size={20} color="#ffffff" />
-              </div>
-            </div>
-            <div style={{ background: "rgba(0, 0, 0, 0.15)", borderRadius: "8px", padding: "6px 10px", fontSize: "11.5px", display: "flex", justifyContent: "space-between" }}>
-              <span>Đã chi: <b>{fmtMoney(todaySpent)} ₫</b></span>
-              <span>Dự chi: <b>{fmtMoney(todayPending)} ₫</b></span>
-            </div>
-          </div>
-
-          {/* Card 2: Tiến độ thanh toán PO */}
-          <div
-            style={{
-              flex: "0 0 84vw",
-              maxWidth: "340px",
-              scrollSnapAlign: "start",
-              borderRadius: "14px",
-              padding: "16px",
-              background: "linear-gradient(135deg, #059669 0%, #047857 100%)",
-              color: "#ffffff",
-              boxShadow: "0 10px 20px -5px rgba(5, 150, 105, 0.35)",
-              display: "flex",
-              flexDirection: "column",
-              justifyContent: "space-between",
-              height: "140px",
-              boxSizing: "border-box",
-            }}
-          >
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-              <div>
-                <span style={{ fontSize: "12px", color: "#d1fae5", fontWeight: 600 }}>TIẾN ĐỘ THANH TOÁN PO</span>
-                <div style={{ fontSize: "22px", fontWeight: 800, color: "#ffffff", marginTop: "4px" }}>
-                  {poPaymentPercent}% hoàn thành
-                </div>
-              </div>
-              <div
-                style={{
-                  width: "36px",
-                  height: "36px",
-                  borderRadius: "10px",
-                  background: "rgba(255, 255, 255, 0.2)",
-                  backdropFilter: "blur(4px)",
-                  display: "grid",
-                  placeItems: "center",
-                }}
-              >
-                <TrendingUp size={20} color="#ffffff" />
-              </div>
-            </div>
-            <div>
-              {/* Progress Bar */}
-              <div style={{ height: "6px", background: "rgba(255, 255, 255, 0.25)", borderRadius: "3px", overflow: "hidden", marginBottom: "6px" }}>
-                <div style={{ width: `${Math.min(100, Math.max(0, poPaymentPercent))}%`, height: "100%", background: "#ffffff", borderRadius: "3px" }} />
-              </div>
-              <div style={{ fontSize: "11px", color: "#d1fae5", display: "flex", justifyContent: "space-between" }}>
-                <span>Đã giải ngân: <b>{fmtMoney(disbursedPOAmount)} ₫</b></span>
-                <span>Tổng PO: <b>{fmtMoney(totalPOAmount)} ₫</b></span>
-              </div>
-            </div>
-          </div>
-
-          {/* Card 3: Công nợ NCC còn lại */}
-          <div
-            style={{
-              flex: "0 0 84vw",
-              maxWidth: "340px",
-              scrollSnapAlign: "start",
-              borderRadius: "14px",
-              padding: "16px",
-              background: "linear-gradient(135deg, #d97706 0%, #b45309 100%)",
-              color: "#ffffff",
-              boxShadow: "0 10px 20px -5px rgba(217, 119, 6, 0.35)",
-              display: "flex",
-              flexDirection: "column",
-              justifyContent: "space-between",
-              height: "140px",
-              boxSizing: "border-box",
-            }}
-          >
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-              <div>
-                <span style={{ fontSize: "12px", color: "#fef3c7", fontWeight: 600 }}>CÔNG NỢ NCC CÒN LẠI</span>
-                <div style={{ fontSize: "22px", fontWeight: 800, color: "#ffffff", marginTop: "4px" }}>
-                  {fmtMoney(remainingDebt)} ₫
-                </div>
-              </div>
-              <div
-                style={{
-                  width: "36px",
-                  height: "36px",
-                  borderRadius: "10px",
-                  background: "rgba(255, 255, 255, 0.2)",
-                  backdropFilter: "blur(4px)",
-                  display: "grid",
-                  placeItems: "center",
-                }}
-              >
-                <CreditCard size={20} color="#ffffff" />
-              </div>
-            </div>
-            <div style={{ background: "rgba(0, 0, 0, 0.15)", borderRadius: "8px", padding: "6px 10px", fontSize: "11.5px", display: "flex", justifyContent: "space-between" }}>
-              <span>Đơn PO chưa quyết toán: <b>{unpaidPOCount} đơn</b></span>
-              <span
-                style={{ textDecoration: "underline", cursor: "pointer" }}
-                onClick={() => onNavigate && onNavigate({ view: "po-list" })}
-              >
-                Xem chi tiết ➔
-              </span>
-            </div>
-          </div>
+      {/* 2. RADAR NHẮC VIỆC (THAY THẾ CÁC THẺ TỔNG HỢP CHUNG) */}
+      <div style={{ padding: "12px 16px 4px" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
+          <button type="button" onClick={() => setActiveTab("queue")} style={{ textAlign: "left", borderRadius: "12px", padding: "10px 12px", border: "1px solid #fecaca", background: "#fef2f2", cursor: "pointer" }}>
+            <div style={{ fontSize: "11px", fontWeight: 700, color: "#b91c1c" }}>QUÁ HẠN / LỖI</div>
+            <div style={{ fontSize: "20px", fontWeight: 800, color: "#991b1b" }}>{radar.counts.overdue}</div>
+          </button>
+          <button type="button" onClick={() => setActiveTab("queue")} style={{ textAlign: "left", borderRadius: "12px", padding: "10px 12px", border: "1px solid #fde68a", background: "#fffbeb", cursor: "pointer" }}>
+            <div style={{ fontSize: "11px", fontWeight: 700, color: "#b45309" }}>SẮP ĐẾN HẠN (≤3N)</div>
+            <div style={{ fontSize: "20px", fontWeight: 800, color: "#92400e" }}>{radar.counts.dueSoon}</div>
+          </button>
+          <button type="button" onClick={() => setActiveTab("queue")} style={{ textAlign: "left", borderRadius: "12px", padding: "10px 12px", border: "1px solid #fed7aa", background: "#fff7ed", cursor: "pointer" }}>
+            <div style={{ fontSize: "11px", fontWeight: 700, color: "#c2410c" }}>THIẾU CHỨNG TỪ</div>
+            <div style={{ fontSize: "20px", fontWeight: 800, color: "#9a3412" }}>{radar.counts.missingDocs}</div>
+          </button>
+          <button type="button" onClick={() => setActiveTab("payments")} style={{ textAlign: "left", borderRadius: "12px", padding: "10px 12px", border: "1px solid #bae6fd", background: "#f0f9ff", cursor: "pointer" }}>
+            <div style={{ fontSize: "11px", fontWeight: 700, color: "#0369a1" }}>ĐANG THEO DÕI</div>
+            <div style={{ fontSize: "20px", fontWeight: 800, color: "#0c4a6e" }}>{radar.counts.totalActionable}</div>
+          </button>
         </div>
       </div>
 
