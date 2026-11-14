@@ -390,3 +390,144 @@ body.theme-misa .mobile-header .mobile-search-btn,
   border: 1px solid #e2e8f0 !important;
   color: #475569 !important;
 }
+
+
+/* ==========================================================================
+   MISA AMIS ENTERPRISE - DARK MODE (.theme-misa.theme-misa-dark)
+   ========================================================================== */
+html.theme-misa.theme-misa-dark,
+body.theme-misa.theme-misa-dark,
+.app.theme-misa.theme-misa-dark {
+  background-color: #0f172a !important;
+  color: #e2e8f0 !important;
+  color-scheme: dark;
+}
+
+html.theme-misa.theme-misa-dark aside,
+body.theme-misa.theme-misa-dark aside,
+.app.theme-misa.theme-misa-dark aside,
+.app.theme-misa.theme-misa-dark > aside {
+  background: #111827 !important;
+  border-right: 1px solid #1e293b !important;
+  box-shadow: 1px 0 6px rgba(0, 0, 0, 0.35) !important;
+  color: #cbd5e1 !important;
+}
+
+html.theme-misa.theme-misa-dark aside .brand,
+body.theme-misa.theme-misa-dark aside .brand,
+.app.theme-misa.theme-misa-dark aside .brand {
+  background: #111827 !important;
+  border-bottom: 1px solid #1e293b !important;
+}
+
+html.theme-misa.theme-misa-dark aside .brand > span,
+body.theme-misa.theme-misa-dark aside .brand > span,
+.app.theme-misa.theme-misa-dark aside .brand > span {
+  background: #1e293b !important;
+  border: 1px solid #334155 !important;
+}
+
+html.theme-misa.theme-misa-dark aside .brand > b strong,
+body.theme-misa.theme-misa-dark aside .brand > b strong,
+.app.theme-misa.theme-misa-dark aside .brand > b strong {
+  color: #f8fafc !important;
+}
+
+html.theme-misa.theme-misa-dark aside .brand > b small,
+body.theme-misa.theme-misa-dark aside .brand > b small,
+.app.theme-misa.theme-misa-dark aside .brand > b small {
+  color: #38bdf8 !important;
+}
+
+html.theme-misa.theme-misa-dark .sidebar-search-btn,
+body.theme-misa.theme-misa-dark .sidebar-search-btn,
+.app.theme-misa.theme-misa-dark .sidebar-search-btn {
+  background: #1e293b !important;
+  border: 1px solid #334155 !important;
+  color: #94a3b8 !important;
+}
+
+html.theme-misa.theme-misa-dark aside nav button,
+body.theme-misa.theme-misa-dark aside nav button,
+.app.theme-misa.theme-misa-dark aside nav button {
+  color: #cbd5e1 !important;
+}
+
+html.theme-misa.theme-misa-dark aside nav button:hover,
+body.theme-misa.theme-misa-dark aside nav button:hover,
+.app.theme-misa.theme-misa-dark aside nav button:hover {
+  background: #1e293b !important;
+  color: #f8fafc !important;
+}
+
+html.theme-misa.theme-misa-dark aside nav button.active,
+body.theme-misa.theme-misa-dark aside nav button.active,
+.app.theme-misa.theme-misa-dark aside nav button.active {
+  background: rgba(56, 189, 248, 0.14) !important;
+  color: #38bdf8 !important;
+  border-left-color: #38bdf8 !important;
+}
+
+html.theme-misa.theme-misa-dark .sidebar-user-card,
+body.theme-misa.theme-misa-dark .sidebar-user-card,
+.app.theme-misa.theme-misa-dark .sidebar-user-card {
+  background: #1e293b !important;
+  border-color: #334155 !important;
+}
+
+html.theme-misa.theme-misa-dark .sidebar-user-card .user-name,
+body.theme-misa.theme-misa-dark .sidebar-user-card .user-name {
+  color: #f1f5f9 !important;
+}
+
+html.theme-misa.theme-misa-dark .sidebar-secondary-btn {
+  background: #1e293b !important;
+  border-color: #334155 !important;
+  color: #cbd5e1 !important;
+}
+
+html.theme-misa.theme-misa-dark main {
+  background-color: #0f172a !important;
+  color: #e2e8f0 !important;
+}
+
+html.theme-misa.theme-misa-dark .card,
+html.theme-misa.theme-misa-dark .admin-card,
+html.theme-misa.theme-misa-dark .panel,
+html.theme-misa.theme-misa-dark .modal,
+html.theme-misa.theme-misa-dark .mobile-header {
+  background-color: #1e293b !important;
+  border-color: #334155 !important;
+  color: #e2e8f0 !important;
+}
+
+html.theme-misa.theme-misa-dark input,
+html.theme-misa.theme-misa-dark select,
+html.theme-misa.theme-misa-dark textarea {
+  background-color: #0f172a !important;
+  border-color: #334155 !important;
+  color: #f1f5f9 !important;
+}
+
+html.theme-misa.theme-misa-dark table thead th {
+  background-color: #1e293b !important;
+  color: #cbd5e1 !important;
+  border-color: #334155 !important;
+}
+
+html.theme-misa.theme-misa-dark table tbody td {
+  border-color: #1e293b !important;
+  color: #e2e8f0 !important;
+}
+
+html.theme-misa.theme-misa-dark table tbody tr:hover {
+  background-color: rgba(51, 65, 85, 0.45) !important;
+}
+
+html.theme-misa.theme-misa-dark ::-webkit-scrollbar-track {
+  background: #0f172a !important;
+}
+
+html.theme-misa.theme-misa-dark ::-webkit-scrollbar-thumb {
+  background: #475569 !important;
+}

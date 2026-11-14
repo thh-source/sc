@@ -68,7 +68,7 @@ import { PaymentStagePickerModal } from "./components/PaymentStagePickerModal";
 import { POPaymentLinkModal } from "./components/POPaymentLinkModal";
 import { SettingsModal } from "./components/SettingsModal";
 import { CatalogManagement } from "./components/CatalogManagement";
-import { I18nProvider, useTranslation, LanguageSwitcher } from "./i18n";
+import { I18nProvider, useTranslation } from "./i18n";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { useOfflineSync } from "./hooks/useOfflineSync";
 import { OfflineSyncBanner } from "./components/OfflineSyncBanner";
@@ -123,10 +123,8 @@ import {
 } from "./utils/navigation";
 
 function ProcurementAppInner({
-  reportToken,
   currentUser,
 }: {
-  reportToken?: string;
   currentUser?: {
     id: string;
     username: string;
@@ -151,32 +149,35 @@ function ProcurementAppInner({
     [collapsed, setCollapsed] = useState(false),
     [prs, setPrs] = useState(prs0),
     [selectedPR, setSelectedPR] = useState(emptyPR);
-  const [uiTheme, setUiTheme] = useState<"classic" | "misa">(() => {
+  const [misaMode, setMisaMode] = useState<"light" | "dark">(() => {
     if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("scm_ui_theme");
-      if (saved === "misa" || saved === "classic") return saved;
+      const saved = localStorage.getItem("scm_misa_mode");
+      if (saved === "dark" || saved === "light") return saved;
     }
-    return "classic";
+    return "light";
   });
 
   useEffect(() => {
     if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("scm_ui_theme") as "classic" | "misa";
-      if (saved === "misa" || saved === "classic") {
-        if (saved !== uiTheme) setUiTheme(saved);
-        document.documentElement.classList.toggle("theme-misa", saved === "misa");
-        document.body.classList.toggle("theme-misa", saved === "misa");
-      }
+      const saved = localStorage.getItem("scm_misa_mode");
+      const mode = saved === "dark" ? "dark" : "light";
+      if (mode !== misaMode) setMisaMode(mode);
+      document.documentElement.classList.add("theme-misa");
+      document.body.classList.add("theme-misa");
+      document.documentElement.classList.toggle("theme-misa-dark", mode === "dark");
+      document.body.classList.toggle("theme-misa-dark", mode === "dark");
     }
   }, []);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
-      document.documentElement.classList.toggle("theme-misa", uiTheme === "misa");
-      document.body.classList.toggle("theme-misa", uiTheme === "misa");
+      document.documentElement.classList.add("theme-misa");
+      document.body.classList.add("theme-misa");
+      document.documentElement.classList.toggle("theme-misa-dark", misaMode === "dark");
+      document.body.classList.toggle("theme-misa-dark", misaMode === "dark");
     }
-  }, [uiTheme]);
-  const [reportMode] = useState(Boolean(reportToken));
+  }, [misaMode]);
+  const reportMode = false;
   const [items, setItems] = useState(items0),
     [suppliers, setSuppliers] = useState(suppliers0),
     [quotes, setQuotes] = useState(quotes0),
@@ -749,9 +750,7 @@ function ProcurementAppInner({
       if (data.pos?.length) setCurrentPO(data.pos[0]);
     };
 
-    const url = reportToken
-      ? `/api/report-state?token=${encodeURIComponent(reportToken)}`
-      : `/api/state?workspace=${encodeURIComponent(workspaceId)}`;
+    const url = `/api/state?workspace=${encodeURIComponent(workspaceId)}`;
     fetch(url)
       .then((r) => {
         if (!r.ok) throw new Error();
@@ -827,7 +826,7 @@ function ProcurementAppInner({
     return () => {
       active = false;
     };
-  }, [loadTrigger, reportToken, workspaceId]);
+  }, [loadTrigger, workspaceId]);
   useEffect(() => {
     if (!storageReady || reportMode) return;
     const timer = setTimeout(() => void persistState(), 1200);
@@ -973,21 +972,6 @@ function ProcurementAppInner({
     });
     return () => unsubscribe();
   }, [storageReady, reportMode, workspaceId]);
-  const openShareReport = async () => {
-    setStorageStatus("Đang tạo link báo cáo...");
-    try {
-      const response = await fetch("/api/share", { method: "POST" });
-      if (!response.ok) throw new Error();
-      const body = (await response.json()) as { token: string };
-      setStorageStatus("Đã tạo link báo cáo");
-      window.open(
-        `${window.location.origin}/report/${encodeURIComponent(body.token)}`,
-        "_blank",
-      );
-    } catch {
-      setStorageStatus("Không thể tạo link báo cáo");
-    }
-  };
   const logout = async () => {
     setStorageStatus("Đang lưu và đăng xuất...");
     try {
@@ -2767,24 +2751,11 @@ function ProcurementAppInner({
     },
   ];
 
-  const visibleNav = reportMode
-    ? nav.filter((n) =>
-        [
-          "dashboard",
-          "prs",
-          "approval",
-          "po-list",
-          "payment",
-          "handover",
-          "data-vault",
-          "catalog",
-        ].includes(n.id),
-      )
-    : nav;
+  const visibleNav = nav;
 
   return (
     <div
-      className={`app ${collapsed ? "collapsed" : ""} ${reportMode ? "report-mode" : ""} ${uiTheme === "misa" ? "theme-misa" : ""}`}
+      className={`app ${collapsed ? "collapsed" : ""} theme-misa ${misaMode === "dark" ? "theme-misa-dark" : ""}`}
     >
       {isAppLoading && (
         <div
@@ -2910,29 +2881,21 @@ function ProcurementAppInner({
               type="button"
               className="sidebar-secondary-btn"
               onClick={() => setSettingsModalOpen(true)}
-              title="Cài đặt hệ thống: Ngôn ngữ, Tạo link theo dõi, Mẫu in..."
+              title="Cài đặt hệ thống: Giao diện MISA AMIS, Mẫu in, Phiên bản..."
             >
               <Settings size={15} style={{ color: "#94a3b8" }} /> <span>Cài đặt</span>
             </button>
           </div>
 
-          {/* 2. Khối tài khoản: Avatar + Tên hiển thị (Master Admin) */}
+          {/* 2. Thông tin hệ thống (1 người dùng) */}
           <div className="sidebar-user-card">
             <div className="user-profile">
-              <i className="user-avatar">{currentUser?.displayName?.slice(0, 2).toUpperCase() || "MA"}</i>
+              <i className="user-avatar">PK</i>
               <div className="user-meta">
-                <b className="user-name" title={currentUser?.displayName || "Master Admin"}>
-                  {currentUser?.displayName || "Master Admin"}
+                <b className="user-name" title="Phenikaa Pharma">
+                  Phenikaa Pharma
                 </b>
-                <small className="user-role">
-                  {currentUser
-                    ? currentUser.role === "master"
-                      ? "Master Admin"
-                    : currentUser.role === "admin"
-                      ? "Admin"
-                      : "Người dùng"
-                    : "Chỉ xem"}
-                </small>
+                <small className="user-role">Quản lý mua hàng</small>
               </div>
             </div>
           </div>
@@ -3234,12 +3197,10 @@ function ProcurementAppInner({
             onNavigate={(route) => navigateTo(route)}
           />
         )}
-        {(view === "settings" || view === "print-templates") &&
-          currentUser &&
-          (currentUser.role === "master" || currentUser.role === "admin") && (
+        {(view === "settings" || view === "print-templates") && (
             <AdminSettings
               currentUser={currentUser}
-              defaultTab={view === "print-templates" ? "templates" : "users"}
+              defaultTab={view === "print-templates" ? "templates" : "snapshots"}
               paymentTemplate={paymentTemplate}
               suppliers={suppliers}
               sampleRequest={paymentRequests[0] || null}
@@ -4762,8 +4723,8 @@ function ProcurementAppInner({
         onOpenPrintTemplates={() => navigateTo({ view: "print-templates" })}
         onOpenAdminSettings={() => navigateTo({ view: "settings" })}
         onStatus={setStorageStatus}
-        uiTheme={uiTheme}
-        onThemeChange={setUiTheme}
+        misaMode={misaMode}
+        onMisaModeChange={setMisaMode}
       />
 
       {/* Knowledge Base Contextual Slide-Over Drawer */}
@@ -4994,7 +4955,6 @@ function ProcurementAppInner({
 }
 
 export default function ProcurementApp(props: {
-  reportToken?: string;
   currentUser?: {
     id: string;
     username: string;

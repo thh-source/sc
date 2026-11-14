@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from "react";
+﻿import React, { useState, useEffect, useRef, useMemo } from "react";
 import {
   LogOut,
   Users,
@@ -36,35 +36,27 @@ import {
 } from "../utils/otaUpdateService";
 
 export function AdminSettings({
-  currentUser,
-  defaultTab = "users",
+  currentUser: _currentUser,
+  defaultTab = "templates",
   paymentTemplate,
   suppliers,
   sampleRequest,
   onUpdateState,
   readOnly = false,
 }: {
-  currentUser: {
+  currentUser?: {
     id: string;
     username: string;
     displayName: string;
     role: string;
   };
-  defaultTab?: "users" | "templates" | "snapshots" | "audit" | "version";
+  defaultTab?: "templates" | "snapshots" | "audit" | "version";
   paymentTemplate?: PaymentPrintTemplate;
   suppliers?: Supplier[];
   sampleRequest?: PaymentRequestEntry | null;
   onUpdateState?: (patch: { paymentTemplate?: PaymentPrintTemplate }) => void;
   readOnly?: boolean;
 }) {
-  type UserRow = {
-    id: string;
-    username: string;
-    displayName: string;
-    role: string;
-    active: number;
-    createdAt: string;
-  };
   type AuditLogRow = {
     id: number;
     action: string;
@@ -108,7 +100,7 @@ export function AdminSettings({
     };
   };
 
-  const [activeTab, setActiveTab] = useState<"users" | "templates" | "snapshots" | "audit" | "version">(defaultTab);
+  const [activeTab, setActiveTab] = useState<"templates" | "snapshots" | "audit" | "version">(defaultTab);
 
   useEffect(() => {
     if (defaultTab) setActiveTab(defaultTab);
@@ -193,15 +185,8 @@ export function AdminSettings({
     }
   };
 
-  const [users, setUsers] = useState<UserRow[]>([]),
-    [usage, setUsage] = useState<UsageInfo | null>(null),
-    [message, setMessage] = useState(""),
-    [form, setForm] = useState({
-      username: "",
-      displayName: "",
-      password: "",
-      role: "user",
-    });
+  const [usage, setUsage] = useState<UsageInfo | null>(null),
+    [message, setMessage] = useState("");
 
   // Audit logs & session cleanup state
   const [auditLogs, setAuditLogs] = useState<AuditLogRow[]>([]);
@@ -216,12 +201,6 @@ export function AdminSettings({
     };
   }, []);
 
-  // Reset password state
-  const [resetTargetUser, setResetTargetUser] = useState<UserRow | null>(null);
-  const [newPassword, setNewPassword] = useState("");
-  const [resetMsg, setResetMsg] = useState("");
-  const [resetLoading, setResetLoading] = useState(false);
-
   // R2 Snapshots state
   const [snapshots, setSnapshots] = useState<SnapshotItem[]>([]);
   const [snapshotLoading, setSnapshotLoading] = useState(false);
@@ -230,11 +209,6 @@ export function AdminSettings({
   const [snapshotModalOpen, setSnapshotModalOpen] = useState(false);
   const [snapshotLabel, setSnapshotLabel] = useState("");
   const [snapshotMsg, setSnapshotMsg] = useState("");
-
-  const load = () =>
-    fetch("/api/users")
-      .then((r) => r.json() as Promise<{ users?: UserRow[] }>)
-      .then((b) => setUsers(b.users || []));
 
   const loadUsage = () =>
     fetch("/api/admin/usage")
@@ -265,85 +239,10 @@ export function AdminSettings({
   };
 
   useEffect(() => {
-    load();
     loadUsage();
     loadAuditLogs();
     loadSnapshots();
   }, []);
-
-  const create = async () => {
-    setMessage("");
-    const response = await fetch("/api/users", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
-      }),
-      body = (await response.json()) as { error?: string };
-    if (!response.ok) {
-      setMessage(body.error || "Không thể tạo tài khoản");
-      return;
-    }
-    setForm({ username: "", displayName: "", password: "", role: "user" });
-    setMessage("Đã tạo tài khoản mới");
-    load();
-    loadUsage();
-    loadAuditLogs();
-  };
-
-  const toggle = async (user: UserRow) => {
-    await fetch(`/api/users/${user.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ active: !user.active }),
-    });
-    load();
-    loadUsage();
-    loadAuditLogs();
-  };
-
-  const handleResetPassword = async () => {
-    if (!resetTargetUser || newPassword.length < 8) return;
-    setResetLoading(true);
-    setResetMsg("");
-    try {
-      const res = await fetch(`/api/users/${resetTargetUser.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ password: newPassword }),
-      });
-      const data = (await res.json()) as { error?: string };
-      if (res.ok) {
-        setMessage(`Đã đặt lại mật khẩu cho tài khoản "${resetTargetUser.username}"`);
-        setResetTargetUser(null);
-        setNewPassword("");
-        loadAuditLogs();
-      } else {
-        setResetMsg(data.error || "Không thể đặt lại mật khẩu");
-      }
-    } catch {
-      setResetMsg("Lỗi kết nối máy chủ");
-    } finally {
-      setResetLoading(false);
-    }
-  };
-
-  const handleDeleteUser = async (u: UserRow) => {
-    if (!window.confirm(`Bạn có chắc chắn muốn xóa vĩnh viễn tài khoản "${u.displayName}" (${u.username})?`)) return;
-    try {
-      const res = await fetch(`/api/users/${u.id}`, { method: "DELETE" });
-      const data = (await res.json()) as { error?: string };
-      if (res.ok) {
-        setMessage(`Đã xóa tài khoản ${u.username}`);
-        load();
-        loadUsage();
-        loadAuditLogs();
-      } else {
-        setMessage(data.error || "Không thể xóa tài khoản");
-      }
-    } catch {
-      setMessage("Lỗi kết nối khi xóa");
-    }
-  };
 
   const handleCleanupSessions = async () => {
     setCleaningSessions(true);
@@ -493,13 +392,6 @@ export function AdminSettings({
         }}
       >
         <button
-          className={activeTab === "users" ? "primary" : "ghost"}
-          onClick={() => setActiveTab("users")}
-          style={{ fontSize: "13px", padding: "7px 15px", height: "auto", display: "inline-flex", alignItems: "center", gap: "6px" }}
-        >
-          <Users size={15} /> Tài khoản & Phân quyền
-        </button>
-        <button
           className={activeTab === "templates" ? "primary" : "ghost"}
           onClick={() => setActiveTab("templates")}
           style={{ fontSize: "13px", padding: "7px 15px", height: "auto", display: "inline-flex", alignItems: "center", gap: "6px" }}
@@ -528,229 +420,6 @@ export function AdminSettings({
           <Smartphone size={15} /> Phiên bản & Cập nhật
         </button>
       </div>
-
-      {/* Tab 1: Tài khoản & Phân quyền */}
-      {activeTab === "users" && (
-        <>
-          <div className="admin-grid">
-            <section className="admin-card create-user-card">
-              <div className="section-heading">
-                <div>
-                  <span>＋</span>
-                  <h2>Tạo tài khoản người dùng</h2>
-                </div>
-              </div>
-              <div className="admin-form">
-                <label>
-                  ID đăng nhập
-                  <input
-                    value={form.username}
-                    onChange={(e) =>
-                      setForm((f) => ({ ...f, username: e.target.value }))
-                    }
-                    placeholder="Ví dụ: nguyenvana"
-                  />
-                </label>
-                <label>
-                  Tên người dùng
-                  <input
-                    value={form.displayName}
-                    onChange={(e) =>
-                      setForm((f) => ({ ...f, displayName: e.target.value }))
-                    }
-                    placeholder="Nguyễn Văn A"
-                  />
-                </label>
-                <label>
-                  Mật khẩu ban đầu
-                  <input
-                    type="password"
-                    value={form.password}
-                    onChange={(e) =>
-                      setForm((f) => ({ ...f, password: e.target.value }))
-                    }
-                    placeholder="Tối thiểu 8 ký tự"
-                  />
-                </label>
-                <label>
-                  Vai trò
-                  <select
-                    value={form.role}
-                    onChange={(e) =>
-                      setForm((f) => ({ ...f, role: e.target.value }))
-                    }
-                  >
-                    <option value="user">Người dùng</option>
-                    <option value="admin">Admin</option>
-                  </select>
-                </label>
-                {message && (
-                  <div
-                    className={
-                      message.startsWith("Đã")
-                        ? "admin-message success"
-                        : "admin-message"
-                    }
-                  >
-                    {message}
-                  </div>
-                )}
-                <button
-                  className="primary"
-                  disabled={
-                    !form.username || !form.displayName || form.password.length < 8
-                  }
-                  onClick={create}
-                >
-                  Tạo tài khoản
-                </button>
-              </div>
-            </section>
-
-            <section className="admin-card master-card">
-              <div className="section-heading">
-                <div>
-                  <span>◆</span>
-                  <h2>Tài khoản đang đăng nhập</h2>
-                </div>
-              </div>
-              <dl>
-                <div>
-                  <dt>ID</dt>
-                  <dd>{currentUser.username}</dd>
-                </div>
-                <div>
-                  <dt>Tên</dt>
-                  <dd>{currentUser.displayName}</dd>
-                </div>
-                <div>
-                  <dt>Quyền</dt>
-                  <dd>
-                    <span>
-                      {currentUser.role === "master" ? "Master Admin" : "Admin"}
-                    </span>
-                  </dd>
-                </div>
-                <div>
-                  <dt>Phiên đăng nhập</dt>
-                  <dd style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
-                    <span>12 giờ</span>
-                    <button
-                      className="ghost"
-                      style={{ fontSize: "11px", padding: "3px 8px", height: "auto" }}
-                      onClick={handleCleanupSessions}
-                      disabled={cleaningSessions}
-                      title="Dọn dẹp các phiên đã hết hạn trong cơ sở dữ liệu"
-                    >
-                      {cleaningSessions ? "Đang dọn..." : "🧹 Dọn phiên hết hạn"}
-                    </button>
-                  </dd>
-                </div>
-                {cleanupStatus && (
-                  <div>
-                    <dt></dt>
-                    <dd style={{ fontSize: "12px", color: "var(--green)" }}>{cleanupStatus}</dd>
-                  </div>
-                )}
-              </dl>
-              <p>
-                Mật khẩu được băm PBKDF2 bảo mật cao. Hệ thống tự động ghi nhật ký kiểm toán cho các tác vụ quản trị.
-              </p>
-            </section>
-          </div>
-
-          <AdminUsage usage={usage} onRefresh={loadUsage} />
-
-          <section className="admin-card user-list-card">
-            <div className="section-heading">
-              <div>
-                <span>♙</span>
-                <h2>Danh sách tài khoản</h2>
-              </div>
-              <small>{users.length} tài khoản</small>
-            </div>
-            <div className="user-table">
-              <table>
-                <thead>
-                  <tr>
-                    <th>ID</th>
-                    <th>Tên người dùng</th>
-                    <th>Vai trò</th>
-                    <th>Ngày tạo</th>
-                    <th>Trạng thái</th>
-                    <th style={{ textAlign: "right" }}>Thao tác</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {users.map((u) => (
-                    <tr key={u.id}>
-                      <td>
-                        <b>{u.username}</b>
-                      </td>
-                      <td>{u.displayName}</td>
-                      <td>
-                        <span className={`role ${u.role}`}>
-                          {u.role === "master"
-                            ? "Master Admin"
-                            : u.role === "admin"
-                              ? "Admin"
-                              : "Người dùng"}
-                        </span>
-                      </td>
-                      <td>{dateVN(u.createdAt)}</td>
-                      <td>
-                        <span
-                          className={u.active ? "account-active" : "account-locked"}
-                        >
-                          {u.active ? "Đang hoạt động" : "Đã khóa"}
-                        </span>
-                      </td>
-                      <td>
-                        <div style={{ display: "flex", justifyContent: "flex-end", gap: "6px" }}>
-                          {(u.role !== "master" || u.id === currentUser.id) && (
-                            <button
-                              className="ghost"
-                              style={{ fontSize: "11px", padding: "4px 8px", height: "auto" }}
-                              onClick={() => {
-                                setResetTargetUser(u);
-                                setNewPassword("");
-                                setResetMsg("");
-                              }}
-                              title="Đặt lại mật khẩu cho tài khoản này"
-                            >
-                              Đổi MK
-                            </button>
-                          )}
-
-                          {u.role !== "master" && u.id !== currentUser.id && (
-                            <button
-                              style={{ fontSize: "11px", padding: "4px 8px", height: "auto" }}
-                              onClick={() => toggle(u)}
-                            >
-                              {u.active ? "Khóa" : "Mở"}
-                            </button>
-                          )}
-
-                          {u.role !== "master" && u.id !== currentUser.id && (
-                            <button
-                              className="ghost danger"
-                              style={{ fontSize: "11px", padding: "4px 8px", height: "auto" }}
-                              onClick={() => handleDeleteUser(u)}
-                              title="Xóa tài khoản khỏi hệ thống"
-                            >
-                              Xóa
-                            </button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </section>
-        </>
-      )}
 
       {/* Tab 2: Mẫu phiếu in */}
       {activeTab === "templates" && (
@@ -1359,45 +1028,6 @@ export function AdminSettings({
           )}
         </section>
       )}
-      {resetTargetUser && (
-        <div className="backdrop">
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <i>🔑</i>
-            <h2>Đặt lại mật khẩu</h2>
-            <p>
-              Đặt mật khẩu mới cho tài khoản <b>{resetTargetUser.displayName}</b> ({resetTargetUser.username})
-            </p>
-            <label style={{ margin: "14px 0" }}>
-              Mật khẩu mới
-              <input
-                type="password"
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                placeholder="Tối thiểu 8 ký tự"
-                autoFocus
-              />
-            </label>
-            {resetMsg && (
-              <p style={{ color: "#e03131", fontSize: "13px", margin: "0 0 10px" }}>
-                {resetMsg}
-              </p>
-            )}
-            <div>
-              <button className="ghost" onClick={() => setResetTargetUser(null)}>
-                Hủy
-              </button>
-              <button
-                className="primary"
-                disabled={newPassword.length < 8 || resetLoading}
-                onClick={handleResetPassword}
-              >
-                {resetLoading ? "Đang lưu..." : "Xác nhận đặt lại"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Modal tạo snapshot sao lưu */}
       {snapshotModalOpen && (
         <div className="backdrop">

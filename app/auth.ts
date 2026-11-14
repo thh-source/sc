@@ -111,31 +111,37 @@ export async function bootstrapMaster(username: string, password: string) {
   };
 }
 
-export async function verifyLogin(username: string, password: string) {
+export async function verifySystemPassword(password: string): Promise<AppUser | null> {
   await ensureAuthSchema();
   const env = await runtime();
+  const masterId = String(env.MASTER_ADMIN_ID || "bosmile").trim();
+  const trimmed = password.trim();
+  if (!trimmed) return null;
+
   let row = await env.DB.prepare(
     "SELECT id,username,display_name AS displayName,password_hash AS passwordHash,password_salt AS passwordSalt,role,active FROM users WHERE username=?",
   )
-    .bind(username)
+    .bind(masterId)
     .first<
       AppUser & { passwordHash: string; passwordSalt: string; active: number }
     >();
+
   if (!row) {
-    const master = await bootstrapMaster(username, password);
+    const master = await bootstrapMaster(masterId, trimmed);
     if (!master) return null;
     row = await env.DB.prepare(
       "SELECT id,username,display_name AS displayName,password_hash AS passwordHash,password_salt AS passwordSalt,role,active FROM users WHERE username=?",
     )
-      .bind(username)
+      .bind(masterId)
       .first<
         AppUser & { passwordHash: string; passwordSalt: string; active: number }
       >();
   }
+
   if (!row || !row.active) return null;
-  const candidate = await hashPassword(password, row.passwordSalt);
+  const candidate = await hashPassword(trimmed, row.passwordSalt);
   if (candidate !== row.passwordHash) return null;
-  recordAudit("LOGIN", "user", `${row.username} (${row.displayName})`).catch(() => {});
+  recordAudit("LOGIN", "system", "Đăng nhập hệ thống").catch(() => {});
   return {
     id: row.id,
     username: row.username,

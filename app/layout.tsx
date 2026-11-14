@@ -64,7 +64,7 @@ export default function RootLayout({
         />
         <script
           dangerouslySetInnerHTML={{
-            __html: `try{if(localStorage.getItem('scm_ui_theme')!=='classic'){document.documentElement.classList.add('theme-misa');}}catch(e){}`,
+            __html: `try{document.documentElement.classList.add('theme-misa');if(localStorage.getItem('scm_misa_mode')==='dark'){document.documentElement.classList.add('theme-misa-dark');}}catch(e){}`,
           }}
         />
       </head>

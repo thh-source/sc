@@ -1,14 +1,11 @@
-"use client";
+﻿"use client";
 
 import React, { useState, useEffect, useMemo } from "react";
 import {
   Settings,
   X,
-  Globe,
-  Share2,
-  Copy,
   Check,
-  ExternalLink,
+  Copy,
   Printer,
   ShieldCheck,
   Loader2,
@@ -24,7 +21,6 @@ import {
   QrCode,
   Palette,
 } from "lucide-react";
-import { useTranslation, SupportedLang } from "../i18n";
 import { CURRENT_APP_VERSION, getAppPlatform } from "../version";
 import {
   fetchRemoteVersion,
@@ -47,52 +43,49 @@ export interface SettingsModalProps {
   onOpenPrintTemplates?: () => void;
   onOpenAdminSettings?: () => void;
   onStatus?: (msg: string) => void;
-  uiTheme?: "classic" | "misa";
-  onThemeChange?: (theme: "classic" | "misa") => void;
+  misaMode?: "light" | "dark";
+  onMisaModeChange?: (mode: "light" | "dark") => void;
 }
 
 export function SettingsModal({
   isOpen,
   onClose,
-  currentUser,
+  currentUser: _currentUser,
   onOpenPrintTemplates,
   onOpenAdminSettings,
   onStatus,
-  uiTheme: controlledTheme,
-  onThemeChange,
+  misaMode: controlledMode,
+  onMisaModeChange,
 }: SettingsModalProps) {
-  const { lang, setLang, supportedLangs, t } = useTranslation();
-
-  // Dual Theme (Azure Wave Classic vs MISA AMIS Enterprise)
-  const [localTheme, setLocalTheme] = useState<"classic" | "misa">(() => {
+  // MISA AMIS Enterprise (Light / Dark)
+  const [localMode, setLocalMode] = useState<"light" | "dark">(() => {
     if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("scm_ui_theme");
-      if (saved === "misa" || saved === "classic") return saved;
+      const saved = localStorage.getItem("scm_misa_mode");
+      if (saved === "dark" || saved === "light") return saved;
     }
-    return controlledTheme || "classic";
+    return controlledMode || "light";
   });
 
-  const activeTheme = controlledTheme || localTheme;
+  const activeMode = controlledMode || localMode;
 
-  const handleSelectTheme = (theme: "classic" | "misa") => {
-    setLocalTheme(theme);
+  const handleSelectMisaMode = (mode: "light" | "dark") => {
+    setLocalMode(mode);
     if (typeof window !== "undefined") {
-      localStorage.setItem("scm_ui_theme", theme);
-      document.body.classList.toggle("theme-misa", theme === "misa");
+      localStorage.setItem("scm_misa_mode", mode);
+      document.documentElement.classList.add("theme-misa");
+      document.body.classList.add("theme-misa");
+      document.documentElement.classList.toggle("theme-misa-dark", mode === "dark");
+      document.body.classList.toggle("theme-misa-dark", mode === "dark");
     }
-    if (onThemeChange) {
-      onThemeChange(theme);
+    if (onMisaModeChange) {
+      onMisaModeChange(mode);
     }
     onStatus?.(
-      theme === "misa"
-        ? "Đã kích hoạt Giao diện MISA AMIS Enterprise (Nền sáng, thanh cuộn rõ, dịu mắt)"
-        : "Đã kích hoạt Giao diện Azure Wave (Cổ điển)"
+      mode === "dark"
+        ? "Đã kích hoạt Giao diện MISA AMIS Dark (Nền tối dịu mắt)"
+        : "Đã kích hoạt Giao diện MISA AMIS Light (Nền sáng chuẩn doanh nghiệp)"
     );
   };
-
-  const [shareLoading, setShareLoading] = useState(false);
-  const [shareLink, setShareLink] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
 
   // Version & OTA Update State
   const [checkingVersion, setCheckingVersion] = useState(false);
@@ -196,33 +189,7 @@ export function SettingsModal({
 
   if (!isOpen) return null;
 
-  const handleCreateShareLink = async () => {
-    setShareLoading(true);
-    onStatus?.("Đang tạo link báo cáo theo dõi...");
-    try {
-      const response = await fetch("/api/share", { method: "POST" });
-      if (!response.ok) throw new Error();
-      const body = (await response.json()) as { token: string };
-      const url = `${window.location.origin}/report/${encodeURIComponent(body.token)}`;
-      setShareLink(url);
-      onStatus?.("Đã tạo link báo cáo thành công");
-    } catch {
-      onStatus?.("Không thể tạo link báo cáo");
-      alert("Không thể tạo liên kết theo dõi. Vui lòng kiểm tra lại kết nối máy chủ.");
-    } finally {
-      setShareLoading(false);
-    }
-  };
-
-  const handleCopyLink = () => {
-    if (!shareLink) return;
-    navigator.clipboard.writeText(shareLink).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2500);
-    });
-  };
-
-  const isAdmin = currentUser?.role === "master" || currentUser?.role === "admin";
+  const isAdmin = true;
 
   return (
     <div
@@ -278,7 +245,7 @@ export function SettingsModal({
                 Cài đặt & Tiện ích hệ thống
               </h2>
               <p style={{ margin: "3px 0 0", fontSize: "12.5px", color: "#64748b" }}>
-                Tùy chỉnh ngôn ngữ hiển thị, tạo liên kết theo dõi và cấu hình in ấn
+                Tùy chỉnh giao diện MISA AMIS (Sáng / Tối) và cấu hình in ấn
               </p>
             </div>
           </div>
@@ -302,7 +269,7 @@ export function SettingsModal({
           </button>
         </div>
 
-        {/* Section: Phong cách Giao diện (UI Theme) - Song song 2 giao diện */}
+        {/* Section: Giao diện MISA AMIS (Light & Dark) */}
         <div
           style={{
             backgroundColor: "#f8fafc",
@@ -315,7 +282,7 @@ export function SettingsModal({
             <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
               <Palette size={16} style={{ color: "#0073e6" }} />
               <h3 style={{ fontSize: "14px", fontWeight: 650, margin: 0, color: "#1e293b" }}>
-                Phong cách giao diện làm việc (UI Theme)
+                Giao diện MISA AMIS (Sáng / Tối)
               </h3>
             </div>
             <span
@@ -329,22 +296,22 @@ export function SettingsModal({
                 border: "1px solid #bae6fd",
               }}
             >
-              Song song 2 giao diện
+              MISA AMIS
             </span>
           </div>
           <p style={{ fontSize: "12px", color: "#64748b", margin: "0 0 12px" }}>
-            Hệ thống hỗ trợ chuyển đổi linh hoạt giữa giao diện truyền thống và giao diện doanh nghiệp chuẩn MISA:
+            Chọn chế độ hiển thị Sáng (Light) hoặc Tối (Dark) phù hợp với môi trường làm việc:
           </p>
 
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
-            {/* Theme 1: Azure Wave (Cổ điển) */}
+            {/* Mode 1: MISA AMIS Light */}
             <button
               type="button"
-              onClick={() => handleSelectTheme("classic")}
+              onClick={() => handleSelectMisaMode("light")}
               style={{
                 textAlign: "left",
-                border: activeTheme === "classic" ? "2px solid #2563eb" : "1px solid #cbd5e1",
-                backgroundColor: activeTheme === "classic" ? "#eff6ff" : "#ffffff",
+                border: activeMode === "light" ? "2px solid #0073e6" : "1px solid #cbd5e1",
+                backgroundColor: activeMode === "light" ? "#f0f7ff" : "#ffffff",
                 borderRadius: "9px",
                 padding: "12px",
                 cursor: "pointer",
@@ -359,105 +326,12 @@ export function SettingsModal({
                   style={{
                     fontSize: "13px",
                     fontWeight: 700,
-                    color: activeTheme === "classic" ? "#1e40af" : "#1e293b",
+                    color: activeMode === "light" ? "#0073e6" : "#1e293b",
                   }}
                 >
-                  🌊 Azure Wave (Cổ điển)
+                  ☀️ MISA AMIS Sáng (Light)
                 </span>
-                {activeTheme === "classic" ? (
-                  <span
-                    style={{
-                      fontSize: "11px",
-                      fontWeight: 700,
-                      color: "#2563eb",
-                      backgroundColor: "#dbeafe",
-                      padding: "1px 6px",
-                      borderRadius: "10px",
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: "3px",
-                    }}
-                  >
-                    <Check size={12} /> Đang dùng
-                  </span>
-                ) : (
-                  <span style={{ fontSize: "11px", color: "#94a3b8" }}>Chọn dùng</span>
-                )}
-              </div>
-
-              {/* Mini visual preview */}
-              <div
-                style={{
-                  height: "56px",
-                  borderRadius: "5px",
-                  overflow: "hidden",
-                  border: "1px solid #cbd5e1",
-                  display: "flex",
-                  backgroundColor: "#f8fafc",
-                  width: "100%",
-                }}
-              >
-                <div
-                  style={{
-                    width: "32px",
-                    background: "linear-gradient(135deg, #3B82F6, #1D4ED8)",
-                    display: "flex",
-                    flexDirection: "column",
-                    alignItems: "center",
-                    padding: "5px 0",
-                    gap: "3px",
-                  }}
-                >
-                  <div style={{ width: "10px", height: "10px", borderRadius: "2px", backgroundColor: "#ffffff" }} />
-                  <div style={{ width: "18px", height: "2.5px", borderRadius: "2px", backgroundColor: "rgba(255,255,255,0.4)" }} />
-                  <div style={{ width: "18px", height: "2.5px", borderRadius: "2px", backgroundColor: "rgba(255,255,255,0.85)" }} />
-                  <div style={{ width: "18px", height: "2.5px", borderRadius: "2px", backgroundColor: "rgba(255,255,255,0.4)" }} />
-                </div>
-                <div style={{ flex: 1, padding: "5px 7px", display: "flex", flexDirection: "column", gap: "3px" }}>
-                  <div style={{ width: "45%", height: "4px", borderRadius: "2px", backgroundColor: "#94a3b8" }} />
-                  <div style={{ display: "flex", gap: "3px" }}>
-                    <div style={{ flex: 1, height: "14px", borderRadius: "2px", backgroundColor: "#ffffff", border: "1px solid #e2e8f0" }} />
-                    <div style={{ flex: 1, height: "14px", borderRadius: "2px", backgroundColor: "#ffffff", border: "1px solid #e2e8f0" }} />
-                  </div>
-                  <div style={{ height: "16px", borderRadius: "2px", backgroundColor: "#ffffff", border: "1px solid #e2e8f0" }} />
-                </div>
-              </div>
-
-              <span style={{ fontSize: "11px", color: "#64748b", lineHeight: 1.35 }}>
-                Sidebar xanh lam chuyển động sóng nước đặc trưng ban đầu của Phenikaa.
-              </span>
-            </button>
-
-            {/* Theme 2: MISA AMIS Enterprise */}
-            <button
-              type="button"
-              onClick={() => handleSelectTheme("misa")}
-              style={{
-                textAlign: "left",
-                border: activeTheme === "misa" ? "2px solid #0073e6" : "1px solid #cbd5e1",
-                backgroundColor: activeTheme === "misa" ? "#f0f7ff" : "#ffffff",
-                borderRadius: "9px",
-                padding: "12px",
-                cursor: "pointer",
-                transition: "all 0.15s ease",
-                display: "flex",
-                flexDirection: "column",
-                gap: "8px",
-              }}
-            >
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: "5px" }}>
-                  <span
-                    style={{
-                      fontSize: "13px",
-                      fontWeight: 700,
-                      color: activeTheme === "misa" ? "#0073e6" : "#1e293b",
-                    }}
-                  >
-                    🏢 MISA AMIS Enterprise
-                  </span>
-                </div>
-                {activeTheme === "misa" ? (
+                {activeMode === "light" ? (
                   <span
                     style={{
                       fontSize: "11px",
@@ -474,22 +348,10 @@ export function SettingsModal({
                     <Check size={12} /> Đang dùng
                   </span>
                 ) : (
-                  <span
-                    style={{
-                      fontSize: "10px",
-                      fontWeight: 700,
-                      backgroundColor: "#e0f2fe",
-                      color: "#0284c7",
-                      padding: "1px 5px",
-                      borderRadius: "4px",
-                    }}
-                  >
-                    KHUYÊN DÙNG
-                  </span>
+                  <span style={{ fontSize: "11px", color: "#94a3b8" }}>Chọn dùng</span>
                 )}
               </div>
 
-              {/* Mini visual preview */}
               <div
                 style={{
                   height: "56px",
@@ -514,12 +376,9 @@ export function SettingsModal({
                   }}
                 >
                   <div style={{ width: "10px", height: "10px", borderRadius: "2px", backgroundColor: "#0073e6" }} />
-                  <div style={{ width: "18px", height: "2.5px", borderRadius: "2px", backgroundColor: "#e2e8f0" }} />
-                  <div style={{ width: "100%", display: "flex", alignItems: "center" }}>
-                    <div style={{ width: "2.5px", height: "6px", backgroundColor: "#0073e6" }} />
-                    <div style={{ width: "14px", height: "2.5px", borderRadius: "2px", backgroundColor: "#0073e6", marginLeft: "3px" }} />
-                  </div>
-                  <div style={{ width: "18px", height: "2.5px", borderRadius: "2px", backgroundColor: "#e2e8f0" }} />
+                  <div style={{ width: "18px", height: "2.5px", borderRadius: "2px", backgroundColor: "#cbd5e1" }} />
+                  <div style={{ width: "18px", height: "2.5px", borderRadius: "2px", backgroundColor: "#0073e6" }} />
+                  <div style={{ width: "18px", height: "2.5px", borderRadius: "2px", backgroundColor: "#cbd5e1" }} />
                 </div>
                 <div style={{ flex: 1, padding: "5px 7px", display: "flex", flexDirection: "column", gap: "3px" }}>
                   <div style={{ width: "45%", height: "4px", borderRadius: "2px", backgroundColor: "#94a3b8" }} />
@@ -532,209 +391,102 @@ export function SettingsModal({
               </div>
 
               <span style={{ fontSize: "11px", color: "#64748b", lineHeight: 1.35 }}>
-                Sidebar trắng thuần, viền xám mảnh, vạch xanh active 3.5px, canvas xám sáng dịu mắt.
+                Sidebar trắng thuần, vạch xanh active 3.5px, canvas xám sáng dịu mắt ban ngày.
               </span>
             </button>
-          </div>
-        </div>
 
-        {/* Section 1: Ngôn ngữ giao diện */}
-        <div
-          style={{
-            backgroundColor: "#f8fafc",
-            borderRadius: "10px",
-            border: "1px solid #e2e8f0",
-            padding: "16px",
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "6px" }}>
-            <Globe size={16} style={{ color: "#2563eb" }} />
-            <h3 style={{ fontSize: "14px", fontWeight: 650, margin: 0, color: "#1e293b" }}>
-              Ngôn ngữ giao diện (Display Language)
-            </h3>
-          </div>
-          <p style={{ fontSize: "12px", color: "#64748b", margin: "0 0 12px" }}>
-            Hệ thống hỗ trợ chuyển đổi đa ngôn ngữ tức thì mà không cần tải lại trang:
-          </p>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "10px" }}>
-            {supportedLangs.map((item) => {
-              const isActive = item.code === lang;
-              return (
-                <button
-                  key={item.code}
-                  type="button"
-                  onClick={() => setLang(item.code as SupportedLang)}
+            {/* Mode 2: MISA AMIS Dark */}
+            <button
+              type="button"
+              onClick={() => handleSelectMisaMode("dark")}
+              style={{
+                textAlign: "left",
+                border: activeMode === "dark" ? "2px solid #38bdf8" : "1px solid #cbd5e1",
+                backgroundColor: activeMode === "dark" ? "#eff6ff" : "#ffffff",
+                borderRadius: "9px",
+                padding: "12px",
+                cursor: "pointer",
+                transition: "all 0.15s ease",
+                display: "flex",
+                flexDirection: "column",
+                gap: "8px",
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%" }}>
+                <span
                   style={{
+                    fontSize: "13px",
+                    fontWeight: 700,
+                    color: activeMode === "dark" ? "#0284c7" : "#1e293b",
+                  }}
+                >
+                  🌙 MISA AMIS Tối (Dark)
+                </span>
+                {activeMode === "dark" ? (
+                  <span
+                    style={{
+                      fontSize: "11px",
+                      fontWeight: 700,
+                      color: "#0284c7",
+                      backgroundColor: "#e0f2fe",
+                      padding: "1px 6px",
+                      borderRadius: "10px",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "3px",
+                    }}
+                  >
+                    <Check size={12} /> Đang dùng
+                  </span>
+                ) : (
+                  <span style={{ fontSize: "11px", color: "#94a3b8" }}>Chọn dùng</span>
+                )}
+              </div>
+
+              <div
+                style={{
+                  height: "56px",
+                  borderRadius: "5px",
+                  overflow: "hidden",
+                  border: "1px solid #334155",
+                  display: "flex",
+                  backgroundColor: "#0f172a",
+                  width: "100%",
+                }}
+              >
+                <div
+                  style={{
+                    width: "32px",
+                    backgroundColor: "#1e293b",
+                    borderRight: "1px solid #334155",
                     display: "flex",
                     flexDirection: "column",
                     alignItems: "center",
-                    justifyContent: "center",
-                    gap: "6px",
-                    padding: "10px 8px",
-                    borderRadius: "8px",
-                    border: isActive ? "2px solid #2563eb" : "1px solid #cbd5e1",
-                    backgroundColor: isActive ? "#eff6ff" : "#ffffff",
-                    cursor: "pointer",
-                    transition: "all 0.15s ease",
+                    padding: "5px 0",
+                    gap: "3px",
                   }}
                 >
-                  <span style={{ fontSize: "20px" }}>{item.flag}</span>
-                  <span
-                    style={{
-                      fontSize: "12px",
-                      fontWeight: isActive ? 700 : 500,
-                      color: isActive ? "#1d4ed8" : "#334155",
-                    }}
-                  >
-                    {item.label}
-                  </span>
-                  {isActive && (
-                    <span
-                      style={{
-                        fontSize: "10px",
-                        fontWeight: 600,
-                        color: "#2563eb",
-                        backgroundColor: "#dbeafe",
-                        padding: "1px 6px",
-                        borderRadius: "10px",
-                      }}
-                    >
-                      ✓ Đang dùng
-                    </span>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Section 2: Tạo liên kết theo dõi (Share Report Link) */}
-        <div
-          style={{
-            backgroundColor: "#f8fafc",
-            borderRadius: "10px",
-            border: "1px solid #e2e8f0",
-            padding: "16px",
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "6px" }}>
-            <Share2 size={16} style={{ color: "#059669" }} />
-            <h3 style={{ fontSize: "14px", fontWeight: 650, margin: 0, color: "#1e293b" }}>
-              Liên kết theo dõi báo cáo mua hàng
-            </h3>
-          </div>
-          <p style={{ fontSize: "12px", color: "#64748b", margin: "0 0 12px" }}>
-            Tạo đường dẫn chỉ xem (Read-only) bảo mật để Ban Giám đốc hoặc các phòng ban theo dõi tiến độ:
-          </p>
-
-          {!shareLink ? (
-            <button
-              type="button"
-              className="btn btn-primary"
-              disabled={shareLoading}
-              onClick={handleCreateShareLink}
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "6px",
-                backgroundColor: "#059669",
-                color: "#ffffff",
-                border: "none",
-                borderRadius: "6px",
-                padding: "8px 14px",
-                fontSize: "12.5px",
-                fontWeight: 600,
-                cursor: shareLoading ? "not-allowed" : "pointer",
-              }}
-            >
-              {shareLoading ? (
-                <>
-                  <Loader2 size={15} className="animate-spin" /> Đang khởi tạo link...
-                </>
-              ) : (
-                <>
-                  <Share2 size={15} /> Tạo link theo dõi mới
-                </>
-              )}
-            </button>
-          ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-              <div style={{ display: "flex", gap: "6px" }}>
-                <input
-                  type="text"
-                  readOnly
-                  value={shareLink}
-                  style={{
-                    flex: 1,
-                    height: "36px",
-                    padding: "0 10px",
-                    fontSize: "12px",
-                    fontFamily: "monospace",
-                    borderRadius: "6px",
-                    border: "1px solid #cbd5e1",
-                    backgroundColor: "#ffffff",
-                    color: "#334155",
-                  }}
-                />
-                <button
-                  type="button"
-                  onClick={handleCopyLink}
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: "5px",
-                    padding: "0 12px",
-                    height: "36px",
-                    borderRadius: "6px",
-                    border: "1px solid #059669",
-                    backgroundColor: copied ? "#059669" : "#ecfdf5",
-                    color: copied ? "#ffffff" : "#059669",
-                    fontSize: "12px",
-                    fontWeight: 600,
-                    cursor: "pointer",
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  {copied ? (
-                    <>
-                      <Check size={14} /> Đã sao chép!
-                    </>
-                  ) : (
-                    <>
-                      <Copy size={14} /> Sao chép
-                    </>
-                  )}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => window.open(shareLink, "_blank")}
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: "5px",
-                    padding: "0 12px",
-                    height: "36px",
-                    borderRadius: "6px",
-                    border: "1px solid #cbd5e1",
-                    backgroundColor: "#ffffff",
-                    color: "#334155",
-                    fontSize: "12px",
-                    fontWeight: 600,
-                    cursor: "pointer",
-                    whiteSpace: "nowrap",
-                  }}
-                  title="Mở link trong tab mới"
-                >
-                  <ExternalLink size={14} /> Mở link
-                </button>
+                  <div style={{ width: "10px", height: "10px", borderRadius: "2px", backgroundColor: "#38bdf8" }} />
+                  <div style={{ width: "18px", height: "2.5px", borderRadius: "2px", backgroundColor: "#475569" }} />
+                  <div style={{ width: "18px", height: "2.5px", borderRadius: "2px", backgroundColor: "#38bdf8" }} />
+                  <div style={{ width: "18px", height: "2.5px", borderRadius: "2px", backgroundColor: "#475569" }} />
+                </div>
+                <div style={{ flex: 1, padding: "5px 7px", display: "flex", flexDirection: "column", gap: "3px" }}>
+                  <div style={{ width: "45%", height: "4px", borderRadius: "2px", backgroundColor: "#64748b" }} />
+                  <div style={{ display: "flex", gap: "3px" }}>
+                    <div style={{ flex: 1, height: "14px", borderRadius: "2px", backgroundColor: "#1e293b", border: "1px solid #334155" }} />
+                    <div style={{ flex: 1, height: "14px", borderRadius: "2px", backgroundColor: "#1e293b", border: "1px solid #334155" }} />
+                  </div>
+                  <div style={{ height: "16px", borderRadius: "2px", backgroundColor: "#1e293b", border: "1px solid #334155" }} />
+                </div>
               </div>
-              <span style={{ fontSize: "11px", color: "#059669" }}>
-                ✓ Link theo dõi đã sẵn sàng. Người nhận chỉ có thể xem báo cáo và không thể thay đổi dữ liệu.
-              </span>
-            </div>
-          )}
-        </div>
 
+              <span style={{ fontSize: "11px", color: "#64748b", lineHeight: 1.35 }}>
+                Nền Slate tối dịu mắt, tương phản cao, bảo vệ mắt khi làm việc ban đêm.
+              </span>
+            </button>
+          </div>
+        </div>
         {/* Section 3: Thông tin phiên bản & Cập nhật từ xa (Android & Web OTA) */}
         <div
           style={{
