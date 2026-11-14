@@ -1701,7 +1701,7 @@
 
 .dashboard-action-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1.65fr) minmax(320px, 1fr);
+  grid-template-columns: minmax(0, 1.7fr) minmax(340px, 1fr);
   gap: 16px;
   align-items: start;
 }
@@ -1709,6 +1709,140 @@
 .dashboard-action-right .todo-hero-card {
   position: sticky;
   top: 16px;
+}
+
+.dashboard-action-right .todo-hero-header {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+}
+
+.dashboard-action-right .todo-header-actions {
+  justify-content: space-between;
+}
+
+.dashboard-action-right .todo-hero-input-row {
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.dashboard-action-right .todo-hero-input {
+  flex: 1 1 100%;
+  min-width: 0;
+}
+
+.dashboard-action-right .todo-priority-toggle {
+  margin-right: auto;
+  white-space: nowrap;
+}
+
+.dashboard-action-right .todo-hero-add-btn {
+  white-space: nowrap;
+}
+
+.dashboard-action-right .todo-hero-items-list {
+  grid-template-columns: 1fr;
+  gap: 8px;
+}
+
+.dashboard-action-right .todo-hero-list-wrap {
+  max-height: calc(100vh - 380px);
+  min-height: 240px;
+}
+
+.pipeline-card .queue-table-wrap {
+  max-height: calc(100vh - 300px);
+  overflow-y: auto;
+  overflow-x: auto;
+}
+
+.pipeline-card .queue-data-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.pipeline-card .queue-data-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: #f8fafc;
+  padding: 9px 12px;
+  font-size: 11px;
+  letter-spacing: 0.03em;
+}
+
+.pipeline-card .queue-data-table tbody td {
+  padding: 10px 12px;
+  vertical-align: middle;
+}
+
+.pipeline-card .queue-code-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 9px;
+  border-radius: 6px;
+  background: #eff6ff;
+  border: 1px solid #dbeafe;
+  color: #1d4ed8;
+  font-weight: 700;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.pipeline-card .queue-code-link:hover {
+  background: #dbeafe;
+  border-color: #93c5fd;
+  text-decoration: none;
+}
+
+.delivery-progress-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 130px;
+}
+
+.delivery-bar-bg {
+  width: 100%;
+  height: 6px;
+  border-radius: 999px;
+  background: #e2e8f0;
+  overflow: hidden;
+}
+
+.delivery-bar-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #2563eb, #10b981);
+  transition: width 0.25s ease;
+}
+
+.delivery-pct-text {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #475569;
+}
+
+.btn-row-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 10px;
+  border-radius: 7px;
+  border: 1px solid #cbd5e1;
+  background: #f8fafc;
+  color: #0f172a;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-row-action:hover {
+  background: #0f172a;
+  border-color: #0f172a;
+  color: #ffffff;
 }
 
 .pipeline-stage-tabs {
