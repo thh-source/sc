@@ -39,6 +39,7 @@ import { enqueueOfflineAction, checkIsOnline } from "../utils/offlineSync";
 import { useIsMobile } from "../useIsMobile";
 import { MobileDashboard } from "./MobileDashboard";
 import { WorkflowPipelineCard } from "./WorkflowPipelineCard";
+import { SmartTodoPanel, TodoSubtask } from "./SmartTodoPanel";
 import { resolveApiUrl, apiFetch } from "../utils/apiConfig";
 
 // --- TYPES FOR DASHBOARD TO-DO WIDGET & MENTION SYSTEM ---
@@ -48,6 +49,9 @@ export interface DashboardTodo {
   completed: boolean;
   createdAt: string;
   priority?: "high" | "normal" | "low";
+  dueDate?: string;
+  subtasks?: TodoSubtask[];
+  note?: string;
 }
 
 export interface MentionItem {
@@ -573,6 +577,7 @@ export function Dashboard({
   const createAndSyncTodo = async (
     text: string,
     priority: "high" | "normal" | "low" = "normal",
+    dueDate?: string,
   ) => {
     const trimmed = text.trim();
     if (!trimmed) return;
@@ -583,6 +588,8 @@ export function Dashboard({
       completed: false,
       createdAt: new Date().toISOString(),
       priority,
+      dueDate: dueDate || undefined,
+      subtasks: [],
     };
 
     setTodos((prev) => [newTodo, ...prev]);
@@ -609,6 +616,35 @@ export function Dashboard({
         method: "POST",
         data: newTodo,
         description: `Thêm công việc: ${trimmed}`,
+      });
+    }
+  };
+
+  const handleUpdateTodo = async (id: string, patch: Partial<DashboardTodo>) => {
+    setTodos((prev) => prev.map((t) => (t.id === id ? { ...t, ...patch } : t)));
+    const payload = { id, ...patch };
+    try {
+      const isOnline = await checkIsOnline();
+      if (!isOnline) {
+        await enqueueOfflineAction({
+          endpoint: "/api/todos",
+          method: "PUT",
+          data: payload,
+          description: `Cập nhật công việc #${id}`,
+        });
+      } else {
+        await apiFetch("/api/todos", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+      }
+    } catch {
+      await enqueueOfflineAction({
+        endpoint: "/api/todos",
+        method: "PUT",
+        data: payload,
+        description: `Cập nhật công việc #${id}`,
       });
     }
   };
@@ -1031,7 +1067,7 @@ export function Dashboard({
             onToggleCompletePO={onToggleCompletePO}
             onToggleCompleteHandover={onToggleCompleteHandover}
             onUpdateItemNote={onUpdateItemNote}
-            onQuickRemindTodo={(text, priority) => createAndSyncTodo(text, priority || "normal")}
+            onQuickRemindTodo={(text, priority) => createAndSyncTodo(text, priority || "normal", todayStr)}
             editingInvoiceId={editingInvoiceId}
             draftInvoiceNo={draftInvoiceNo}
             draftInvoiceDate={draftInvoiceDate}
@@ -1045,298 +1081,23 @@ export function Dashboard({
         </div>
 
         <div className="dashboard-action-right">
-      <div className="dashboard-card todo-hero-card">
-        <div className="card-header todo-hero-header">
-          <div className="card-title-group">
-            <span className="card-badge-icon badge-green">
-              <CheckCircle2 size={18} />
-            </span>
-            <div>
-              <div className="todo-title-row">
-                <h2>Công việc Cần làm trong ngày (To-Do List)</h2>
-                {activeTodoCount > 0 ? (
-                  <span className="todo-counter-pill active">
-                    Còn <b>{activeTodoCount}</b> việc cần làm
-                  </span>
-                ) : (
-                  <span className="todo-counter-pill done">
-                    ✓ Đã xong hết việc hôm nay!
-                  </span>
-                )}
-                {todos.some((t) => t.priority === "high" && !t.completed) && (
-                  <span className="todo-counter-pill urgent">
-                    🔥 Có việc gấp
-                  </span>
-                )}
-              </div>
-              <p>Gắn nhanh chứng từ bằng cách gõ <code>@PO</code>, <code>#PR</code>, <code>@DNPD</code>, <code>@NCC</code> để tạo liên kết trực tiếp</p>
-            </div>
-          </div>
-
-          {/* Filter Pills & Clear */}
-          <div className="todo-header-actions">
-            <div className="todo-filter-pills">
-              <button
-                type="button"
-                className={`todo-pill ${todoFilter === "all" ? "active" : ""}`}
-                onClick={() => setTodoFilter("all")}
-              >
-                Tất cả ({todos.length})
-              </button>
-              <button
-                type="button"
-                className={`todo-pill ${todoFilter === "active" ? "active" : ""}`}
-                onClick={() => setTodoFilter("active")}
-              >
-                Chưa xong ({activeTodoCount})
-              </button>
-              <button
-                type="button"
-                className={`todo-pill ${todoFilter === "completed" ? "active" : ""}`}
-                onClick={() => setTodoFilter("completed")}
-              >
-                Đã xong ({Math.max(0, todos.length - activeTodoCount)})
-              </button>
-            </div>
-            {todos.some((t) => t.completed) && (
-              <button
-                type="button"
-                className="clear-completed-btn"
-                onClick={handleClearCompletedTodos}
-                title="Xóa các việc đã hoàn thành"
-              >
-                Dọn dẹp đã xong
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* Quick Add Form */}
-        <form className="todo-hero-input-form" onSubmit={handleAddTodo}>
-          <div className="todo-hero-input-row">
-            <input
-              ref={inputRef}
-              type="text"
-              className="todo-hero-input"
-              placeholder="Thêm việc cần làm hôm nay... gõ @PO, #PR, @DNPD, @NCC để chọn nhanh"
-              value={todoInput}
-              onChange={handleInputChange}
-              onKeyDown={handleInputKeyDown}
-              autoComplete="off"
-            />
-            <div className="todo-priority-toggle">
-              <label>
-                <input
-                  type="checkbox"
-                  checked={todoPriority === "high"}
-                  onChange={(e) =>
-                    setTodoPriority(e.target.checked ? "high" : "normal")
-                  }
-                />
-                <span className={todoPriority === "high" ? "high-label" : ""}>
-                  Ưu tiên gấp
-                </span>
-              </label>
-            </div>
-            <button
-              type="submit"
-              className="btn btn-primary todo-hero-add-btn"
-              disabled={!todoInput.trim()}
-            >
-              <Plus size={15} /> Thêm việc
-            </button>
-
-            {/* Auto-Complete Mention Dropdown */}
-            {mentionState.isOpen && (
-              <div
-                ref={mentionDropdownRef}
-                className="todo-mention-dropdown"
-                onMouseDown={(e) => e.preventDefault()}
-              >
-                <div className="mention-header">
-                  <div className="mention-tabs">
-                    <button
-                      type="button"
-                      className={`mention-tab ${mentionCategoryTab === "all" ? "active" : ""}`}
-                      onClick={() => setMentionCategoryTab("all")}
-                    >
-                      Tất cả
-                    </button>
-                    <button
-                      type="button"
-                      className={`mention-tab tab-po ${mentionCategoryTab === "po" ? "active" : ""}`}
-                      onClick={() => setMentionCategoryTab("po")}
-                    >
-                      Đơn PO ({pos.length})
-                    </button>
-                    <button
-                      type="button"
-                      className={`mention-tab tab-pr ${mentionCategoryTab === "pr" ? "active" : ""}`}
-                      onClick={() => setMentionCategoryTab("pr")}
-                    >
-                      Phiếu PR ({prs.length})
-                    </button>
-                    <button
-                      type="button"
-                      className={`mention-tab tab-approval ${mentionCategoryTab === "dnpd" ? "active" : ""}`}
-                      onClick={() => setMentionCategoryTab("dnpd")}
-                    >
-                      ĐNPD ({approvalRequests.length})
-                    </button>
-                    <button
-                      type="button"
-                      className={`mention-tab tab-ncc ${mentionCategoryTab === "ncc" ? "active" : ""}`}
-                      onClick={() => setMentionCategoryTab("ncc")}
-                    >
-                      NCC ({suppliers.length})
-                    </button>
-                  </div>
-                  <button
-                    type="button"
-                    className="mention-close-btn"
-                    onClick={() => setMentionState((prev) => ({ ...prev, isOpen: false }))}
-                    title="Đóng (Esc)"
-                  >
-                    <X size={13} />
-                  </button>
-                </div>
-
-                <div className="mention-list">
-                  {filteredMentionItems.length === 0 ? (
-                    <div className="mention-empty">
-                      Không tìm thấy chứng từ phù hợp với từ khóa &ldquo;{mentionState.query}&rdquo;
-                    </div>
-                  ) : (
-                    filteredMentionItems.map((item, idx) => (
-                      <div
-                        key={item.id}
-                        className={`mention-item ${idx === mentionState.selectedIndex ? "selected" : ""}`}
-                        onClick={() => applyMentionItem(item)}
-                        onMouseEnter={() =>
-                          setMentionState((prev) => ({ ...prev, selectedIndex: idx }))
-                        }
-                      >
-                        <span className={`mention-badge badge-${item.category}`}>
-                          {item.badge}
-                        </span>
-                        <div className="mention-info">
-                          <div className="mention-top-line">
-                            <strong className="mention-title">{item.title}</strong>
-                            {item.status && (
-                              <span className="mention-status">{item.status}</span>
-                            )}
-                          </div>
-                          {(item.subtitle || item.meta) && (
-                            <div className="mention-meta">
-                              {item.subtitle && <span className="mention-sub">{item.subtitle}</span>}
-                              {item.subtitle && item.meta && <span className="meta-sep">·</span>}
-                              {item.meta && <span className="mention-extra">{item.meta}</span>}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-
-                <div className="mention-footer">
-                  <span>↑↓ điều hướng · Enter / Tab chọn · Esc đóng</span>
-                  <span>{filteredMentionItems.length} kết quả</span>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Smart Tag Helper Pills */}
-          <div className="todo-hero-helpers">
-            <span className="helpers-label">Gắn chứng từ nhanh:</span>
-            <button
-              type="button"
-              className="helper-chip chip-po"
-              onClick={() => handleInsertHelperTag("@PO-")}
-              title="Chọn đơn hàng PO"
-            >
-              + @PO
-            </button>
-            <button
-              type="button"
-              className="helper-chip chip-pr"
-              onClick={() => handleInsertHelperTag("#PR-")}
-              title="Chọn yêu cầu mua sắm PR"
-            >
-              + #PR
-            </button>
-            <button
-              type="button"
-              className="helper-chip chip-approval"
-              onClick={() => handleInsertHelperTag("@DNPD-")}
-              title="Chọn tờ trình đề nghị phê duyệt"
-            >
-              + @DNPD
-            </button>
-            <button
-              type="button"
-              className="helper-chip chip-supplier"
-              onClick={() => handleInsertHelperTag("@NCC-")}
-              title="Chọn nhà cung cấp"
-            >
-              + @NCC
-            </button>
-          </div>
-        </form>
-
-        {/* Todo List Items */}
-        <div className="todo-hero-list-wrap">
-          {filteredTodos.length === 0 ? (
-            <div className="todo-empty-state">
-              <Sparkles size={26} className="empty-sparkle" />
-              <p>Không có công việc nào trong mục này.</p>
-            </div>
-          ) : (
-            <ul className="todo-hero-items-list">
-              {filteredTodos.map((item) => (
-                <li
-                  key={item.id}
-                  className={`todo-hero-item ${item.completed ? "completed" : ""} ${item.priority === "high" ? "priority-high" : ""}`}
-                >
-                  <label className="todo-checkbox-label">
-                    <input
-                      type="checkbox"
-                      className="todo-checkbox"
-                      checked={item.completed}
-                      onChange={() => handleToggleTodo(item.id)}
-                    />
-                    <span className="custom-check-box">
-                      {item.completed && <Check size={12} strokeWidth={3} />}
-                    </span>
-                  </label>
-
-                  <div className="todo-body">
-                    <div className="todo-text">
-                      {item.priority === "high" && !item.completed && (
-                        <span className="priority-flag" title="Việc gấp cần giải quyết ngay">
-                          GẤP
-                        </span>
-                      )}
-                      {renderSmartTodoText(item.text)}
-                    </div>
-                  </div>
-
-                  <button
-                    type="button"
-                    className="todo-del-btn"
-                    title="Xóa việc này"
-                    onClick={() => handleDeleteTodo(item.id)}
-                  >
-                    <Trash2 size={13} />
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      </div>
-
+          <SmartTodoPanel
+            todos={todos}
+            todayStr={todayStr}
+            allMentionItems={allMentionItems}
+            counts={{
+              po: pos.length,
+              pr: prs.length,
+              dnpd: approvalRequests.length,
+              ncc: suppliers.length,
+            }}
+            onAddTodo={(text, priority, dueDate) => createAndSyncTodo(text, priority, dueDate)}
+            onToggleTodo={handleToggleTodo}
+            onUpdateTodo={handleUpdateTodo}
+            onDeleteTodo={handleDeleteTodo}
+            onClearCompletedTodos={handleClearCompletedTodos}
+            renderSmartTodoText={renderSmartTodoText}
+          />
         </div>
       </div>
       {/* MODAL XÁC NHẬN CHUYỂN TRẠNG THÁI THANH TOÁN */}

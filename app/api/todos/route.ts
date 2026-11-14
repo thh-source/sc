@@ -31,11 +31,30 @@ async function ensureTodosTable(db: D1Database) {
       is_completed INTEGER DEFAULT 0,
       is_priority INTEGER DEFAULT 0,
       tags TEXT,
+      due_date TEXT,
+      subtasks TEXT,
+      note TEXT,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP,
       updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
       is_deleted INTEGER DEFAULT 0
     );
   `).run();
+
+  try {
+    const info = await db.prepare("PRAGMA table_info(personal_todos)").all();
+    const cols = new Set((info.results || []).map((c: any) => String(c.name)));
+    if (!cols.has("due_date")) {
+      await db.prepare("ALTER TABLE personal_todos ADD COLUMN due_date TEXT").run();
+    }
+    if (!cols.has("subtasks")) {
+      await db.prepare("ALTER TABLE personal_todos ADD COLUMN subtasks TEXT").run();
+    }
+    if (!cols.has("note")) {
+      await db.prepare("ALTER TABLE personal_todos ADD COLUMN note TEXT").run();
+    }
+  } catch (e) {
+    console.warn("ensureTodosTable alter check:", e);
+  }
 }
 
 async function resolveTodoUserId(request: Request): Promise<string> {
@@ -58,7 +77,7 @@ export async function GET(request: Request) {
 
     const result = await db
       .prepare(
-        `SELECT id, user_id, content, is_completed, is_priority, tags, created_at, updated_at 
+        `SELECT id, user_id, content, is_completed, is_priority, tags, due_date, subtasks, note, created_at, updated_at 
          FROM personal_todos 
          WHERE (user_id = ? OR user_id = 'b7f7f770-898b-4e2d-983f-9e640a42950d' OR user_id = 'admin') AND is_deleted = 0 
          ORDER BY is_priority DESC, created_at DESC`
@@ -66,18 +85,30 @@ export async function GET(request: Request) {
       .bind(userId)
       .all();
 
-    const todos = (result.results || []).map((row: any) => ({
-      id: row.id,
-      text: row.content,
-      completed: row.is_completed === 1,
-      createdAt: row.created_at || new Date().toISOString(),
-      priority: row.is_priority === 1 ? ("high" as const) : ("normal" as const),
-      tags: row.tags
-        ? typeof row.tags === "string" && row.tags.startsWith("[")
-          ? JSON.parse(row.tags)
-          : [row.tags]
-        : [],
-    }));
+    const todos = (result.results || []).map((row: any) => {
+      let parsedSubtasks: any[] = [];
+      if (row.subtasks) {
+        try {
+          const p = JSON.parse(row.subtasks);
+          if (Array.isArray(p)) parsedSubtasks = p;
+        } catch {}
+      }
+      return {
+        id: row.id,
+        text: row.content,
+        completed: row.is_completed === 1,
+        createdAt: row.created_at || new Date().toISOString(),
+        priority: row.is_priority === 1 ? ("high" as const) : ("normal" as const),
+        dueDate: row.due_date || undefined,
+        subtasks: parsedSubtasks,
+        note: row.note || undefined,
+        tags: row.tags
+          ? typeof row.tags === "string" && row.tags.startsWith("[")
+            ? JSON.parse(row.tags)
+            : [row.tags]
+          : [],
+      };
+    });
 
     return jsonResponse({ todos, count: todos.length });
   } catch (err: any) {
@@ -106,21 +137,27 @@ export async function POST(request: Request) {
     const isPriority =
       body.priority === "high" || body.isPriority === 1 || body.isPriority === true ? 1 : 0;
     const tagsStr = Array.isArray(body.tags) ? JSON.stringify(body.tags) : (body.tags || null);
+    const dueDate = body.dueDate || body.due_date || null;
+    const subtasksStr = Array.isArray(body.subtasks) ? JSON.stringify(body.subtasks) : null;
+    const noteStr = typeof body.note === "string" ? body.note : null;
     const now = new Date().toISOString();
 
     await db
       .prepare(
-        `INSERT INTO personal_todos (id, user_id, content, is_completed, is_priority, tags, created_at, updated_at, is_deleted)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0)
+        `INSERT INTO personal_todos (id, user_id, content, is_completed, is_priority, tags, due_date, subtasks, note, created_at, updated_at, is_deleted)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
          ON CONFLICT(id) DO UPDATE SET
            content = excluded.content,
            is_completed = excluded.is_completed,
            is_priority = excluded.is_priority,
            tags = excluded.tags,
+           due_date = excluded.due_date,
+           subtasks = excluded.subtasks,
+           note = excluded.note,
            updated_at = excluded.updated_at,
            is_deleted = 0`
       )
-      .bind(id, userId, text, isCompleted, isPriority, tagsStr, now, now)
+      .bind(id, userId, text, isCompleted, isPriority, tagsStr, dueDate, subtasksStr, noteStr, now, now)
       .run();
 
     return jsonResponse({
@@ -130,6 +167,9 @@ export async function POST(request: Request) {
         text,
         completed: isCompleted === 1,
         priority: isPriority === 1 ? "high" : "normal",
+        dueDate: dueDate || undefined,
+        subtasks: Array.isArray(body.subtasks) ? body.subtasks : [],
+        note: noteStr || undefined,
         createdAt: now,
         tags: body.tags || [],
       },
@@ -236,8 +276,20 @@ export async function PUT(request: Request) {
       updateSql += ", is_priority = ?";
       params.push(isPriority);
     }
+    if (body.dueDate !== undefined || body.due_date !== undefined) {
+      updateSql += ", due_date = ?";
+      params.push(body.dueDate ?? body.due_date ?? null);
+    }
+    if (body.subtasks !== undefined) {
+      updateSql += ", subtasks = ?";
+      params.push(Array.isArray(body.subtasks) ? JSON.stringify(body.subtasks) : null);
+    }
+    if (body.note !== undefined) {
+      updateSql += ", note = ?";
+      params.push(typeof body.note === "string" ? body.note : null);
+    }
 
-    updateSql += " WHERE id = ? AND user_id = ?";
+    updateSql += " WHERE id = ? AND (user_id = ? OR user_id = 'b7f7f770-898b-4e2d-983f-9e640a42950d' OR user_id = 'admin')";
     params.push(id, userId);
 
     await db.prepare(updateSql).bind(...params).run();

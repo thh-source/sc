@@ -2074,3 +2074,353 @@
   color: #0f172a;
   background: transparent;
 }
+
+/* =========================================================
+   SMART TO-DO PANEL (Todoist + Things 3 + TickTick UX)
+   ========================================================= */
+.smart-quick-dates {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px;
+  flex: 1 1 100%;
+}
+
+.smart-date-chip {
+  padding: 3px 9px;
+  border-radius: 999px;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  color: #475569;
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.12s ease;
+}
+
+.smart-date-chip:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+.smart-date-chip.active {
+  background: #0ea5e9;
+  border-color: #0ea5e9;
+  color: #ffffff;
+}
+
+.smart-date-picker-mini {
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 2px 6px;
+  font-size: 11.5px;
+  color: #475569;
+  background: #ffffff;
+}
+
+.smart-todo-sections {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.smart-todo-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.smart-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 2px 4px;
+}
+
+.smart-section-header.overdue {
+  color: #b91c1c;
+}
+
+.smart-section-header.today {
+  color: #0369a1;
+}
+
+.smart-section-bulk {
+  border: none;
+  background: #fef2f2;
+  color: #b91c1c;
+  border-radius: 6px;
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.smart-section-bulk:hover {
+  background: #fee2e2;
+}
+
+.smart-section-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: none;
+  background: transparent;
+  color: #475569;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 4px 2px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.smart-section-toggle:hover {
+  color: #0f172a;
+}
+
+.smart-todo-item {
+  flex-direction: column;
+  align-items: stretch !important;
+  gap: 0 !important;
+  padding: 8px 10px !important;
+}
+
+.smart-todo-item.is-overdue {
+  border-color: #fecaca !important;
+  background: #fffafa !important;
+}
+
+.smart-todo-main-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+}
+
+.smart-todo-body {
+  flex: 1;
+  min-width: 0;
+  cursor: pointer;
+}
+
+.smart-todo-title-input {
+  width: 100%;
+  border: 1px solid #3b82f6;
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 13px;
+  outline: none;
+  color: #0f172a;
+}
+
+.smart-todo-meta-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.smart-todo-date-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  font-size: 10.5px;
+  font-weight: 600;
+}
+
+.smart-todo-date-pill.date-overdue {
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
+.smart-todo-date-pill.date-today {
+  background: #e0f2fe;
+  color: #0369a1;
+}
+
+.smart-todo-date-pill.date-upcoming {
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.smart-todo-sub-pill {
+  font-size: 10.5px;
+  font-weight: 600;
+  color: #047857;
+  background: #ecfdf5;
+  padding: 1px 6px;
+  border-radius: 999px;
+}
+
+.smart-todo-note-preview {
+  font-size: 11px;
+  color: #64748b;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 180px;
+}
+
+.smart-todo-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  opacity: 0.35;
+  transition: opacity 0.15s ease;
+}
+
+.smart-todo-item:hover .smart-todo-actions {
+  opacity: 1;
+}
+
+.smart-action-btn {
+  border: none;
+  background: transparent;
+  color: #64748b;
+  padding: 3px 5px;
+  border-radius: 5px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+}
+
+.smart-action-btn:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+.smart-action-btn.is-starred {
+  color: #f59e0b;
+  opacity: 1;
+}
+
+.smart-action-btn.snooze-btn {
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  color: #334155;
+  font-size: 10.5px;
+  padding: 2px 6px;
+}
+
+.smart-action-btn.snooze-btn:hover {
+  border-color: #0ea5e9;
+  color: #0284c7;
+}
+
+.smart-todo-drawer {
+  margin-top: 8px;
+  padding-top: 8px;
+  padding-left: 26px;
+  border-top: 1px dashed #e2e8f0;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.smart-drawer-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px;
+}
+
+.smart-drawer-chip {
+  padding: 3px 8px;
+  border-radius: 6px;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  color: #475569;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.smart-drawer-chip.active {
+  background: #e0f2fe;
+  border-color: #38bdf8;
+  color: #0369a1;
+}
+
+.smart-drawer-date-input {
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 2px 6px;
+  font-size: 11px;
+  color: #475569;
+}
+
+.smart-subtasks-box {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  background: #f8fafc;
+  padding: 6px 8px;
+  border-radius: 7px;
+  border: 1px solid #f1f5f9;
+}
+
+.smart-subtask-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.smart-subtask-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #334155;
+  cursor: pointer;
+}
+
+.smart-subtask-label span.done {
+  text-decoration: line-through;
+  color: #94a3b8;
+}
+
+.smart-subtask-del {
+  border: none;
+  background: transparent;
+  color: #94a3b8;
+  cursor: pointer;
+  padding: 2px;
+}
+
+.smart-subtask-del:hover {
+  color: #ef4444;
+}
+
+.smart-subtask-add input {
+  width: 100%;
+  border: none;
+  background: transparent;
+  outline: none;
+  font-size: 12px;
+  color: #0f172a;
+  padding: 2px 0;
+}
+
+.smart-drawer-note-input {
+  width: 100%;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 5px 8px;
+  font-size: 12px;
+  color: #334155;
+  background: #ffffff;
+  outline: none;
+}
+
+.smart-drawer-note-input:focus {
+  border-color: #38bdf8;
+}
