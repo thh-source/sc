@@ -9,6 +9,10 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const user = await getCurrentUser();
+    if (!user) {
+      return new Response("Yêu cầu đăng nhập", { status: 401 });
+    }
     const env = await bindings();
     const { id } = await params;
     const bucket = env.R2_BUCKET || env.BUCKET;
@@ -83,12 +87,20 @@ export async function DELETE(
   const bucket = env.R2_BUCKET || env.BUCKET;
 
   const row = (await env.DB.prepare(
-    "SELECT object_key FROM files WHERE id = ?"
+    "SELECT object_key, owner_user_id FROM files WHERE id = ?"
   )
     .bind(id)
-    .first()) as { object_key: string } | null;
+    .first()) as { object_key: string; owner_user_id?: string | null } | null;
 
   if (!row) return Response.json({ error: "Không tìm thấy file" }, { status: 404 });
+  if (
+    user.role !== "master" &&
+    user.role !== "admin" &&
+    row.owner_user_id &&
+    row.owner_user_id !== user.id
+  ) {
+    return Response.json({ error: "Không có quyền xóa file này" }, { status: 403 });
+  }
 
   if (bucket) {
     try {

@@ -52,8 +52,14 @@ export async function GET(request: Request) {
       r2Key = rawUrl;
     }
 
-    if (!r2Key) {
-      return new Response("Không xác định được vị trí file", { status: 404 });
+    if (
+      !r2Key ||
+      r2Key.includes("..") ||
+      r2Key.startsWith("snapshots/") ||
+      r2Key.startsWith("backups/") ||
+      r2Key.startsWith("updates/")
+    ) {
+      return new Response("Không có quyền truy cập file này", { status: 403 });
     }
 
     const object = await bucket.get(r2Key);

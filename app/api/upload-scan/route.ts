@@ -20,10 +20,24 @@ async function ensureScanTable(db: any) {
 }
 
 export async function GET(request: Request) {
+  const user = await getCurrentUser();
+  if (!user) {
+    return new Response("Yêu cầu đăng nhập để xem bản scan", { status: 401 });
+  }
+
   const url = new URL(request.url);
   const key = url.searchParams.get("key");
   if (!key) {
     return new Response("Thiếu tham số key của file scan", { status: 400 });
+  }
+  const normalizedKey = key.replace(/^\/+/, "");
+  if (
+    normalizedKey.includes("..") ||
+    normalizedKey.startsWith("snapshots/") ||
+    normalizedKey.startsWith("backups/") ||
+    normalizedKey.startsWith("updates/")
+  ) {
+    return new Response("Không có quyền truy cập đường dẫn này", { status: 403 });
   }
 
   const env = await getBindings();

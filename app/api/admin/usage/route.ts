@@ -81,7 +81,7 @@ export async function GET() {
           // Bản đệm xem trước CamScanner chỉ lưu trên máy client, tự động dọn dẹp khỏi R2 nếu còn sót
           if (key.startsWith("cs-preview-cache/")) {
             try {
-              void bucket.delete(key);
+              await bucket.delete(key);
             } catch {}
             continue;
           }

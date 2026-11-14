@@ -109,11 +109,14 @@ async function refreshCamScannerToken(
 
 export async function GET(request: Request) {
   try {
+    const user = await getCurrentUser().catch(() => null);
+    if (!user) {
+      return Response.json({ ok: false, error: "Yêu cầu đăng nhập" }, { status: 401 });
+    }
     const url = new URL(request.url);
     const action = url.searchParams.get("action") || "status";
     const env = await getBindings();
-    const user = await getCurrentUser().catch(() => null);
-    const userKey = user?.username || "default";
+    const userKey = user.username;
     const headerToken = request.headers.get("x-cs-token") || "";
 
     if (action === "poll") {
@@ -238,9 +241,12 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const env = await getBindings();
     const user = await getCurrentUser().catch(() => null);
-    const userKey = user?.username || "default";
+    if (!user) {
+      return Response.json({ ok: false, error: "Yêu cầu đăng nhập" }, { status: 401 });
+    }
+    const env = await getBindings();
+    const userKey = user.username;
     const body: any = await request.json().catch(() => ({}));
     const action = body.action || "search";
     const headerToken = request.headers.get("x-cs-token") || body.token || "";
@@ -276,11 +282,14 @@ export async function POST(request: Request) {
       });
     }
 
-    // 2. Đăng xuất tài khoản CamScanner
+    // 2. Đăng xuất tài khoản CamScanner (chỉ xóa token của user hiện tại)
     if (action === "logout") {
       if (env.DB) {
         await ensureCamScannerTable(env.DB);
-        await env.DB.prepare("DELETE FROM camscanner_tokens").run().catch(() => {});
+        await env.DB.prepare("DELETE FROM camscanner_tokens WHERE user_key = ?")
+          .bind(userKey)
+          .run()
+          .catch(() => {});
       }
       return Response.json({ ok: true });
     }

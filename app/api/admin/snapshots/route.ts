@@ -67,8 +67,8 @@ export async function POST(request: Request) {
       // Nén dữ liệu bằng Gzip
       const cs = new CompressionStream("gzip");
       const writer = cs.writable.getWriter();
-      writer.write(jsonBytes);
-      writer.close();
+      await writer.write(jsonBytes);
+      await writer.close();
       const compressedBuffer = await new Response(cs.readable).arrayBuffer();
 
       const key = `snapshots/snapshot_${Date.now()}_${crypto.randomUUID().slice(0, 8)}.json.gz`;

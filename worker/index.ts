@@ -29,14 +29,27 @@ interface ExecutionContext {
 
 const worker = {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
-    const origin = request.headers.get("Origin") || "*";
-    const corsHeaders: Record<string, string> = {
-      "Access-Control-Allow-Origin": origin,
-      "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, PATCH, OPTIONS",
-      "Access-Control-Allow-Headers": "Content-Type, Authorization, x-expected-version, X-Requested-With",
-      "Access-Control-Allow-Credentials": "true",
-      "Access-Control-Max-Age": "86400",
-    };
+    const reqOrigin = request.headers.get("Origin") || "";
+    const isAllowedOrigin =
+      reqOrigin === "https://pnk.sc-pnk.workers.dev" ||
+      reqOrigin.startsWith("http://localhost") ||
+      reqOrigin.startsWith("https://localhost") ||
+      reqOrigin.startsWith("http://127.0.0.1") ||
+      reqOrigin.startsWith("capacitor://") ||
+      reqOrigin.startsWith("ionic://");
+    const corsHeaders: Record<string, string> = isAllowedOrigin
+      ? {
+          "Access-Control-Allow-Origin": reqOrigin,
+          "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, PATCH, OPTIONS",
+          "Access-Control-Allow-Headers": "Content-Type, Authorization, x-expected-version, X-Requested-With",
+          "Access-Control-Allow-Credentials": "true",
+          "Access-Control-Max-Age": "86400",
+          Vary: "Origin",
+        }
+      : {
+          "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, PATCH, OPTIONS",
+          "Access-Control-Allow-Headers": "Content-Type, Authorization, x-expected-version, X-Requested-With",
+        };
 
     // Preflight OPTIONS for CORS (Android WebView & Capacitor)
     if (request.method === "OPTIONS") {

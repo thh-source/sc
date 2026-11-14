@@ -57,21 +57,18 @@ async function ensureTodosTable(db: D1Database) {
   }
 }
 
-async function resolveTodoUserId(request: Request): Promise<string> {
+async function resolveTodoUserId(): Promise<string | null> {
   const user = await getCurrentUser();
-  if (user && user.id) return user.id;
-  const url = new URL(request.url);
-  const reqUser = url.searchParams.get("userId") || url.searchParams.get("workspace");
-  if (reqUser) return reqUser;
-  return "b7f7f770-898b-4e2d-983f-9e640a42950d";
+  return user?.id || null;
 }
 
 /**
  * GET /api/todos: Lấy danh sách công việc cá nhân của user chưa bị xóa (is_deleted = 0)
  */
-export async function GET(request: Request) {
+export async function GET() {
   try {
-    const userId = await resolveTodoUserId(request);
+    const userId = await resolveTodoUserId();
+    if (!userId) return jsonResponse({ error: "Yêu cầu đăng nhập", todos: [] }, 401);
     const db = await getRuntimeDB();
     await ensureTodosTable(db);
 
@@ -122,7 +119,8 @@ export async function GET(request: Request) {
  */
 export async function POST(request: Request) {
   try {
-    const userId = await resolveTodoUserId(request);
+    const userId = await resolveTodoUserId();
+    if (!userId) return jsonResponse({ error: "Yêu cầu đăng nhập" }, 401);
     const db = await getRuntimeDB();
     await ensureTodosTable(db);
 
@@ -185,7 +183,8 @@ export async function POST(request: Request) {
  */
 export async function PUT(request: Request) {
   try {
-    const userId = await resolveTodoUserId(request);
+    const userId = await resolveTodoUserId();
+    if (!userId) return jsonResponse({ error: "Yêu cầu đăng nhập" }, 401);
     const db = await getRuntimeDB();
     await ensureTodosTable(db);
 
@@ -305,7 +304,8 @@ export async function PUT(request: Request) {
  */
 export async function DELETE(request: Request) {
   try {
-    const userId = await resolveTodoUserId(request);
+    const userId = await resolveTodoUserId();
+    if (!userId) return jsonResponse({ error: "Yêu cầu đăng nhập" }, 401);
     const db = await getRuntimeDB();
     await ensureTodosTable(db);
 

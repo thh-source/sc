@@ -23,8 +23,8 @@ import { BASE_COLUMNS, reorder, applyTools, makeId, emptyItem, fmt, dateVN, DEFA
 import { items0, suppliers0, purchaseHistory0, quotes0, prs0, pos0, HISTORY_SEED_ID } from "./seed";
 import { AdvancedItemsTable } from "./components/AdvancedItemsTable";
 import { CreatePRCatalog } from "./components/CreatePRCatalog";
-import { ApprovalSheet } from "./components/ApprovalSheet";
 import ApprovalManagement from "./components/ApprovalManagement";
+import { apiFetch } from "./utils/apiConfig";
 import {
   createApprovalFromCompare,
   SAMPLE_PHENIKAA_APPROVALS,
@@ -866,7 +866,7 @@ function ProcurementAppInner({
       purchaseHistoryImportIds.includes(HISTORY_SEED_ID)
     )
       return;
-    fetch("/purchase-history-t1-t7-2026.json")
+    apiFetch("/api/purchase-history-seed")
       .then((response) => {
         if (!response.ok) throw new Error();
         return response.json() as Promise<PurchaseHistorySeed>;

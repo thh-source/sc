@@ -230,8 +230,17 @@ export async function requireAdmin() {
   return user;
 }
 export async function removeCurrentSession() {
-  const jar = await cookies(),
-    token = jar.get("mh_session")?.value;
+  const jar = await cookies();
+  let token = jar.get("mh_session")?.value;
+  if (!token) {
+    try {
+      const h = await headers();
+      const auth = h.get("authorization");
+      if (auth && auth.startsWith("Bearer ")) {
+        token = auth.slice(7).trim();
+      }
+    } catch {}
+  }
   if (token) {
     const env = await runtime();
     const tokenHash = await hashToken(token);

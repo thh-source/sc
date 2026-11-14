@@ -1,3 +1,5 @@
+import { getCurrentUser } from "../../auth";
+
 async function getRuntimeBindings() {
   const { env } = await import("cloudflare:workers");
   return env as {
@@ -25,7 +27,7 @@ const DEFAULT_APP_VERSION = {
   buildNumber: "20261028.01",
   buildDate: "28/10/2026, 07:15:00",
   minSupportedVersion: "1.0.0",
-  downloadUrl: "https://quan-ly-mua-hang.sc-pnk.workers.dev/api/app-version/download?version=1.0.1",
+  downloadUrl: "https://pnk.sc-pnk.workers.dev/api/app-version/download?version=1.0.1",
   checksum: "",
   releaseNotes: "Cập nhật tính năng OTA Update từ xa, tự động đồng bộ Todo List D1, tối ưu hóa giao diện bàn giao PO và chế độ Offline-First",
 };
@@ -59,6 +61,14 @@ export async function GET(request: Request) {
  */
 export async function POST(request: Request) {
   try {
+    const user = await getCurrentUser();
+    if (!user) {
+      return Response.json({ error: "Yêu cầu đăng nhập" }, { status: 401 });
+    }
+    if (user.role !== "master" && user.role !== "admin") {
+      return Response.json({ error: "Không có quyền cập nhật phiên bản" }, { status: 403 });
+    }
+
     const { DB, R2_BUCKET, BUCKET } = await getRuntimeBindings();
     const bucket = R2_BUCKET || BUCKET;
     await ensureConfigTable(DB);
@@ -95,7 +105,7 @@ export async function POST(request: Request) {
         buildNumber: (formData.get("buildNumber") as string) || `${new Date().toISOString().slice(0, 10).replace(/-/g, "")}.01`,
         buildDate: (formData.get("buildDate") as string) || new Date().toLocaleString("vi-VN"),
         minSupportedVersion: "1.0.0",
-        downloadUrl: `https://quan-ly-mua-hang.sc-pnk.workers.dev/api/app-version/download?version=${encodeURIComponent(version)}`,
+        downloadUrl: `https://pnk.sc-pnk.workers.dev/api/app-version/download?version=${encodeURIComponent(version)}`,
         checksum: "",
         releaseNotes: notes,
         updatedAt: new Date().toISOString(),

@@ -1,7 +1,12 @@
+import { getCurrentUser } from "../../auth";
 import { createFileShareToken, getFileShareRecord } from "../../share-file";
 
 export async function POST(request: Request) {
   try {
+    const user = await getCurrentUser();
+    if (!user) {
+      return Response.json({ error: "Yêu cầu đăng nhập để tạo link chia sẻ" }, { status: 401 });
+    }
     const body = (await request.json()) as {
       fileUrl?: string;
       fileName?: string;
@@ -17,6 +22,14 @@ export async function POST(request: Request) {
         { error: "Thiếu đường dẫn fileUrl hoặc tên fileName" },
         { status: 400 }
       );
+    }
+    if (
+      fileUrl.includes("..") ||
+      fileUrl.includes("snapshots/") ||
+      fileUrl.includes("backups/") ||
+      fileUrl.includes("updates/")
+    ) {
+      return Response.json({ error: "Đường dẫn không được phép chia sẻ" }, { status: 403 });
     }
 
     const { token, expiresAt } = await createFileShareToken({
