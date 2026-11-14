@@ -4,18 +4,18 @@
    ========================================================================== */
 
 :root {
-  /* 1. COLOR TOKENS */
-  /* Primary: Phenikaa Blue */
-  --primary-50: #eff6ff;
-  --primary-100: #dbeafe;
-  --primary-200: #bfdbfe;
-  --primary-300: #93c5fd;
-  --primary-400: #60a5fa;
-  --primary-500: #2B6DF8;
-  --primary-600: #1E57D8;
-  --primary-700: #1442B0;
-  --primary-800: #1e3a8a;
-  --primary-900: #0f2744;
+  /* 1. COLOR TOKENS (Aligned with D:\New SC: MISA AMIS #2662FF + Precoro) */
+  /* Primary: MISA AMIS Brand Blue */
+  --primary-50: #EBF1FF;
+  --primary-100: #DBEAFE;
+  --primary-200: #BFDBFE;
+  --primary-300: #93C5FD;
+  --primary-400: #3A71FF;
+  --primary-500: #2662FF;
+  --primary-600: #1D52D8;
+  --primary-700: #1B49F5;
+  --primary-800: #1E3A8A;
+  --primary-900: #0F2744;
 
   /* Accent: Indigo & Teal */
   --accent-50: #eef2ff;
@@ -43,52 +43,52 @@
   --slate-900: #0f172a;
   --slate-950: #020617;
 
-  /* Status Colors */
-  --success-bg: #ecfdf5;
-  --success-text: #059669;
-  --success-border: #a7f3d0;
-  --success-solid: #10b981;
+  /* Status Colors (Precoro 5-Group Semantic Status Ramp) */
+  --success-bg: #ECFDF5;
+  --success-text: #047857;
+  --success-border: #A7F3D0;
+  --success-solid: #10B981;
 
-  --warning-bg: #fffbeb;
-  --warning-text: #b45309;
-  --warning-border: #fde68a;
-  --warning-solid: #f59e0b;
+  --warning-bg: #FFFBEB;
+  --warning-text: #B45309;
+  --warning-border: #FDE68A;
+  --warning-solid: #F59E0B;
 
-  --danger-bg: #fef2f2;
-  --danger-text: #dc2626;
-  --danger-border: #fecaca;
-  --danger-solid: #ef4444;
+  --danger-bg: #FEF2F2;
+  --danger-text: #B91C1C;
+  --danger-border: #FECACA;
+  --danger-solid: #EF4444;
 
-  --info-bg: #f0f9ff;
-  --info-text: #0284c7;
-  --info-border: #bae6fd;
-  --info-solid: #0ea5e9;
+  --info-bg: #EFF6FF;
+  --info-text: #1D4ED8;
+  --info-border: #BFDBFE;
+  --info-solid: #2662FF;
 
   /* Semantic UI Surfaces */
-  --bg-app: #f8fafc;
-  --surface-card: #ffffff;
-  --surface-subtle: #f1f5f9;
-  --surface-hover: #f8fafc;
-  --surface-active: #eff6ff;
+  --bg-app: #F7F9FC;
+  --surface-card: #FFFFFF;
+  --surface-subtle: #F1F5F9;
+  --surface-hover: #F8FAFC;
+  --surface-active: #EBF1FF;
 
-  --border-subtle: #e2e8f0;
-  --border-strong: #cbd5e1;
+  --border-subtle: #E2E8F0;
+  --border-strong: #CBD5E1;
   --border-focus: var(--primary-500);
 
-  --text-main: #0f172a;
+  --text-main: #0F172A;
   --text-secondary: #334155;
-  --text-muted: #64748b;
-  --text-disabled: #94a3b8;
-  --text-on-primary: #ffffff;
+  --text-muted: #64748B;
+  --text-disabled: #94A3B8;
+  --text-on-primary: #FFFFFF;
 
   /* Legacy Backward-Compatibility Variables */
-  --blue: #2563eb;
-  --navy: #1442B0;
-  --ink: #0f172a;
-  --muted: #64748b;
-  --line: #e2e8f0;
-  --green: #059669;
-  --bg: #f8fafc;
+  --blue: #2662FF;
+  --navy: #1D52D8;
+  --ink: #0F172A;
+  --muted: #64748B;
+  --line: #E2E8F0;
+  --green: #047857;
+  --bg: #F7F9FC;
 
   /* 2. ELEVATION & SHADOWS */
   --shadow-xs: 0 1px 2px 0 rgba(15, 23, 42, 0.05);
@@ -114,36 +114,21 @@
   --duration-slow: 250ms;
 }
 
-/* Base resets & Typography optimizations (MISA AMIS Roboto Standard) */
+/* Base resets & Typography optimizations (Inter + JetBrains Mono Standard from D:\New SC) */
 html {
-  font-family: var(--font-roboto), Roboto, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-family: var(--font-inter), 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   font-feature-settings: "cv02", "cv03", "cv04", "cv11", "tnum" 1;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   background-color: var(--bg-app);
-  color: var(--text-main);
-}
-
-/* Chinese (zh-CN) Typography Optimization */
-:lang(zh),
-:lang(zh-CN),
-html[lang="zh"],
-html[lang="zh-CN"] {
-  font-family: var(--font-geist-sans), "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "WenQuanYi Micro Hei", sans-serif;
-  letter-spacing: 0.015em;
-}
-
-:lang(zh) .money,
-:lang(zh) .num,
-:lang(zh) td {
-  font-feature-settings: "tnum" 1;
+  color: var(--text-secondary);
 }
 
 body {
   margin: 0;
   background-color: var(--bg-app);
-  color: var(--text-main);
-  line-height: 1.5;
+  color: var(--text-secondary);
+  line-height: 1.45;
   font-size: 14px;
 }
 
