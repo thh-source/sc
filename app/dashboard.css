@@ -1983,3 +1983,94 @@
     position: static;
   }
 }
+
+/* Nút Đã hoàn thành & Ghi chú trực quan trên từng dòng Pipeline */
+.btn-row-complete {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 9px;
+  border-radius: 7px;
+  border: 1px solid #a7f3d0;
+  background: #ecfdf5;
+  color: #047857;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-row-complete:hover {
+  background: #10b981;
+  border-color: #10b981;
+  color: #ffffff;
+}
+
+.inline-note-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 5px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 11.5px;
+  cursor: pointer;
+  max-width: 100%;
+  text-align: left;
+  transition: all 0.15s ease;
+}
+
+.inline-note-trigger.empty-note {
+  border: 1px dashed #cbd5e1;
+  background: transparent;
+  color: #94a3b8;
+}
+
+.inline-note-trigger.empty-note:hover {
+  border-color: #94a3b8;
+  background: #f8fafc;
+  color: #475569;
+}
+
+.inline-note-trigger.has-note {
+  border: 1px solid #fde68a;
+  background: #fffbeb;
+  color: #92400e;
+  font-weight: 500;
+}
+
+.inline-note-trigger.has-note:hover {
+  border-color: #f59e0b;
+  background: #fef3c7;
+}
+
+.inline-note-trigger span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 260px;
+}
+
+.inline-note-editor {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 5px;
+  background: #ffffff;
+  padding: 2px 4px;
+  border-radius: 6px;
+  border: 1px solid #3b82f6;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.15);
+  max-width: 300px;
+}
+
+.inline-note-input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  outline: none;
+  font-size: 12px;
+  padding: 3px 6px;
+  color: #0f172a;
+  background: transparent;
+}

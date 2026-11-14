@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import {
   AlertCircle,
   AlertTriangle,
@@ -10,6 +10,7 @@ import {
   Clock,
   CreditCard,
   FileCheck,
+  MessageSquarePlus,
   Package,
   Pencil,
   Plus,
@@ -43,6 +44,11 @@ export interface WorkflowPipelineCardProps {
   onSelectPayment?: (id: number) => void;
   onCreateHandover?: () => void;
   onCreatePayment?: () => void;
+  onToggleCompletePR?: (pr: PR) => void;
+  onToggleCompleteApproval?: (appr: ApprovalRequest) => void;
+  onToggleCompletePO?: (po: PO) => void;
+  onToggleCompleteHandover?: (handover: PaymentHandoverItem) => void;
+  onUpdateItemNote?: (stage: PipelineStage, id: number, note: string) => void;
   onQuickRemindTodo: (text: string, priority?: "high" | "normal") => void;
   editingInvoiceId: number | null;
   draftInvoiceNo: string;
@@ -73,6 +79,99 @@ function renderAlertBadges(alerts: WorkflowAlertTag[]) {
   );
 }
 
+function InlineNoteCell({
+  stage,
+  id,
+  note,
+  onSave,
+}: {
+  stage: PipelineStage;
+  id: number;
+  note?: string;
+  onSave?: (stage: PipelineStage, id: number, note: string) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(note || "");
+
+  const commit = () => {
+    setEditing(false);
+    const trimmed = draft.trim();
+    if (trimmed !== (note || "").trim()) {
+      onSave?.(stage, id, trimmed);
+    }
+  };
+
+  if (editing) {
+    return (
+      <div
+        className="inline-note-editor"
+        onBlur={(e) => {
+          if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+            commit();
+          }
+        }}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            commit();
+          } else if (e.key === "Escape") {
+            e.preventDefault();
+            setDraft(note || "");
+            setEditing(false);
+          }
+        }}
+      >
+        <input
+          type="text"
+          autoFocus
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          placeholder="Nhập ghi chú theo dõi..."
+          className="inline-note-input"
+        />
+        <button
+          type="button"
+          className="inline-invoice-save-btn"
+          title="Lưu ghi chú (Enter)"
+          onMouseDown={(e) => {
+            e.preventDefault();
+            commit();
+          }}
+        >
+          <Check size={12} />
+        </button>
+        <button
+          type="button"
+          className="inline-invoice-cancel-btn"
+          title="Hủy (Esc)"
+          onMouseDown={(e) => {
+            e.preventDefault();
+            setDraft(note || "");
+            setEditing(false);
+          }}
+        >
+          <X size={12} />
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      className={`inline-note-trigger ${note?.trim() ? "has-note" : "empty-note"}`}
+      title={note?.trim() ? `Ghi chú: ${note} (bấm để sửa)` : "Bấm để gõ ghi chú theo dõi"}
+      onClick={() => {
+        setDraft(note || "");
+        setEditing(true);
+      }}
+    >
+      <MessageSquarePlus size={12} />
+      <span>{note?.trim() || "Ghi chú..."}</span>
+    </button>
+  );
+}
+
 export function WorkflowPipelineCard(props: WorkflowPipelineCardProps) {
   const {
     radar,
@@ -86,6 +185,11 @@ export function WorkflowPipelineCard(props: WorkflowPipelineCardProps) {
     onSelectPayment,
     onCreateHandover,
     onCreatePayment,
+    onToggleCompletePR,
+    onToggleCompleteApproval,
+    onToggleCompletePO,
+    onToggleCompleteHandover,
+    onUpdateItemNote,
     onQuickRemindTodo,
     editingInvoiceId,
     draftInvoiceNo,
@@ -163,7 +267,7 @@ export function WorkflowPipelineCard(props: WorkflowPipelineCardProps) {
           </span>
           <div>
             <h2>Luồng Công việc Cần Theo dõi (5 Chặng)</h2>
-            <p>Theo dõi điểm nghẽn, hạn giao hàng, thiếu chứng từ và thanh toán theo từng bước</p>
+            <p>Theo dõi điểm nghẽn, ghi chú trực tiếp và đánh dấu hoàn thành ngay tại trang chủ</p>
           </div>
         </div>
       </div>
@@ -202,7 +306,7 @@ export function WorkflowPipelineCard(props: WorkflowPipelineCardProps) {
                 <tr>
                   <th>Mã PR</th>
                   <th>Bộ phận / Ngày</th>
-                  <th>Mục đích & Cảnh báo</th>
+                  <th>Mục đích &amp; Ghi chú theo dõi</th>
                   <th style={{ textAlign: "right" }}>Thao tác</th>
                 </tr>
               </thead>
@@ -229,9 +333,18 @@ export function WorkflowPipelineCard(props: WorkflowPipelineCardProps) {
                           {pr.purpose || "—"}
                         </div>
                         {renderAlertBadges(alerts)}
+                        <InlineNoteCell stage="pr" id={pr.id} note={pr.note} onSave={onUpdateItemNote} />
                       </td>
                       <td style={{ textAlign: "right", whiteSpace: "nowrap" }}>
                         <div className="pipeline-row-actions">
+                          <button
+                            type="button"
+                            className="btn-row-complete"
+                            title="Đánh dấu PR đã hoàn thành"
+                            onClick={() => onToggleCompletePR?.(pr)}
+                          >
+                            <CheckCircle2 size={12} /> Xong
+                          </button>
                           <button
                             type="button"
                             className="btn-row-remind"
@@ -243,14 +356,14 @@ export function WorkflowPipelineCard(props: WorkflowPipelineCardProps) {
                               )
                             }
                           >
-                            <Plus size={12} /> Nhắc việc
+                            <Plus size={12} /> Nhắc
                           </button>
                           <button
                             type="button"
                             className="btn-row-action"
                             onClick={() => onSelectPR?.(pr)}
                           >
-                            Báo giá <ArrowRight size={13} />
+                            Mở <ArrowRight size={12} />
                           </button>
                         </div>
                       </td>
@@ -277,7 +390,7 @@ export function WorkflowPipelineCard(props: WorkflowPipelineCardProps) {
                 <tr>
                   <th>Số ĐNPD</th>
                   <th>PR / Bộ phận</th>
-                  <th>Trạng thái & Cảnh báo</th>
+                  <th>Trạng thái &amp; Ghi chú theo dõi</th>
                   <th style={{ textAlign: "right" }}>Thao tác</th>
                 </tr>
               </thead>
@@ -307,9 +420,23 @@ export function WorkflowPipelineCard(props: WorkflowPipelineCardProps) {
                       <td>
                         <span className="status-pill status-wait">{approval.status || "Nháp"}</span>
                         {renderAlertBadges(alerts)}
+                        <InlineNoteCell
+                          stage="approval"
+                          id={approval.id}
+                          note={approval.note}
+                          onSave={onUpdateItemNote}
+                        />
                       </td>
                       <td style={{ textAlign: "right", whiteSpace: "nowrap" }}>
                         <div className="pipeline-row-actions">
+                          <button
+                            type="button"
+                            className="btn-row-complete"
+                            title="Đánh dấu ĐNPD đã hoàn thành"
+                            onClick={() => onToggleCompleteApproval?.(approval)}
+                          >
+                            <CheckCircle2 size={12} /> Xong
+                          </button>
                           <button
                             type="button"
                             className="btn-row-remind"
@@ -321,14 +448,14 @@ export function WorkflowPipelineCard(props: WorkflowPipelineCardProps) {
                               )
                             }
                           >
-                            <Plus size={12} /> Nhắc việc
+                            <Plus size={12} /> Nhắc
                           </button>
                           <button
                             type="button"
                             className="btn-row-action"
                             onClick={() => onSelectApproval?.(approval.id)}
                           >
-                            Mở ĐNPD <ArrowRight size={13} />
+                            Mở <ArrowRight size={12} />
                           </button>
                         </div>
                       </td>
@@ -355,7 +482,7 @@ export function WorkflowPipelineCard(props: WorkflowPipelineCardProps) {
                 <tr>
                   <th>Số PO</th>
                   <th>Nhà cung cấp</th>
-                  <th>Tiến độ giao & Cảnh báo</th>
+                  <th>Tiến độ giao &amp; Ghi chú</th>
                   <th>Hạn giao</th>
                   <th style={{ textAlign: "right" }}>Thao tác</th>
                 </tr>
@@ -391,10 +518,19 @@ export function WorkflowPipelineCard(props: WorkflowPipelineCardProps) {
                           </span>
                         </div>
                         {renderAlertBadges(alerts)}
+                        <InlineNoteCell stage="po" id={po.id} note={po.note} onSave={onUpdateItemNote} />
                       </td>
                       <td className="cell-date">{po.expectedDate || po.deliveryDate || "—"}</td>
                       <td style={{ textAlign: "right", whiteSpace: "nowrap" }}>
                         <div className="pipeline-row-actions">
+                          <button
+                            type="button"
+                            className="btn-row-complete"
+                            title="Đánh dấu PO đã hoàn thành"
+                            onClick={() => onToggleCompletePO?.(po)}
+                          >
+                            <CheckCircle2 size={12} /> Xong
+                          </button>
                           <button
                             type="button"
                             className="btn-row-remind"
@@ -406,14 +542,14 @@ export function WorkflowPipelineCard(props: WorkflowPipelineCardProps) {
                               )
                             }
                           >
-                            <Plus size={12} /> Nhắc việc
+                            <Plus size={12} /> Nhắc
                           </button>
                           <button
                             type="button"
                             className="btn-row-action"
                             onClick={() => onSelectPO?.(po)}
                           >
-                            Chi tiết <ArrowRight size={13} />
+                            Mở <ArrowRight size={12} />
                           </button>
                         </div>
                       </td>
@@ -440,7 +576,7 @@ export function WorkflowPipelineCard(props: WorkflowPipelineCardProps) {
                 <tr>
                   <th>Nguồn / Ngày</th>
                   <th>Bộ phận nhận</th>
-                  <th>Hàng hóa & Cảnh báo</th>
+                  <th>Hàng hóa &amp; Ghi chú</th>
                   <th style={{ textAlign: "right" }}>Thao tác</th>
                 </tr>
               </thead>
@@ -463,9 +599,23 @@ export function WorkflowPipelineCard(props: WorkflowPipelineCardProps) {
                         {handover.item_name} ({qtyPass}/{qtyDoc} {handover.unit})
                       </div>
                       {renderAlertBadges(alerts)}
+                      <InlineNoteCell
+                        stage="handover"
+                        id={handover.id}
+                        note={handover.note}
+                        onSave={onUpdateItemNote}
+                      />
                     </td>
                     <td style={{ textAlign: "right", whiteSpace: "nowrap" }}>
                       <div className="pipeline-row-actions">
+                        <button
+                          type="button"
+                          className="btn-row-complete"
+                          title="Đánh dấu Bàn giao đã hoàn thành"
+                          onClick={() => onToggleCompleteHandover?.(handover)}
+                        >
+                          <CheckCircle2 size={12} /> Xong
+                        </button>
                         <button
                           type="button"
                           className="btn-row-remind"
@@ -477,14 +627,14 @@ export function WorkflowPipelineCard(props: WorkflowPipelineCardProps) {
                             )
                           }
                         >
-                          <Plus size={12} /> Nhắc việc
+                          <Plus size={12} /> Nhắc
                         </button>
                         <button
                           type="button"
                           className="btn-row-action"
                           onClick={() => (onSelectHandover ? onSelectHandover(handover) : onCreateHandover?.())}
                         >
-                          Xử lý <ArrowRight size={13} />
+                          Mở <ArrowRight size={12} />
                         </button>
                       </div>
                     </td>
@@ -509,10 +659,10 @@ export function WorkflowPipelineCard(props: WorkflowPipelineCardProps) {
               <thead>
                 <tr>
                   <th>PO / Thụ hưởng</th>
-                  <th>Nội dung & Cảnh báo</th>
+                  <th>Nội dung &amp; Ghi chú</th>
                   <th style={{ textAlign: "right" }}>Số tiền</th>
                   <th>Số HĐ (Ngày HĐ)</th>
-                  <th style={{ textAlign: "center" }}>Xác nhận</th>
+                  <th style={{ textAlign: "center" }}>Hoàn thành</th>
                 </tr>
               </thead>
               <tbody>
@@ -557,6 +707,12 @@ export function WorkflowPipelineCard(props: WorkflowPipelineCardProps) {
                           {r.description || r.item_name || "Thanh toán"}
                         </div>
                         {renderAlertBadges(alerts)}
+                        <InlineNoteCell
+                          stage="payment"
+                          id={r.id}
+                          note={r.note}
+                          onSave={onUpdateItemNote}
+                        />
                       </td>
 
                       <td className="cell-money font-semibold" style={{ textAlign: "right", whiteSpace: "nowrap" }}>
@@ -655,16 +811,16 @@ export function WorkflowPipelineCard(props: WorkflowPipelineCardProps) {
                               onClick={() => onRequestPaymentConfirm(r, "revert")}
                               title="Đã thanh toán hôm nay. Bấm để hoàn tác nếu chuyển nhầm"
                             >
-                              <CheckCircle2 size={13} /> Đã TT
+                              <CheckCircle2 size={13} /> Đã xong
                             </button>
                           ) : (
                             <button
                               type="button"
                               className="payment-status-badge status-unpaid"
                               onClick={() => onRequestPaymentConfirm(r, "complete")}
-                              title="Bấm để xác nhận đã thanh toán"
+                              title="Bấm để xác nhận đã hoàn thành thanh toán"
                             >
-                              <Clock size={13} /> Chờ TT
+                              <CheckCircle2 size={13} /> Hoàn thành
                             </button>
                           )}
                         </div>

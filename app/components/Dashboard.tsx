@@ -89,6 +89,8 @@ export function Dashboard({
   onToggleCompletePR,
   onToggleCompletePO,
   onToggleCompleteApproval,
+  onToggleCompleteHandover,
+  onUpdateItemNote,
 }: {
   prs?: PR[];
   pos?: PO[];
@@ -114,6 +116,8 @@ export function Dashboard({
   onToggleCompletePR?: (pr: PR) => void;
   onToggleCompletePO?: (po: PO) => void;
   onToggleCompleteApproval?: (appr: ApprovalRequest) => void;
+  onToggleCompleteHandover?: (handover: PaymentHandoverItem) => void;
+  onUpdateItemNote?: (stage: "pr" | "approval" | "po" | "handover" | "payment", id: number, note: string) => void;
 }) {
   const handleCreatePR = onCreatePR || (() => onNavigate?.({ view: "create" }));
   const handleCreateApproval = onCreateApproval || (() => onNavigate?.({ view: "approval" }));
@@ -1022,6 +1026,11 @@ export function Dashboard({
             onSelectPayment={onSelectPayment}
             onCreateHandover={handleCreateHandover}
             onCreatePayment={handleCreatePayment}
+            onToggleCompletePR={onToggleCompletePR}
+            onToggleCompleteApproval={onToggleCompleteApproval}
+            onToggleCompletePO={onToggleCompletePO}
+            onToggleCompleteHandover={onToggleCompleteHandover}
+            onUpdateItemNote={onUpdateItemNote}
             onQuickRemindTodo={(text, priority) => createAndSyncTodo(text, priority || "normal")}
             editingInvoiceId={editingInvoiceId}
             draftInvoiceNo={draftInvoiceNo}

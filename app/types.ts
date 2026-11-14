@@ -706,6 +706,7 @@ export type ApprovalRequest = {
   requesterName: string;
   customSigners?: ApprovalCustomSigner[];
   status: "Nháp" | "Chờ phê duyệt" | "Đã phê duyệt" | "Đã tạo PO";
+  note?: string;
   isCompleted?: boolean;
   is_hidden?: boolean;
   isHidden?: boolean;

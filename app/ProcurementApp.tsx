@@ -2107,6 +2107,34 @@ function ProcurementAppInner({
     setStorageStatus(`Đã cập nhật ĐNPD #${appr.id} sang ${willComplete ? "Hoàn thành" : "Chưa hoàn thành"}`);
   }, []);
 
+  const handleToggleCompleteHandover = useCallback((handover: PaymentHandoverItem) => {
+    const willComplete = !handover.isCompleted;
+    setPaymentHandovers((list) =>
+      list.map((h) => (h.id === handover.id ? { ...h, isCompleted: willComplete } : h))
+    );
+    setStorageStatus(`Đã cập nhật Bàn giao #${handover.id} sang ${willComplete ? "Hoàn thành" : "Chưa hoàn thành"}`);
+    setTimeout(() => void persistState(false), 50);
+  }, [persistState]);
+
+  const handleUpdateItemNote = useCallback(
+    (stage: "pr" | "approval" | "po" | "handover" | "payment", id: number, note: string) => {
+      if (stage === "pr") {
+        setPrs((list) => list.map((p) => (p.id === id ? { ...p, note } : p)));
+      } else if (stage === "approval") {
+        setApprovalRequests((list) => list.map((a) => (a.id === id ? { ...a, note } : a)));
+      } else if (stage === "po") {
+        setPos((list) => list.map((p) => (p.id === id ? { ...p, note } : p)));
+      } else if (stage === "handover") {
+        setPaymentHandovers((list) => list.map((h) => (h.id === id ? { ...h, note } : h)));
+      } else if (stage === "payment") {
+        setPaymentRequests((list) => list.map((r) => (r.id === id ? { ...r, note } : r)));
+      }
+      setStorageStatus("Đã lưu ghi chú trực tiếp từ Trang chủ");
+      setTimeout(() => void persistState(false), 50);
+    },
+    [persistState]
+  );
+
   const handleCreateHandoverFromPO = (po: PO) => {
     if (!po.items || po.items.length === 0) {
       alert("PO/Hợp đồng này không có sản phẩm nào để tạo biên bản bàn giao.");
@@ -3032,6 +3060,8 @@ function ProcurementAppInner({
             onToggleCompletePR={handleToggleCompletePR}
             onToggleCompletePO={handleToggleCompletePO}
             onToggleCompleteApproval={handleToggleCompleteApproval}
+            onToggleCompleteHandover={handleToggleCompleteHandover}
+            onUpdateItemNote={handleUpdateItemNote}
           />
         )}
         {view === "contracts" && (
