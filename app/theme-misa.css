@@ -1,4 +1,4 @@
-/* ==========================================================================
+﻿/* ==========================================================================
    PHENIKAA SCMH - MISA AMIS ENTERPRISE THEME
    Chế độ Giao diện MISA AMIS (Nền sáng, Sidebar trắng, vạch xanh active 3.5px)
    Chạy song song cùng giao diện Azure Wave (Cổ điển)
@@ -398,24 +398,39 @@ body.theme-misa .mobile-header .mobile-search-btn,
 html.theme-misa.theme-misa-dark,
 body.theme-misa.theme-misa-dark,
 .app.theme-misa.theme-misa-dark {
+  --bg-app: #0f172a;
+  --bg: #0f172a;
+  --surface-card: #1e293b;
+  --surface-subtle: #162032;
+  --surface-hover: #263348;
+  --surface-active: rgba(56, 189, 248, 0.14);
+  --text-main: #f1f5f9;
+  --text-secondary: #cbd5e1;
+  --text-muted: #94a3b8;
+  --text-disabled: #64748b;
+  --ink: #f1f5f9;
+  --muted: #94a3b8;
+  --line: #334155;
   background-color: #0f172a !important;
   color: #e2e8f0 !important;
   color-scheme: dark;
 }
 
+/* 1. Sidebar Dark */
 html.theme-misa.theme-misa-dark aside,
 body.theme-misa.theme-misa-dark aside,
 .app.theme-misa.theme-misa-dark aside,
 .app.theme-misa.theme-misa-dark > aside {
   background: #111827 !important;
   border-right: 1px solid #1e293b !important;
-  box-shadow: 1px 0 6px rgba(0, 0, 0, 0.35) !important;
+  box-shadow: 1px 0 8px rgba(0, 0, 0, 0.45) !important;
   color: #cbd5e1 !important;
 }
 
 html.theme-misa.theme-misa-dark aside .brand,
 body.theme-misa.theme-misa-dark aside .brand,
-.app.theme-misa.theme-misa-dark aside .brand {
+.app.theme-misa.theme-misa-dark aside .brand,
+.app.theme-misa.theme-misa-dark > aside .brand {
   background: #111827 !important;
   border-bottom: 1px solid #1e293b !important;
 }
@@ -447,6 +462,13 @@ body.theme-misa.theme-misa-dark .sidebar-search-btn,
   color: #94a3b8 !important;
 }
 
+html.theme-misa.theme-misa-dark .sidebar-search-btn kbd,
+.app.theme-misa.theme-misa-dark .sidebar-search-btn kbd {
+  background: #0f172a !important;
+  border-color: #334155 !important;
+  color: #94a3b8 !important;
+}
+
 html.theme-misa.theme-misa-dark aside nav button,
 body.theme-misa.theme-misa-dark aside nav button,
 .app.theme-misa.theme-misa-dark aside nav button {
@@ -468,40 +490,240 @@ body.theme-misa.theme-misa-dark aside nav button.active,
   border-left-color: #38bdf8 !important;
 }
 
+html.theme-misa.theme-misa-dark aside nav button i,
+.app.theme-misa.theme-misa-dark aside nav button i {
+  color: #94a3b8 !important;
+}
+
+html.theme-misa.theme-misa-dark aside nav button.active i,
+.app.theme-misa.theme-misa-dark aside nav button.active i {
+  color: #38bdf8 !important;
+}
+
+html.theme-misa.theme-misa-dark .sidebar-footer,
+body.theme-misa.theme-misa-dark .sidebar-footer,
+.app.theme-misa.theme-misa-dark .sidebar-footer {
+  background: #111827 !important;
+  border-top: 1px solid #1e293b !important;
+}
+
+html.theme-misa.theme-misa-dark .sidebar-secondary-btn,
+body.theme-misa.theme-misa-dark .sidebar-secondary-btn,
+.app.theme-misa.theme-misa-dark .sidebar-secondary-btn {
+  background: #1e293b !important;
+  border: 1px solid #334155 !important;
+  color: #cbd5e1 !important;
+}
+
+html.theme-misa.theme-misa-dark .sidebar-secondary-btn:hover,
+.app.theme-misa.theme-misa-dark .sidebar-secondary-btn:hover {
+  background: #263348 !important;
+  color: #f8fafc !important;
+}
+
 html.theme-misa.theme-misa-dark .sidebar-user-card,
 body.theme-misa.theme-misa-dark .sidebar-user-card,
 .app.theme-misa.theme-misa-dark .sidebar-user-card {
   background: #1e293b !important;
-  border-color: #334155 !important;
+  border: 1px solid #334155 !important;
+}
+
+html.theme-misa.theme-misa-dark .sidebar-user-card .user-avatar,
+.app.theme-misa.theme-misa-dark .sidebar-user-card .user-avatar {
+  background: rgba(56, 189, 248, 0.16) !important;
+  color: #38bdf8 !important;
 }
 
 html.theme-misa.theme-misa-dark .sidebar-user-card .user-name,
-body.theme-misa.theme-misa-dark .sidebar-user-card .user-name {
+body.theme-misa.theme-misa-dark .sidebar-user-card .user-name,
+.app.theme-misa.theme-misa-dark .sidebar-user-card .user-name {
   color: #f1f5f9 !important;
 }
 
-html.theme-misa.theme-misa-dark .sidebar-secondary-btn {
-  background: #1e293b !important;
-  border-color: #334155 !important;
-  color: #cbd5e1 !important;
+html.theme-misa.theme-misa-dark .sidebar-user-card .user-role,
+.app.theme-misa.theme-misa-dark .sidebar-user-card .user-role {
+  color: #94a3b8 !important;
 }
 
-html.theme-misa.theme-misa-dark main {
+html.theme-misa.theme-misa-dark .btn-sidebar-logout-red,
+.app.theme-misa.theme-misa-dark .btn-sidebar-logout-red {
+  background: rgba(239, 68, 68, 0.12) !important;
+  border-color: rgba(239, 68, 68, 0.35) !important;
+  color: #fca5a5 !important;
+}
+
+html.theme-misa.theme-misa-dark .btn-sidebar-logout-red:hover,
+.app.theme-misa.theme-misa-dark .btn-sidebar-logout-red:hover {
+  background: rgba(239, 68, 68, 0.22) !important;
+  color: #fecaca !important;
+}
+
+html.theme-misa.theme-misa-dark .collapse,
+body.theme-misa.theme-misa-dark .collapse,
+.app.theme-misa.theme-misa-dark .collapse {
+  background: #111827 !important;
+  border-top: 1px solid #1e293b !important;
+  color: #94a3b8 !important;
+}
+
+html.theme-misa.theme-misa-dark .collapse:hover,
+.app.theme-misa.theme-misa-dark .collapse:hover {
+  background: #1e293b !important;
+  color: #f8fafc !important;
+}
+
+/* 2. Main Canvas & Mobile Header */
+html.theme-misa.theme-misa-dark main,
+body.theme-misa.theme-misa-dark main,
+.app.theme-misa.theme-misa-dark main {
   background-color: #0f172a !important;
   color: #e2e8f0 !important;
 }
 
+html.theme-misa.theme-misa-dark .mobile-header,
+body.theme-misa.theme-misa-dark .mobile-header,
+.app.theme-misa.theme-misa-dark .mobile-header {
+  background: #111827 !important;
+  border-bottom: 1px solid #1e293b !important;
+  color: #f8fafc !important;
+}
+
+html.theme-misa.theme-misa-dark .mobile-header .mobile-search-btn,
+.app.theme-misa.theme-misa-dark .mobile-header .mobile-search-btn {
+  background: #1e293b !important;
+  border: 1px solid #334155 !important;
+  color: #cbd5e1 !important;
+}
+
+/* 3. Tailwind Surface, Border & Text Overrides inside Dark Workspace */
+.theme-misa.theme-misa-dark .bg-white {
+  background-color: #1e293b !important;
+}
+
+.theme-misa.theme-misa-dark .bg-slate-50,
+.theme-misa.theme-misa-dark .bg-slate-50\/50,
+.theme-misa.theme-misa-dark .bg-slate-50\/70,
+.theme-misa.theme-misa-dark .bg-slate-50\/80,
+.theme-misa.theme-misa-dark .bg-gray-50 {
+  background-color: #162032 !important;
+}
+
+.theme-misa.theme-misa-dark .bg-slate-100,
+.theme-misa.theme-misa-dark .bg-gray-100 {
+  background-color: #263348 !important;
+}
+
+.theme-misa.theme-misa-dark .bg-slate-200 {
+  background-color: #334155 !important;
+}
+
+.theme-misa.theme-misa-dark .text-slate-900,
+.theme-misa.theme-misa-dark .text-slate-800,
+.theme-misa.theme-misa-dark .text-gray-900,
+.theme-misa.theme-misa-dark .text-gray-800 {
+  color: #f1f5f9 !important;
+}
+
+.theme-misa.theme-misa-dark .text-slate-700,
+.theme-misa.theme-misa-dark .text-gray-700 {
+  color: #e2e8f0 !important;
+}
+
+.theme-misa.theme-misa-dark .text-slate-600,
+.theme-misa.theme-misa-dark .text-slate-500,
+.theme-misa.theme-misa-dark .text-gray-600,
+.theme-misa.theme-misa-dark .text-gray-500 {
+  color: #94a3b8 !important;
+}
+
+.theme-misa.theme-misa-dark .text-slate-400 {
+  color: #64748b !important;
+}
+
+.theme-misa.theme-misa-dark .border-slate-100,
+.theme-misa.theme-misa-dark .border-slate-200,
+.theme-misa.theme-misa-dark .border-slate-300,
+.theme-misa.theme-misa-dark .border-gray-200,
+.theme-misa.theme-misa-dark .border-gray-300,
+.theme-misa.theme-misa-dark .divide-slate-100 > :not([hidden]) ~ :not([hidden]),
+.theme-misa.theme-misa-dark .divide-slate-200 > :not([hidden]) ~ :not([hidden]) {
+  border-color: #334155 !important;
+}
+
+.theme-misa.theme-misa-dark .hover\:bg-slate-50:hover,
+.theme-misa.theme-misa-dark .hover\:bg-slate-100:hover,
+.theme-misa.theme-misa-dark .hover\:bg-white:hover {
+  background-color: #263348 !important;
+}
+
+/* Pastel status / alert surfaces in dark mode */
+.theme-misa.theme-misa-dark .bg-blue-50,
+.theme-misa.theme-misa-dark .bg-sky-50 {
+  background-color: rgba(56, 189, 248, 0.14) !important;
+}
+
+.theme-misa.theme-misa-dark .bg-emerald-50,
+.theme-misa.theme-misa-dark .bg-green-50 {
+  background-color: rgba(16, 185, 129, 0.14) !important;
+}
+
+.theme-misa.theme-misa-dark .bg-amber-50,
+.theme-misa.theme-misa-dark .bg-yellow-50 {
+  background-color: rgba(245, 158, 11, 0.14) !important;
+}
+
+.theme-misa.theme-misa-dark .bg-rose-50,
+.theme-misa.theme-misa-dark .bg-red-50 {
+  background-color: rgba(244, 63, 94, 0.14) !important;
+}
+
+.theme-misa.theme-misa-dark .bg-indigo-50 {
+  background-color: rgba(99, 102, 241, 0.15) !important;
+}
+
+.theme-misa.theme-misa-dark .bg-orange-50 {
+  background-color: rgba(249, 115, 22, 0.14) !important;
+}
+
+.theme-misa.theme-misa-dark .border-blue-200,
+.theme-misa.theme-misa-dark .border-sky-200 {
+  border-color: rgba(56, 189, 248, 0.35) !important;
+}
+
+.theme-misa.theme-misa-dark .border-emerald-200 {
+  border-color: rgba(16, 185, 129, 0.35) !important;
+}
+
+.theme-misa.theme-misa-dark .border-amber-200 {
+  border-color: rgba(245, 158, 11, 0.35) !important;
+}
+
+.theme-misa.theme-misa-dark .border-rose-200,
+.theme-misa.theme-misa-dark .border-red-200 {
+  border-color: rgba(244, 63, 94, 0.35) !important;
+}
+
+/* 4. Legacy / Module Cards, Panels, Modals & Toolbars */
 html.theme-misa.theme-misa-dark .card,
 html.theme-misa.theme-misa-dark .admin-card,
 html.theme-misa.theme-misa-dark .panel,
+html.theme-misa.theme-misa-dark .pr-panel,
+html.theme-misa.theme-misa-dark .catalog-kpi-card,
+html.theme-misa.theme-misa-dark .pr-stats article,
+html.theme-misa.theme-misa-dark .cards article,
 html.theme-misa.theme-misa-dark .modal,
-html.theme-misa.theme-misa-dark .mobile-header {
+html.theme-misa.theme-misa-dark .backdrop .modal,
+html.theme-misa.theme-misa-dark .po-toolbar,
+html.theme-misa.theme-misa-dark .pr-toolbar,
+html.theme-misa.theme-misa-dark .product-toolbar,
+html.theme-misa.theme-misa-dark .supplier-toolbar {
   background-color: #1e293b !important;
   border-color: #334155 !important;
   color: #e2e8f0 !important;
 }
 
-html.theme-misa.theme-misa-dark input,
+/* 5. Form Controls */
+html.theme-misa.theme-misa-dark input:not([type="checkbox"]):not([type="radio"]),
 html.theme-misa.theme-misa-dark select,
 html.theme-misa.theme-misa-dark textarea {
   background-color: #0f172a !important;
@@ -509,25 +731,60 @@ html.theme-misa.theme-misa-dark textarea {
   color: #f1f5f9 !important;
 }
 
-html.theme-misa.theme-misa-dark table thead th {
-  background-color: #1e293b !important;
+html.theme-misa.theme-misa-dark input::placeholder,
+html.theme-misa.theme-misa-dark textarea::placeholder {
+  color: #64748b !important;
+}
+
+/* 6. Tables */
+html.theme-misa.theme-misa-dark table th,
+html.theme-misa.theme-misa-dark .pr-table th,
+html.theme-misa.theme-misa-dark .catalog-table th,
+html.theme-misa.theme-misa-dark .payment-table th,
+html.theme-misa.theme-misa-dark .compare-table th {
+  background-color: #162032 !important;
   color: #cbd5e1 !important;
   border-color: #334155 !important;
 }
 
-html.theme-misa.theme-misa-dark table tbody td {
-  border-color: #1e293b !important;
+html.theme-misa.theme-misa-dark table td,
+html.theme-misa.theme-misa-dark .pr-table td,
+html.theme-misa.theme-misa-dark .catalog-table td,
+html.theme-misa.theme-misa-dark .payment-table td,
+html.theme-misa.theme-misa-dark .compare-table td {
+  border-color: #263348 !important;
   color: #e2e8f0 !important;
 }
 
-html.theme-misa.theme-misa-dark table tbody tr:hover {
-  background-color: rgba(51, 65, 85, 0.45) !important;
+html.theme-misa.theme-misa-dark tr:hover td,
+body.theme-misa.theme-misa-dark tr:hover td,
+.app.theme-misa.theme-misa-dark tr:hover td {
+  background-color: #263348 !important;
 }
 
+/* 7. Buttons (ghost / secondary) */
+html.theme-misa.theme-misa-dark button.ghost,
+html.theme-misa.theme-misa-dark .ghost {
+  background-color: #1e293b !important;
+  border-color: #334155 !important;
+  color: #cbd5e1 !important;
+}
+
+html.theme-misa.theme-misa-dark button.ghost:hover:not(:disabled),
+html.theme-misa.theme-misa-dark .ghost:hover:not(:disabled) {
+  background-color: #263348 !important;
+  color: #f8fafc !important;
+}
+
+/* 8. Scrollbar */
 html.theme-misa.theme-misa-dark ::-webkit-scrollbar-track {
   background: #0f172a !important;
 }
 
 html.theme-misa.theme-misa-dark ::-webkit-scrollbar-thumb {
   background: #475569 !important;
+}
+
+html.theme-misa.theme-misa-dark ::-webkit-scrollbar-thumb:hover {
+  background: #64748b !important;
 }
