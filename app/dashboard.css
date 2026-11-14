@@ -3167,3 +3167,38 @@
 .theme-misa.theme-misa-dark .smart-subtask-inline-label {
   color: #e2e8f0 !important;
 }
+
+.pipeline-doc-sublink-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-top: 3px;
+  margin-right: 4px;
+  padding: 1px 7px;
+  border-radius: 5px;
+  background: #f1f5f9;
+  color: #334155;
+  border: 1px solid #e2e8f0;
+  font-size: 10.5px;
+  font-weight: 650;
+  cursor: pointer;
+  transition: all 0.14s ease;
+}
+
+.pipeline-doc-sublink-btn:hover {
+  background: #eff6ff;
+  color: #1d4ed8;
+  border-color: #bfdbfe;
+}
+
+.theme-misa.theme-misa-dark .pipeline-doc-sublink-btn {
+  background: #1e293b !important;
+  color: #cbd5e1 !important;
+  border-color: #334155 !important;
+}
+
+.theme-misa.theme-misa-dark .pipeline-doc-sublink-btn:hover {
+  background: rgba(56, 189, 248, 0.14) !important;
+  color: #38bdf8 !important;
+  border-color: rgba(56, 189, 248, 0.35) !important;
+}

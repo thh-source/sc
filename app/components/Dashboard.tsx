@@ -1057,6 +1057,9 @@ export function Dashboard({
             radarFilter={radarFilter}
             activeStage={activeStage}
             onChangeStage={setActiveStage}
+            allPRs={prs}
+            allApprovals={approvalRequests}
+            allPOs={pos}
             onSelectPR={onSelectPR}
             onSelectApproval={onSelectApproval}
             onSelectPO={onSelectPO}

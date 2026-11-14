@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import {
   AlertCircle,
   AlertTriangle,
+  BellPlus,
   Eye,
   Check,
   CheckCircle2,
@@ -23,6 +24,7 @@ import {
   PR,
   PaymentHandoverItem,
   PaymentRequestEntry,
+  calcPOTotal,
 } from "../types";
 import { fmtMoney } from "../payment-utils";
 import {
@@ -37,6 +39,9 @@ export interface WorkflowPipelineCardProps {
   radarFilter: RadarFilter;
   activeStage: PipelineStage;
   onChangeStage: (stage: PipelineStage) => void;
+  allPRs?: PR[];
+  allApprovals?: ApprovalRequest[];
+  allPOs?: PO[];
   onSelectPR?: (pr: PR) => void;
   onSelectApproval?: (id: number) => void;
   onSelectPO?: (po: PO) => void;
@@ -179,6 +184,9 @@ export function WorkflowPipelineCard(props: WorkflowPipelineCardProps) {
     radarFilter,
     activeStage,
     onChangeStage,
+    allPRs = [],
+    allApprovals = [],
+    allPOs = [],
     onSelectPR,
     onSelectApproval,
     onSelectPO,
@@ -366,77 +374,129 @@ export function WorkflowPipelineCard(props: WorkflowPipelineCardProps) {
               <p>Không có PR nào bị tồn đọng trong bộ lọc hiện tại.</p>
             </div>
           ) : (
-            <table className="queue-data-table">
-              <thead>
-                <tr>
-                  <th>Mã PR</th>
-                  <th>Bộ phận / Ngày</th>
-                  <th>Mục đích &amp; Ghi chú theo dõi</th>
-                  <th style={{ textAlign: "right" }}>Thao tác</th>
-                </tr>
-              </thead>
-              <tbody>
-                {prs.map(({ pr, alerts }) => {
-                  const tagCode = pr.number.startsWith("PR-") ? pr.number : `PR-${pr.number}`;
-                  return (
-                    <tr key={pr.id}>
-                      <td>
-                        <button
-                          type="button"
-                          className="queue-code-link"
-                          onClick={() => (onOpenDetailDrawer ? onOpenDetailDrawer("pr", pr.id) : onSelectPR?.(pr))}
-                        >
-                          {pr.number}
-                        </button>
-                      </td>
-                      <td>
-                        <div className="cell-strong">{pr.department || "—"}</div>
-                        <div className="cell-sub">{pr.date || "—"} · {pr.items?.length || 0} món</div>
-                      </td>
-                      <td>
-                        <div className="cell-purpose" title={pr.purpose}>
-                          {pr.purpose || "—"}
-                        </div>
-                        {renderAlertBadges(alerts)}
-                        <InlineNoteCell stage="pr" id={pr.id} note={pr.note} onSave={onUpdateItemNote} />
-                      </td>
-                      <td style={{ textAlign: "right", whiteSpace: "nowrap" }}>
-                        <div className="pipeline-row-actions">
+            <>
+              <table className="queue-data-table">
+                <thead>
+                  <tr>
+                    <th>Mã chứng từ</th>
+                    <th>Nội dung / Đơn vị</th>
+                    <th style={{ textAlign: "right" }}>Giá trị (VNĐ)</th>
+                    <th>Trạng thái</th>
+                    <th>Ghi chú nhanh (Inline Note)</th>
+                    <th style={{ textAlign: "right" }}>Tác vụ</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {prs.map(({ pr, alerts }) => {
+                    const tagCode = pr.number.startsWith("PR-") ? pr.number : `PR-${pr.number}`;
+                    const prTotal = (pr.items || []).reduce((s, it) => s + (Number(it.estimate) || 0), 0);
+                    const linkedAppr = allApprovals.find(
+                      (a) => a.prId === pr.id || (a.prNumber && a.prNumber === pr.number),
+                    );
+                    const linkedPo = allPOs.find((p) => p.prNumber && p.prNumber === pr.number);
+                    const statusText = pr.status || "Chờ xử lý";
+                    const statusCls =
+                      statusText.includes("Chờ")
+                        ? "pipeline-status-pill st-warn"
+                        : statusText.includes("Đã tạo") || statusText.includes("Hoàn thành")
+                          ? "pipeline-status-pill st-ok"
+                          : "pipeline-status-pill";
+                    return (
+                      <tr key={pr.id}>
+                        <td>
                           <button
                             type="button"
-                            className="btn-row-complete"
-                            title="Đánh dấu PR đã hoàn thành"
-                            onClick={() => onToggleCompletePR?.(pr)}
-                          >
-                            <CheckCircle2 size={12} /> Xong
-                          </button>
-                          <button
-                            type="button"
-                            className="btn-row-remind"
-                            title="Gắn vào To-Do hôm nay"
-                            onClick={() =>
-                              onQuickRemindTodo(
-                                `Xử lý #${tagCode} (${pr.department || ""})`,
-                                alerts.some((a) => a.severity === "overdue") ? "high" : "normal",
-                              )
-                            }
-                          >
-                            <Plus size={12} /> Nhắc
-                          </button>
-                          <button
-                            type="button"
-                            className="btn-row-action"
+                            className="queue-code-link"
                             onClick={() => (onOpenDetailDrawer ? onOpenDetailDrawer("pr", pr.id) : onSelectPR?.(pr))}
                           >
-                            <Eye size={12} /> Chi tiết
+                            {pr.number}
                           </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                          <div className="pipeline-code-meta">{pr.date || "—"}</div>
+                          {linkedAppr && (
+                            <button
+                              type="button"
+                              className="pipeline-doc-sublink-btn"
+                              onClick={() =>
+                                onOpenDetailDrawer
+                                  ? onOpenDetailDrawer("approval", linkedAppr.id)
+                                  : onSelectApproval?.(linkedAppr.id)
+                              }
+                            >
+                              ↳ {linkedAppr.requestNumber}
+                            </button>
+                          )}
+                          {linkedPo && (
+                            <button
+                              type="button"
+                              className="pipeline-doc-sublink-btn"
+                              onClick={() =>
+                                onOpenDetailDrawer ? onOpenDetailDrawer("po", linkedPo.id) : onSelectPO?.(linkedPo)
+                              }
+                            >
+                              ↳ {linkedPo.number}
+                            </button>
+                          )}
+                        </td>
+                        <td>
+                          <div className="cell-purpose" title={pr.purpose}>
+                            {pr.purpose || "—"}
+                          </div>
+                          <div className="cell-sub">{pr.department || "—"}</div>
+                          {renderAlertBadges(alerts)}
+                        </td>
+                        <td className="pipeline-money-cell">
+                          {prTotal > 0 ? `${fmtMoney(prTotal)} đ` : "—"}
+                        </td>
+                        <td>
+                          <span className={statusCls}>{statusText}</span>
+                        </td>
+                        <td>
+                          <InlineNoteCell stage="pr" id={pr.id} note={pr.note} onSave={onUpdateItemNote} />
+                        </td>
+                        <td style={{ textAlign: "right", whiteSpace: "nowrap" }}>
+                          <div className="pipeline-row-actions">
+                            <button
+                              type="button"
+                              className="btn-row-complete"
+                              title="Đánh dấu PR đã hoàn thành"
+                              onClick={() => onToggleCompletePR?.(pr)}
+                            >
+                              <CheckCircle2 size={12} /> Xong
+                            </button>
+                            <button
+                              type="button"
+                              className="btn-row-remind"
+                              title="Gắn vào To-Do hôm nay"
+                              onClick={() =>
+                                onQuickRemindTodo(
+                                  `Xử lý #${tagCode} (${pr.department || ""})`,
+                                  alerts.some((a) => a.severity === "overdue") ? "high" : "normal",
+                                )
+                              }
+                            >
+                              <BellPlus size={12} />
+                            </button>
+                            <button
+                              type="button"
+                              className="btn-row-action"
+                              onClick={() => (onOpenDetailDrawer ? onOpenDetailDrawer("pr", pr.id) : onSelectPR?.(pr))}
+                            >
+                              <Eye size={12} /> Chi tiết
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+              <div className="pipeline-table-footer">
+                <span>
+                  Hiển thị <b>{prs.length}</b> chứng từ trong giai đoạn <b>1. PR</b>
+                </span>
+                <span>Bấm vào mã chứng từ màu xanh để mở ngăn kéo chi tiết (Slide-over Drawer)</span>
+              </div>
+            </>
           )}
         </div>
       )}
@@ -450,85 +510,158 @@ export function WorkflowPipelineCard(props: WorkflowPipelineCardProps) {
               <p>Không có ĐNPD nào đang chờ duyệt hoặc chưa lên PO.</p>
             </div>
           ) : (
-            <table className="queue-data-table">
-              <thead>
-                <tr>
-                  <th>Số ĐNPD</th>
-                  <th>PR / Bộ phận</th>
-                  <th>Trạng thái &amp; Ghi chú theo dõi</th>
-                  <th style={{ textAlign: "right" }}>Thao tác</th>
-                </tr>
-              </thead>
-              <tbody>
-                {approvals.map(({ approval, alerts, missingPO }) => {
-                  const tagCode = approval.requestNumber.startsWith("DNPD-")
-                    ? approval.requestNumber
-                    : `DNPD-${approval.requestNumber}`;
-                  return (
-                    <tr key={approval.id}>
-                      <td>
-                        <button
-                          type="button"
-                          className="queue-code-link link-purple"
-                          onClick={() => (onOpenDetailDrawer ? onOpenDetailDrawer("approval", approval.id) : onSelectApproval?.(approval.id))}
-                        >
-                          <FileCheck size={12} /> {approval.requestNumber}
-                        </button>
-                      </td>
-                      <td>
-                        <div className="cell-strong">{approval.department || "—"}</div>
-                        <div className="cell-sub">
-                          {approval.prNumber ? `PR: ${approval.prNumber} · ` : ""}
-                          {approval.createdDate || "—"}
-                        </div>
-                      </td>
-                      <td>
-                        <span className="status-pill status-wait">{approval.status || "Nháp"}</span>
-                        {renderAlertBadges(alerts)}
-                        <InlineNoteCell
-                          stage="approval"
-                          id={approval.id}
-                          note={approval.note}
-                          onSave={onUpdateItemNote}
-                        />
-                      </td>
-                      <td style={{ textAlign: "right", whiteSpace: "nowrap" }}>
-                        <div className="pipeline-row-actions">
+            <>
+              <table className="queue-data-table">
+                <thead>
+                  <tr>
+                    <th>Mã chứng từ</th>
+                    <th>Nội dung / Đơn vị</th>
+                    <th style={{ textAlign: "right" }}>Giá trị (VNĐ)</th>
+                    <th>Trạng thái</th>
+                    <th>Ghi chú nhanh (Inline Note)</th>
+                    <th style={{ textAlign: "right" }}>Tác vụ</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {approvals.map(({ approval, alerts, missingPO }) => {
+                    const tagCode = approval.requestNumber.startsWith("DNPD-")
+                      ? approval.requestNumber
+                      : `DNPD-${approval.requestNumber}`;
+                    const selCol =
+                      approval.supplierColumns?.find((c) => c.isSelected) || approval.supplierColumns?.[0];
+                    const apprTotal = selCol
+                      ? (approval.rows || []).reduce(
+                          (sum, row) =>
+                            sum +
+                            (row.supplierQuotes?.[selCol.colId] || []).reduce(
+                              (s, l) => s + (Number(l.amount) || 0),
+                              0,
+                            ),
+                          0,
+                        )
+                      : 0;
+                    const linkedPr = allPRs.find(
+                      (p) =>
+                        (approval.prId && p.id === approval.prId) ||
+                        (approval.prNumber && p.number === approval.prNumber),
+                    );
+                    const linkedPo = allPOs.find(
+                      (p) => approval.prNumber && p.prNumber === approval.prNumber,
+                    );
+                    const statusText = approval.status || "Nháp";
+                    const statusCls =
+                      statusText.includes("Chờ") || statusText === "Nháp"
+                        ? "pipeline-status-pill st-warn"
+                        : statusText.includes("Đã tạo") || statusText.includes("Đã duyệt")
+                          ? "pipeline-status-pill st-ok"
+                          : "pipeline-status-pill";
+                    return (
+                      <tr key={approval.id}>
+                        <td>
                           <button
                             type="button"
-                            className="btn-row-complete"
-                            title="Đánh dấu ĐNPD đã hoàn thành"
-                            onClick={() => onToggleCompleteApproval?.(approval)}
-                          >
-                            <CheckCircle2 size={12} /> Xong
-                          </button>
-                          <button
-                            type="button"
-                            className="btn-row-remind"
-                            title="Gắn vào To-Do hôm nay"
+                            className="queue-code-link link-purple"
                             onClick={() =>
-                              onQuickRemindTodo(
-                                `${missingPO ? "Lên PO cho" : "Theo dõi duyệt"} @${tagCode}`,
-                                missingPO ? "high" : "normal",
-                              )
+                              onOpenDetailDrawer
+                                ? onOpenDetailDrawer("approval", approval.id)
+                                : onSelectApproval?.(approval.id)
                             }
                           >
-                            <Plus size={12} /> Nhắc
+                            {approval.requestNumber}
                           </button>
-                          <button
-                            type="button"
-                            className="btn-row-action"
-                            onClick={() => (onOpenDetailDrawer ? onOpenDetailDrawer("approval", approval.id) : onSelectApproval?.(approval.id))}
-                          >
-                            <Eye size={12} /> Chi tiết
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                          <div className="pipeline-code-meta">{approval.createdDate || "—"}</div>
+                          {linkedPr && (
+                            <button
+                              type="button"
+                              className="pipeline-doc-sublink-btn"
+                              onClick={() =>
+                                onOpenDetailDrawer ? onOpenDetailDrawer("pr", linkedPr.id) : onSelectPR?.(linkedPr)
+                              }
+                            >
+                              ↳ {linkedPr.number}
+                            </button>
+                          )}
+                          {linkedPo && (
+                            <button
+                              type="button"
+                              className="pipeline-doc-sublink-btn"
+                              onClick={() =>
+                                onOpenDetailDrawer ? onOpenDetailDrawer("po", linkedPo.id) : onSelectPO?.(linkedPo)
+                              }
+                            >
+                              ↳ {linkedPo.number}
+                            </button>
+                          )}
+                        </td>
+                        <td>
+                          <div className="cell-purpose" title={selCol?.supplierName || approval.department}>
+                            {selCol?.supplierName || approval.prNumber || approval.requestNumber}
+                          </div>
+                          <div className="cell-sub">{approval.department || "—"}</div>
+                          {renderAlertBadges(alerts)}
+                        </td>
+                        <td className="pipeline-money-cell">
+                          {apprTotal > 0 ? `${fmtMoney(apprTotal)} đ` : "—"}
+                        </td>
+                        <td>
+                          <span className={statusCls}>{statusText}</span>
+                        </td>
+                        <td>
+                          <InlineNoteCell
+                            stage="approval"
+                            id={approval.id}
+                            note={approval.note}
+                            onSave={onUpdateItemNote}
+                          />
+                        </td>
+                        <td style={{ textAlign: "right", whiteSpace: "nowrap" }}>
+                          <div className="pipeline-row-actions">
+                            <button
+                              type="button"
+                              className="btn-row-complete"
+                              title="Đánh dấu ĐNPD đã hoàn thành"
+                              onClick={() => onToggleCompleteApproval?.(approval)}
+                            >
+                              <CheckCircle2 size={12} /> Xong
+                            </button>
+                            <button
+                              type="button"
+                              className="btn-row-remind"
+                              title="Gắn vào To-Do hôm nay"
+                              onClick={() =>
+                                onQuickRemindTodo(
+                                  `${missingPO ? "Lên PO cho" : "Theo dõi duyệt"} @${tagCode}`,
+                                  missingPO ? "high" : "normal",
+                                )
+                              }
+                            >
+                              <BellPlus size={12} />
+                            </button>
+                            <button
+                              type="button"
+                              className="btn-row-action"
+                              onClick={() =>
+                                onOpenDetailDrawer
+                                  ? onOpenDetailDrawer("approval", approval.id)
+                                  : onSelectApproval?.(approval.id)
+                              }
+                            >
+                              <Eye size={12} /> Chi tiết
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+              <div className="pipeline-table-footer">
+                <span>
+                  Hiển thị <b>{approvals.length}</b> chứng từ trong giai đoạn <b>2. ĐNPD</b>
+                </span>
+                <span>Bấm vào mã chứng từ màu xanh để mở ngăn kéo chi tiết (Slide-over Drawer)</span>
+              </div>
+            </>
           )}
         </div>
       )}
@@ -542,87 +675,138 @@ export function WorkflowPipelineCard(props: WorkflowPipelineCardProps) {
               <p>Tất cả PO trong bộ lọc đều đã giao đủ và hoàn tất.</p>
             </div>
           ) : (
-            <table className="queue-data-table">
-              <thead>
-                <tr>
-                  <th>Số PO</th>
-                  <th>Nhà cung cấp</th>
-                  <th>Tiến độ giao &amp; Ghi chú</th>
-                  <th>Hạn giao</th>
-                  <th style={{ textAlign: "right" }}>Thao tác</th>
-                </tr>
-              </thead>
-              <tbody>
-                {pos.map(({ po, supplierName, deliveredPct, deliveredItems, totalItems, alerts }) => {
-                  const tagCode = po.number.startsWith("PO-") ? po.number : `PO-${po.number}`;
-                  return (
-                    <tr key={po.id}>
-                      <td>
-                        <button
-                          type="button"
-                          className="queue-code-link link-blue"
-                          onClick={() => (onOpenDetailDrawer ? onOpenDetailDrawer("po", po.id) : onSelectPO?.(po))}
-                        >
-                          <Package size={12} /> {po.number}
-                        </button>
-                      </td>
-                      <td>
-                        <div className="cell-strong">{supplierName}</div>
-                        <div className="cell-sub">{po.department || (po.prNumber ? `PR: ${po.prNumber}` : "")}</div>
-                      </td>
-                      <td>
-                        <div className="delivery-progress-cell">
-                          <div className="delivery-bar-bg">
-                            <div
-                              className="delivery-bar-fill"
-                              style={{ width: `${deliveredPct}%` }}
-                            />
-                          </div>
-                          <span className="delivery-pct-text">
-                            {deliveredItems}/{totalItems} món ({deliveredPct}%)
-                          </span>
-                        </div>
-                        {renderAlertBadges(alerts)}
-                        <InlineNoteCell stage="po" id={po.id} note={po.note} onSave={onUpdateItemNote} />
-                      </td>
-                      <td className="cell-date">{po.expectedDate || po.deliveryDate || "—"}</td>
-                      <td style={{ textAlign: "right", whiteSpace: "nowrap" }}>
-                        <div className="pipeline-row-actions">
+            <>
+              <table className="queue-data-table">
+                <thead>
+                  <tr>
+                    <th>Mã chứng từ</th>
+                    <th>Nội dung / Đơn vị</th>
+                    <th style={{ textAlign: "right" }}>Giá trị (VNĐ)</th>
+                    <th>Trạng thái</th>
+                    <th>Ghi chú nhanh (Inline Note)</th>
+                    <th style={{ textAlign: "right" }}>Tác vụ</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pos.map(({ po, supplierName, deliveredPct, deliveredItems, totalItems, alerts }) => {
+                    const tagCode = po.number.startsWith("PO-") ? po.number : `PO-${po.number}`;
+                    const poTotal = calcPOTotal(po);
+                    const summaryTitle =
+                      totalItems > 0
+                        ? `${totalItems} mặt hàng${po.items?.[0]?.name ? ` (${po.items[0].name})` : ""}`
+                        : "Đơn mua hàng";
+                    const linkedPr = allPRs.find((p) => po.prNumber && p.number === po.prNumber);
+                    const linkedAppr = allApprovals.find(
+                      (a) => (po.prNumber && a.prNumber === po.prNumber) || (linkedPr && a.prId === linkedPr.id),
+                    );
+                    const statusText = po.status || (deliveredPct > 0 ? "Đang giao hàng" : "Chờ giao");
+                    const statusCls =
+                      deliveredPct >= 100
+                        ? "pipeline-status-pill st-ok"
+                        : deliveredPct === 0
+                          ? "pipeline-status-pill st-warn"
+                          : "pipeline-status-pill";
+                    return (
+                      <tr key={po.id}>
+                        <td>
                           <button
                             type="button"
-                            className="btn-row-complete"
-                            title="Đánh dấu PO đã hoàn thành"
-                            onClick={() => onToggleCompletePO?.(po)}
-                          >
-                            <CheckCircle2 size={12} /> Xong
-                          </button>
-                          <button
-                            type="button"
-                            className="btn-row-remind"
-                            title="Gắn vào To-Do hôm nay"
-                            onClick={() =>
-                              onQuickRemindTodo(
-                                `Theo dõi giao hàng @${tagCode} (${supplierName})`,
-                                alerts.some((a) => a.severity === "overdue") ? "high" : "normal",
-                              )
-                            }
-                          >
-                            <Plus size={12} /> Nhắc
-                          </button>
-                          <button
-                            type="button"
-                            className="btn-row-action"
+                            className="queue-code-link link-blue"
                             onClick={() => (onOpenDetailDrawer ? onOpenDetailDrawer("po", po.id) : onSelectPO?.(po))}
                           >
-                            <Eye size={12} /> Chi tiết
+                            {po.number}
                           </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                          <div className="pipeline-code-meta">
+                            Hạn giao: {po.expectedDate || po.deliveryDate || "—"}
+                          </div>
+                          {linkedPr && (
+                            <button
+                              type="button"
+                              className="pipeline-doc-sublink-btn"
+                              onClick={() =>
+                                onOpenDetailDrawer ? onOpenDetailDrawer("pr", linkedPr.id) : onSelectPR?.(linkedPr)
+                              }
+                            >
+                              ↳ {linkedPr.number}
+                            </button>
+                          )}
+                          {linkedAppr && (
+                            <button
+                              type="button"
+                              className="pipeline-doc-sublink-btn"
+                              onClick={() =>
+                                onOpenDetailDrawer
+                                  ? onOpenDetailDrawer("approval", linkedAppr.id)
+                                  : onSelectApproval?.(linkedAppr.id)
+                              }
+                            >
+                              ↳ {linkedAppr.requestNumber}
+                            </button>
+                          )}
+                        </td>
+                        <td>
+                          <div className="cell-purpose" title={summaryTitle}>
+                            {summaryTitle}
+                          </div>
+                          <div className="cell-sub">{supplierName}</div>
+                          {renderAlertBadges(alerts)}
+                        </td>
+                        <td className="pipeline-money-cell">
+                          {poTotal > 0 ? `${fmtMoney(poTotal)} đ` : "—"}
+                        </td>
+                        <td>
+                          <span className={statusCls}>{statusText}</span>
+                          <div className="pipeline-code-meta">
+                            {deliveredItems}/{totalItems} món ({deliveredPct}%)
+                          </div>
+                        </td>
+                        <td>
+                          <InlineNoteCell stage="po" id={po.id} note={po.note} onSave={onUpdateItemNote} />
+                        </td>
+                        <td style={{ textAlign: "right", whiteSpace: "nowrap" }}>
+                          <div className="pipeline-row-actions">
+                            <button
+                              type="button"
+                              className="btn-row-complete"
+                              title="Đánh dấu PO đã hoàn thành"
+                              onClick={() => onToggleCompletePO?.(po)}
+                            >
+                              <CheckCircle2 size={12} /> Xong
+                            </button>
+                            <button
+                              type="button"
+                              className="btn-row-remind"
+                              title="Gắn vào To-Do hôm nay"
+                              onClick={() =>
+                                onQuickRemindTodo(
+                                  `Theo dõi giao hàng @${tagCode} (${supplierName})`,
+                                  alerts.some((a) => a.severity === "overdue") ? "high" : "normal",
+                                )
+                              }
+                            >
+                              <BellPlus size={12} />
+                            </button>
+                            <button
+                              type="button"
+                              className="btn-row-action"
+                              onClick={() => (onOpenDetailDrawer ? onOpenDetailDrawer("po", po.id) : onSelectPO?.(po))}
+                            >
+                              <Eye size={12} /> Chi tiết
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+              <div className="pipeline-table-footer">
+                <span>
+                  Hiển thị <b>{pos.length}</b> chứng từ trong giai đoạn <b>3. PO &amp; Giao hàng</b>
+                </span>
+                <span>Bấm vào mã chứng từ màu xanh để mở ngăn kéo chi tiết (Slide-over Drawer)</span>
+              </div>
+            </>
           )}
         </div>
       )}
@@ -636,77 +820,123 @@ export function WorkflowPipelineCard(props: WorkflowPipelineCardProps) {
               <p>Không có phiếu bàn giao nào dở dang hoặc thiếu biên bản ký nhận.</p>
             </div>
           ) : (
-            <table className="queue-data-table">
-              <thead>
-                <tr>
-                  <th>Nguồn / Ngày</th>
-                  <th>Bộ phận nhận</th>
-                  <th>Hàng hóa &amp; Ghi chú</th>
-                  <th style={{ textAlign: "right" }}>Thao tác</th>
-                </tr>
-              </thead>
-              <tbody>
-                {handovers.map(({ handover, qtyDoc, qtyPass, alerts }) => (
-                  <tr key={handover.id}>
-                    <td>
-                      <button
-                        type="button"
-                        className="queue-code-link"
-                        onClick={() => (onOpenDetailDrawer ? onOpenDetailDrawer("handover", handover.id) : onSelectHandover?.(handover))}
-                      >
-                        <Truck size={12} /> {handover.source_number || `BG-${handover.id}`}
-                      </button>
-                      <div className="cell-sub">{handover.handover_date || "—"}</div>
-                    </td>
-                    <td className="cell-strong">{handover.department || "—"}</td>
-                    <td>
-                      <div className="cell-purpose" title={handover.item_name}>
-                        {handover.item_name} ({qtyPass}/{qtyDoc} {handover.unit})
-                      </div>
-                      {renderAlertBadges(alerts)}
-                      <InlineNoteCell
-                        stage="handover"
-                        id={handover.id}
-                        note={handover.note}
-                        onSave={onUpdateItemNote}
-                      />
-                    </td>
-                    <td style={{ textAlign: "right", whiteSpace: "nowrap" }}>
-                      <div className="pipeline-row-actions">
-                        <button
-                          type="button"
-                          className="btn-row-complete"
-                          title="Đánh dấu Bàn giao đã hoàn thành"
-                          onClick={() => onToggleCompleteHandover?.(handover)}
-                        >
-                          <CheckCircle2 size={12} /> Xong
-                        </button>
-                        <button
-                          type="button"
-                          className="btn-row-remind"
-                          title="Gắn vào To-Do hôm nay"
-                          onClick={() =>
-                            onQuickRemindTodo(
-                              `Hoàn tất bàn giao ${handover.item_name} (${handover.department})`,
-                              alerts.some((a) => a.severity === "overdue") ? "high" : "normal",
-                            )
-                          }
-                        >
-                          <Plus size={12} /> Nhắc
-                        </button>
-                        <button
-                          type="button"
-                          className="btn-row-action"
-                          onClick={() => (onOpenDetailDrawer ? onOpenDetailDrawer("handover", handover.id) : (onSelectHandover ? onSelectHandover(handover) : onCreateHandover?.()))}
-                        >
-                          <Eye size={12} /> Chi tiết
-                        </button>
-                      </div>
-                    </td>
+            <>
+              <table className="queue-data-table">
+                <thead>
+                  <tr>
+                    <th>Mã chứng từ</th>
+                    <th>Nội dung / Đơn vị</th>
+                    <th style={{ textAlign: "right" }}>Giá trị (VNĐ)</th>
+                    <th>Trạng thái</th>
+                    <th>Ghi chú nhanh (Inline Note)</th>
+                    <th style={{ textAlign: "right" }}>Tác vụ</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {handovers.map(({ handover, qtyDoc, qtyPass, alerts }) => {
+                    const displayCode = handover.batch_id || handover.source_number || `BG-${handover.id}`;
+                    const linkedPo = allPOs.find(
+                      (p) => handover.source_number && p.number === handover.source_number,
+                    );
+                    const isFull = qtyPass >= qtyDoc && qtyDoc > 0;
+                    return (
+                      <tr key={handover.id}>
+                        <td>
+                          <button
+                            type="button"
+                            className="queue-code-link"
+                            onClick={() =>
+                              onOpenDetailDrawer
+                                ? onOpenDetailDrawer("handover", handover.id)
+                                : onSelectHandover?.(handover)
+                            }
+                          >
+                            {displayCode}
+                          </button>
+                          <div className="pipeline-code-meta">{handover.handover_date || "—"}</div>
+                          {linkedPo && (
+                            <button
+                              type="button"
+                              className="pipeline-doc-sublink-btn"
+                              onClick={() =>
+                                onOpenDetailDrawer ? onOpenDetailDrawer("po", linkedPo.id) : onSelectPO?.(linkedPo)
+                              }
+                            >
+                              ↳ {linkedPo.number}
+                            </button>
+                          )}
+                        </td>
+                        <td>
+                          <div className="cell-purpose" title={handover.item_name}>
+                            {handover.item_name} ({qtyPass}/{qtyDoc} {handover.unit})
+                          </div>
+                          <div className="cell-sub">{handover.department || "—"}</div>
+                          {renderAlertBadges(alerts)}
+                        </td>
+                        <td className="pipeline-money-cell">—</td>
+                        <td>
+                          <span className={isFull ? "pipeline-status-pill st-ok" : "pipeline-status-pill st-warn"}>
+                            {isFull ? "Đã đủ SL" : "Giao một phần"}
+                          </span>
+                        </td>
+                        <td>
+                          <InlineNoteCell
+                            stage="handover"
+                            id={handover.id}
+                            note={handover.note}
+                            onSave={onUpdateItemNote}
+                          />
+                        </td>
+                        <td style={{ textAlign: "right", whiteSpace: "nowrap" }}>
+                          <div className="pipeline-row-actions">
+                            <button
+                              type="button"
+                              className="btn-row-complete"
+                              title="Đánh dấu Bàn giao đã hoàn thành"
+                              onClick={() => onToggleCompleteHandover?.(handover)}
+                            >
+                              <CheckCircle2 size={12} /> Xong
+                            </button>
+                            <button
+                              type="button"
+                              className="btn-row-remind"
+                              title="Gắn vào To-Do hôm nay"
+                              onClick={() =>
+                                onQuickRemindTodo(
+                                  `Hoàn tất bàn giao ${handover.item_name} (${handover.department})`,
+                                  alerts.some((a) => a.severity === "overdue") ? "high" : "normal",
+                                )
+                              }
+                            >
+                              <BellPlus size={12} />
+                            </button>
+                            <button
+                              type="button"
+                              className="btn-row-action"
+                              onClick={() =>
+                                onOpenDetailDrawer
+                                  ? onOpenDetailDrawer("handover", handover.id)
+                                  : onSelectHandover
+                                    ? onSelectHandover(handover)
+                                    : onCreateHandover?.()
+                              }
+                            >
+                              <Eye size={12} /> Chi tiết
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+              <div className="pipeline-table-footer">
+                <span>
+                  Hiển thị <b>{handovers.length}</b> chứng từ trong giai đoạn <b>4. Bàn giao</b>
+                </span>
+                <span>Bấm vào mã chứng từ màu xanh để mở ngăn kéo chi tiết (Slide-over Drawer)</span>
+              </div>
+            </>
           )}
         </div>
       )}
@@ -720,181 +950,214 @@ export function WorkflowPipelineCard(props: WorkflowPipelineCardProps) {
               <p>Không còn Đề nghị thanh toán nào cần xử lý.</p>
             </div>
           ) : (
-            <table className="queue-data-table pending-payments-table">
-              <thead>
-                <tr>
-                  <th>PO / Thụ hưởng</th>
-                  <th>Nội dung &amp; Ghi chú</th>
-                  <th style={{ textAlign: "right" }}>Số tiền</th>
-                  <th>Số HĐ (Ngày HĐ)</th>
-                  <th style={{ textAlign: "center" }}>Hoàn thành</th>
-                </tr>
-              </thead>
-              <tbody>
-                {payments.map(({ payment: r, linkedPO, isDoneToday, alerts }) => {
-                  const isEditing = editingInvoiceId === r.id;
-                  const invoiceText = r.invoice_no?.trim() || "Chưa có HĐ";
-                  const dateText = r.invoice_date?.trim() ? ` (${r.invoice_date.trim()})` : "";
-                  const invoiceCombined = `${invoiceText}${dateText}`;
+            <>
+              <table className="queue-data-table pending-payments-table">
+                <thead>
+                  <tr>
+                    <th>Mã chứng từ</th>
+                    <th>Nội dung / Đơn vị</th>
+                    <th style={{ textAlign: "right" }}>Giá trị (VNĐ)</th>
+                    <th>Trạng thái</th>
+                    <th>Ghi chú nhanh (Inline Note)</th>
+                    <th style={{ textAlign: "right" }}>Tác vụ</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {payments.map(({ payment: r, linkedPO, isDoneToday, alerts }) => {
+                    const isEditing = editingInvoiceId === r.id;
+                    const invoiceText = r.invoice_no?.trim() || "Chưa có HĐ";
+                    const dateText = r.invoice_date?.trim() ? ` (${r.invoice_date.trim()})` : "";
+                    const invoiceCombined = `${invoiceText}${dateText}`;
+                    const displayCode = r.group_code || `ĐNTT-${r.legacy_stt || r.id}`;
 
-                  return (
-                    <tr
-                      key={r.id}
-                      className={isDoneToday ? "row-paid-today" : "row-unpaid"}
-                      style={{
-                        opacity: isDoneToday ? 0.78 : 1,
-                        backgroundColor: isDoneToday ? "#f0fdf4" : undefined,
-                      }}
-                    >
-                      <td>
-                        {linkedPO ? (
+                    return (
+                      <tr
+                        key={r.id}
+                        className={isDoneToday ? "row-paid-today" : "row-unpaid"}
+                        style={{
+                          opacity: isDoneToday ? 0.78 : 1,
+                        }}
+                      >
+                        <td>
                           <button
                             type="button"
                             className="queue-code-link"
-                            onClick={() => (onOpenDetailDrawer ? onOpenDetailDrawer("po", linkedPO.id) : onSelectPO?.(linkedPO))}
+                            onClick={() =>
+                              onOpenDetailDrawer
+                                ? onOpenDetailDrawer("payment", r.id)
+                                : onSelectPayment
+                                  ? onSelectPayment(r.id)
+                                  : onCreatePayment?.()
+                            }
                           >
-                            <Package size={12} /> {linkedPO.number}
+                            {displayCode}
                           </button>
-                        ) : (
-                          <button
-                            type="button"
-                            className="queue-code-link"
-                            onClick={() => (onOpenDetailDrawer ? onOpenDetailDrawer("payment", r.id) : (onSelectPayment ? onSelectPayment(r.id) : onCreatePayment?.()))}
-                          >
-                            <CreditCard size={12} /> {r.group_code || `ĐNTT #${r.legacy_stt || r.id}`}
-                          </button>
-                        )}
-                        <div className="cell-sub">{r.payee_name || "Chưa rõ NCC"}</div>
-                      </td>
-
-                      <td>
-                        <div className="cell-purpose" title={r.description || r.item_name}>
-                          {r.description || r.item_name || "Thanh toán"}
-                        </div>
-                        {renderAlertBadges(alerts)}
-                        <InlineNoteCell
-                          stage="payment"
-                          id={r.id}
-                          note={r.note}
-                          onSave={onUpdateItemNote}
-                        />
-                      </td>
-
-                      <td className="cell-money font-semibold" style={{ textAlign: "right", whiteSpace: "nowrap" }}>
-                        {fmtMoney(r.amount)} {r.currency || "VND"}
-                      </td>
-
-                      <td style={{ whiteSpace: "nowrap" }}>
-                        {isEditing ? (
-                          <div
-                            className="inline-invoice-editor-wrap"
-                            onBlur={(e) => {
-                              if (!e.currentTarget.contains(e.relatedTarget as Node)) {
-                                onSaveInvoice(r);
-                              }
-                            }}
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter") {
-                                e.preventDefault();
-                                onSaveInvoice(r);
-                              } else if (e.key === "Escape") {
-                                e.preventDefault();
-                                onCancelEditInvoice();
-                              }
-                            }}
-                          >
-                            <input
-                              type="text"
-                              autoFocus
-                              placeholder="Số HĐ"
-                              value={draftInvoiceNo}
-                              onChange={(e) => onDraftInvoiceNoChange(e.target.value)}
-                              className="inline-invoice-input inline-invoice-input-no"
-                            />
-                            <input
-                              type="date"
-                              value={draftInvoiceDate}
-                              onChange={(e) => onDraftInvoiceDateChange(e.target.value)}
-                              className="inline-invoice-input inline-invoice-input-date"
-                            />
-                            <button
-                              type="button"
-                              className="inline-invoice-save-btn"
-                              onMouseDown={(e) => {
-                                e.preventDefault();
-                                onSaveInvoice(r);
-                              }}
-                              title="Lưu số hóa đơn"
-                            >
-                              <Check size={12} />
-                            </button>
-                            <button
-                              type="button"
-                              className="inline-invoice-cancel-btn"
-                              onMouseDown={(e) => {
-                                e.preventDefault();
-                                onCancelEditInvoice();
-                              }}
-                              title="Hủy"
-                            >
-                              <X size={12} />
-                            </button>
+                          <div className="pipeline-code-meta">
+                            Hạn TT: {r.due_date || r.request_date || "—"}
                           </div>
-                        ) : (
-                          <div
-                            className={`compact-invoice-trigger ${r.invoice_no?.trim() ? "has-invoice" : "no-invoice"}`}
-                            onClick={() => onStartEditInvoice(r)}
-                            title="Bấm để nhập/sửa nhanh số và ngày hóa đơn"
-                          >
-                            <span>{invoiceCombined}</span>
-                            <Pencil size={11} className="invoice-edit-icon" />
-                          </div>
-                        )}
-                      </td>
-
-                      <td style={{ textAlign: "center", whiteSpace: "nowrap" }}>
-                        <div className="pipeline-row-actions" style={{ justifyContent: "center" }}>
-                          {!isDoneToday && (
+                          {linkedPO && (
                             <button
                               type="button"
-                              className="btn-row-remind"
-                              title="Gắn vào To-Do hôm nay"
+                              className="pipeline-doc-sublink-btn"
                               onClick={() =>
-                                onQuickRemindTodo(
-                                  `Thanh toán ${linkedPO ? `@${linkedPO.number.startsWith("PO-") ? linkedPO.number : `PO-${linkedPO.number}`}` : r.payee_name}: ${r.description || r.item_name || ""}`.trim(),
-                                  alerts.some((a) => a.severity === "overdue") ? "high" : "normal",
-                                )
+                                onOpenDetailDrawer ? onOpenDetailDrawer("po", linkedPO.id) : onSelectPO?.(linkedPO)
                               }
                             >
-                              <Plus size={12} />
+                              ↳ {linkedPO.number}
                             </button>
                           )}
-                          {isDoneToday ? (
+                        </td>
+
+                        <td>
+                          <div className="cell-purpose" title={r.description || r.item_name}>
+                            {r.description || r.item_name || "Thanh toán"}
+                          </div>
+                          <div className="cell-sub">{r.payee_name || "Chưa rõ NCC"}</div>
+                          {renderAlertBadges(alerts)}
+                        </td>
+
+                        <td className="pipeline-money-cell">
+                          {fmtMoney(r.amount)} {r.currency === "VND" || !r.currency ? "đ" : r.currency}
+                        </td>
+
+                        <td>
+                          <span className={isDoneToday ? "pipeline-status-pill st-ok" : "pipeline-status-pill st-warn"}>
+                            {isDoneToday ? "Đã chi" : "Chờ chi"}
+                          </span>
+                          <div style={{ marginTop: 4 }}>
+                            {isEditing ? (
+                              <div
+                                className="inline-invoice-editor-wrap"
+                                onBlur={(e) => {
+                                  if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+                                    onSaveInvoice(r);
+                                  }
+                                }}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter") {
+                                    e.preventDefault();
+                                    onSaveInvoice(r);
+                                  } else if (e.key === "Escape") {
+                                    e.preventDefault();
+                                    onCancelEditInvoice();
+                                  }
+                                }}
+                              >
+                                <input
+                                  type="text"
+                                  autoFocus
+                                  placeholder="Số HĐ"
+                                  value={draftInvoiceNo}
+                                  onChange={(e) => onDraftInvoiceNoChange(e.target.value)}
+                                  className="inline-invoice-input inline-invoice-input-no"
+                                />
+                                <input
+                                  type="date"
+                                  value={draftInvoiceDate}
+                                  onChange={(e) => onDraftInvoiceDateChange(e.target.value)}
+                                  className="inline-invoice-input inline-invoice-input-date"
+                                />
+                                <button
+                                  type="button"
+                                  className="inline-invoice-save-btn"
+                                  onMouseDown={(e) => {
+                                    e.preventDefault();
+                                    onSaveInvoice(r);
+                                  }}
+                                  title="Lưu số hóa đơn"
+                                >
+                                  <Check size={12} />
+                                </button>
+                                <button
+                                  type="button"
+                                  className="inline-invoice-cancel-btn"
+                                  onMouseDown={(e) => {
+                                    e.preventDefault();
+                                    onCancelEditInvoice();
+                                  }}
+                                  title="Hủy"
+                                >
+                                  <X size={12} />
+                                </button>
+                              </div>
+                            ) : (
+                              <div
+                                className={`compact-invoice-trigger ${r.invoice_no?.trim() ? "has-invoice" : "no-invoice"}`}
+                                onClick={() => onStartEditInvoice(r)}
+                                title="Bấm để nhập/sửa nhanh số và ngày hóa đơn"
+                              >
+                                <span>{invoiceCombined}</span>
+                                <Pencil size={11} className="invoice-edit-icon" />
+                              </div>
+                            )}
+                          </div>
+                        </td>
+
+                        <td>
+                          <InlineNoteCell
+                            stage="payment"
+                            id={r.id}
+                            note={r.note}
+                            onSave={onUpdateItemNote}
+                          />
+                        </td>
+
+                        <td style={{ textAlign: "right", whiteSpace: "nowrap" }}>
+                          <div className="pipeline-row-actions">
                             <button
                               type="button"
-                              className="payment-status-badge status-paid"
-                              onClick={() => onRequestPaymentConfirm(r, "revert")}
-                              title="Đã thanh toán hôm nay. Bấm để hoàn tác nếu chuyển nhầm"
+                              className={isDoneToday ? "btn-row-complete" : "btn-row-complete"}
+                              onClick={() => onRequestPaymentConfirm(r, isDoneToday ? "revert" : "complete")}
+                              title={
+                                isDoneToday
+                                  ? "Đã thanh toán hôm nay. Bấm để hoàn tác nếu chuyển nhầm"
+                                  : "Bấm để xác nhận đã hoàn thành thanh toán"
+                              }
                             >
-                              <CheckCircle2 size={13} /> Đã xong
+                              <CheckCircle2 size={12} /> {isDoneToday ? "Đã chi" : "Xác nhận chi"}
                             </button>
-                          ) : (
+                            {!isDoneToday && (
+                              <button
+                                type="button"
+                                className="btn-row-remind"
+                                title="Gắn vào To-Do hôm nay"
+                                onClick={() =>
+                                  onQuickRemindTodo(
+                                    `Thanh toán ${linkedPO ? `@${linkedPO.number.startsWith("PO-") ? linkedPO.number : `PO-${linkedPO.number}`}` : r.payee_name}: ${r.description || r.item_name || ""}`.trim(),
+                                    alerts.some((a) => a.severity === "overdue") ? "high" : "normal",
+                                  )
+                                }
+                              >
+                                <BellPlus size={12} />
+                              </button>
+                            )}
                             <button
                               type="button"
-                              className="payment-status-badge status-unpaid"
-                              onClick={() => onRequestPaymentConfirm(r, "complete")}
-                              title="Bấm để xác nhận đã hoàn thành thanh toán"
+                              className="btn-row-action"
+                              onClick={() =>
+                                onOpenDetailDrawer
+                                  ? onOpenDetailDrawer("payment", r.id)
+                                  : onSelectPayment
+                                    ? onSelectPayment(r.id)
+                                    : onCreatePayment?.()
+                              }
                             >
-                              <CheckCircle2 size={13} /> Hoàn thành
+                              <Eye size={12} /> Chi tiết
                             </button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+              <div className="pipeline-table-footer">
+                <span>
+                  Hiển thị <b>{payments.length}</b> chứng từ trong giai đoạn <b>5. ĐNTT</b>
+                </span>
+                <span>Bấm vào mã chứng từ màu xanh để mở ngăn kéo chi tiết (Slide-over Drawer)</span>
+              </div>
+            </>
           )}
         </div>
       )}
