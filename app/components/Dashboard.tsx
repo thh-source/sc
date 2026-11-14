@@ -39,6 +39,7 @@ import { enqueueOfflineAction, checkIsOnline } from "../utils/offlineSync";
 import { useIsMobile } from "../useIsMobile";
 import { MobileDashboard } from "./MobileDashboard";
 import { WorkflowPipelineCard } from "./WorkflowPipelineCard";
+import { DashboardDetailDrawer, DashboardDrawerTarget } from "./DashboardDetailDrawer";
 import { SmartTodoPanel, TodoSubtask } from "./SmartTodoPanel";
 import { resolveApiUrl, apiFetch } from "../utils/apiConfig";
 
@@ -135,6 +136,7 @@ export function Dashboard({
   // -------------------------------------------------------------
   const [radarFilter, setRadarFilter] = useState<RadarFilter>("all");
   const [activeStage, setActiveStage] = useState<PipelineStage>("po");
+  const [drawerTarget, setDrawerTarget] = useState<DashboardDrawerTarget | null>(null);
 
   const radar = useMemo(
     () =>
@@ -1060,6 +1062,7 @@ export function Dashboard({
             onSelectPO={onSelectPO}
             onSelectHandover={onSelectHandover}
             onSelectPayment={onSelectPayment}
+            onOpenDetailDrawer={(stage, id) => setDrawerTarget({ stage, id })}
             onCreateHandover={handleCreateHandover}
             onCreatePayment={handleCreatePayment}
             onToggleCompletePR={onToggleCompletePR}
@@ -1317,6 +1320,42 @@ export function Dashboard({
           </div>
         </div>
       )}
+
+      {/* Slide-over Detail Drawer for any PR / ĐNPD / PO / Handover / ĐNTT */}
+      <DashboardDetailDrawer
+        target={drawerTarget}
+        onClose={() => setDrawerTarget(null)}
+        prs={prs}
+        approvalRequests={approvalRequests}
+        pos={pos}
+        paymentHandovers={paymentHandovers}
+        paymentRequests={paymentRequests}
+        suppliers={suppliers}
+        radar={radar}
+        onOpenTarget={(next) => setDrawerTarget(next)}
+        onQuickRemindTodo={(text, priority) =>
+          createAndSyncTodo(text, priority || "normal", todayStr)
+        }
+        onOpenModule={(stage, id) => {
+          setDrawerTarget(null);
+          if (stage === "pr") {
+            const found = prs.find((p) => p.id === id);
+            if (found) onSelectPR?.(found);
+          } else if (stage === "approval") {
+            onSelectApproval?.(id);
+          } else if (stage === "po") {
+            const found = pos.find((p) => p.id === id);
+            if (found) onSelectPO?.(found);
+          } else if (stage === "handover") {
+            const found = paymentHandovers.find((h) => h.id === id);
+            if (found) onSelectHandover?.(found);
+            else handleCreateHandover();
+          } else if (stage === "payment") {
+            if (onSelectPayment) onSelectPayment(id);
+            else handleCreatePayment();
+          }
+        }}
+      />
     </section>
   );
 }

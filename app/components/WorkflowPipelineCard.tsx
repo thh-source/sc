@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import React, { useState } from "react";
 import {
@@ -42,6 +42,7 @@ export interface WorkflowPipelineCardProps {
   onSelectPO?: (po: PO) => void;
   onSelectHandover?: (handover: PaymentHandoverItem) => void;
   onSelectPayment?: (id: number) => void;
+  onOpenDetailDrawer?: (stage: PipelineStage, id: number) => void;
   onCreateHandover?: () => void;
   onCreatePayment?: () => void;
   onToggleCompletePR?: (pr: PR) => void;
@@ -183,6 +184,7 @@ export function WorkflowPipelineCard(props: WorkflowPipelineCardProps) {
     onSelectPO,
     onSelectHandover,
     onSelectPayment,
+    onOpenDetailDrawer,
     onCreateHandover,
     onCreatePayment,
     onToggleCompletePR,
@@ -202,17 +204,60 @@ export function WorkflowPipelineCard(props: WorkflowPipelineCardProps) {
     onRequestPaymentConfirm,
   } = props;
 
+  const [tableQuery, setTableQuery] = useState("");
+  const qNorm = tableQuery.trim().toLowerCase();
+
   const filterByRadar = (alerts: WorkflowAlertTag[], isDoneToday = false) => {
     if (radarFilter === "all") return true;
     if (isDoneToday) return false;
     return alerts.some((a) => a.category === radarFilter);
   };
 
-  const prs = radar.prs.filter((x) => filterByRadar(x.alerts));
-  const approvals = radar.approvals.filter((x) => filterByRadar(x.alerts));
-  const pos = radar.pos.filter((x) => filterByRadar(x.alerts));
-  const handovers = radar.handovers.filter((x) => filterByRadar(x.alerts));
-  const payments = radar.payments.filter((x) => filterByRadar(x.alerts, x.isDoneToday));
+  const prs = radar.prs
+    .filter((x) => filterByRadar(x.alerts))
+    .filter(
+      (x) =>
+        !qNorm ||
+        `${x.pr.number} ${x.pr.department} ${x.pr.purpose} ${x.pr.note || ""}`
+          .toLowerCase()
+          .includes(qNorm),
+    );
+  const approvals = radar.approvals
+    .filter((x) => filterByRadar(x.alerts))
+    .filter(
+      (x) =>
+        !qNorm ||
+        `${x.approval.requestNumber} ${x.approval.prNumber} ${x.approval.recommendedSupplierName} ${x.approval.department} ${x.approval.note || ""}`
+          .toLowerCase()
+          .includes(qNorm),
+    );
+  const pos = radar.pos
+    .filter((x) => filterByRadar(x.alerts))
+    .filter(
+      (x) =>
+        !qNorm ||
+        `${x.po.number} ${x.po.prNumber} ${x.supplierName} ${x.po.note || ""}`
+          .toLowerCase()
+          .includes(qNorm),
+    );
+  const handovers = radar.handovers
+    .filter((x) => filterByRadar(x.alerts))
+    .filter(
+      (x) =>
+        !qNorm ||
+        `${x.handover.batch_id || ""} ${x.handover.source_number || ""} ${x.handover.department} ${x.handover.item_name} ${x.handover.note || ""}`
+          .toLowerCase()
+          .includes(qNorm),
+    );
+  const payments = radar.payments
+    .filter((x) => filterByRadar(x.alerts, x.isDoneToday))
+    .filter(
+      (x) =>
+        !qNorm ||
+        `${x.payment.group_code || ""} ${x.payment.payee_name} ${x.payment.description} ${x.payment.invoice_no || ""} ${x.payment.note || ""}`
+          .toLowerCase()
+          .includes(qNorm),
+    );
 
   const stages: Array<{
     key: PipelineStage;
@@ -272,24 +317,45 @@ export function WorkflowPipelineCard(props: WorkflowPipelineCardProps) {
         </div>
       </div>
 
-      {/* 5-Stage Tabs */}
-      <div className="pipeline-stage-tabs" role="tablist">
-        {stages.map((st) => (
-          <button
-            key={st.key}
-            type="button"
-            role="tab"
-            aria-selected={activeStage === st.key}
-            className={`pipeline-stage-tab ${activeStage === st.key ? "active" : ""}`}
-            onClick={() => onChangeStage(st.key)}
-          >
-            {(st.hasOverdue || st.hasWarning) && (
-              <span className={`stage-status-dot ${st.hasOverdue ? "dot-red" : "dot-amber"}`} />
-            )}
-            <span>{st.label}</span>
-            <span className="queue-pill-count">{st.count}</span>
-          </button>
-        ))}
+      {/* 5-Stage Tabs + Inline Quick Search */}
+      <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+        <div className="pipeline-stage-tabs" role="tablist" style={{ marginBottom: 0 }}>
+          {stages.map((st) => (
+            <button
+              key={st.key}
+              type="button"
+              role="tab"
+              aria-selected={activeStage === st.key}
+              className={`pipeline-stage-tab ${activeStage === st.key ? "active" : ""}`}
+              onClick={() => onChangeStage(st.key)}
+            >
+              {(st.hasOverdue || st.hasWarning) && (
+                <span className={`stage-status-dot ${st.hasOverdue ? "dot-red" : "dot-amber"}`} />
+              )}
+              <span>{st.label}</span>
+              <span className="queue-pill-count">{st.count}</span>
+            </button>
+          ))}
+        </div>
+        <div className="relative min-w-[200px]">
+          <input
+            type="text"
+            value={tableQuery}
+            onChange={(e) => setTableQuery(e.target.value)}
+            placeholder="Lọc mã, nội dung, NCC..."
+            className="w-full h-8 px-2.5 pr-7 text-[12px] rounded-lg border border-slate-200 bg-slate-50 text-slate-700 focus:outline-none focus:border-blue-500"
+          />
+          {tableQuery && (
+            <button
+              type="button"
+              onClick={() => setTableQuery("")}
+              className="absolute right-1.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 border-0 bg-transparent cursor-pointer"
+              title="Xóa lọc"
+            >
+              <X size={13} />
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Stage 1: PR */}
@@ -319,7 +385,7 @@ export function WorkflowPipelineCard(props: WorkflowPipelineCardProps) {
                         <button
                           type="button"
                           className="queue-code-link"
-                          onClick={() => onSelectPR?.(pr)}
+                          onClick={() => (onOpenDetailDrawer ? onOpenDetailDrawer("pr", pr.id) : onSelectPR?.(pr))}
                         >
                           {pr.number}
                         </button>
@@ -361,7 +427,7 @@ export function WorkflowPipelineCard(props: WorkflowPipelineCardProps) {
                           <button
                             type="button"
                             className="btn-row-action"
-                            onClick={() => onSelectPR?.(pr)}
+                            onClick={() => (onOpenDetailDrawer ? onOpenDetailDrawer("pr", pr.id) : onSelectPR?.(pr))}
                           >
                             Mở <ArrowRight size={12} />
                           </button>
@@ -405,7 +471,7 @@ export function WorkflowPipelineCard(props: WorkflowPipelineCardProps) {
                         <button
                           type="button"
                           className="queue-code-link link-purple"
-                          onClick={() => onSelectApproval?.(approval.id)}
+                          onClick={() => (onOpenDetailDrawer ? onOpenDetailDrawer("approval", approval.id) : onSelectApproval?.(approval.id))}
                         >
                           <FileCheck size={12} /> {approval.requestNumber}
                         </button>
@@ -453,7 +519,7 @@ export function WorkflowPipelineCard(props: WorkflowPipelineCardProps) {
                           <button
                             type="button"
                             className="btn-row-action"
-                            onClick={() => onSelectApproval?.(approval.id)}
+                            onClick={() => (onOpenDetailDrawer ? onOpenDetailDrawer("approval", approval.id) : onSelectApproval?.(approval.id))}
                           >
                             Mở <ArrowRight size={12} />
                           </button>
@@ -496,7 +562,7 @@ export function WorkflowPipelineCard(props: WorkflowPipelineCardProps) {
                         <button
                           type="button"
                           className="queue-code-link link-blue"
-                          onClick={() => onSelectPO?.(po)}
+                          onClick={() => (onOpenDetailDrawer ? onOpenDetailDrawer("po", po.id) : onSelectPO?.(po))}
                         >
                           <Package size={12} /> {po.number}
                         </button>
@@ -547,7 +613,7 @@ export function WorkflowPipelineCard(props: WorkflowPipelineCardProps) {
                           <button
                             type="button"
                             className="btn-row-action"
-                            onClick={() => onSelectPO?.(po)}
+                            onClick={() => (onOpenDetailDrawer ? onOpenDetailDrawer("po", po.id) : onSelectPO?.(po))}
                           >
                             Mở <ArrowRight size={12} />
                           </button>
@@ -587,7 +653,7 @@ export function WorkflowPipelineCard(props: WorkflowPipelineCardProps) {
                       <button
                         type="button"
                         className="queue-code-link"
-                        onClick={() => onSelectHandover?.(handover)}
+                        onClick={() => (onOpenDetailDrawer ? onOpenDetailDrawer("handover", handover.id) : onSelectHandover?.(handover))}
                       >
                         <Truck size={12} /> {handover.source_number || `BG-${handover.id}`}
                       </button>
@@ -632,7 +698,7 @@ export function WorkflowPipelineCard(props: WorkflowPipelineCardProps) {
                         <button
                           type="button"
                           className="btn-row-action"
-                          onClick={() => (onSelectHandover ? onSelectHandover(handover) : onCreateHandover?.())}
+                          onClick={() => (onOpenDetailDrawer ? onOpenDetailDrawer("handover", handover.id) : (onSelectHandover ? onSelectHandover(handover) : onCreateHandover?.()))}
                         >
                           Mở <ArrowRight size={12} />
                         </button>
@@ -686,7 +752,7 @@ export function WorkflowPipelineCard(props: WorkflowPipelineCardProps) {
                           <button
                             type="button"
                             className="queue-code-link"
-                            onClick={() => onSelectPO?.(linkedPO)}
+                            onClick={() => (onOpenDetailDrawer ? onOpenDetailDrawer("po", linkedPO.id) : onSelectPO?.(linkedPO))}
                           >
                             <Package size={12} /> {linkedPO.number}
                           </button>
@@ -694,7 +760,7 @@ export function WorkflowPipelineCard(props: WorkflowPipelineCardProps) {
                           <button
                             type="button"
                             className="queue-code-link"
-                            onClick={() => (onSelectPayment ? onSelectPayment(r.id) : onCreatePayment?.())}
+                            onClick={() => (onOpenDetailDrawer ? onOpenDetailDrawer("payment", r.id) : (onSelectPayment ? onSelectPayment(r.id) : onCreatePayment?.()))}
                           >
                             <CreditCard size={12} /> {r.group_code || `ĐNTT #${r.legacy_stt || r.id}`}
                           </button>

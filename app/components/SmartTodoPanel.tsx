@@ -118,6 +118,8 @@ export function SmartTodoPanel(props: SmartTodoPanelProps) {
   const [draftTitle, setDraftTitle] = useState("");
   const [subtaskDraft, setSubtaskDraft] = useState<Record<string, string>>({});
   const [noteDraft, setNoteDraft] = useState<Record<string, string>>({});
+  const [collapsedSubs, setCollapsedSubs] = useState<Record<string, boolean>>({});
+  const [addingSubForId, setAddingSubForId] = useState<string | null>(null);
 
   // Mention state
   const inputRef = useRef<HTMLInputElement>(null);
@@ -319,8 +321,14 @@ export function SmartTodoPanel(props: SmartTodoPanelProps) {
               </div>
             )}
 
+            {item.note?.trim() && (
+              <div className="text-[11.5px] italic text-slate-500 mt-0.5 leading-snug">
+                {item.note}
+              </div>
+            )}
+
             {/* Metadata pills under task title */}
-            {(item.dueDate || subtasks.length > 0 || item.note?.trim()) && (
+            {(item.dueDate || subtasks.length > 0 || !item.completed) && (
               <div className="smart-todo-meta-row">
                 {item.dueDate && !item.completed && (
                   <span
@@ -337,14 +345,116 @@ export function SmartTodoPanel(props: SmartTodoPanelProps) {
                   </span>
                 )}
                 {subtasks.length > 0 && (
-                  <span className="smart-todo-sub-pill">
-                    ✓ {doneSubCount}/{subtasks.length} bước
-                  </span>
+                  <button
+                    type="button"
+                    className="smart-todo-sub-pill border-0 cursor-pointer inline-flex items-center gap-1"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setCollapsedSubs((prev) => ({ ...prev, [item.id]: !prev[item.id] }));
+                    }}
+                    title="Thu gọn / mở rộng các bước con"
+                  >
+                    {collapsedSubs[item.id] ? <ChevronRight size={11} /> : <ChevronDown size={11} />}
+                    {doneSubCount}/{subtasks.length} bước con
+                  </button>
                 )}
-                {item.note?.trim() && (
-                  <span className="smart-todo-note-preview" title={item.note}>
-                    📝 {item.note}
-                  </span>
+                {!item.completed && (
+                  <button
+                    type="button"
+                    className="text-[11px] font-medium text-blue-600 hover:underline bg-transparent border-0 cursor-pointer px-1 py-0"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setCollapsedSubs((prev) => ({ ...prev, [item.id]: false }));
+                      setAddingSubForId((prev) => (prev === item.id ? null : item.id));
+                    }}
+                  >
+                    + Bước con
+                  </button>
+                )}
+              </div>
+            )}
+
+            {/* Inline Subtasks always visible (unless collapsed) */}
+            {((subtasks.length > 0 && !collapsedSubs[item.id]) || addingSubForId === item.id) && (
+              <div
+                className="mt-2 pt-1.5 border-t border-slate-100 space-y-1"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {subtasks.map((st) => (
+                  <div key={st.id} className="flex items-center justify-between gap-2 group">
+                    <label className="flex items-center gap-2 text-[12px] text-slate-700 cursor-pointer flex-1 min-w-0">
+                      <input
+                        type="checkbox"
+                        checked={st.done}
+                        onChange={() => {
+                          const next = subtasks.map((s) =>
+                            s.id === st.id ? { ...s, done: !s.done } : s,
+                          );
+                          onUpdateTodo(item.id, { subtasks: next });
+                        }}
+                        className="rounded border-slate-300"
+                      />
+                      <span className={st.done ? "line-through text-slate-400 truncate" : "truncate"}>
+                        {st.text}
+                      </span>
+                    </label>
+                    <button
+                      type="button"
+                      className="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-rose-500 border-0 bg-transparent cursor-pointer p-0.5"
+                      onClick={() => {
+                        const next = subtasks.filter((s) => s.id !== st.id);
+                        onUpdateTodo(item.id, { subtasks: next });
+                      }}
+                      title="Xóa bước con"
+                    >
+                      <X size={12} />
+                    </button>
+                  </div>
+                ))}
+                {addingSubForId === item.id && (
+                  <div className="flex items-center gap-1.5 pt-1">
+                    <input
+                      type="text"
+                      autoFocus
+                      value={subtaskDraft[item.id] || ""}
+                      onChange={(e) =>
+                        setSubtaskDraft((prev) => ({ ...prev, [item.id]: e.target.value }))
+                      }
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          const val = (subtaskDraft[item.id] || "").trim();
+                          if (!val) return;
+                          const next = [
+                            ...subtasks,
+                            { id: `st_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`, text: val, done: false },
+                          ];
+                          onUpdateTodo(item.id, { subtasks: next });
+                          setSubtaskDraft((prev) => ({ ...prev, [item.id]: "" }));
+                        } else if (e.key === "Escape") {
+                          setAddingSubForId(null);
+                        }
+                      }}
+                      placeholder="Nhập bước con rồi nhấn Enter..."
+                      className="flex-1 h-7 px-2 text-[11.5px] rounded border border-slate-200 bg-slate-50"
+                    />
+                    <button
+                      type="button"
+                      className="h-7 px-2 text-[11px] font-semibold rounded bg-blue-600 text-white border-0 cursor-pointer"
+                      onClick={() => {
+                        const val = (subtaskDraft[item.id] || "").trim();
+                        if (!val) return;
+                        const next = [
+                          ...subtasks,
+                          { id: `st_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`, text: val, done: false },
+                        ];
+                        onUpdateTodo(item.id, { subtasks: next });
+                        setSubtaskDraft((prev) => ({ ...prev, [item.id]: "" }));
+                      }}
+                    >
+                      Thêm
+                    </button>
+                  </div>
                 )}
               </div>
             )}
