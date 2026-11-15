@@ -17,6 +17,7 @@
 @import "./knowledge-base.css";
 @import "./stitch-v2-enterprise.css";
 @import "./theme-misa.css";
+@import "./theme-sc.css";
 
 * { box-sizing: border-box; }
 

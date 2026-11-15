@@ -1,9 +1,15 @@
 import type { Metadata, Viewport } from "next";
-import { Inter, JetBrains_Mono } from "next/font/google";
+import { Inter, JetBrains_Mono, Be_Vietnam_Pro } from "next/font/google";
 import "./globals.css";
 
 const inter = Inter({
   variable: "--font-inter",
+  subsets: ["latin", "vietnamese"],
+  weight: ["400", "500", "600", "700"],
+});
+
+const beVietnamPro = Be_Vietnam_Pro({
+  variable: "--font-be-vietnam-pro",
   subsets: ["latin", "vietnamese"],
   weight: ["400", "500", "600", "700"],
 });
@@ -48,12 +54,12 @@ export default function RootLayout({
         />
         <script
           dangerouslySetInnerHTML={{
-            __html: `try{document.documentElement.classList.add('theme-misa');if(localStorage.getItem('scm_misa_mode')==='dark'){document.documentElement.classList.add('theme-misa-dark');}}catch(e){}`,
+            __html: `try{var m=localStorage.getItem('scm_misa_mode');if(m==='sc'){document.documentElement.classList.add('theme-sc');}else{document.documentElement.classList.add('theme-misa');if(m==='dark'){document.documentElement.classList.add('theme-misa-dark');}}}catch(e){}`,
           }}
         />
       </head>
       <body
-        className={`${inter.variable} ${jetbrainsMono.variable} antialiased`}
+        className={`${inter.variable} ${beVietnamPro.variable} ${jetbrainsMono.variable} antialiased`}
       >
         {children}
       </body>

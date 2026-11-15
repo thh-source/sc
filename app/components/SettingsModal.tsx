@@ -43,8 +43,8 @@ export interface SettingsModalProps {
   onOpenPrintTemplates?: () => void;
   onOpenAdminSettings?: () => void;
   onStatus?: (msg: string) => void;
-  misaMode?: "light" | "dark";
-  onMisaModeChange?: (mode: "light" | "dark") => void;
+  misaMode?: "light" | "dark" | "sc";
+  onMisaModeChange?: (mode: "light" | "dark" | "sc") => void;
 }
 
 export function SettingsModal({
@@ -57,23 +57,25 @@ export function SettingsModal({
   misaMode: controlledMode,
   onMisaModeChange,
 }: SettingsModalProps) {
-  // MISA AMIS Enterprise (Light / Dark)
-  const [localMode, setLocalMode] = useState<"light" | "dark">(() => {
+  // Giao diện: MISA AMIS (Light / Dark) & Phenikaa Precision (SC)
+  const [localMode, setLocalMode] = useState<"light" | "dark" | "sc">(() => {
     if (typeof window !== "undefined") {
       const saved = localStorage.getItem("scm_misa_mode");
-      if (saved === "dark" || saved === "light") return saved;
+      if (saved === "dark" || saved === "light" || saved === "sc") return saved;
     }
     return controlledMode || "light";
   });
 
   const activeMode = controlledMode || localMode;
 
-  const handleSelectMisaMode = (mode: "light" | "dark") => {
+  const handleSelectMisaMode = (mode: "light" | "dark" | "sc") => {
     setLocalMode(mode);
     if (typeof window !== "undefined") {
       localStorage.setItem("scm_misa_mode", mode);
-      document.documentElement.classList.add("theme-misa");
-      document.body.classList.add("theme-misa");
+      document.documentElement.classList.toggle("theme-sc", mode === "sc");
+      document.body.classList.toggle("theme-sc", mode === "sc");
+      document.documentElement.classList.toggle("theme-misa", mode !== "sc");
+      document.body.classList.toggle("theme-misa", mode !== "sc");
       document.documentElement.classList.toggle("theme-misa-dark", mode === "dark");
       document.body.classList.toggle("theme-misa-dark", mode === "dark");
     }
@@ -81,9 +83,11 @@ export function SettingsModal({
       onMisaModeChange(mode);
     }
     onStatus?.(
-      mode === "dark"
-        ? "Đã kích hoạt Giao diện MISA AMIS Dark (Nền tối dịu mắt)"
-        : "Đã kích hoạt Giao diện MISA AMIS Light (Nền sáng chuẩn doanh nghiệp)"
+      mode === "sc"
+        ? "Đã kích hoạt Giao diện Phenikaa Precision (Navy & Orange)"
+        : mode === "dark"
+          ? "Đã kích hoạt Giao diện MISA AMIS Dark (Nền tối dịu mắt)"
+          : "Đã kích hoạt Giao diện MISA AMIS Light (Nền sáng chuẩn doanh nghiệp)"
     );
   };
 
@@ -300,10 +304,10 @@ export function SettingsModal({
             </span>
           </div>
           <p style={{ fontSize: "12px", color: "#64748b", margin: "0 0 12px" }}>
-            Chọn chế độ hiển thị Sáng (Light) hoặc Tối (Dark) phù hợp với môi trường làm việc:
+            Chọn giao diện hiển thị phù hợp với phong cách và môi trường làm việc:
           </p>
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: "10px" }}>
             {/* Mode 1: MISA AMIS Light */}
             <button
               type="button"
@@ -483,6 +487,97 @@ export function SettingsModal({
 
               <span style={{ fontSize: "11px", color: "#64748b", lineHeight: 1.35 }}>
                 Nền Slate tối dịu mắt, tương phản cao, bảo vệ mắt khi làm việc ban đêm.
+              </span>
+            </button>
+
+            {/* Mode 3: Phenikaa Precision (SC) */}
+            <button
+              type="button"
+              onClick={() => handleSelectMisaMode("sc")}
+              style={{
+                textAlign: "left",
+                border: activeMode === "sc" ? "2px solid #ea580c" : "1px solid #cbd5e1",
+                backgroundColor: activeMode === "sc" ? "#fff7ed" : "#ffffff",
+                borderRadius: "9px",
+                padding: "12px",
+                cursor: "pointer",
+                transition: "all 0.15s ease",
+                display: "flex",
+                flexDirection: "column",
+                gap: "8px",
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%" }}>
+                <span
+                  style={{
+                    fontSize: "13px",
+                    fontWeight: 700,
+                    color: activeMode === "sc" ? "#c2410c" : "#1e293b",
+                  }}
+                >
+                  🏭 Phenikaa SC
+                </span>
+                {activeMode === "sc" ? (
+                  <span
+                    style={{
+                      fontSize: "11px",
+                      fontWeight: 700,
+                      color: "#c2410c",
+                      backgroundColor: "#ffedd5",
+                      padding: "1px 6px",
+                      borderRadius: "10px",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "3px",
+                    }}
+                  >
+                    <Check size={12} /> Đang dùng
+                  </span>
+                ) : (
+                  <span style={{ fontSize: "11px", color: "#94a3b8" }}>Chọn dùng</span>
+                )}
+              </div>
+
+              <div
+                style={{
+                  height: "56px",
+                  borderRadius: "5px",
+                  overflow: "hidden",
+                  border: "1px solid #cbd5e1",
+                  display: "flex",
+                  backgroundColor: "#f8fafc",
+                  width: "100%",
+                }}
+              >
+                <div
+                  style={{
+                    width: "32px",
+                    backgroundColor: "#0f2340",
+                    borderRight: "1px solid #1e3a5f",
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    padding: "5px 0",
+                    gap: "3px",
+                  }}
+                >
+                  <div style={{ width: "10px", height: "10px", borderRadius: "3px", backgroundColor: "#ffffff" }} />
+                  <div style={{ width: "18px", height: "2.5px", borderRadius: "2px", backgroundColor: "#64748b" }} />
+                  <div style={{ width: "18px", height: "3.5px", borderRadius: "2px", backgroundColor: "#ea580c" }} />
+                  <div style={{ width: "18px", height: "2.5px", borderRadius: "2px", backgroundColor: "#64748b" }} />
+                </div>
+                <div style={{ flex: 1, padding: "5px 7px", display: "flex", flexDirection: "column", gap: "3px" }}>
+                  <div style={{ width: "100%", height: "10px", borderRadius: "3px", background: "linear-gradient(90deg, #19355c, #0f2340)" }} />
+                  <div style={{ display: "flex", gap: "3px" }}>
+                    <div style={{ flex: 1, height: "12px", borderRadius: "3px", backgroundColor: "#ffffff", border: "1px solid #e2e8f0" }} />
+                    <div style={{ flex: 1, height: "12px", borderRadius: "3px", backgroundColor: "#ffffff", border: "1px solid #e2e8f0" }} />
+                  </div>
+                  <div style={{ height: "14px", borderRadius: "3px", backgroundColor: "#ffffff", border: "1px solid #e2e8f0" }} />
+                </div>
+              </div>
+
+              <span style={{ fontSize: "11px", color: "#64748b", lineHeight: 1.35 }}>
+                Font Be Vietnam Pro, Sidebar Navy #0f2340, điểm nhấn Cam #ea580c chuẩn Phenikaa SC.
               </span>
             </button>
           </div>

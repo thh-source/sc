@@ -1,0 +1,358 @@
+/* ==========================================================================
+   PHENIKAA SCMH - PHENIKAA PRECISION (SC) THEME
+   Bê nguyên phong cách thiết kế "Industrial Precision" từ dự án D:\SC:
+   - Font chữ: Be Vietnam Pro
+   - Bảng màu: Brand Navy (#19355c / #0f2340) + Brand Orange (#ea580c)
+   - Nền trang: #f8fafc | Card: #ffffff (bo góc 0.875rem, viền #e2e8f0)
+   ========================================================================== */
+
+/* 1. Tokens & Typography */
+html.theme-sc,
+body.theme-sc,
+.app.theme-sc {
+  --brand-navy: #19355c;
+  --brand-navy-dark: #0f2340;
+  --brand-orange: #ea580c;
+  --bg-page: #f8fafc;
+  --bg-card: #ffffff;
+  --border-subtle: #e2e8f0;
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+
+  --primary-500: #19355c;
+  --primary-600: #234778;
+  --primary-700: #0f2340;
+  --blue: #19355c;
+  --navy: #0f2340;
+  --bg-app: #f8fafc;
+
+  font-family: var(--font-be-vietnam-pro), "Be Vietnam Pro", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+  background-color: #f8fafc !important;
+  color: #0f172a !important;
+}
+
+html.theme-sc body,
+body.theme-sc,
+.app.theme-sc button,
+.app.theme-sc input,
+.app.theme-sc select,
+.app.theme-sc textarea {
+  font-family: var(--font-be-vietnam-pro), "Be Vietnam Pro", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+/* 2. Sidebar Shell: Deep Phenikaa Navy (#0f2340) */
+html.theme-sc aside,
+body.theme-sc aside,
+.app.theme-sc aside,
+.app.theme-sc > aside {
+  background: #0f2340 !important;
+  background-image: none !important;
+  border-right: 1px solid #1e3a5f !important;
+  box-shadow: none !important;
+  color: #ffffff !important;
+}
+
+/* 3. Brand Header in Sidebar */
+html.theme-sc aside .brand,
+body.theme-sc aside .brand,
+.app.theme-sc aside .brand,
+.app.theme-sc > aside .brand {
+  background: #0f2340 !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+
+html.theme-sc aside .brand > span,
+body.theme-sc aside .brand > span,
+.app.theme-sc aside .brand > span,
+.app.theme-sc > aside .brand > span {
+  background: #ffffff !important;
+  border: none !important;
+  border-radius: 10px !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25) !important;
+}
+
+html.theme-sc aside .brand > b strong,
+body.theme-sc aside .brand > b strong,
+.app.theme-sc aside .brand > b strong,
+.app.theme-sc > aside .brand > b strong {
+  color: #ffffff !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.01em !important;
+}
+
+html.theme-sc aside .brand > b small,
+body.theme-sc aside .brand > b small,
+.app.theme-sc aside .brand > b small,
+.app.theme-sc > aside .brand > b small {
+  color: #fb923c !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.04em !important;
+}
+
+/* 4. Sidebar Spotlight Search Button */
+html.theme-sc .sidebar-search-btn,
+body.theme-sc .sidebar-search-btn,
+.app.theme-sc .sidebar-search-btn {
+  background: rgba(255, 255, 255, 0.08) !important;
+  border: 1px solid rgba(255, 255, 255, 0.14) !important;
+  color: #cbd5e1 !important;
+  border-radius: 10px !important;
+  box-shadow: none !important;
+}
+
+html.theme-sc .sidebar-search-btn:hover,
+body.theme-sc .sidebar-search-btn:hover,
+.app.theme-sc .sidebar-search-btn:hover {
+  background: rgba(255, 255, 255, 0.14) !important;
+  border-color: rgba(255, 255, 255, 0.25) !important;
+  color: #ffffff !important;
+}
+
+html.theme-sc .sidebar-search-btn .search-text,
+body.theme-sc .sidebar-search-btn .search-text,
+.app.theme-sc .sidebar-search-btn .search-text {
+  color: #e2e8f0 !important;
+}
+
+html.theme-sc .sidebar-search-btn .search-kbd,
+body.theme-sc .sidebar-search-btn .search-kbd,
+.app.theme-sc .sidebar-search-btn .search-kbd {
+  background: rgba(15, 35, 64, 0.9) !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  color: #cbd5e1 !important;
+}
+
+/* 5. Sidebar Navigation Items */
+html.theme-sc aside nav button,
+body.theme-sc aside nav button,
+.app.theme-sc aside nav button,
+.app.theme-sc > aside nav button {
+  color: #cbd5e1 !important;
+  background: transparent !important;
+  border: 1px solid transparent !important;
+  border-radius: 10px !important;
+  font-weight: 500 !important;
+  box-shadow: none !important;
+}
+
+html.theme-sc aside nav button:hover,
+body.theme-sc aside nav button:hover,
+.app.theme-sc aside nav button:hover,
+.app.theme-sc > aside nav button:hover {
+  background: rgba(255, 255, 255, 0.08) !important;
+  color: #ffffff !important;
+}
+
+html.theme-sc aside nav button.active,
+body.theme-sc aside nav button.active,
+.app.theme-sc aside nav button.active,
+.app.theme-sc > aside nav button.active {
+  background: #ea580c !important;
+  color: #ffffff !important;
+  font-weight: 600 !important;
+  border-left: none !important;
+  box-shadow: 0 2px 10px rgba(234, 88, 12, 0.35) !important;
+}
+
+html.theme-sc aside nav button.active svg,
+body.theme-sc aside nav button.active svg,
+.app.theme-sc aside nav button.active svg,
+.app.theme-sc > aside nav button.active svg {
+  color: #ffffff !important;
+}
+
+html.theme-sc aside .side-foot,
+body.theme-sc aside .side-foot,
+.app.theme-sc aside .side-foot {
+  background: #0b1c34 !important;
+  border-top: 1px solid rgba(255, 255, 255, 0.1) !important;
+  color: #cbd5e1 !important;
+}
+
+html.theme-sc aside .side-foot button,
+body.theme-sc aside .side-foot button,
+.app.theme-sc aside .side-foot button {
+  color: #e2e8f0 !important;
+  border-color: rgba(255, 255, 255, 0.15) !important;
+}
+
+html.theme-sc aside .side-foot button:hover,
+body.theme-sc aside .side-foot button:hover,
+.app.theme-sc aside .side-foot button:hover {
+  background: rgba(255, 255, 255, 0.1) !important;
+  color: #ffffff !important;
+}
+
+/* 6. Main Workspace & Industrial Precision Cards (.sc-card) */
+.app.theme-sc main,
+.app.theme-sc .main-content {
+  background-color: #f8fafc !important;
+}
+
+.app.theme-sc .card,
+.app.theme-sc .kpi-card,
+.app.theme-sc .pipeline-card,
+.app.theme-sc .todo-hero-card,
+.app.theme-sc .radar-pill {
+  background-color: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 0.875rem !important;
+  box-shadow: 0 1px 3px 0 rgba(15, 23, 42, 0.04), 0 1px 2px -1px rgba(15, 23, 42, 0.04) !important;
+}
+
+/* 7. Dashboard Hero Banner (Gradient #19355c -> #1e3f6d -> #0f2340 + Orange CTA) */
+.app.theme-sc .dash-hero,
+.app.theme-sc .dashboard-hero-banner {
+  background: linear-gradient(135deg, #19355c 0%, #1e3f6d 55%, #0f2340 100%) !important;
+  color: #ffffff !important;
+  border: none !important;
+  border-radius: 0.875rem !important;
+  box-shadow: 0 4px 16px rgba(15, 35, 64, 0.18) !important;
+}
+
+.app.theme-sc .dash-hero h1,
+.app.theme-sc .dash-hero h2,
+.app.theme-sc .dashboard-hero-banner h1,
+.app.theme-sc .dashboard-hero-banner h2 {
+  color: #ffffff !important;
+}
+
+.app.theme-sc .dash-hero p,
+.app.theme-sc .dash-hero .hero-subtitle,
+.app.theme-sc .dashboard-hero-banner p {
+  color: #cbd5e1 !important;
+}
+
+.app.theme-sc .dash-hero .btn-primary,
+.app.theme-sc .dash-hero .hero-cta-primary,
+.app.theme-sc .dashboard-hero-banner .btn-primary {
+  background: #ea580c !important;
+  border-color: #ea580c !important;
+  color: #ffffff !important;
+  border-radius: 0.75rem !important;
+  font-weight: 700 !important;
+  box-shadow: 0 2px 8px rgba(234, 88, 12, 0.35) !important;
+}
+
+.app.theme-sc .dash-hero .btn-primary:hover,
+.app.theme-sc .dash-hero .hero-cta-primary:hover,
+.app.theme-sc .dashboard-hero-banner .btn-primary:hover {
+  background: #f97316 !important;
+  border-color: #f97316 !important;
+}
+
+.app.theme-sc .dash-hero .btn-secondary,
+.app.theme-sc .dash-hero .btn-ghost,
+.app.theme-sc .dashboard-hero-banner .btn-secondary {
+  background: rgba(255, 255, 255, 0.1) !important;
+  border: 1px solid rgba(255, 255, 255, 0.18) !important;
+  color: #ffffff !important;
+  border-radius: 0.75rem !important;
+}
+
+.app.theme-sc .dash-hero .btn-secondary:hover,
+.app.theme-sc .dash-hero .btn-ghost:hover,
+.app.theme-sc .dashboard-hero-banner .btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.2) !important;
+}
+
+/* 8. Global Buttons (.sc-btn-primary & .sc-btn-secondary) */
+.app.theme-sc .btn-primary,
+.app.theme-sc button.primary {
+  background-color: #19355c !important;
+  border-color: #19355c !important;
+  color: #ffffff !important;
+  border-radius: 0.5rem !important;
+}
+
+.app.theme-sc .btn-primary:hover:not(:disabled),
+.app.theme-sc button.primary:hover:not(:disabled) {
+  background-color: #234778 !important;
+  border-color: #234778 !important;
+}
+
+.app.theme-sc .btn-secondary {
+  background-color: #f1f5f9 !important;
+  color: #1e293b !important;
+  border: 1px solid #cbd5e1 !important;
+  border-radius: 0.5rem !important;
+}
+
+.app.theme-sc .btn-secondary:hover:not(:disabled) {
+  background-color: #e2e8f0 !important;
+}
+
+/* 9. Radar Pills, Pipeline Tabs & Table Accents */
+.app.theme-sc .radar-pill.active.pill-all {
+  background: #eff6ff !important;
+  border-color: #19355c !important;
+  color: #19355c !important;
+}
+
+.app.theme-sc .radar-dot.dot-slate {
+  background: #19355c !important;
+}
+
+.app.theme-sc .pipeline-stage-tab.active {
+  background: rgba(234, 88, 12, 0.06) !important;
+  border-bottom-color: #ea580c !important;
+  color: #19355c !important;
+  font-weight: 700 !important;
+}
+
+.app.theme-sc .pipeline-stage-tab.active .queue-pill-count {
+  background: #ea580c !important;
+  color: #ffffff !important;
+}
+
+.app.theme-sc .pipeline-card .queue-code-link {
+  color: #19355c !important;
+  font-weight: 700 !important;
+}
+
+.app.theme-sc .pipeline-card .queue-code-link:hover {
+  color: #ea580c !important;
+}
+
+.app.theme-sc .pipeline-doc-sublink-btn:hover {
+  background: #fff7ed !important;
+  color: #ea580c !important;
+  border-color: #fed7aa !important;
+}
+
+.app.theme-sc .btn-row-action:hover,
+.app.theme-sc .btn-row-remind:hover {
+  border-color: #19355c !important;
+  color: #19355c !important;
+}
+
+/* 10. Drawer & Todo Accents */
+.app.theme-sc .dd-code,
+.app.theme-sc .dd-step.is-current .dd-step-text {
+  color: #19355c !important;
+}
+
+.app.theme-sc .dd-step.is-current .dd-step-dot {
+  background: #ea580c !important;
+  border-color: #ea580c !important;
+}
+
+.app.theme-sc .dd-btn-open {
+  background: #19355c !important;
+  border-color: #19355c !important;
+}
+
+.app.theme-sc .dd-btn-open:hover {
+  background: #234778 !important;
+}
+
+.app.theme-sc .todo-add-btn,
+.app.theme-sc .smart-subtask-add-inline button {
+  background: #ea580c !important;
+  border-color: #ea580c !important;
+}
+
+.app.theme-sc .todo-add-btn:hover,
+.app.theme-sc .smart-subtask-add-inline button:hover {
+  background: #c2410c !important;
+}

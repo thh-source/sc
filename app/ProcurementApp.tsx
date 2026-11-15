@@ -149,10 +149,10 @@ function ProcurementAppInner({
     [collapsed, setCollapsed] = useState(false),
     [prs, setPrs] = useState(prs0),
     [selectedPR, setSelectedPR] = useState(emptyPR);
-  const [misaMode, setMisaMode] = useState<"light" | "dark">(() => {
+  const [misaMode, setMisaMode] = useState<"light" | "dark" | "sc">(() => {
     if (typeof window !== "undefined") {
       const saved = localStorage.getItem("scm_misa_mode");
-      if (saved === "dark" || saved === "light") return saved;
+      if (saved === "dark" || saved === "light" || saved === "sc") return saved;
     }
     return "light";
   });
@@ -160,10 +160,12 @@ function ProcurementAppInner({
   useEffect(() => {
     if (typeof window !== "undefined") {
       const saved = localStorage.getItem("scm_misa_mode");
-      const mode = saved === "dark" ? "dark" : "light";
+      const mode: "light" | "dark" | "sc" = saved === "dark" ? "dark" : saved === "sc" ? "sc" : "light";
       if (mode !== misaMode) setMisaMode(mode);
-      document.documentElement.classList.add("theme-misa");
-      document.body.classList.add("theme-misa");
+      document.documentElement.classList.toggle("theme-sc", mode === "sc");
+      document.body.classList.toggle("theme-sc", mode === "sc");
+      document.documentElement.classList.toggle("theme-misa", mode !== "sc");
+      document.body.classList.toggle("theme-misa", mode !== "sc");
       document.documentElement.classList.toggle("theme-misa-dark", mode === "dark");
       document.body.classList.toggle("theme-misa-dark", mode === "dark");
     }
@@ -171,8 +173,10 @@ function ProcurementAppInner({
 
   useEffect(() => {
     if (typeof window !== "undefined") {
-      document.documentElement.classList.add("theme-misa");
-      document.body.classList.add("theme-misa");
+      document.documentElement.classList.toggle("theme-sc", misaMode === "sc");
+      document.body.classList.toggle("theme-sc", misaMode === "sc");
+      document.documentElement.classList.toggle("theme-misa", misaMode !== "sc");
+      document.body.classList.toggle("theme-misa", misaMode !== "sc");
       document.documentElement.classList.toggle("theme-misa-dark", misaMode === "dark");
       document.body.classList.toggle("theme-misa-dark", misaMode === "dark");
     }
@@ -2755,7 +2759,7 @@ function ProcurementAppInner({
 
   return (
     <div
-      className={`app ${collapsed ? "collapsed" : ""} theme-misa ${misaMode === "dark" ? "theme-misa-dark" : ""}`}
+      className={`app ${collapsed ? "collapsed" : ""} ${misaMode === "sc" ? "theme-sc" : `theme-misa ${misaMode === "dark" ? "theme-misa-dark" : ""}`}`}
     >
       {isAppLoading && (
         <div
