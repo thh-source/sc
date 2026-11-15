@@ -149,41 +149,30 @@ function ProcurementAppInner({
     [collapsed, setCollapsed] = useState(false),
     [prs, setPrs] = useState(prs0),
     [selectedPR, setSelectedPR] = useState(emptyPR);
-  const [misaMode, setMisaMode] = useState<"light" | "dark" | "sc" | "industrial">(() => {
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("scm_misa_mode");
-      if (saved === "dark" || saved === "light" || saved === "sc" || saved === "industrial") return saved;
-    }
-    return "light";
-  });
+  const [misaMode, setMisaMode] = useState<"light" | "sc">("light");
 
   useEffect(() => {
     if (typeof window !== "undefined") {
       const saved = localStorage.getItem("scm_misa_mode");
-      const mode: "light" | "dark" | "sc" | "industrial" =
-        saved === "dark" ? "dark" : saved === "sc" ? "sc" : saved === "industrial" ? "industrial" : "light";
-      if (mode !== misaMode) setMisaMode(mode);
+      const mode: "light" | "sc" = saved === "sc" ? "sc" : "light";
+      setMisaMode(mode);
+      document.documentElement.classList.remove("theme-misa-dark", "theme-industrial");
+      document.body.classList.remove("theme-misa-dark", "theme-industrial");
       document.documentElement.classList.toggle("theme-sc", mode === "sc");
       document.body.classList.toggle("theme-sc", mode === "sc");
-      document.documentElement.classList.toggle("theme-industrial", mode === "industrial");
-      document.body.classList.toggle("theme-industrial", mode === "industrial");
-      document.documentElement.classList.toggle("theme-misa", mode === "light" || mode === "dark");
-      document.body.classList.toggle("theme-misa", mode === "light" || mode === "dark");
-      document.documentElement.classList.toggle("theme-misa-dark", mode === "dark");
-      document.body.classList.toggle("theme-misa-dark", mode === "dark");
+      document.documentElement.classList.toggle("theme-misa", mode === "light");
+      document.body.classList.toggle("theme-misa", mode === "light");
     }
   }, []);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
+      document.documentElement.classList.remove("theme-misa-dark", "theme-industrial");
+      document.body.classList.remove("theme-misa-dark", "theme-industrial");
       document.documentElement.classList.toggle("theme-sc", misaMode === "sc");
       document.body.classList.toggle("theme-sc", misaMode === "sc");
-      document.documentElement.classList.toggle("theme-industrial", misaMode === "industrial");
-      document.body.classList.toggle("theme-industrial", misaMode === "industrial");
-      document.documentElement.classList.toggle("theme-misa", misaMode === "light" || misaMode === "dark");
-      document.body.classList.toggle("theme-misa", misaMode === "light" || misaMode === "dark");
-      document.documentElement.classList.toggle("theme-misa-dark", misaMode === "dark");
-      document.body.classList.toggle("theme-misa-dark", misaMode === "dark");
+      document.documentElement.classList.toggle("theme-misa", misaMode === "light");
+      document.body.classList.toggle("theme-misa", misaMode === "light");
     }
   }, [misaMode]);
   const reportMode = false;
@@ -2765,11 +2754,7 @@ function ProcurementAppInner({
   return (
     <div
       className={`app ${collapsed ? "collapsed" : ""} ${
-        misaMode === "sc"
-          ? "theme-sc"
-          : misaMode === "industrial"
-            ? "theme-industrial"
-            : `theme-misa ${misaMode === "dark" ? "theme-misa-dark" : ""}`
+        misaMode === "sc" ? "theme-sc" : "theme-misa"
       }`}
     >
       {isAppLoading && (

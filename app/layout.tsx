@@ -60,7 +60,7 @@ export default function RootLayout({
         />
         <script
           dangerouslySetInnerHTML={{
-            __html: `try{var m=localStorage.getItem('scm_misa_mode');if(m==='sc'){document.documentElement.classList.add('theme-sc');}else if(m==='industrial'){document.documentElement.classList.add('theme-industrial');}else{document.documentElement.classList.add('theme-misa');if(m==='dark'){document.documentElement.classList.add('theme-misa-dark');}}}catch(e){}`,
+            __html: `try{var m=localStorage.getItem('scm_misa_mode');if(m==='sc'){document.documentElement.classList.add('theme-sc');}else{document.documentElement.classList.add('theme-misa');}}catch(e){}`,
           }}
         />
       </head>
