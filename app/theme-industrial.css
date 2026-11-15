@@ -1,0 +1,483 @@
+/* ==========================================================================
+   PHENIKAA SCMH - INDUSTRIAL PRECISION EDITION (STITCH) THEME
+   Đồng bộ 100% Design Tokens từ dự án Stitch:
+   "Phenikaa SCMH v1.1.2 — Industrial Precision Edition"
+   - Font chữ: Plus Jakarta Sans (UI/Headlines) + JetBrains Mono (Tabular Numbers/Codes)
+   - Màu sắc: Phenikaa Cobalt (#0F4C81 / #00355F), Alabaster Canvas (#F8FAFC),
+     Pure Sheet (#FFFFFF), Structural Hairline (#E2E8F0), Deep Obsidian (#0F172A)
+   - Bo góc: ROUND_FOUR (4px - 6px) sắc nét chuẩn công nghiệp dược
+   ========================================================================== */
+
+html.theme-industrial,
+body.theme-industrial,
+.app.theme-industrial {
+  --primary-50: #eff6ff;
+  --primary-100: #d2e4ff;
+  --primary-500: #0f4c81;
+  --primary-600: #00355f;
+  --primary-700: #001c37;
+  --blue: #0f4c81;
+  --navy: #00355f;
+  --bg-app: #f7f9fb;
+  --bg: #f7f9fb;
+  --ink: #0f172a;
+  --muted: #64748b;
+
+  font-family: var(--font-plus-jakarta-sans), "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif !important;
+  font-size: 14px;
+  line-height: 20px;
+  background-color: #f7f9fb !important;
+  color: #191c1e !important;
+}
+
+html.theme-industrial *,
+body.theme-industrial *,
+.app.theme-industrial *,
+.app.theme-industrial button,
+.app.theme-industrial input,
+.app.theme-industrial select,
+.app.theme-industrial textarea {
+  font-family: var(--font-plus-jakarta-sans), "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+/* Tabular Numbers & Codes in JetBrains Mono */
+.app.theme-industrial .pipeline-money-cell,
+.app.theme-industrial .queue-code-link,
+.app.theme-industrial .dd-code,
+.app.theme-industrial .radar-pill strong,
+.app.theme-industrial .action-kbd,
+.app.theme-industrial .cell-money {
+  font-family: var(--font-jetbrains-mono), "JetBrains Mono", ui-monospace, monospace !important;
+  font-variant-numeric: tabular-nums !important;
+}
+
+/* 1. Sidebar Shell (Pure Sheet #FFFFFF + Cobalt #0F4C81 Left Indicator, ROUND_FOUR) */
+html.theme-industrial aside,
+body.theme-industrial aside,
+.app.theme-industrial aside,
+.app.theme-industrial > aside {
+  background: #ffffff !important;
+  background-image: none !important;
+  border-right: 1px solid #cbd5e1 !important;
+  box-shadow: none !important;
+  color: #334155 !important;
+}
+
+html.theme-industrial aside .brand,
+body.theme-industrial aside .brand,
+.app.theme-industrial aside .brand {
+  background: #00355f !important;
+  border-bottom: 1px solid #0f4c81 !important;
+}
+
+html.theme-industrial aside .brand > span,
+body.theme-industrial aside .brand > span,
+.app.theme-industrial aside .brand > span {
+  background: #ffffff !important;
+  border: 1px solid #d2e4ff !important;
+  border-radius: 4px !important;
+  box-shadow: none !important;
+}
+
+html.theme-industrial aside .brand > b strong,
+body.theme-industrial aside .brand > b strong,
+.app.theme-industrial aside .brand > b strong {
+  color: #ffffff !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.015em !important;
+}
+
+html.theme-industrial aside .brand > b small,
+body.theme-industrial aside .brand > b small,
+.app.theme-industrial aside .brand > b small {
+  color: #a0c9ff !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.04em !important;
+}
+
+html.theme-industrial .sidebar-search-btn,
+body.theme-industrial .sidebar-search-btn,
+.app.theme-industrial .sidebar-search-btn {
+  background: #f2f4f6 !important;
+  border: 1px solid #cbd5e1 !important;
+  color: #42474f !important;
+  border-radius: 4px !important;
+  box-shadow: none !important;
+}
+
+html.theme-industrial .sidebar-search-btn:hover,
+body.theme-industrial .sidebar-search-btn:hover,
+.app.theme-industrial .sidebar-search-btn:hover {
+  background: #eff6ff !important;
+  border-color: #0f4c81 !important;
+  color: #0f4c81 !important;
+}
+
+html.theme-industrial .sidebar-search-btn .search-kbd,
+body.theme-industrial .sidebar-search-btn .search-kbd,
+.app.theme-industrial .sidebar-search-btn .search-kbd {
+  background: #ffffff !important;
+  border: 1px solid #cbd5e1 !important;
+  color: #475569 !important;
+  border-radius: 4px !important;
+}
+
+html.theme-industrial aside nav button,
+body.theme-industrial aside nav button,
+.app.theme-industrial aside nav button {
+  color: #334155 !important;
+  background: transparent !important;
+  border: 1px solid transparent !important;
+  border-radius: 4px !important;
+  font-weight: 500 !important;
+  font-size: 13px !important;
+  box-shadow: none !important;
+}
+
+html.theme-industrial aside nav button:hover,
+body.theme-industrial aside nav button:hover,
+.app.theme-industrial aside nav button:hover {
+  background: #f1f5f9 !important;
+  color: #0f172a !important;
+}
+
+html.theme-industrial aside nav button.active,
+body.theme-industrial aside nav button.active,
+.app.theme-industrial aside nav button.active {
+  background: #eff6ff !important;
+  color: #0f4c81 !important;
+  font-weight: 700 !important;
+  border-left: 3px solid #0f4c81 !important;
+  border-radius: 0 4px 4px 0 !important;
+}
+
+html.theme-industrial aside nav button.active svg,
+body.theme-industrial aside nav button.active svg,
+.app.theme-industrial aside nav button.active svg {
+  color: #0f4c81 !important;
+}
+
+html.theme-industrial .sidebar-bottom-actions,
+body.theme-industrial .sidebar-bottom-actions,
+.app.theme-industrial .sidebar-bottom-actions {
+  background: #f8fafc !important;
+  border-top: 1px solid #e2e8f0 !important;
+}
+
+html.theme-industrial .sidebar-secondary-btn,
+body.theme-industrial .sidebar-secondary-btn,
+.app.theme-industrial .sidebar-secondary-btn {
+  background: #ffffff !important;
+  border: 1px solid #cbd5e1 !important;
+  color: #334155 !important;
+  border-radius: 4px !important;
+}
+
+html.theme-industrial .sidebar-secondary-btn:hover,
+body.theme-industrial .sidebar-secondary-btn:hover,
+.app.theme-industrial .sidebar-secondary-btn:hover {
+  border-color: #0f4c81 !important;
+  color: #0f4c81 !important;
+}
+
+html.theme-industrial .sidebar-user-card,
+body.theme-industrial .sidebar-user-card,
+.app.theme-industrial .sidebar-user-card {
+  background: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 4px !important;
+}
+
+html.theme-industrial .sidebar-user-card .user-avatar,
+body.theme-industrial .sidebar-user-card .user-avatar,
+.app.theme-industrial .sidebar-user-card .user-avatar {
+  background: #0f4c81 !important;
+  color: #ffffff !important;
+  border-radius: 4px !important;
+}
+
+/* 2. Main Canvas & Industrial Sheets (ROUND_FOUR) */
+html.theme-industrial main,
+body.theme-industrial main,
+.app.theme-industrial main,
+.app.theme-industrial .content {
+  background-color: #f7f9fb !important;
+}
+
+.app.theme-industrial .card,
+.app.theme-industrial .kpi-card,
+.app.theme-industrial .pipeline-card,
+.app.theme-industrial .todo-hero-card,
+.app.theme-industrial .pr-panel,
+.app.theme-industrial .catalog-kpi-card,
+.app.theme-industrial .pr-stats article,
+.app.theme-industrial .cards article,
+.app.theme-industrial .radar-pill {
+  background-color: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 4px !important;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04) !important;
+}
+
+/* 3. Dashboard Topbar (Pure Sheet + 3px Cobalt Top Accent) */
+.app.theme-industrial .dashboard-topbar {
+  background: #ffffff !important;
+  border: 1px solid #cbd5e1 !important;
+  border-top: 3px solid #0f4c81 !important;
+  border-radius: 4px !important;
+  padding: 14px 18px !important;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05) !important;
+}
+
+.app.theme-industrial .dashboard-topbar-title h1 {
+  color: #0f172a !important;
+  font-size: 20px !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.015em !important;
+}
+
+.app.theme-industrial .dashboard-topbar-sub {
+  color: #64748b !important;
+  font-size: 12.5px !important;
+}
+
+.app.theme-industrial .live-status-dot {
+  background: #0f4c81 !important;
+  box-shadow: 0 0 0 3px rgba(15, 76, 129, 0.18) !important;
+}
+
+.app.theme-industrial .workflow-action-btn:not(.action-search) {
+  background: #0f4c81 !important;
+  border: 1px solid #00355f !important;
+  color: #ffffff !important;
+  border-radius: 4px !important;
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  box-shadow: none !important;
+}
+
+.app.theme-industrial .workflow-action-btn:not(.action-search):hover {
+  background: #00355f !important;
+  border-color: #001c37 !important;
+  box-shadow: 0 2px 6px rgba(15, 76, 129, 0.22) !important;
+}
+
+.app.theme-industrial .workflow-action-btn.action-search {
+  background: #f8fafc !important;
+  border: 1px solid #cbd5e1 !important;
+  color: #334155 !important;
+  border-radius: 4px !important;
+}
+
+.app.theme-industrial .workflow-action-btn.action-search:hover {
+  border-color: #0f4c81 !important;
+  color: #0f4c81 !important;
+}
+
+/* 4. Radar Strip */
+.app.theme-industrial .radar-pill {
+  padding: 10px 14px !important;
+  font-size: 12.5px !important;
+  font-weight: 600 !important;
+  color: #0f172a !important;
+}
+
+.app.theme-industrial .radar-pill strong {
+  font-size: 18px !important;
+  font-weight: 700 !important;
+}
+
+.app.theme-industrial .radar-pill.active.pill-all {
+  background: #eff6ff !important;
+  border-color: #0f4c81 !important;
+  color: #0f4c81 !important;
+}
+
+.app.theme-industrial .radar-pill.active.pill-overdue {
+  background: #fef2f2 !important;
+  border-color: #dc2626 !important;
+  color: #dc2626 !important;
+}
+
+.app.theme-industrial .radar-pill.active.pill-due {
+  background: #fffbeb !important;
+  border-color: #d97706 !important;
+  color: #d97706 !important;
+}
+
+.app.theme-industrial .radar-dot.dot-slate { background: #0f4c81 !important; }
+.app.theme-industrial .radar-dot.dot-red { background: #dc2626 !important; }
+.app.theme-industrial .radar-dot.dot-amber { background: #d97706 !important; }
+
+/* 5. Pipeline Tabs & Tables */
+.app.theme-industrial .pipeline-stage-tab {
+  font-size: 12.5px !important;
+  font-weight: 600 !important;
+  color: #42474f !important;
+}
+
+.app.theme-industrial .pipeline-stage-tab.active {
+  background: #eff6ff !important;
+  border-bottom: 2px solid #0f4c81 !important;
+  color: #0f4c81 !important;
+  font-weight: 700 !important;
+}
+
+.app.theme-industrial .pipeline-stage-tab.active .queue-pill-count {
+  background: #0f4c81 !important;
+  color: #ffffff !important;
+}
+
+.app.theme-industrial table th,
+.app.theme-industrial .queue-data-table thead th,
+.app.theme-industrial .pr-table th,
+.app.theme-industrial .catalog-table th,
+.app.theme-industrial .payment-table th,
+.app.theme-industrial .compare-table th {
+  background-color: #f2f4f6 !important;
+  color: #42474f !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.04em !important;
+  text-transform: uppercase !important;
+  border-bottom: 1px solid #cbd5e1 !important;
+  border-right: none !important;
+}
+
+.app.theme-industrial table td,
+.app.theme-industrial .queue-data-table tbody td,
+.app.theme-industrial .pr-table td,
+.app.theme-industrial .catalog-table td,
+.app.theme-industrial .payment-table td,
+.app.theme-industrial .compare-table td {
+  font-size: 13px !important;
+  line-height: 18px !important;
+  color: #334155 !important;
+  border-bottom: 1px solid #e2e8f0 !important;
+  border-right: none !important;
+  background: #ffffff !important;
+}
+
+.app.theme-industrial .queue-data-table tbody tr:hover td {
+  background: #f8fafc !important;
+}
+
+.app.theme-industrial .pipeline-card .queue-code-link {
+  color: #0f4c81 !important;
+  font-weight: 600 !important;
+  font-size: 12.5px !important;
+}
+
+.app.theme-industrial .pipeline-card .queue-code-link:hover {
+  color: #00355f !important;
+  text-decoration: underline !important;
+}
+
+.app.theme-industrial .pipeline-doc-sublink-btn {
+  border-radius: 4px !important;
+  background: #f2f4f6 !important;
+  color: #42474f !important;
+  border: 1px solid #cbd5e1 !important;
+}
+
+.app.theme-industrial .pipeline-doc-sublink-btn:hover {
+  background: #eff6ff !important;
+  color: #0f4c81 !important;
+  border-color: #0f4c81 !important;
+}
+
+/* 6. Global Buttons, Inputs, Badges (ROUND_FOUR) */
+.app.theme-industrial button.primary,
+.app.theme-industrial .btn-primary,
+.app.theme-industrial .primary,
+.app.theme-industrial .po-toolbar > button.primary,
+.app.theme-industrial .pr-toolbar > button.primary,
+.app.theme-industrial .product-toolbar > button.primary,
+.app.theme-industrial .supplier-toolbar > button.primary {
+  background: #0f4c81 !important;
+  background-image: none !important;
+  border: 1px solid #00355f !important;
+  color: #ffffff !important;
+  border-radius: 4px !important;
+  font-weight: 600 !important;
+  box-shadow: none !important;
+}
+
+.app.theme-industrial button.primary:hover:not(:disabled),
+.app.theme-industrial .btn-primary:hover:not(:disabled),
+.app.theme-industrial .primary:hover:not(:disabled) {
+  background: #00355f !important;
+}
+
+.app.theme-industrial .btn-secondary,
+.app.theme-industrial .btn-row-action,
+.app.theme-industrial .btn-row-remind,
+.app.theme-industrial .btn-row-complete {
+  border-radius: 4px !important;
+}
+
+.app.theme-industrial .btn-row-action:hover,
+.app.theme-industrial .btn-row-remind:hover {
+  border-color: #0f4c81 !important;
+  color: #0f4c81 !important;
+}
+
+.app.theme-industrial input[type="text"],
+.app.theme-industrial input[type="search"],
+.app.theme-industrial input[type="date"],
+.app.theme-industrial input[type="number"],
+.app.theme-industrial select,
+.app.theme-industrial textarea {
+  border-radius: 4px !important;
+  border-color: #cbd5e1 !important;
+}
+
+.app.theme-industrial input:focus,
+.app.theme-industrial select:focus,
+.app.theme-industrial textarea:focus {
+  border-color: #0f4c81 !important;
+  box-shadow: 0 0 0 3px rgba(15, 76, 129, 0.14) !important;
+}
+
+/* 7. Smart Todo Panel & Modals / Drawers */
+.app.theme-industrial .todo-hero-add-btn,
+.app.theme-industrial .smart-subtask-add-inline button {
+  background: #0f4c81 !important;
+  border-color: #00355f !important;
+  border-radius: 4px !important;
+}
+
+.app.theme-industrial .todo-hero-add-btn:hover:not(:disabled) {
+  background: #00355f !important;
+}
+
+.app.theme-industrial .todo-filter-pill.active,
+.app.theme-industrial .todo-quick-chip.active,
+.app.theme-industrial .smart-drawer-chip.active {
+  background: #0f4c81 !important;
+  border-color: #0f4c81 !important;
+  color: #ffffff !important;
+  border-radius: 4px !important;
+}
+
+.app.theme-industrial .dd-drawer,
+.app.theme-industrial .modal-card,
+.app.theme-industrial .spotlight-modal {
+  border-radius: 4px !important;
+}
+
+.app.theme-industrial .dd-code,
+.app.theme-industrial .dd-step.is-current .dd-step-text {
+  color: #0f4c81 !important;
+}
+
+.app.theme-industrial .dd-step.is-current .dd-step-dot,
+.app.theme-industrial .dd-btn-open {
+  background: #0f4c81 !important;
+  border-color: #0f4c81 !important;
+  border-radius: 4px !important;
+}
+
+.app.theme-industrial .dd-btn-open:hover {
+  background: #00355f !important;
+}

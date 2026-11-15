@@ -18,6 +18,7 @@
 @import "./stitch-v2-enterprise.css";
 @import "./theme-misa.css";
 @import "./theme-sc.css";
+@import "./theme-industrial.css";
 
 * { box-sizing: border-box; }
 

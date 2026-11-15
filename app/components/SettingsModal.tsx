@@ -43,8 +43,8 @@ export interface SettingsModalProps {
   onOpenPrintTemplates?: () => void;
   onOpenAdminSettings?: () => void;
   onStatus?: (msg: string) => void;
-  misaMode?: "light" | "dark" | "sc";
-  onMisaModeChange?: (mode: "light" | "dark" | "sc") => void;
+  misaMode?: "light" | "dark" | "sc" | "industrial";
+  onMisaModeChange?: (mode: "light" | "dark" | "sc" | "industrial") => void;
 }
 
 export function SettingsModal({
@@ -57,25 +57,27 @@ export function SettingsModal({
   misaMode: controlledMode,
   onMisaModeChange,
 }: SettingsModalProps) {
-  // Giao diện: MISA AMIS (Light / Dark) & Phenikaa Precision (SC)
-  const [localMode, setLocalMode] = useState<"light" | "dark" | "sc">(() => {
+  // Giao diện: MISA AMIS (Light / Dark), Phenikaa SC & Industrial Precision (Stitch)
+  const [localMode, setLocalMode] = useState<"light" | "dark" | "sc" | "industrial">(() => {
     if (typeof window !== "undefined") {
       const saved = localStorage.getItem("scm_misa_mode");
-      if (saved === "dark" || saved === "light" || saved === "sc") return saved;
+      if (saved === "dark" || saved === "light" || saved === "sc" || saved === "industrial") return saved;
     }
     return controlledMode || "light";
   });
 
   const activeMode = controlledMode || localMode;
 
-  const handleSelectMisaMode = (mode: "light" | "dark" | "sc") => {
+  const handleSelectMisaMode = (mode: "light" | "dark" | "sc" | "industrial") => {
     setLocalMode(mode);
     if (typeof window !== "undefined") {
       localStorage.setItem("scm_misa_mode", mode);
       document.documentElement.classList.toggle("theme-sc", mode === "sc");
       document.body.classList.toggle("theme-sc", mode === "sc");
-      document.documentElement.classList.toggle("theme-misa", mode !== "sc");
-      document.body.classList.toggle("theme-misa", mode !== "sc");
+      document.documentElement.classList.toggle("theme-industrial", mode === "industrial");
+      document.body.classList.toggle("theme-industrial", mode === "industrial");
+      document.documentElement.classList.toggle("theme-misa", mode === "light" || mode === "dark");
+      document.body.classList.toggle("theme-misa", mode === "light" || mode === "dark");
       document.documentElement.classList.toggle("theme-misa-dark", mode === "dark");
       document.body.classList.toggle("theme-misa-dark", mode === "dark");
     }
@@ -83,11 +85,13 @@ export function SettingsModal({
       onMisaModeChange(mode);
     }
     onStatus?.(
-      mode === "sc"
-        ? "Đã kích hoạt Giao diện Phenikaa Precision (Navy & Orange)"
-        : mode === "dark"
-          ? "Đã kích hoạt Giao diện MISA AMIS Dark (Nền tối dịu mắt)"
-          : "Đã kích hoạt Giao diện MISA AMIS Light (Nền sáng chuẩn doanh nghiệp)"
+      mode === "industrial"
+        ? "Đã kích hoạt Giao diện Industrial Precision (Stitch Cobalt #0F4C81)"
+        : mode === "sc"
+          ? "Đã kích hoạt Giao diện Phenikaa Precision (Navy & Orange)"
+          : mode === "dark"
+            ? "Đã kích hoạt Giao diện MISA AMIS Dark (Nền tối dịu mắt)"
+            : "Đã kích hoạt Giao diện MISA AMIS Light (Nền sáng chuẩn doanh nghiệp)"
     );
   };
 
@@ -307,7 +311,7 @@ export function SettingsModal({
             Chọn giao diện hiển thị phù hợp với phong cách và môi trường làm việc:
           </p>
 
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: "10px" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: "10px" }}>
             {/* Mode 1: MISA AMIS Light */}
             <button
               type="button"
@@ -578,6 +582,97 @@ export function SettingsModal({
 
               <span style={{ fontSize: "11px", color: "#64748b", lineHeight: 1.35 }}>
                 Font Be Vietnam Pro, Sidebar Navy #0f2340, điểm nhấn Cam #ea580c chuẩn Phenikaa SC.
+              </span>
+            </button>
+
+            {/* Mode 4: Industrial Precision (Stitch) */}
+            <button
+              type="button"
+              onClick={() => handleSelectMisaMode("industrial")}
+              style={{
+                textAlign: "left",
+                border: activeMode === "industrial" ? "2px solid #0f4c81" : "1px solid #cbd5e1",
+                backgroundColor: activeMode === "industrial" ? "#eff6ff" : "#ffffff",
+                borderRadius: "6px",
+                padding: "12px",
+                cursor: "pointer",
+                transition: "all 0.15s ease",
+                display: "flex",
+                flexDirection: "column",
+                gap: "8px",
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%" }}>
+                <span
+                  style={{
+                    fontSize: "13px",
+                    fontWeight: 700,
+                    color: activeMode === "industrial" ? "#0f4c81" : "#1e293b",
+                  }}
+                >
+                  🔷 Industrial Precision (Stitch)
+                </span>
+                {activeMode === "industrial" ? (
+                  <span
+                    style={{
+                      fontSize: "11px",
+                      fontWeight: 700,
+                      color: "#0f4c81",
+                      backgroundColor: "#d2e4ff",
+                      padding: "1px 6px",
+                      borderRadius: "4px",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "3px",
+                    }}
+                  >
+                    <Check size={12} /> Đang dùng
+                  </span>
+                ) : (
+                  <span style={{ fontSize: "11px", color: "#94a3b8" }}>Chọn dùng</span>
+                )}
+              </div>
+
+              <div
+                style={{
+                  height: "56px",
+                  borderRadius: "4px",
+                  overflow: "hidden",
+                  border: "1px solid #cbd5e1",
+                  display: "flex",
+                  backgroundColor: "#f7f9fb",
+                  width: "100%",
+                }}
+              >
+                <div
+                  style={{
+                    width: "32px",
+                    backgroundColor: "#ffffff",
+                    borderRight: "1px solid #cbd5e1",
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    padding: "0 0 5px",
+                    gap: "3px",
+                  }}
+                >
+                  <div style={{ width: "100%", height: "14px", backgroundColor: "#00355f" }} />
+                  <div style={{ width: "18px", height: "2.5px", borderRadius: "1px", backgroundColor: "#cbd5e1" }} />
+                  <div style={{ width: "18px", height: "3px", borderRadius: "1px", backgroundColor: "#0f4c81" }} />
+                  <div style={{ width: "18px", height: "2.5px", borderRadius: "1px", backgroundColor: "#cbd5e1" }} />
+                </div>
+                <div style={{ flex: 1, padding: "5px 7px", display: "flex", flexDirection: "column", gap: "3px" }}>
+                  <div style={{ width: "100%", height: "8px", borderRadius: "2px", backgroundColor: "#ffffff", border: "1px solid #cbd5e1", borderTop: "2px solid #0f4c81" }} />
+                  <div style={{ display: "flex", gap: "3px" }}>
+                    <div style={{ flex: 1, height: "12px", borderRadius: "2px", backgroundColor: "#ffffff", border: "1px solid #e2e8f0" }} />
+                    <div style={{ flex: 1, height: "12px", borderRadius: "2px", backgroundColor: "#ffffff", border: "1px solid #e2e8f0" }} />
+                  </div>
+                  <div style={{ height: "14px", borderRadius: "2px", backgroundColor: "#ffffff", border: "1px solid #e2e8f0" }} />
+                </div>
+              </div>
+
+              <span style={{ fontSize: "11px", color: "#64748b", lineHeight: 1.35 }}>
+                Plus Jakarta Sans + JetBrains Mono, Cobalt #0F4C81, bo góc 4px sắc nét từ Stitch.
               </span>
             </button>
           </div>
