@@ -3,7 +3,7 @@ import { CapacitorUpdater } from "@capgo/capacitor-updater";
 import { App } from "@capacitor/app";
 import { CURRENT_APP_VERSION } from "../version";
 
-export const REMOTE_API_BASE = "https://quan-ly-mua-hang.sc-pnk.workers.dev";
+export const REMOTE_API_BASE = "https://pnk.scmh.workers.dev";
 
 export interface AppVersionInfo {
   latestVersion: string;

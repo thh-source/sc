@@ -14,7 +14,7 @@
 export const TELEGRAM_BOT_TOKEN_FALLBACK = "9070832704:AAG4_wVrNaKj87Z8iaM3kYg-Cnp_ClbPH50";
 export const MASTER_WORKSPACE_ID = "b7f7f770-898b-4e2d-983f-9e640a42950d";
 export const MASTER_STATE_KEY = `procurement:${MASTER_WORKSPACE_ID}`;
-export const BASE_WEB_URL = "https://pnk.sc-pnk.workers.dev";
+export const BASE_WEB_URL = "https://pnk.scmh.workers.dev";
 
 export interface TelegramUser {
   id: number;

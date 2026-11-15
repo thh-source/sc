@@ -27,7 +27,7 @@ const DEFAULT_APP_VERSION = {
   buildNumber: "20261028.01",
   buildDate: "28/10/2026, 07:15:00",
   minSupportedVersion: "1.0.0",
-  downloadUrl: "https://pnk.sc-pnk.workers.dev/api/app-version/download?version=1.0.1",
+  downloadUrl: "https://pnk.scmh.workers.dev/api/app-version/download?version=1.0.1",
   checksum: "",
   releaseNotes: "Cập nhật tính năng OTA Update từ xa, tự động đồng bộ Todo List D1, tối ưu hóa giao diện bàn giao PO và chế độ Offline-First",
 };
@@ -105,7 +105,7 @@ export async function POST(request: Request) {
         buildNumber: (formData.get("buildNumber") as string) || `${new Date().toISOString().slice(0, 10).replace(/-/g, "")}.01`,
         buildDate: (formData.get("buildDate") as string) || new Date().toLocaleString("vi-VN"),
         minSupportedVersion: "1.0.0",
-        downloadUrl: `https://pnk.sc-pnk.workers.dev/api/app-version/download?version=${encodeURIComponent(version)}`,
+        downloadUrl: `https://pnk.scmh.workers.dev/api/app-version/download?version=${encodeURIComponent(version)}`,
         checksum: "",
         releaseNotes: notes,
         updatedAt: new Date().toISOString(),
@@ -127,7 +127,7 @@ export async function POST(request: Request) {
     const version = body.latestVersion || body.version || "1.0.1";
     const downloadUrl =
       body.downloadUrl ||
-      `https://quan-ly-mua-hang.sc-pnk.workers.dev/api/app-version/download?version=${encodeURIComponent(version)}`;
+      `https://pnk.scmh.workers.dev/api/app-version/download?version=${encodeURIComponent(version)}`;
 
     const versionPayload = {
       latestVersion: version,

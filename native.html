@@ -10,7 +10,7 @@
     // Fetch Proxy cho Capacitor Native
     (function() {
       if (typeof window !== "undefined" && window.Capacitor && window.Capacitor.isNativePlatform()) {
-        var REMOTE = "https://pnk.sc-pnk.workers.dev";
+        var REMOTE = "https://pnk.scmh.workers.dev";
         var origFetch = window.fetch;
         window.fetch = function(input, init) {
           if (typeof input === "string" && input.startsWith("/api/")) {

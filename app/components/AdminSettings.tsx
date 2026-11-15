@@ -124,11 +124,11 @@ export function AdminSettings({
   const apkDownloadUrl = useMemo(() => {
     if (typeof window !== "undefined") {
       const base = window.location.origin.includes("localhost")
-        ? "https://quan-ly-mua-hang.sc-pnk.workers.dev"
+        ? "https://pnk.scmh.workers.dev"
         : window.location.origin;
       return `${base}/api/app-version/download?type=apk`;
     }
-    return "https://quan-ly-mua-hang.sc-pnk.workers.dev/api/app-version/download?type=apk";
+    return "https://pnk.scmh.workers.dev/api/app-version/download?type=apk";
   }, []);
 
   const handleCopyApkLink = () => {

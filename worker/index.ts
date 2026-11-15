@@ -31,7 +31,7 @@ const worker = {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const reqOrigin = request.headers.get("Origin") || "";
     const isAllowedOrigin =
-      reqOrigin === "https://pnk.sc-pnk.workers.dev" ||
+      reqOrigin === "https://pnk.scmh.workers.dev" ||
       reqOrigin.startsWith("http://localhost") ||
       reqOrigin.startsWith("https://localhost") ||
       reqOrigin.startsWith("http://127.0.0.1") ||
