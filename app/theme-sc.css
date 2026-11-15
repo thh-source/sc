@@ -26,6 +26,8 @@ body.theme-sc,
   --primary-600: #234778;
   --primary-700: #0f2340;
   --blue: #19355c;
+  --info-solid: #19355c;
+  --info-text: #19355c;
   --navy: #0f2340;
   --bg-app: #f8fafc;
   --bg: #f8fafc;
@@ -373,13 +375,13 @@ body.theme-sc main,
 
 .app.theme-sc .pipeline-stage-tab.active {
   background: transparent !important;
-  border-bottom: 2px solid #2563eb !important;
-  color: #2563eb !important;
+  border-bottom: 2px solid #ea580c !important;
+  color: #19355c !important;
   font-weight: 700 !important;
 }
 
 .app.theme-sc .pipeline-stage-tab.active .queue-pill-count {
-  background: #2563eb !important;
+  background: #19355c !important;
   color: #ffffff !important;
 }
 
@@ -422,14 +424,14 @@ body.theme-sc main,
 }
 
 .app.theme-sc .pipeline-card .queue-code-link {
-  color: #2563eb !important;
+  color: #19355c !important;
   font-weight: 600 !important;
   font-size: 12px !important;
   line-height: 1.35 !important;
 }
 
 .app.theme-sc .pipeline-card .queue-code-link:hover {
-  color: #1d4ed8 !important;
+  color: #ea580c !important;
   text-decoration: underline !important;
 }
 
@@ -451,9 +453,9 @@ body.theme-sc main,
 }
 
 .app.theme-sc .pipeline-doc-sublink-btn:hover {
-  background: #eff6ff !important;
-  color: #2563eb !important;
-  border-color: #bfdbfe !important;
+  background: #f1f5f9 !important;
+  color: #19355c !important;
+  border-color: #cbd5e1 !important;
 }
 
 /* 1-line clean title + 1-line subtitle like D:\SC */
@@ -526,7 +528,7 @@ body.theme-sc main,
 }
 
 .app.theme-sc .inline-note-trigger:hover {
-  color: #2563eb !important;
+  color: #19355c !important;
   background: transparent !important;
 }
 
@@ -672,4 +674,123 @@ body.theme-sc main,
   color: #0f2340 !important;
   font-weight: 700 !important;
   letter-spacing: -0.015em !important;
+}
+
+/* 12. Override ALL remaining AMIS Blue Buttons, Gradients, Pills, Tabs & Accents across all modules */
+html.theme-sc .app.theme-sc button.primary,
+html.theme-sc .app.theme-sc .btn-primary,
+html.theme-sc .app.theme-sc .payment-btn.btn-primary,
+html.theme-sc .app.theme-sc .payment-btn-primary,
+html.theme-sc .app.theme-sc .payment-btn.btn-success,
+html.theme-sc .app.theme-sc .po-create-btn,
+html.theme-sc .app.theme-sc .po-save-btn,
+html.theme-sc .app.theme-sc .po-save-back-btn,
+html.theme-sc .app.theme-sc .btn-accent,
+html.theme-sc .app.theme-sc .btn-teal,
+html.theme-sc .app.theme-sc .btn-success,
+html.theme-sc .app.theme-sc .m-btn-primary,
+html.theme-sc .app.theme-sc .m-btn-success,
+html.theme-sc .app.theme-sc .m-action-btn.m-btn-primary,
+html.theme-sc .app.theme-sc .m-action-btn.m-btn-success,
+html.theme-sc .app.theme-sc .approval-source-btn,
+html.theme-sc .app.theme-sc .approval-source-btn.source-compare,
+html.theme-sc .app.theme-sc .approval-source-btn.source-pr,
+html.theme-sc .app.theme-sc .btn-approve-status,
+html.theme-sc .app.theme-sc .btn-create-po-from-approval,
+html.theme-sc .app.theme-sc .filter-actions button:last-child,
+html.theme-sc .app.theme-sc .dd-btn-open-module,
+html.theme-sc .app.theme-sc .dd-btn-open,
+html.theme-sc .app.theme-sc .trash-filter-pill.active,
+html.theme-sc .app.theme-sc .radar-pill.active,
+html.theme-sc .app.theme-sc .todo-mode-tab.active,
+html.theme-sc .app.theme-sc .todo-chip.active,
+html.theme-sc .app.theme-sc .pipeline-view-toggle button.active,
+html.theme-sc .app.theme-sc .settings-theme-card.active .settings-theme-badge,
+html.theme-sc .app.theme-sc .fab-main-btn {
+  background: #19355c !important;
+  background-image: none !important;
+  color: #ffffff !important;
+  border: 1px solid #19355c !important;
+  box-shadow: 0 2px 6px rgba(15, 35, 64, 0.16) !important;
+}
+
+html.theme-sc .app.theme-sc button.primary:hover:not(:disabled),
+html.theme-sc .app.theme-sc .btn-primary:hover:not(:disabled),
+html.theme-sc .app.theme-sc .payment-btn.btn-primary:hover:not(:disabled),
+html.theme-sc .app.theme-sc .payment-btn-primary:hover:not(:disabled),
+html.theme-sc .app.theme-sc .payment-btn.btn-success:hover:not(:disabled),
+html.theme-sc .app.theme-sc .po-create-btn:hover:not(:disabled),
+html.theme-sc .app.theme-sc .po-save-btn:hover:not(:disabled),
+html.theme-sc .app.theme-sc .po-save-back-btn:hover:not(:disabled),
+html.theme-sc .app.theme-sc .btn-accent:hover:not(:disabled),
+html.theme-sc .app.theme-sc .btn-teal:hover:not(:disabled),
+html.theme-sc .app.theme-sc .btn-success:hover:not(:disabled),
+html.theme-sc .app.theme-sc .m-btn-primary:hover:not(:disabled),
+html.theme-sc .app.theme-sc .m-btn-success:hover:not(:disabled),
+html.theme-sc .app.theme-sc .m-action-btn.m-btn-primary:hover:not(:disabled),
+html.theme-sc .app.theme-sc .m-action-btn.m-btn-success:hover:not(:disabled),
+html.theme-sc .app.theme-sc .approval-source-btn:hover:not(:disabled),
+html.theme-sc .app.theme-sc .approval-source-btn.source-compare:hover:not(:disabled),
+html.theme-sc .app.theme-sc .approval-source-btn.source-pr:hover:not(:disabled),
+html.theme-sc .app.theme-sc .btn-approve-status:hover:not(:disabled),
+html.theme-sc .app.theme-sc .btn-create-po-from-approval:hover:not(:disabled),
+html.theme-sc .app.theme-sc .filter-actions button:last-child:hover:not(:disabled),
+html.theme-sc .app.theme-sc .dd-btn-open-module:hover:not(:disabled),
+html.theme-sc .app.theme-sc .dd-btn-open:hover:not(:disabled),
+html.theme-sc .app.theme-sc .fab-main-btn:hover {
+  background: #234778 !important;
+  background-image: none !important;
+  border-color: #234778 !important;
+  box-shadow: 0 4px 12px rgba(15, 35, 64, 0.24) !important;
+}
+
+/* Primary Orange CTA on Dashboard Topbar (+ Lập PR mới) & Todo Add */
+html.theme-sc .app.theme-sc .workflow-action-btn:first-child:not(.action-search),
+html.theme-sc .app.theme-sc .todo-hero-add-btn,
+html.theme-sc .app.theme-sc .smart-subtask-add-inline button {
+  background: #ea580c !important;
+  background-image: none !important;
+  border: 1px solid #ea580c !important;
+  color: #ffffff !important;
+  box-shadow: 0 2px 8px rgba(234, 88, 12, 0.24) !important;
+}
+
+html.theme-sc .app.theme-sc .workflow-action-btn:first-child:not(.action-search):hover:not(:disabled),
+html.theme-sc .app.theme-sc .todo-hero-add-btn:hover:not(:disabled),
+html.theme-sc .app.theme-sc .smart-subtask-add-inline button:hover:not(:disabled) {
+  background: #c2410c !important;
+  border-color: #c2410c !important;
+}
+
+/* Remaining Navy accents in Drawers, Radar dots, Progress & Links */
+html.theme-sc .app.theme-sc .dd-step.is-current .dd-step-circle {
+  background: #ea580c !important;
+  border-color: #ea580c !important;
+}
+
+html.theme-sc .app.theme-sc .radar-dot.dot-slate {
+  background: #19355c !important;
+}
+
+html.theme-sc .app.theme-sc .radar-dot.dot-orange {
+  background: #ea580c !important;
+}
+
+html.theme-sc .app.theme-sc .pipeline-progress-fill,
+html.theme-sc .app.theme-sc .dd-progress-fill {
+  background: linear-gradient(90deg, #19355c, #ea580c) !important;
+}
+
+html.theme-sc .app.theme-sc a.doc-link,
+html.theme-sc .app.theme-sc .code-link,
+html.theme-sc .app.theme-sc .pr-code-link,
+html.theme-sc .app.theme-sc .po-code-link {
+  color: #19355c !important;
+}
+
+html.theme-sc .app.theme-sc a.doc-link:hover,
+html.theme-sc .app.theme-sc .code-link:hover,
+html.theme-sc .app.theme-sc .pr-code-link:hover,
+html.theme-sc .app.theme-sc .po-code-link:hover {
+  color: #ea580c !important;
 }
